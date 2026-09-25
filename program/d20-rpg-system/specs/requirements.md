@@ -1,6 +1,6 @@
 # Requirements — Ruleswright
 
-> **Status:** Revised after the builder walkthrough (Q1–Q5 locked, decision log at bottom).
+> **Status:** Revised after the builder walkthrough (Q1–Q5 locked, legal hardening Q8, decision log at bottom).
 > Supersedes the initial draft in its entirety. Renamed to **Ruleswright**; expression policy applied (decision log Q6–Q7).
 >
 > **Governing principle: rules are data.** The engine implements mechanics *generically*;
@@ -206,6 +206,7 @@ expands theme templates into packs deterministically from a seed.
   - [ ] 1 documented example override.
 - **Theme split:**
   - [ ] **Dark fantasy** = vancian showcase: ~3 classes, **~40ish spells across levels 1–3**, full race matrix with demihuman multi-class and level caps.
+  - [ ] All spell, class, and save names coined (expression policy, NFR-Legal): no SRD spell names or statblock phrasing even where OGL-licensed names exist — original-only keeps the pack entirely outside the OGL.
   - [ ] **Zombie urban** = drain-pool & table showcase: survivor classes with a stamina/adrenaline pool, skills-heavy (scavenging, fortification, streetwise), table-heavy (infection saves, district loot), no vancian magic (small ritual/psychic list at most).
   - [ ] Progression tables cover levels 1–10; demihuman caps land lower.
   - [ ] Both packs validate cleanly through the runtime validator (FR-2).
@@ -238,7 +239,7 @@ expands theme templates into packs deterministically from a seed.
 - **Platform:** Node LTS, evergreen browsers, Electron. ESM primary. Consumable from plain JavaScript with full TypeScript types available.
 - **DX:** Full TypeScript types on every public surface. Docs whose examples are runnable code — the quickstart is copy-paste: generate a pack → build a character → run three rounds of combat. Error messages name the artifact, the JSON path, and the violated rule.
 - **Dependencies:** Near-zero runtime dependencies; build/dev tooling unconstrained (Architect's call).
-- **Legal & Expression:** No third-party product-identity terms in shipped content or public docs. "d20" appears only as a generic descriptive term in body text — never in a title, logo, or system name; the final product name (**Ruleswright**) must remain clear of WotC-adjacent marks before any public release. Edition-specific mechanics are described in coined terms (e.g., "class attack table," "five named saves"), never by protected product names.
+- **Legal & Expression:** No third-party product-identity terms in shipped content or public docs. "d20" appears only as a generic descriptive term in body text — never in a title, logo, or system name; the final product name (**Ruleswright**) must remain clear of existing marks in tabletop gaming and developer tooling before any public release — npm availability is not trademark clearance; run a USPTO search (nearest neighbor: Gamewright, a tabletop publisher). Edition-specific mechanics are described in coined terms (e.g., "class attack table," "five named saves"), never by protected product names.
 
 ## Constraints
 
@@ -285,3 +286,4 @@ expands theme templates into packs deterministically from a seed.
 | Q5 | Runtime/format/compiler as separate consumable surfaces; `schemaVersion` contract; DX bar (types + runnable docs) | FR-22, FR-23, NFR-DX |
 | Q6 | **Rename to Ruleswright** (legal: "d20 System" is WotC-adjacent; Ruleswright verified available on npm). Final name cleared before public release; `d20-rpg-system` remains internal codename only | Headers, NFR-Legal |
 | Q7 | **Expression policy:** original content only; coined terminology for edition-specific mechanics; optional pack `license`/`attribution` metadata (carried, not enforced) | FR-2, NFR-Legal, Constraints |
+| Q8 | Legal hardening: coined-names rule bites at the authoring floor, not just globally; clearance scope = existing marks in tabletop gaming and developer tooling; USPTO search required (npm availability ≠ clearance) | FR-21, NFR-Legal |
