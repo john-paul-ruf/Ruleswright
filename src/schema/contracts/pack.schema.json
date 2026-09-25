@@ -1,0 +1,308 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ruleswright.dev/schemas/1/pack.schema.json",
+  "title": "Ruleswright Pack — schemaVersion 1",
+  "description": "The complete JSON rules + content document the runtime consumes. Closed: unknown fields are validation errors (E-SCHEMA-02). No timestamps or ambient values anywhere — provenance is exactly {theme, seed, knobs} (byte-identical regeneration, FR-17).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["manifest", "stats", "actions", "formulas", "content", "progression", "bestiary", "tables"],
+  "properties": {
+    "manifest": { "$ref": "#/$defs/manifest" },
+    "stats": { "$ref": "#/$defs/stats" },
+    "actions": { "$ref": "#/$defs/idMap", "description": "actionId -> ActionDef" },
+    "formulas": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["expr"],
+        "properties": {
+          "params": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+          "expr": { "$ref": "#/$defs/dslString" }
+        }
+      }
+    },
+    "content": { "$ref": "#/$defs/content" },
+    "progression": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/idPattern" },
+      "additionalProperties": { "$ref": "#/$defs/classProgression" }
+    },
+    "bestiary": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/idPattern" },
+      "additionalProperties": { "$ref": "#/$defs/statblock" }
+    },
+    "tables": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/idPattern" },
+      "additionalProperties": { "$ref": "#/$defs/tableDef" }
+    }
+  },
+
+  "$defs": {
+    "idPattern": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "dslString": { "type": "string", "minLength": 1, "description": "Formula/effect mini-language source; parsed once at load into an AST. Parse failure = E-FORM-01; unknown function = E-FORM-02; unknown ability/save = E-FORM-03." },
+
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "schemaVersion", "title"],
+      "properties": {
+        "id": { "$ref": "#/$defs/idPattern" },
+        "schemaVersion": { "const": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "license": { "type": "string", "description": "Carried and surfaced, never enforced (FR-2, Q7)" },
+        "attribution": { "type": "string" },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["theme", "seed"],
+          "properties": {
+            "theme": { "type": "string" },
+            "seed": { "type": ["integer", "string"] },
+            "knobs": { "type": "object" }
+          }
+        }
+      }
+    },
+
+    "stats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["abilities", "saves"],
+      "properties": {
+        "abilities": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/idPattern" } },
+        "saves": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/idPattern" } }
+      }
+    },
+
+    "idMap": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/idPattern" },
+      "additionalProperties": true
+    },
+
+    "actionDef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cost", "effect"],
+      "properties": {
+        "cost": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "slots": { "type": "object", "minProperties": 1, "additionalProperties": { "type": "integer", "minimum": 1 } },
+            "points": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["pool", "amount"],
+              "properties": { "pool": { "type": "string" }, "amount": { "type": "integer", "minimum": 1 } }
+            },
+            "vancian": { "type": "integer", "minimum": 1, "maximum": 9, "description": "Consumes a BOUND slot of this level; empty slot cannot cast (FR-8)" }
+          }
+        },
+        "valid": { "$ref": "#/$defs/dslString" },
+        "trigger": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["on"],
+          "properties": { "on": { "type": "string", "minLength": 1, "description": "Event pattern; presence makes the action reactive (FR-4/FR-13)" } }
+        },
+        "effect": { "$ref": "#/$defs/dslString" }
+      }
+    },
+
+    "content": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "classes": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/idPattern" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string" },
+              "spellLists": { "type": "array", "items": { "type": "string" } },
+              "armorCasting": { "type": "array", "items": { "type": "string" }, "description": "Armor types in which this class may cast — pack data (FR-9)" },
+              "features": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["level", "ref"], "properties": { "level": { "type": "integer", "minimum": 1 }, "ref": { "type": "string" } } } }
+            }
+          }
+        },
+        "races": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/idPattern" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string" },
+              "caps": { "type": "object", "description": "classId -> max level; classic level-cap curve (FR-6). Unknown classId = E-REF-02", "additionalProperties": { "type": "integer", "minimum": 1 } }
+            }
+          }
+        },
+        "skills": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/idPattern" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "ability"],
+            "properties": { "name": { "type": "string" }, "ability": { "type": "string", "description": "Must name an ability in stats.abilities" } }
+          }
+        },
+        "feats": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/idPattern" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string" },
+              "passive": { "$ref": "#/$defs/dslString" },
+              "trigger": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["on"],
+                "properties": { "on": { "type": "string" } }
+              },
+              "effect": { "$ref": "#/$defs/dslString" }
+            }
+          }
+        },
+        "spells": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/idPattern" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "magic", "cost", "effect"],
+            "properties": {
+              "name": { "type": "string" },
+              "magic": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["level", "lists"],
+                "properties": { "level": { "type": "integer", "minimum": 1, "maximum": 9 }, "lists": { "type": "array", "minItems": 1, "items": { "type": "string" } } }
+              },
+              "cost": { "$ref": "#/$defs/actionDef/properties/cost" },
+              "effect": { "$ref": "#/$defs/dslString" },
+              "targeting": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["shape"],
+                "properties": {
+                  "shape": { "enum": ["single", "burst"], "description": "v1 shapes only; cone/line deferred as engine geometry (FR-11)" },
+                  "radius": { "type": "integer", "minimum": 1 }
+                },
+                "allOf": [{ "if": { "properties": { "shape": { "const": "burst" } } }, "then": { "required": ["radius"] } }]
+              }
+            }
+          }
+        },
+        "conditions": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/idPattern" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "duration", "stacking"],
+            "properties": {
+              "name": { "type": "string" },
+              "duration": { "type": "integer", "minimum": 1 },
+              "stacking": { "enum": ["refresh", "stack", "ignore"], "description": "Pack-declared stacking policy (FR-7)" },
+              "restricts": { "type": "array", "items": { "type": "string" }, "description": "Action tag patterns blocked while active — the condition's teeth (FR-7)" }
+            }
+          }
+        },
+        "items": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/idPattern" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name"],
+            "properties": { "name": { "type": "string" }, "kind": { "type": "string" } }
+          }
+        }
+      }
+    },
+
+    "classProgression": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hd", "saves"],
+      "properties": {
+        "hd": { "enum": ["d6", "d8", "d10", "d12"] },
+        "attackTable": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["level", "byDefense"],
+            "properties": {
+              "level": { "type": "integer", "minimum": 1, "maximum": 10 },
+              "byDefense": { "type": "object", "minProperties": 1, "additionalProperties": { "type": "integer" }, "description": "defenseValue -> toHit; keys are pack convention (descending-AC = keys \"2\"..\"9\"). The engine never knows (FR-3)" }
+            }
+          }
+        },
+        "attackBonus": { "$ref": "#/$defs/dslString", "description": "Ascending-AC alternative. XOR with attackTable — exactly one convention per class" },
+        "saves": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "type": "array", "minItems": 1, "items": { "type": "integer" }, "description": "Per-level save values; names must exist in stats.saves; length = max level" }
+        },
+        "slots": {
+          "type": "object",
+          "additionalProperties": { "type": "array", "minItems": 1, "items": { "type": "integer", "minimum": 0 }, "description": "Vancian slots per class level, indexed by spell level (FR-8)" }
+        }
+      }
+    },
+
+    "statblock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "threat", "actions"],
+      "properties": {
+        "name": { "type": "string" },
+        "threat": { "type": "number", "exclusiveMinimum": 0, "description": "FR-16 budget weight" },
+        "level": { "type": "integer", "minimum": 1 },
+        "hd": { "enum": ["d6", "d8", "d10", "d12"] },
+        "abilityOverrides": { "type": "object", "additionalProperties": { "type": "integer" } },
+        "saveOverrides": { "type": "object", "additionalProperties": { "type": "integer" } },
+        "attackTable": { "type": "string", "description": "Reference to a progression attack table" },
+        "actions": { "type": "array", "minItems": 1, "items": { "type": "string" }, "description": "Action ids — same machinery as characters (FR-16)" }
+      }
+    },
+
+    "tableDef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "entries"],
+      "properties": {
+        "kind": { "enum": ["weighted", "ranged", "nested"] },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["value"],
+            "properties": {
+              "weight": { "type": "integer", "minimum": 1 },
+              "min": { "type": "integer" },
+              "max": { "type": "integer" },
+              "value": { "description": "Scalar, object, or reference to another table (nested); depth bounded at load (E-TBL-01)" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ruleswright.dev/schemas/1/snapshots.schema.json",
+  "title": "Ruleswright Snapshot Envelopes — snapshotVersion 1",
+  "description": "Three serializers (FR-14): character, party, combat. State only — no timestamps, no captured environment. Every envelope carries pack identity; combat pairs with a party snapshot. Load discipline: identity check first; mismatch = loud refusal E-SNAP-01; stale version = E-SNAP-02. No v1 migration.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/characterSnapshot" },
+    { "$ref": "#/$defs/partySnapshot" },
+    { "$ref": "#/$defs/combatSnapshot" }
+  ],
+
+  "$defs": {
+    "packIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "schemaVersion", "contentHash"],
+      "properties": {
+        "id": { "type": "string" },
+        "schemaVersion": { "type": "integer", "minimum": 1 },
+        "contentHash": { "type": "string", "minLength": 8, "description": "Pack content hash; mismatch on load = E-SNAP-01 (FR-14)" }
+      }
+    },
+
+    "rngState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["a", "b", "c", "d"],
+      "properties": {
+        "a": { "type": "integer", "minimum": 0, "maximum": 4294967295 },
+        "b": { "type": "integer", "minimum": 0, "maximum": 4294967295 },
+        "c": { "type": "integer", "minimum": 0, "maximum": 4294967295 },
+        "d": { "type": "integer", "minimum": 0, "maximum": 4294967295 }
+      },
+      "description": "Four uint32 sfc32 words (FR-1). Resume test: next roll equals the uninterrupted fight's next roll."
+    },
+
+    "characterState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "race", "classes", "abilities", "conditions", "inventory"],
+      "properties": {
+        "name": { "type": "string" },
+        "race": { "type": "string" },
+        "classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "level"],
+            "properties": {
+              "id": { "type": "string" },
+              "level": { "type": "integer", "minimum": 1, "maximum": 10 },
+              "xp": { "type": "integer", "minimum": 0, "description": "XP accumulates per class per pack split policy (FR-6)" }
+            }
+          }
+        },
+        "abilities": { "type": "object", "minProperties": 1, "additionalProperties": { "type": "integer" }, "description": "Name-keyed (FR-5)" },
+        "skills": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+        "feats": { "type": "array", "items": { "type": "string" } },
+        "knownSpells": { "type": "array", "items": { "type": "string" } },
+        "pools": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 }, "description": "poolId -> current points (FR-8)" },
+        "slots": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": ["null", "string"], "description": "Binding: null = empty slot, string = memorized spell id (FR-8)" }
+          }
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "remaining"],
+            "properties": { "id": { "type": "string" }, "remaining": { "type": "integer", "minimum": 0 } }
+          }
+        },
+        "inventory": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "qty"],
+            "properties": { "id": { "type": "string" }, "qty": { "type": "integer", "minimum": 1 } }
+          }
+        }
+      }
+    },
+
+    "characterSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "snapshotVersion", "pack", "state"],
+      "properties": {
+        "kind": { "const": "character" },
+        "snapshotVersion": { "const": 1 },
+        "pack": { "$ref": "#/$defs/packIdentity" },
+        "state": { "$ref": "#/$defs/characterState" }
+      }
+    },
+
+    "partySnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "snapshotVersion", "pack", "members"],
+      "properties": {
+        "kind": { "const": "party" },
+        "snapshotVersion": { "const": 1 },
+        "pack": { "$ref": "#/$defs/packIdentity" },
+        "members": { "type": "array", "items": { "$ref": "#/$defs/characterState" } }
+      }
+    },
+
+    "combatSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "snapshotVersion", "pack", "pairsWith", "round", "turn", "order", "rng", "combatants"],
+      "properties": {
+        "kind": { "const": "combat" },
+        "snapshotVersion": { "const": 1 },
+        "pack": { "$ref": "#/$defs/packIdentity" },
+        "pairsWith": { "type": "string", "description": "Party snapshot id — the documented pairing (FR-14)" },
+        "round": { "type": "integer", "minimum": 1 },
+        "turn": { "type": "integer", "minimum": 0 },
+        "order": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "rng": { "$ref": "#/$defs/rngState" },
+        "combatants": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "hp"],
+            "properties": {
+              "id": { "type": "string" },
+              "hp": { "type": "integer", "minimum": 0 },
+              "slotsUsed": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 }, "description": "Per-turn transient: generic slot economy state (FR-4)" },
+              "conditions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["id", "remaining"],
+                  "properties": { "id": { "type": "string" }, "remaining": { "type": "integer", "minimum": 0 } }
+                }
+              },
+              "position": { "type": ["null", "object"], "description": "Present only when the pack declares a spatial model (FR-11)" },
+              "pendingTrigger": { "type": ["null", "string"], "description": "Reactive action currently offered (FR-4/13)" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ruleswright.dev/schemas/1/override.schema.json",
+  "title": "Ruleswright Override Document — schemaVersion 1",
+  "description": "GM/author patches to individual pack artifacts, merged at load (FR-19). Applied in array order AFTER base-pack load validation and BEFORE final validation of the merged document — an override can never produce a structurally invalid pack. Unknown target id = E-OVR-01. Theme composition (FR-20) uses the same merge model one level up.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["overrides"],
+  "properties": {
+    "overrides": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["target", "patch"],
+        "properties": {
+          "target": { "type": "string", "description": "Artifact id — unique across the whole pack by E-DUP-01, so unambiguous" },
+          "patch": {
+            "type": "object",
+            "minProperties": 1,
+            "description": "Keys are dotted paths into the artifact (e.g. \"actions.claw.onHit\"); values are replacement scalars/objects, deep-merged per key in array order"
+          }
+        }
+      }
+    }
+  }
+}
