@@ -1,7 +1,8 @@
 # Architecture — Ruleswright
 
 > **Status:** draft for builder approval — Architect, phase `architecture`.
-> Revised in review: **library root corrected to the repo root (`./`)** per builder —
+> Revised in review: **Node floor set at 18 LTS (Electron-adjacent)** — builder
+> decision. **Library root corrected to the repo root (`./`)** per builder —
 > package.json, `src/`, and `tests/` live at the repository root; `program/Ruleswright/`
 > holds program artifacts (specs, mocks) and is never part of the shipped package.
 > Read with `specs/idea.md`, `specs/requirements.md` (approved), and
@@ -25,8 +26,8 @@
 | Test Framework | **Vitest** (node + browser modes) | TS/ESM-native, no jest transform friction. **Browser mode is not optional** — the determinism NFR (identical rolls on Node, browsers, Electron) is a cross-runtime test, and browser mode gives us real Chromium/Firefox/WebKit runs. |
 | Lint/Format | ESLint (typescript-eslint, strict-type rules) + Prettier | Type-aware lint carries the security posture: `no-restricted-properties` bans `Math.random`, `eval`, `new Function`, `Date.now` in engine paths — the NFR-Security/no-ambient-randomness rules become CI-enforced, not aspirational. |
 | Package Manager | pnpm + workspaces (single workspace for v1) | Deterministic installs; workspace ready if packaging ever splits (see Alternatives). |
-| CI | GitHub Actions | Test matrix (Node LTS floor + current), browser determinism runs, bundle-isolation proof, FR-12 proof tests. |
-| Deployment Target | npm package (ESM primary + CJS dual); Node LTS ≥ 20, evergreen browsers, Electron | NFR-Platform. No server exists. |
+| CI | GitHub Actions | Test matrix (Node 18 floor + current LTS), browser determinism runs, bundle-isolation proof, FR-12 proof tests. |
+| Deployment Target | npm package (ESM primary + CJS dual); Node ≥ 18 LTS floor (Electron-adjacent; builder decision), evergreen browsers, Electron | NFR-Platform. No server exists. |
 
 ## Alternatives Considered
 
@@ -190,8 +191,8 @@ The budgets are NFR commitments; the architecture meets them by construction:
 ## Deployment Architecture
 
 - **Target:** npm (`ruleswright`), subpath exports per the packaging decision. Dual ESM/CJS; TypeScript types ship alongside every entry.
-- **Build:** `tsup` per entry → `dist/`; `exports` map in `package.json`; side-effect-free for tree-shaking. **Strict `files` field** (`dist`, `README`, `LICENSE`) — with the package root at the repo root, this is what keeps `program/` and tooling docs out of the published tarball.
-- **Runtime:** consumer's process (Node ≥ 20, browser, Electron). The library never spawns, listens, fetches, or writes.
+- **Build:** `tsup` per entry → `dist/`; `exports` map in `package.json`; side-effect-free for tree-shaking. Build target **es2020** (Node 18 floor + evergreen browsers). **Strict `files` field** (`dist`, `README`, `LICENSE`) — with the package root at the repo root, this is what keeps `program/` and tooling docs out of the published tarball.
+- **Runtime:** consumer's process (Node ≥ 18, browser, Electron). The library never spawns, listens, fetches, or writes.
 - **CI gates:** typecheck · lint security rules · unit + browser determinism matrix · FR-12 proof trio · runtime-bundle isolation (no `generateCampaign` string) · perf budgets as regression thresholds · sample-theme generation + validation for both FR-21 packs.
 
 ## Design Contract Ledger
@@ -212,6 +213,6 @@ How the approved design constrains this architecture — no corrections were nee
 ## Open Architectural Questions
 
 1. ~~**Library root**~~ — **Resolved in review:** repo root (`./`) is the package root; paths in this document are repository-relative; `files` field pins the tarball.
-2. **Node floor:** set at Node 20 LTS unless the builder says otherwise before the phase gate closes — it pins the tsup target and the CI test matrix.
+2. ~~**Node floor**~~ — **Resolved in review (builder):** floor set at **Node 18 LTS**, the widest Electron-adjacent line. Consequences: tsup/esbuild target **es2020**; CI matrix = Node 18 / 20 / 22. Recorded trade-off: Node 18 is past upstream EOL — this floor is chosen for reach, not support policy; the browser determinism matrix remains the real compatibility story.
 
 Everything else above is decided and documented with its trade-offs.
