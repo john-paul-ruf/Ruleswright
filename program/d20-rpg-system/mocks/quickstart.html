@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quickstart — Ruleswright Mock</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .font-display { font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif; }
+  .font-data { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .kw { color: #D9843B; }
+  .str { color: #7BA05B; }
+  .com { color: #9A8F7E; font-style: italic; }
+  .num { color: #6A93A8; }
+</style>
+</head>
+<body class="bg-[#1A1714] text-[#E8E2D6] min-h-screen">
+
+<header class="border-b border-[#3A322A]">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-2">
+    <a href="index.html" class="font-data text-sm text-[#D9843B] hover:underline">← design index</a>
+    <div class="flex gap-2 flex-wrap">
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-1</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-17</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">NFR-DX</span>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-4xl mx-auto px-6 py-10">
+
+  <h1 class="font-display text-4xl mb-3">Quickstart</h1>
+  <p class="text-[#9A8F7E] mb-10 max-w-2xl">The NFR-DX contract made visible: every line below is copy-paste runnable, and every step shows its expected output. If a shipped doc example can't do this, the docs are broken.</p>
+
+  <!-- STEP 1 -->
+  <section class="mb-12">
+    <div class="flex items-baseline gap-3 mb-4">
+      <span class="font-data text-sm text-[#D9843B]">01</span>
+      <h2 class="font-display text-2xl">Generate a campaign</h2>
+    </div>
+    <p class="text-sm text-[#9A8F7E] mb-4">One call: theme, seed, knobs. Out comes a complete, validated content pack — every rule, skill, feat, class, save, spell, table, and monster.</p>
+
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden mb-3">
+      <div class="flex items-center justify-between px-4 py-2 border-b border-[#3A322A] bg-[#2C261F]">
+        <span class="font-data text-xs text-[#9A8F7E]">quickstart.ts</span>
+        <button class="font-data text-[11px] text-[#9A8F7E] border border-[#3A322A] rounded-sm px-2 py-0.5 hover:text-[#E8E2D6]">copy</button>
+      </div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="kw">import</span> { generateCampaign } <span class="kw">from</span> <span class="str">"ruleswright/compiler"</span>;
+
+<span class="com">// Theme + seed + knobs → complete pack. Fully offline.</span>
+<span class="kw">const</span> pack = <span class="kw">await</span> generateCampaign({
+  theme: <span class="str">"dark-fantasy"</span>,
+  seed: <span class="num">42</span>,
+});</code></pre>
+    </div>
+
+    <div class="rounded-md border border-[#3A322A] bg-[#1E1A16] overflow-hidden">
+      <div class="px-4 py-2 border-b border-[#3A322A] font-data text-xs text-[#9A8F7E]">output</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="str">✓</span> dark-fantasy · schemaVersion 1 · 1,204 artifacts · generated in 1.3 s
+<span class="str">✓</span> validated by the runtime's own validator in 214 ms
+  2 classes · 41 spells (levels 1–3) · 5 named saves · 18 bestiary entries</code></pre>
+    </div>
+  </section>
+
+  <!-- STEP 2 -->
+  <section class="mb-12">
+    <div class="flex items-baseline gap-3 mb-4">
+      <span class="font-data text-sm text-[#D9843B]">02</span>
+      <h2 class="font-display text-2xl">Build a character</h2>
+    </div>
+    <p class="text-sm text-[#9A8F7E] mb-4">The pack was validated at load; the runtime reads progression from its tables. Derived stats come from pack formulas — note the engine reporting the pack's convention, not its own.</p>
+
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden mb-3">
+      <div class="flex items-center justify-between px-4 py-2 border-b border-[#3A322A] bg-[#2C261F]">
+        <span class="font-data text-xs text-[#9A8F7E]">quickstart.ts — continued</span>
+        <button class="font-data text-[11px] text-[#9A8F7E] border border-[#3A322A] rounded-sm px-2 py-0.5 hover:text-[#E8E2D6]">copy</button>
+      </div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="kw">import</span> { Runtime } <span class="kw">from</span> <span class="str">"ruleswright/runtime"</span>;
+
+<span class="kw">const</span> rt = <span class="kw">new</span> Runtime(pack);
+
+<span class="kw">const</span> brynn = rt.createCharacter({
+  name: <span class="str">"Brynn"</span>,
+  race: <span class="str">"hillfolk"</span>,
+  classes: [{ id: <span class="str">"warden"</span>, level: <span class="num">1</span> }],
+});</code></pre>
+    </div>
+
+    <div class="rounded-md border border-[#3A322A] bg-[#1E1A16] overflow-hidden">
+      <div class="px-4 py-2 border-b border-[#3A322A] font-data text-xs text-[#9A8F7E]">output</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>brynn.derived()
+<span class="com">→</span> hp 10 <span class="com">(1d8+2 · pack formula)</span> · ac 15 <span class="com">(descending · pack convention)</span>
+  saves: vigor +2 · grace +1 · tenacity +0 · reason −1 · presence +0</code></pre>
+    </div>
+  </section>
+
+  <!-- STEP 3 -->
+  <section class="mb-12">
+    <div class="flex items-baseline gap-3 mb-4">
+      <span class="font-data text-sm text-[#D9843B]">03</span>
+      <h2 class="font-display text-2xl">Run three rounds</h2>
+    </div>
+    <p class="text-sm text-[#9A8F7E] mb-4">Combat advances stepwise, so your UI can animate or prompt between steps. Every mutation emits an event carrying its provenance — <span class="font-data text-[#E8E2D6]">why</span> it happened.</p>
+
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden mb-3">
+      <div class="flex items-center justify-between px-4 py-2 border-b border-[#3A322A] bg-[#2C261F]">
+        <span class="font-data text-xs text-[#9A8F7E]">quickstart.ts — continued</span>
+        <button class="font-data text-[11px] text-[#9A8F7E] border border-[#3A322A] rounded-sm px-2 py-0.5 hover:text-[#E8E2D6]">copy</button>
+      </div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="kw">const</span> fight = rt.startCombat({
+  allies: [brynn],
+  enemies: [rt.spawnMonster(<span class="str">"barrow-wight"</span>)],
+});
+
+<span class="kw">for</span> (<span class="kw">let</span> round = <span class="num">1</span>; round &lt;= <span class="num">3</span>; round++) {
+  <span class="kw">while</span> (!fight.roundComplete) fight.step(); <span class="com">// begin → declare → resolve → end</span>
+  console.log(fight.events.sinceRound(round));
+}</code></pre>
+    </div>
+
+    <div class="rounded-md border border-[#3A322A] bg-[#1E1A16] overflow-hidden">
+      <div class="px-4 py-2 border-b border-[#3A322A] font-data text-xs text-[#9A8F7E]">output</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>[r1] roll:attack  d20[14]+3=17 ≥ ac 15 → hit   why: barrow-wight.claw@bestiary[12]
+[r1] damage:apply 6 slashing · brynn.hp 10→4   why: d6[4]+2 · claw.onHit
+[r2] condition:apply shaken (1 round)          why: wight.frightful-presence</code></pre>
+    </div>
+  </section>
+
+  <!-- CALLOUTS -->
+  <div class="space-y-3">
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
+      <span class="text-[#7BA05B] shrink-0">✓</span>
+      <p class="text-sm">Same theme + seed + knobs ⇒ <span class="text-[#E8E2D6]">byte-identical pack</span>. Same inputs ⇒ identical rolls — on Node, in browsers, in Electron. (FR-1, FR-17)</p>
+    </div>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
+      <span class="text-[#6A93A8] shrink-0">◈</span>
+      <p class="text-sm">The engine performed <span class="text-[#E8E2D6]">no I/O</span> anywhere above. <span class="font-data text-[13px]">serialize()</span> hands you JSON; your app owns storage. (FR-14)</p>
+    </div>
+  </div>
+
+</main>
+
+<footer class="border-t border-[#3A322A] mt-12">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex justify-between flex-wrap gap-2">
+    <a href="index.html" class="font-data text-[11px] text-[#9A8F7E] hover:underline">← index</a>
+    <a href="pack-anatomy.html" class="font-data text-[11px] text-[#D9843B] hover:underline">next: pack anatomy →</a>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Combat Loop — Ruleswright Mock</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .font-display { font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif; }
+  .font-data { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .kw { color: #D9843B; }
+  .str { color: #7BA05B; }
+  .com { color: #9A8F7E; font-style: italic; }
+  .num { color: #6A93A8; }
+</style>
+</head>
+<body class="bg-[#1A1714] text-[#E8E2D6] min-h-screen">
+
+<header class="border-b border-[#3A322A]">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-2">
+    <a href="index.html" class="font-data text-sm text-[#D9843B] hover:underline">← design index</a>
+    <div class="flex gap-2 flex-wrap">
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-4</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-10</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-13</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-14</span>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-4xl mx-auto px-6 py-10">
+
+  <h1 class="font-display text-4xl mb-3">The combat loop</h1>
+  <p class="text-[#9A8F7E] mb-10 max-w-2xl">Stepwise and resumable. The engine never demands a whole round in one call — your host animates, prompts, or pauses between any two steps, and snapshots freeze the fight mid-swing.</p>
+
+  <!-- LIFECYCLE -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">Turn lifecycle</h2>
+    <div class="flex flex-wrap items-stretch gap-2 mb-3">
+      <div class="flex-1 min-w-[130px] rounded-md border border-[#3A322A] bg-[#241F1A] p-3">
+        <div class="font-data text-[11px] text-[#D9843B] mb-1">1 · beginTurn</div>
+        <p class="text-xs text-[#9A8F7E]">initiative order · slots granted from pack action economy</p>
+      </div>
+      <div class="self-center text-[#9A8F7E]">→</div>
+      <div class="flex-1 min-w-[130px] rounded-md border border-[#3A322A] bg-[#241F1A] p-3">
+        <div class="font-data text-[11px] text-[#D9843B] mb-1">2 · declare</div>
+        <p class="text-xs text-[#9A8F7E]">host picks an action the pack allows · validity checked</p>
+      </div>
+      <div class="self-center text-[#9A8F7E]">→</div>
+      <div class="flex-1 min-w-[130px] rounded-md border border-[#3A322A] bg-[#241F1A] p-3">
+        <div class="font-data text-[11px] text-[#D9843B] mb-1">3 · resolve</div>
+        <p class="text-xs text-[#9A8F7E]">effect DSL runs · rolls · saves · damage · conditions</p>
+      </div>
+      <div class="self-center text-[#9A8F7E]">→</div>
+      <div class="flex-1 min-w-[130px] rounded-md border border-[#3A322A] bg-[#241F1A] p-3">
+        <div class="font-data text-[11px] text-[#D9843B] mb-1">4 · endTurn</div>
+        <p class="text-xs text-[#9A8F7E]">durations tick · next combatant — or next round</p>
+      </div>
+    </div>
+    <p class="text-sm text-[#9A8F7E]">Between any two steps the host may animate, prompt a player, or call <span class="font-data text-[13px] text-[#E8E2D6]">serialize()</span>. The engine's only resolution primitive: <span class="font-data text-[13px] text-[#E8E2D6]">d20 + attackBonus ≥ defenseTarget</span> — both sides computed by pack formulas (FR-3).</p>
+  </section>
+
+  <!-- ACTION ECONOMY -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">The action economy is pack data</h2>
+    <p class="text-sm text-[#9A8F7E] mb-4 max-w-2xl">The engine implements a generic slot/points economy — it has never heard of "standard" or "move." The classic turn structure is sample-pack content, and triggered actions ride the event substrate (FR-4, FR-13).</p>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+      <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">sample pack — action economy</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="str">"turnSlots"</span>: { <span class="kw">"main"</span>: <span class="num">1</span>, <span class="kw">"move"</span>: <span class="num">1</span> },            <span class="com">// classic structure, as data</span>
+<span class="str">"actions"</span>: {
+  <span class="str">"strike"</span>:   { <span class="kw">"cost"</span>: {<span class="kw">"main"</span>: <span class="num">1</span>},  <span class="kw">"effect"</span>: <span class="str">"…"</span> },
+  <span class="str">"withdraw"</span>: { <span class="kw">"cost"</span>: {<span class="kw">"move"</span>: <span class="num">1</span>},  <span class="kw">"effect"</span>: <span class="str">"…"</span> },
+  <span class="str">"parry"</span>:  { <span class="kw">"trigger"</span>: <span class="str">"event:attacked"</span>, <span class="kw">"effect"</span>: <span class="str">"…"</span> }  <span class="com">// reactive</span>
+}</code></pre>
+    </div>
+  </section>
+
+  <!-- EVENT STREAM -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">Every mutation carries its <em>why</em></h2>
+    <p class="text-sm text-[#9A8F7E] mb-4 max-w-2xl">Provenance is not a log bolted on afterward — it is the payload. UIs, replays, and the triggered-action substrate all read the same stream (FR-13).</p>
+
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden mb-3">
+      <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">event anatomy</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>{
+  <span class="kw">"type"</span>: <span class="str">"damage:applied"</span>,   <span class="kw">"at"</span>: {<span class="kw">"round"</span>: <span class="num">1</span>, <span class="kw">"turn"</span>: <span class="num">3</span>},
+  <span class="kw">"actor"</span>: <span class="str">"barrow-wight"</span>,    <span class="kw">"target"</span>: <span class="str">"brynn"</span>,
+  <span class="kw">"payload"</span>: { <span class="kw">"amount"</span>: <span class="num">6</span>, <span class="kw">"hp"</span>: <span class="str">"10→4"</span> },
+  <span class="kw">"why"</span>: { <span class="kw">"rule"</span>: <span class="str">"bestiary.barrow-wight.claw"</span>,
+           <span class="kw">"rolls"</span>: [<span class="str">"d20[14]+3=17 ≥ ac15"</span>, <span class="str">"d6[4]+2=6"</span>] }
+}</code></pre>
+    </div>
+
+    <div class="space-y-2">
+      <div class="rounded border border-[#3A322A] bg-[#241F1A] px-4 py-2 font-data text-[12px] flex flex-wrap gap-x-6 gap-y-1">
+        <span class="text-[#6A93A8]">combat:start</span><span class="text-[#9A8F7E]">initiative: wight 17 · brynn 12</span><span class="text-[#9A8F7E] ml-auto">why: d20[17] vs d20[12] + dex</span>
+      </div>
+      <div class="rounded border border-[#3A322A] bg-[#241F1A] px-4 py-2 font-data text-[12px] flex flex-wrap gap-x-6 gap-y-1">
+        <span class="text-[#6A93A8]">attack:rolled</span><span class="text-[#9A8F7E]">claw 17 ≥ ac 15 → hit</span><span class="text-[#9A8F7E] ml-auto">why: claw.attackBonus (pack formula)</span>
+      </div>
+      <div class="rounded border border-[#3A322A] bg-[#241F1A] px-4 py-2 font-data text-[12px] flex flex-wrap gap-x-6 gap-y-1">
+        <span class="text-[#C4523E]">damage:applied</span><span class="text-[#9A8F7E]">6 slashing · brynn.hp 10→4</span><span class="text-[#9A8F7E] ml-auto">why: claw.onHit · d6[4]+2</span>
+      </div>
+      <div class="rounded border border-[#3A322A] bg-[#241F1A] px-4 py-2 font-data text-[12px] flex flex-wrap gap-x-6 gap-y-1">
+        <span class="text-[#D9843B]">condition:applied</span><span class="text-[#9A8F7E]">shaken (1 round) → brynn</span><span class="text-[#9A8F7E] ml-auto">why: wight.frightful-presence</span>
+      </div>
+      <div class="rounded border border-[#3A322A] bg-[#241F1A] px-4 py-2 font-data text-[12px] flex flex-wrap gap-x-6 gap-y-1">
+        <span class="text-[#7BA05B]">trigger:fired</span><span class="text-[#9A8F7E]">brynn.parry offered (event:attacked)</span><span class="text-[#9A8F7E] ml-auto">why: reactive feat · FR-12 proof 2</span>
+      </div>
+    </div>
+    <p class="text-sm text-[#9A8F7E] mt-3">Hosts may subscribe; the engine never requires one. No subscriber — the game still runs (FR-13).</p>
+  </section>
+
+  <!-- SNAPSHOTS -->
+  <section class="mb-4">
+    <h2 class="font-display text-2xl mb-4">Snapshots — freeze mid-swing</h2>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+        <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">combat snapshot — state + rng + pack identity</div>
+        <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>{
+  <span class="kw">"party"</span>: { <span class="kw">"pairsWith"</span>: <span class="str">"party-1"</span> },
+  <span class="kw">"round"</span>: <span class="num">2</span>, <span class="kw">"turn"</span>: <span class="num">3</span>,
+  <span class="kw">"order"</span>: [<span class="str">"wight"</span>,<span class="str">"brynn"</span>],
+  <span class="kw">"rng"</span>: { <span class="kw">"state"</span>: <span class="str">"0x9f3a…"</span> },
+  <span class="kw">"pack"</span>: { <span class="kw">"id"</span>: <span class="str">"dark-fantasy"</span>,
+            <span class="kw">"schemaVersion"</span>: <span class="num">1</span>,
+            <span class="kw">"contentHash"</span>: <span class="str">"e41c…"</span> }
+}</code></pre>
+      </div>
+      <div class="space-y-3">
+        <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
+          <span class="text-[#7BA05B] shrink-0">✓</span>
+          <p class="text-sm">Resume a snapshot and the next roll equals the uninterrupted fight's next roll — testable, not aspirational (FR-14).</p>
+        </div>
+        <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
+          <span class="text-[#C4523E] shrink-0">✕</span>
+          <p class="text-sm">Pack hash mismatch on load ⇒ <span class="text-[#E8E2D6]">loud refusal</span>, never mangled characters. No v1 migration — the API says plainly that the snapshot is stale.</p>
+        </div>
+        <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
+          <span class="text-[#6A93A8] shrink-0">◈</span>
+          <p class="text-sm">The engine performs no I/O. Three independent serializers — character, party, combat; a combat snapshot names its party pairing in the docs.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="border-t border-[#3A322A] mt-12">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex justify-between flex-wrap gap-2">
+    <a href="pack-anatomy.html" class="font-data text-[11px] text-[#9A8F7E] hover:underline">← pack anatomy</a>
+    <a href="validation-errors.html" class="font-data text-[11px] text-[#D9843B] hover:underline">next: validation errors →</a>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Theme Knobs & Composition — Ruleswright Mock</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .font-display { font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif; }
+  .font-data { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .kw { color: #D9843B; }
+  .str { color: #7BA05B; }
+  .com { color: #9A8F7E; font-style: italic; }
+  .num { color: #6A93A8; }
+</style>
+</head>
+<body class="bg-[#1A1714] text-[#E8E2D6] min-h-screen">
+
+<header class="border-b border-[#3A322A]">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-2">
+    <a href="index.html" class="font-data text-sm text-[#D9843B] hover:underline">← design index</a>
+    <div class="flex gap-2 flex-wrap">
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-17</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-18</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-20</span>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-4xl mx-auto px-6 py-10">
+
+  <h1 class="font-display text-4xl mb-3">Theme knobs &amp; composition</h1>
+  <p class="text-[#9A8F7E] mb-10 max-w-2xl">Two promises, one page. First: a host renders a settings form from theme data alone — it never knows the theme (FR-18). Second: a new theme is JSON with patches, not code (FR-20). And regeneration is byte-identical, so GM edits anchor forever (FR-17, FR-19).</p>
+
+  <!-- KNOB DECLARATIONS -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">Knobs are machine-readable declarations</h2>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden mb-4">
+      <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">theme.json — knobs block</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="str">"knobs"</span>: [
+  { <span class="kw">"id"</span>: <span class="str">"threat"</span>,       <span class="kw">"type"</span>: <span class="str">"enum"</span>,   <span class="kw">"values"</span>: [<span class="str">"low"</span>,<span class="str">"medium"</span>,<span class="str">"high"</span>], <span class="kw">"default"</span>: <span class="str">"medium"</span>, <span class="kw">"desc"</span>: <span class="str">"Bestiary threat budget"</span> },
+  { <span class="kw">"id"</span>: <span class="str">"techLevel"</span>,   <span class="kw">"type"</span>: <span class="str">"enum"</span>,   <span class="kw">"values"</span>: [<span class="str">"medieval"</span>,<span class="str">"scavenged"</span>], <span class="kw">"default"</span>: <span class="str">"medieval"</span>, <span class="kw">"desc"</span>: <span class="str">"Equipment flavor"</span> },
+  { <span class="kw">"id"</span>: <span class="str">"spellDensity"</span>, <span class="kw">"type"</span>: <span class="str">"range"</span>,  <span class="kw">"min"</span>: <span class="num">1</span>, <span class="kw">"max"</span>: <span class="num">5</span>, <span class="kw">"default"</span>: <span class="num">3</span>, <span class="kw">"desc"</span>: <span class="str">"Spells per level, L1–3"</span> },
+  { <span class="kw">"id"</span>: <span class="str">"grittiness"</span>,   <span class="kw">"type"</span>: <span class="str">"enum"</span>,   <span class="kw">"values"</span>: [<span class="str">"heroic"</span>,<span class="str">"mortal"</span>], <span class="kw">"default"</span>: <span class="str">"heroic"</span>, <span class="kw">"desc"</span>: <span class="str">"HP and damage scaling"</span> }
+]</code></pre>
+    </div>
+
+    <p class="text-sm text-[#9A8F7E] mb-4">The host reads that block and renders this form — <span class="text-[#E8E2D6]">without a single theme-specific line of code</span> (controls shown in host-neutral styling; the theme only supplies the data):</p>
+
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-5 space-y-5">
+      <div>
+        <div class="flex justify-between items-baseline mb-2">
+          <span class="text-sm">Threat budget</span>
+          <span class="font-data text-[11px] text-[#9A8F7E]">threat · enum</span>
+        </div>
+        <div class="flex gap-2">
+          <span class="font-data text-[12px] px-3 py-1.5 rounded-sm border border-[#3A322A] text-[#9A8F7E]">low</span>
+          <span class="font-data text-[12px] px-3 py-1.5 rounded-sm border-2 border-[#D9843B] bg-[#2C261F] text-[#E8E2D6] ring-2 ring-[#D9843B]">medium</span>
+          <span class="font-data text-[12px] px-3 py-1.5 rounded-sm border border-[#3A322A] text-[#9A8F7E]">high</span>
+        </div>
+      </div>
+      <div>
+        <div class="flex justify-between items-baseline mb-2">
+          <span class="text-sm">Tech level</span>
+          <span class="font-data text-[11px] text-[#9A8F7E]">techLevel · enum</span>
+        </div>
+        <div class="flex gap-2">
+          <span class="font-data text-[12px] px-3 py-1.5 rounded-sm border-2 border-[#D9843B] bg-[#2C261F] text-[#E8E2D6]">medieval</span>
+          <span class="font-data text-[12px] px-3 py-1.5 rounded-sm border border-[#3A322A] text-[#9A8F7E]">scavenged</span>
+        </div>
+      </div>
+      <div>
+        <div class="flex justify-between items-baseline mb-2">
+          <span class="text-sm">Spell density</span>
+          <span class="font-data text-[11px] text-[#9A8F7E]">spellDensity · range 1–5</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="flex-1 h-1.5 rounded-full bg-[#3A322A] relative">
+            <div class="absolute left-0 top-0 h-1.5 rounded-full bg-[#D9843B]" style="width:50%"></div>
+            <div class="absolute w-4 h-4 rounded-full bg-[#D9843B] border-2 border-[#1A1714] ring-2 ring-[#D9843B]" style="left:calc(50% - 8px); top:-5px"></div>
+          </div>
+          <span class="font-data text-[12px] text-[#E8E2D6]">3</span>
+        </div>
+      </div>
+      <div>
+        <div class="flex justify-between items-baseline mb-2">
+          <span class="text-sm">Grittiness</span>
+          <span class="font-data text-[11px] text-[#9A8F7E]">grittiness · enum</span>
+        </div>
+        <div class="flex gap-2">
+          <span class="font-data text-[12px] px-3 py-1.5 rounded-sm border-2 border-[#D9843B] bg-[#2C261F] text-[#E8E2D6]">heroic</span>
+          <span class="font-data text-[12px] px-3 py-1.5 rounded-sm border border-[#3A322A] text-[#9A8F7E]">mortal</span>
+        </div>
+      </div>
+      <div class="border-t border-[#3A322A] pt-4">
+        <span class="font-data text-[13px] px-4 py-2 rounded-sm bg-[#D9843B] text-[#1A1714] font-bold">regenerate</span>
+        <span class="font-data text-[11px] text-[#9A8F7E] ml-3">theme + seed + knobs → byte-identical pack · knobs recorded in pack provenance</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMPOSITION -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">Themes compose</h2>
+    <p class="text-sm text-[#9A8F7E] mb-4 max-w-2xl">A theme may declare a base plus patches; merge semantics are documented and deterministic. The shipped sample themes stand alone — but composition is exercised by tests, because that seam is how content scales (FR-20).</p>
+
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+      <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">winter-march.json — a derived theme</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>{
+  <span class="kw">"id"</span>: <span class="str">"winter-march"</span>,
+  <span class="kw">"base"</span>: <span class="str">"dark-fantasy"</span>,
+  <span class="kw">"patches"</span>: [
+    { <span class="kw">"op"</span>: <span class="str">"add"</span>,    <span class="kw">"path"</span>: <span class="str">"/content/conditions/frostbitten"</span>,
+      <span class="kw">"value"</span>: { <span class="kw">"duration"</span>: <span class="num">5</span>, <span class="kw">"stacking"</span>: <span class="str">"refresh"</span> } },
+    { <span class="kw">"op"</span>: <span class="str">"remove"</span>, <span class="kw">"path"</span>: <span class="str">"/content/monsters/barrow-wight"</span> },
+    { <span class="kw">"op"</span>: <span class="str">"merge"</span>,  <span class="kw">"path"</span>: <span class="str">"/knobs"</span>, <span class="kw">"value"</span>: { <span class="kw">"coldSeverity"</span>: { <span class="kw">"type"</span>: <span class="str">"range"</span>, <span class="kw">"min"</span>: <span class="num">1</span>, <span class="kw">"max"</span>: <span class="num">3</span>, <span class="kw">"default"</span>: <span class="num">2</span> } } }
+  ]
+}</code></pre>
+    </div>
+    <p class="text-sm text-[#9A8F7E] mt-3">Same patch vocabulary as the GM override layer (FR-19) — one merge model, learned once.</p>
+  </section>
+
+  <!-- CALLOUTS -->
+  <div class="space-y-3">
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
+      <span class="text-[#7BA05B] shrink-0">✓</span>
+      <p class="text-sm">Determinism (FR-17): same theme + seed + knobs ⇒ <span class="text-[#E8E2D6]">byte-identical pack</span>. That is what makes hand-edits to generated content anchorable — regenerate, re-apply, nothing drifts.</p>
+    </div>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
+      <span class="text-[#6A93A8] shrink-0">◈</span>
+      <p class="text-sm">Pipeline seam (Extension Commitment 3): generation is a chain of named stages — skills → feats → bestiary → tables → flavor. A future narrative stage slots in without touching existing stages.</p>
+    </div>
+  </div>
+
+</main>
+
+<footer class="border-t border-[#3A322A] mt-12">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex justify-between flex-wrap gap-2">
+    <a href="validation-errors.html" class="font-data text-[11px] text-[#9A8F7E] hover:underline">← validation errors</a>
+    <a href="index.html" class="font-data text-[11px] text-[#D9843B] hover:underline">back to index ↺</a>
+  </div>
+</footer>
+
+</body>
+</html>

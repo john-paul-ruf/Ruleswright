@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design Index — Ruleswright Mocks</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .font-display { font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif; }
+  .font-data { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+</style>
+</head>
+<body class="bg-[#1A1714] text-[#E8E2D6] min-h-screen">
+
+<header class="border-b border-[#3A322A]">
+  <div class="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-2">
+    <div>
+      <span class="font-display text-xl tracking-wide">Ruleswright</span>
+      <span class="text-[#9A8F7E] text-sm"> · design mocks · dev-facing surfaces</span>
+    </div>
+    <span class="font-data text-xs text-[#9A8F7E]">headless library · no game UI</span>
+  </div>
+</header>
+
+<main class="max-w-5xl mx-auto px-6 py-10">
+
+  <h1 class="font-display text-4xl mb-3">Five surfaces, zero screens</h1>
+  <p class="text-[#9A8F7E] max-w-2xl mb-8">Ruleswright ships no UI — its hosts own all presentation. What gets designed here is what a developer <em>sees and copies</em>: the docs, the pack contract, the event stream, the errors, the knobs. Each mock is a DX contract, not an implementation target.</p>
+
+  <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 mb-12 flex gap-3">
+    <span class="text-[#6A93A8] shrink-0">◈</span>
+    <p class="text-sm">Code inside these mocks is <span class="text-[#E8E2D6]">API illustrative</span> — the Architect owns final signatures. The pack document shape, event anatomy, and error anatomy are contracts.</p>
+  </div>
+
+  <h2 class="font-display text-2xl mb-5">Surfaces</h2>
+  <div class="grid md:grid-cols-2 gap-4 mb-12">
+
+    <a href="quickstart.html" class="group rounded-md border border-[#3A322A] bg-[#241F1A] p-5 hover:border-[#D9843B] hover:bg-[#2C261F] transition-colors">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-display text-lg group-hover:text-[#D9843B]">01 · Quickstart</h3>
+        <span class="font-data text-[10px] text-[#9A8F7E]">FR-1 · FR-17 · NFR-DX</span>
+      </div>
+      <p class="text-sm text-[#9A8F7E]">The copy-paste path: one theme, one seed — generate a pack, build a character, run three rounds. Every line runnable; every example shows its expected output.</p>
+    </a>
+
+    <a href="pack-anatomy.html" class="group rounded-md border border-[#3A322A] bg-[#241F1A] p-5 hover:border-[#D9843B] hover:bg-[#2C261F] transition-colors">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-display text-lg group-hover:text-[#D9843B]">02 · Pack anatomy</h3>
+        <span class="font-data text-[10px] text-[#9A8F7E]">FR-2 · FR-19 · FR-23</span>
+      </div>
+      <p class="text-sm text-[#9A8F7E]">One JSON document: manifest, rules, content. Overrides merge at load; schemaVersion gates compatibility. Hand-authored packs are first-class citizens.</p>
+    </a>
+
+    <a href="combat-loop.html" class="group rounded-md border border-[#3A322A] bg-[#241F1A] p-5 hover:border-[#D9843B] hover:bg-[#2C261F] transition-colors">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-display text-lg group-hover:text-[#D9843B]">03 · Combat loop</h3>
+        <span class="font-data text-[10px] text-[#9A8F7E]">FR-4 · FR-10 · FR-13 · FR-14</span>
+      </div>
+      <p class="text-sm text-[#9A8F7E]">Stepwise and resumable: begin turn → declare → resolve → end. Every mutation emits an event carrying <span class="font-data">why</span>. Snapshots carry state, RNG, and pack identity.</p>
+    </a>
+
+    <a href="validation-errors.html" class="group rounded-md border border-[#3A322A] bg-[#241F1A] p-5 hover:border-[#D9843B] hover:bg-[#2C261F] transition-colors">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-display text-lg group-hover:text-[#D9843B]">04 · Validation errors</h3>
+        <span class="font-data text-[10px] text-[#9A8F7E]">FR-2 · FR-14</span>
+      </div>
+      <p class="text-sm text-[#9A8F7E]">Bad content is rejected loudly at load: artifact id, JSON path, violated rule, hint. A failing pack is never partially loaded.</p>
+    </a>
+
+    <a href="theme-knobs.html" class="group rounded-md border border-[#3A322A] bg-[#241F1A] p-5 md:col-span-2 hover:border-[#D9843B] hover:bg-[#2C261F] transition-colors">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-display text-lg group-hover:text-[#D9843B]">05 · Theme knobs &amp; composition</h3>
+        <span class="font-data text-[10px] text-[#9A8F7E]">FR-17 · FR-18 · FR-20</span>
+      </div>
+      <p class="text-sm text-[#9A8F7E]">Themes declare their knobs as machine-readable data — so any host renders a settings form without knowing the theme. And themes compose: a new theme is JSON with patches, not code.</p>
+    </a>
+
+  </div>
+
+  <h2 class="font-display text-2xl mb-4">User flows</h2>
+  <ol class="space-y-2 text-sm text-[#9A8F7E] mb-12 list-decimal list-inside">
+    <li><span class="text-[#E8E2D6]">Docs reader:</span> quickstart → combat-loop — copy-paste to a live, evented, resumable fight.</li>
+    <li><span class="text-[#E8E2D6]">Pack author:</span> pack-anatomy → validation-errors — author content, read located errors.</li>
+    <li><span class="text-[#E8E2D6]">Theme user:</span> theme-knobs → pack-anatomy — knobs → generated pack → single-artifact override.</li>
+  </ol>
+
+  <h2 class="font-display text-2xl mb-4">Design language</h2>
+  <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-5 mb-4">
+    <div class="flex flex-wrap gap-3 mb-5">
+      <div class="text-center"><div class="w-12 h-12 rounded border border-[#3A322A]" style="background:#1A1714"></div><div class="font-data text-[10px] text-[#9A8F7E] mt-1">ink</div></div>
+      <div class="text-center"><div class="w-12 h-12 rounded border border-[#3A322A]" style="background:#241F1A"></div><div class="font-data text-[10px] text-[#9A8F7E] mt-1">surface</div></div>
+      <div class="text-center"><div class="w-12 h-12 rounded border border-[#3A322A]" style="background:#2C261F"></div><div class="font-data text-[10px] text-[#9A8F7E] mt-1">raised</div></div>
+      <div class="text-center"><div class="w-12 h-12 rounded border border-[#3A322A]" style="background:#3A322A"></div><div class="font-data text-[10px] text-[#9A8F7E] mt-1">line</div></div>
+      <div class="text-center"><div class="w-12 h-12 rounded border border-[#3A322A]" style="background:#E8E2D6"></div><div class="font-data text-[10px] text-[#9A8F7E] mt-1">parchment</div></div>
+      <div class="text-center"><div class="w-12 h-12 rounded border border-[#3A322A]" style="background:#9A8F7E"></div><div class="font-data text-[10px] text-[#9A8F7E] mt-1">faded</div></div>
+      <div class="text-center"><div class="w-12 h-12 rounded border border-[#3A322A]" style="background:#D9843B"></div><div class="font-data text-[10px] text-[#9A8F7E] mt-1">ember</div></div>
+      <div class="text-center"><div class="w-12 h-12 rounded border border-[#3A322A]" style="background:#7BA05B"></div><div class="font-data text-[10px] text-[#9A8F7E] mt-1">verdigris</div></div>
+      <div class="text-center"><div class="w-12 h-12 rounded border border-[#3A322A]" style="background:#C4523E"></div><div class="font-data text-[10px] text-[#9A8F7E] mt-1">kiln</div></div>
+      <div class="text-center"><div class="w-12 h-12 rounded border border-[#3A322A]" style="background:#6A93A8"></div><div class="font-data text-[10px] text-[#9A8F7E] mt-1">steel</div></div>
+    </div>
+    <div class="space-y-2 mb-5">
+      <p class="font-display text-xl">Display — rulebook voice, headings only</p>
+      <p class="text-[15px]">Body — system sans; prose, descriptions, callouts.</p>
+      <p class="font-data text-[13px] text-[#7BA05B]">Data — every JSON, path, roll, and event line is mono.</p>
+    </div>
+    <p class="font-data text-xs text-[#9A8F7E]">radius: 6 cards · 4 controls · 3 chips &nbsp;·&nbsp; spacing: 4-base scale &nbsp;·&nbsp; focus = 2px ember ring, never a shadow</p>
+  </div>
+
+</main>
+
+<footer class="border-t border-[#3A322A]">
+  <div class="max-w-5xl mx-auto px-6 py-4 flex justify-between flex-wrap gap-2">
+    <span class="font-data text-[11px] text-[#9A8F7E]">Ruleswright design mock · index of 6</span>
+    <a href="quickstart.html" class="font-data text-[11px] text-[#D9843B] hover:underline">next: quickstart →</a>
+  </div>
+</footer>
+
+</body>
+</html>

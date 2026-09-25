@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pack Anatomy — Ruleswright Mock</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .font-display { font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif; }
+  .font-data { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .kw { color: #D9843B; }
+  .str { color: #7BA05B; }
+  .com { color: #9A8F7E; font-style: italic; }
+  .num { color: #6A93A8; }
+</style>
+</head>
+<body class="bg-[#1A1714] text-[#E8E2D6] min-h-screen">
+
+<header class="border-b border-[#3A322A]">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-2">
+    <a href="index.html" class="font-data text-sm text-[#D9843B] hover:underline">← design index</a>
+    <div class="flex gap-2 flex-wrap">
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-2</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-19</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-23</span>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-4xl mx-auto px-6 py-10">
+
+  <h1 class="font-display text-4xl mb-3">Pack anatomy</h1>
+  <p class="text-[#9A8F7E] mb-10 max-w-2xl">The pack is one JSON document — the complete contract between author and runtime. Generated packs and hand-authored packs are the same shape: there is no second-class way to write content.</p>
+
+  <!-- TOP-LEVEL SKELETON -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">One document, eight sections</h2>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+      <div class="flex items-center justify-between px-4 py-2 border-b border-[#3A322A] bg-[#2C261F]">
+        <span class="font-data text-xs text-[#9A8F7E]">pack.json — top level</span>
+        <span class="font-data text-[11px] text-[#9A8F7E]">contract</span>
+      </div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>{
+  <span class="kw">"manifest"</span>:    { },  <span class="com">// id, schemaVersion, license?, attribution?, knob provenance</span>
+  <span class="kw">"stats"</span>:       { },  <span class="com">// ability names, named saves — the engine stores by string</span>
+  <span class="kw">"actions"</span>:     { },  <span class="com">// action types: cost, validity, effect body</span>
+  <span class="kw">"formulas"</span>:    { },  <span class="com">// derived stats: HP, AC, attack bonus, save targets, pools</span>
+  <span class="kw">"content"</span>:     { },  <span class="com">// classes, races, skills, feats, spells, conditions, equipment</span>
+  <span class="kw">"progression"</span>: { },  <span class="com">// HD, class attack tables, save progressions, vancian slots, caps</span>
+  <span class="kw">"bestiary"</span>:    { },  <span class="com">// statblocks built from the same character machinery</span>
+  <span class="kw">"tables"</span>:      { }   <span class="com">// weighted / ranged / nested lookups — one table engine</span>
+}</code></pre>
+    </div>
+    <p class="text-sm text-[#9A8F7E] mt-3">Every artifact inside is addressable by a stable <span class="font-data text-[#E8E2D6]">id</span> — that is what makes overrides possible (FR-19).</p>
+  </section>
+
+  <!-- SAMPLE ENTRIES -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">The same machinery everywhere</h2>
+    <p class="text-sm text-[#9A8F7E] mb-5 max-w-2xl">Rules are data, so the shapes rhyme: an action, a spell, and a condition all read like variations of one idea. All names coined (Q7/Q8).</p>
+
+    <div class="grid md:grid-cols-3 gap-4 mb-6">
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+        <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">action</div>
+        <pre class="font-data text-[12px] leading-relaxed p-4 overflow-x-auto"><code>{
+  <span class="kw">"id"</span>: <span class="str">"strike"</span>,
+  <span class="kw">"cost"</span>: { <span class="kw">"slots"</span>: {<span class="str">"main"</span>: <span class="num">1</span>} },
+  <span class="kw">"valid"</span>: <span class="str">"hasTarget(adjacent)"</span>,
+  <span class="kw">"effect"</span>: { <span class="kw">"attack"</span>: <span class="str">"melee"</span>,
+    <span class="kw">"onHit"</span>: <span class="str">"damage(1d8+str)"</span> }
+}</code></pre>
+      </div>
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+        <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">spell — an action + metadata</div>
+        <pre class="font-data text-[12px] leading-relaxed p-4 overflow-x-auto"><code>{
+  <span class="kw">"id"</span>: <span class="str">"grave-light"</span>,
+  <span class="kw">"magic"</span>: { <span class="kw">"level"</span>: <span class="num">1</span>,
+    <span class="kw">"lists"</span>: [<span class="str">"hexer"</span>] },
+  <span class="kw">"cost"</span>: { <span class="kw">"vancian"</span>: <span class="num">1</span> },
+  <span class="kw">"effect"</span>: { <span class="kw">"save"</span>: <span class="str">"reason"</span>,
+    <span class="kw">"fail"</span>: <span class="str">"condition(dazzed,3)"</span> }
+}</code></pre>
+      </div>
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+        <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">condition</div>
+        <pre class="font-data text-[12px] leading-relaxed p-4 overflow-x-auto"><code>{
+  <span class="kw">"id"</span>: <span class="str">"sapped"</span>,
+  <span class="kw">"duration"</span>: <span class="num">3</span>,
+  <span class="kw">"stacking"</span>: <span class="str">"refresh"</span>,
+  <span class="kw">"restricts"</span>:
+    [<span class="str">"actions.tagged:main"</span>]
+}</code></pre>
+      </div>
+    </div>
+
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden mb-4">
+      <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">progression — the classic-CRPG feel lives here, as data</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="str">"warden"</span>: {
+  <span class="kw">"hd"</span>: <span class="str">"d8"</span>,
+  <span class="kw">"attackTable"</span>: [ <span class="com">// descending-AC convention — the engine never knows</span>
+    { <span class="kw">"level"</span>: <span class="num">1</span>, <span class="kw">"ac2"</span>: <span class="num">20</span>, <span class="kw">"ac9"</span>: <span class="num">13</span> },
+    { <span class="kw">"level"</span>: <span class="num">4</span>, <span class="kw">"ac2"</span>: <span class="num">17</span>, <span class="kw">"ac9"</span>: <span class="num">10</span> } ],
+  <span class="kw">"saves"</span>: { <span class="kw">"vigor"</span>: [<span class="num">0</span>,<span class="num">0</span>,<span class="num">1</span>,<span class="num">1</span>,<span class="num">2</span>], <span class="kw">"reason"</span>: [<span class="num">0</span>,<span class="num">1</span>,<span class="num">1</span>,<span class="num">2</span>,<span class="num">2</span>] },
+  <span class="kw">"slots"</span>: { <span class="kw">"1"</span>: [<span class="num">1</span>,<span class="num">2</span>,<span class="num">2</span>,<span class="num">3</span>], <span class="kw">"2"</span>: [<span class="num">0</span>,<span class="num">1</span>,<span class="num">2</span>,<span class="num">2</span>] }  <span class="com">// vancian, by class level</span>
+}</code></pre>
+    </div>
+  </section>
+
+  <!-- OVERRIDES -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">Overrides — the GM's last word</h2>
+    <p class="text-sm text-[#9A8F7E] mb-4 max-w-2xl">Every artifact is addressable, so a host or GM patches any of them without forking the pack. Overrides merge at load with documented precedence.</p>
+
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+        <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">overrides.json — patch one artifact</div>
+        <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>{
+  <span class="kw">"override"</span>: <span class="str">"barrow-wight"</span>,
+  <span class="kw">"patch"</span>: {
+    <span class="kw">"hpBonus"</span>: <span class="num">4</span>,
+    <span class="kw">"actions.claw.onHit"</span>:
+      <span class="str">"damage(1d8+2)"</span>
+  }
+}</code></pre>
+      </div>
+      <div class="space-y-3">
+        <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
+          <span class="text-[#7BA05B] shrink-0">✓</span>
+          <p class="text-sm">Same seed ⇒ byte-identical regeneration, so your edits anchor cleanly every time (FR-19).</p>
+        </div>
+        <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
+          <span class="text-[#6A93A8] shrink-0">◈</span>
+          <p class="text-sm">Theme composition (FR-20) uses the same patch idea one level up: base theme + patches = new theme. JSON, not code.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCHEMA VERSION -->
+  <section class="mb-4">
+    <h2 class="font-display text-2xl mb-4">schemaVersion — the compatibility contract</h2>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3 mb-3">
+      <span class="text-[#D9843B] shrink-0">▲</span>
+      <p class="text-sm">Every pack declares <span class="font-data text-[13px]">schemaVersion</span>; the engine validates compatibility at load. Major bumps are breaking by definition and ship with a written compatibility note. One versioning discipline across packs, overrides, and snapshots — a version bump renders old snapshots stale, and the API says so plainly (FR-14, FR-23).</p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="border-t border-[#3A322A] mt-12">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex justify-between flex-wrap gap-2">
+    <a href="quickstart.html" class="font-data text-[11px] text-[#9A8F7E] hover:underline">← quickstart</a>
+    <a href="combat-loop.html" class="font-data text-[11px] text-[#D9843B] hover:underline">next: combat loop →</a>
+  </div>
+</footer>
+
+</body>
+</html>

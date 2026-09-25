@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Validation Errors — Ruleswright Mock</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .font-display { font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif; }
+  .font-data { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+</style>
+</head>
+<body class="bg-[#1A1714] text-[#E8E2D6] min-h-screen">
+
+<header class="border-b border-[#3A322A]">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-2">
+    <a href="index.html" class="font-data text-sm text-[#D9843B] hover:underline">← design index</a>
+    <div class="flex gap-2 flex-wrap">
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-2</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-14</span>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-4xl mx-auto px-6 py-10">
+
+  <h1 class="font-display text-4xl mb-3">Validation errors</h1>
+  <p class="text-[#9A8F7E] mb-10 max-w-2xl">Bad content is rejected loudly <em>at load</em> — errors never surface mid-combat. Every error names three things (FR-2): the artifact's <span class="font-data text-[#E8E2D6]">id</span>, the <span class="font-data text-[#E8E2D6]">JSON path</span>, and the <span class="font-data text-[#E8E2D6]">violated rule</span>. The compiler dogfoods this validator on its own output (FR-17).</p>
+
+  <!-- ERROR CARD ANATOMY -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">One card, four parts</h2>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+      <div class="border-l-4 border-[#C4523E] p-4">
+        <div class="flex flex-wrap items-center gap-2 mb-2">
+          <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#C4523E] text-[#1A1714] font-bold">ERROR</span>
+          <span class="font-data text-[12px] text-[#6A93A8]">bestiary[12].actions.claw</span>
+          <span class="font-data text-[12px] text-[#9A8F7E] ml-auto">rule: E-REF-01</span>
+        </div>
+        <p class="text-sm mb-1">Broken reference: action <span class="font-data text-[13px] text-[#D9843B]">"claw"</span> targets condition <span class="font-data text-[13px] text-[#D9843B]">"shaken"</span>, which does not exist in this pack.</p>
+        <p class="text-xs text-[#9A8F7E]">hint — nearest ids: <span class="font-data text-[12px]">"shaken-1round"</span>, <span class="font-data text-[12px]">"sapped"</span></p>
+      </div>
+    </div>
+    <p class="text-sm text-[#9A8F7E] mt-3">Severity stripe · located artifact · stated rule · a hint. The hint is not decoration — it is what makes a 1,200-artifact pack debuggable.</p>
+  </section>
+
+  <!-- GALLERY -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">Gallery — the failures you will actually hit</h2>
+    <div class="space-y-3">
+
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+        <div class="border-l-4 border-[#C4523E] p-4">
+          <div class="flex flex-wrap items-center gap-2 mb-2">
+            <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#C4523E] text-[#1A1714] font-bold">ERROR</span>
+            <span class="font-data text-[12px] text-[#6A93A8]">content.races.hillfolk.caps</span>
+            <span class="font-data text-[12px] text-[#9A8F7E] ml-auto">rule: E-REF-02</span>
+          </div>
+          <p class="text-sm">Race <span class="font-data text-[13px] text-[#D9843B]">"hillfolk"</span> declares a level cap for class <span class="font-data text-[13px] text-[#D9843B]">"hexer"</span>, which is not in the class table.</p>
+          <p class="text-xs text-[#9A8F7E] mt-1">hint — known classes: <span class="font-data text-[12px]">warden, hexer, gravehand</span></p>
+        </div>
+      </div>
+
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+        <div class="border-l-4 border-[#C4523E] p-4">
+          <div class="flex flex-wrap items-center gap-2 mb-2">
+            <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#C4523E] text-[#1A1714] font-bold">ERROR</span>
+            <span class="font-data text-[12px] text-[#6A93A8]">content.spells[87]</span>
+            <span class="font-data text-[12px] text-[#9A8F7E] ml-auto">rule: E-DUP-01</span>
+          </div>
+          <p class="text-sm">Duplicate id <span class="font-data text-[13px] text-[#D9843B]">"grave-light"</span> — also defined at <span class="font-data text-[12px] text-[#6A93A8]">content.spells[41]</span>. Ids must be unique across the whole pack; overrides address them by id.</p>
+        </div>
+      </div>
+
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+        <div class="border-l-4 border-[#D9843B] p-4">
+          <div class="flex flex-wrap items-center gap-2 mb-2">
+            <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#D9843B] text-[#1A1714] font-bold">ERROR</span>
+            <span class="font-data text-[12px] text-[#6A93A8]">content.spells[87].effect</span>
+            <span class="font-data text-[12px] text-[#9A8F7E] ml-auto">rule: E-FORM-03</span>
+          </div>
+          <p class="text-sm">Formula error: <span class="font-data text-[13px] text-[#D9843B]">damage(2d6 + wis)</span> — <span class="font-data text-[13px] text-[#D9843B]">wis</span> is not an ability in this pack. This pack's abilities: <span class="font-data text-[12px]">might, grace, vigor, reason, presence</span>.</p>
+          <p class="text-xs text-[#9A8F7E] mt-1">hint — did you mean <span class="font-data text-[12px]">reason</span>?</p>
+        </div>
+      </div>
+
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+        <div class="border-l-4 border-[#6A93A8] p-4">
+          <div class="flex flex-wrap items-center gap-2 mb-2">
+            <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#6A93A8] text-[#1A1714] font-bold">REFUSED</span>
+            <span class="font-data text-[12px] text-[#6A93A8]">snapshot.load</span>
+            <span class="font-data text-[12px] text-[#9A8F7E] ml-auto">rule: E-SNAP-01</span>
+          </div>
+          <p class="text-sm">Snapshot <span class="font-data text-[13px] text-[#D9843B]">combat-114</span> was saved against pack <span class="font-data text-[13px] text-[#D9843B]">dark-fantasy@e41c…</span>; loaded pack hash is <span class="font-data text-[13px] text-[#D9843B]">9a02…</span>. Refusing loudly rather than producing mangled characters (FR-14).</p>
+          <p class="text-xs text-[#9A8F7E] mt-1">note — v1 performs no snapshot migration; regenerate the campaign or restore the matching pack.</p>
+        </div>
+      </div>
+
+ <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+        <div class="border-l-4 border-[#7BA05B] p-4">
+          <div class="flex flex-wrap items-center gap-2 mb-2">
+            <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#7BA05B] text-[#1A1714] font-bold">PASS</span>
+            <span class="font-data text-[12px] text-[#6A93A8]">pack.load</span>
+            <span class="font-data text-[12px] text-[#9A8F7E] ml-auto">schemaVersion 1 ✓</span>
+          </div>
+          <p class="text-sm">1,204 artifacts validated in 214 ms. Pack carries license metadata <span class="font-data text-[13px] text-[#7BA05B]">CC-BY-4.0</span> — surfaced to the host, never enforced (FR-2, Q7).</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- RULES -->
+  <section class="mb-4">
+    <h2 class="font-display text-2xl mb-4">The three rules of failing</h2>
+    <div class="grid md:grid-cols-3 gap-3">
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4">
+        <p class="text-sm"><span class="text-[#D9843B]">All at once.</span> Validation collects every error and reports the full list — fix ten things in one pass, not ten load cycles.</p>
+      </div>
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4">
+        <p class="text-sm"><span class="text-[#D9843B]">Never partial.</span> A pack that fails any check is never partially loaded. There is no half-alive runtime state.</p>
+      </div>
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4">
+        <p class="text-sm"><span class="text-[#D9843B]">No eval, ever.</span> Formulas are pure data (NFR-Security) — a bad formula is a validation error, not an execution risk.</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="border-t border-[#3A322A] mt-12">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex justify-between flex-wrap gap-2">
+    <a href="combat-loop.html" class="font-data text-[11px] text-[#9A8F7E] hover:underline">← combat loop</a>
+    <a href="theme-knobs.html" class="font-data text-[11px] text-[#D9843B] hover:underline">next: theme knobs →</a>
+  </div>
+</footer>
+
+</body>
+</html>
