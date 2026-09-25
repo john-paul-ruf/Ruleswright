@@ -10,6 +10,7 @@
     "manifest": { "$ref": "#/$defs/manifest" },
     "stats": { "$ref": "#/$defs/stats" },
     "actions": { "$ref": "#/$defs/idMap", "description": "actionId -> ActionDef" },
+    "economy": { "$ref": "#/$defs/economy", "description": "Optional turn-economy declaration (FR-4): per-turn slot grants. Absent section = documented engine default." },
     "formulas": {
       "type": "object",
       "additionalProperties": {
@@ -110,8 +111,25 @@
           "required": ["on"],
           "properties": { "on": { "type": "string", "minLength": 1, "description": "Event pattern; presence makes the action reactive (FR-4/FR-13)" } }
         },
-        "effect": { "$ref": "#/$defs/dslString" }
+        "effect": { "$ref": "#/$defs/dslString" },
+        "tags": { "type": "array", "items": { "$ref": "#/$defs/idPattern" }, "uniqueItems": true, "description": "Coarse categories for condition restricts matching (FR-7) — e.g. [\"main\"], [\"casting\"]; matched by restricts patterns \"actions.tagged:<tag>\" (S-CONTRACT-GAP resolution, builder option A)" }
       }
+    },
+
+    "economy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["turnSlots"],
+      "properties": {
+        "turnSlots": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "$ref": "#/$defs/idPattern" },
+          "additionalProperties": { "type": "integer", "minimum": 1 },
+          "description": "Slot name -> slots granted per turn (FR-4). When present, action cost.slots keys must resolve here (E-ECON-01). Absent section = documented engine default: 1 of each slot name seen in action costs."
+        }
+      },
+      "description": "Turn-economy declaration (FR-4) — the generic slot/points economy's grant source. Optional; resolves S-CONTRACT-GAP (builder option A)."
     },
 
     "content": {
@@ -142,7 +160,8 @@
             "required": ["name"],
             "properties": {
               "name": { "type": "string" },
-              "caps": { "type": "object", "description": "classId -> max level; classic level-cap curve (FR-6). Unknown classId = E-REF-02", "additionalProperties": { "type": "integer", "minimum": 1 } }
+              "caps": { "type": "object", "description": "classId -> max level; classic level-cap curve (FR-6). Unknown classId = E-REF-02", "additionalProperties": { "type": "integer", "minimum": 1 } },
+              "size": { "enum": ["small", "medium", "large"], "description": "Spatial size class (FR-11): melee adjacency/reach checks are computed between positions; size does not affect adjacency in v1 (documented) — optional, defaults to medium" }
             }
           }
         },
@@ -202,7 +221,8 @@
                   "radius": { "type": "integer", "minimum": 1 }
                 },
                 "allOf": [{ "if": { "properties": { "shape": { "const": "burst" } } }, "then": { "required": ["radius"] } }]
-              }
+              },
+              "tags": { "type": "array", "items": { "$ref": "#/$defs/idPattern" }, "uniqueItems": true, "description": "Categories for restricts matching (FR-7) — spells participate in tag checks through the same matcher as actions (FR-9)" }
             }
           }
         },
@@ -217,7 +237,7 @@
               "name": { "type": "string" },
               "duration": { "type": "integer", "minimum": 1 },
               "stacking": { "enum": ["refresh", "stack", "ignore"], "description": "Pack-declared stacking policy (FR-7)" },
-              "restricts": { "type": "array", "items": { "type": "string" }, "description": "Action tag patterns blocked while active — the condition's teeth (FR-7)" }
+              "restricts": { "type": "array", "items": { "type": "string" }, "description": "Action tag patterns blocked while active — the condition's teeth (FR-7). Patterns \"actions.tagged:<tag>\" must reference a tag declared on at least one action or spell (E-REF-01)" }
             }
           }
         },

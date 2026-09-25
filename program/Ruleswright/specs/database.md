@@ -1,9 +1,11 @@
 # Database Design — Ruleswright
 
-> **Status:** draft for builder approval — DB, phase `database` (final Author phase).
-> Read with `specs/architecture.md` (approved), `specs/requirements.md` (approved),
-> and `specs/design.md` (approved, v2). Rule ids referenced by the approved
-> `validation-errors.html` mock are registered here verbatim.
+> **Status:** v1.1, revised — DB, schema-change Author re-entry (builder-approved Option A, S-CONTRACT-GAP).
+> v1.0 (phase `database`, final Author phase) approved; v1.1 adds the turn-economy
+> declaration (`economy.turnSlots`) and action/spell `tags` with `restricts`
+> reference semantics. Read with `specs/architecture.md` (approved),
+> `specs/requirements.md` (approved), and `specs/design.md` (approved, v2).
+> Rule ids referenced by the approved `validation-errors.html` mock are registered here verbatim.
 
 ---
 
@@ -30,10 +32,11 @@ no silent acceptance of foreign versions, loud refusal over mangling.
 ## Schema Overview
 
 ```
-Pack (one JSON document, 8 sections)
+Pack (one JSON document, 8 required + 1 optional section)
 ├── manifest        identity + schemaVersion + license/attribution + provenance
 ├── stats           name-keyed abilities and named saves
-├── actions         action declarations: cost, validity, trigger?, effect
+├── actions         action declarations: cost, validity, trigger?, tags?, effect
+├── economy?        OPTIONAL turn-economy declaration: per-turn slot grants (FR-4)
 ├── formulas        named formula-DSL expressions
 ├── content         classes · races · skills · feats · spells · conditions · items
 ├── progression     per-class tables: HD, attack table, saves, vancian slots
@@ -44,11 +47,11 @@ Override document  — GM/author patches, merged at load (FR-19)
 Snapshot envelopes — character · party · combat (FR-14; three serializers)
 ```
 
-All four contract files live at the real repo path:
+All three contract files live at the real repo path:
 
 ```
 src/schema/contracts/
-├── pack.schema.json        — the pack document, schemaVersion 1
+├── pack.schema.json        — the pack document, schemaVersion 1 (v1.1)
 ├── snapshots.schema.json   — the three snapshot envelopes
 └── override.schema.json    — the override/patch document
 ```
@@ -70,6 +73,7 @@ These rules are semantic validator duties (FR-2); every one maps to a registered
 | **Map-as-namespace** | Sections are JSON objects keyed by id (`content.spells["grave-light"]`). The key IS the id; a def object repeating a mismatched `id` field is an error. → `E-SCHEMA-02` |
 | **Reference grammar** | Dotted paths from a section root: `bestiary.barrow-wight.claw`, `tables.district-scavenge`. Bare ids resolve within the consuming section's context. |
 | **Referential integrity** | Every reference must resolve at validation time: action→condition, spell→class list, race cap→class, statblock→action/progression, table→table (nested). → `E-REF-01`; unknown class specifically → `E-REF-02`; orphaned/missing progression for a declared class → `E-REF-03` |
+| **Tag integrity (v1.1)** | A condition `restricts` pattern of the form `actions.tagged:<tag>` must reference a tag declared on at least one action or spell in the pack. → `E-REF-01`. This makes a condition's teeth statically checkable — a condition that can never bite is a broken reference, not a silent no-op. |
 | **No ambient values** | **No timestamps, no ambient entropy, no environment reads anywhere in a generated pack.** Provenance is exactly `{theme, seed, knobs}` (FR-18). This is what makes byte-identical regeneration (FR-17) structurally possible rather than aspirational. |
 | **Integers** | HP, slots, weights, durations, levels, and save entries are integers. Dice results are integer arithmetic throughout (sfc32, FR-1). |
 
@@ -96,6 +100,24 @@ Canonical shape: `src/schema/contracts/pack.schema.json` (draft 2020-12, closed 
 | `abilities` | string[] | ≥ 1, unique, kebab | **Name-keyed**; the engine stores by string (FR-5). v1 validator enforces the six-ability convention |
 | `saves` | string[] | ≥ 1, unique, kebab | Pack declares which named saves exist (five in the classic-CRPG sample) |
 
+### `economy` — OPTIONAL (v1.1)
+Turn-economy declaration: the grant source for the generic slot/points economy (FR-4).
+
+| Field | Type | Constraints | Notes |
+|---|---|---|---|
+| `turnSlots` | object | required; ≥ 1 entry; keys kebab ids; values integer ≥ 1 | Slot name → slots granted **per turn**. e.g. `{"main": 1, "move": 1}` — the classic structure as data |
+
+- **When `economy` is present:** every action `cost.slots` key must resolve to a
+  `turnSlots` key → otherwise `E-ECON-01`. The economy is the pack's authority on
+  slot names; the engine has no built-in slot vocabulary (FR-4).
+- **When `economy` is absent (documented engine default):** each combatant is granted
+  **1 of each slot name appearing in any action `cost.slots`** in the pack, per turn.
+  The default is engine-documented, not schema-minted; packs that want other grants
+  declare `economy`.
+- **Slot *spending*** is per-turn and per-combatant: grants replenish at the start of
+  the combatant's turn. Slot use is a combat transient; it is not character state and
+  does not appear in character snapshots.
+
 ### `actions`
 Map `actionId → ActionDef`:
 
@@ -105,6 +127,7 @@ Map `actionId → ActionDef`:
 | `valid` | string? | formula DSL | Validity conditions, e.g. `hasTarget(adjacent)` |
 | `trigger` | object? | `{on: eventPattern}` | Presence makes the action reactive; rides the event substrate (FR-4/13) |
 | `effect` | string | effect DSL, required | Parsed once at load → AST (FR-3); parse failure → `E-FORM-01` |
+| `tags` | string[]? | unique, kebab ids | Coarse categories for `restricts` matching (FR-7) — e.g. `["main"]`, `["casting"]`. Not a targeting mechanism; the tag vocabulary is pack-local, engine-blind (v1.1) |
 
 ### `formulas`
 Map `formulaId → {params?: string[], expr: string}`. Pure data; the function registry is
@@ -115,9 +138,9 @@ closed and versioned with the schema — extension is a schema event, never an e
 Seven maps, keyed by id: `classes`, `races`, `skills`, `feats`, `spells`, `conditions`, `items`.
 Highlights (full field lists in the JSON Schema):
 
-- **conditions**: `duration` (uint ≥ 1), `stacking` (`refresh | stack | ignore` — pack-declared policy, FR-7), `restricts?` (array of action tag patterns — the "teeth", e.g. blocks casting actions).
-- **spells**: `magic` ({level: 1–9, lists: class ids}) + `cost` (vancian level or pool draw) + `effect` + optional `targeting` ({shape: `single | burst`, radius: uint, required iff burst}). A spell is an action with metadata — there is no magic subsystem (FR-9). Class/armor casting restrictions live on classes (pack data).
-- **races**: `caps?` (map classId → uint max level — the classic cap curve, FR-6); unknown classId → `E-REF-02`.
+- **conditions**: `duration` (uint ≥ 1), `stacking` (`refresh | stack | ignore` — pack-declared policy, FR-7), `restricts?` (array of action tag patterns — the "teeth", e.g. blocks casting actions). **v1.1:** each pattern `actions.tagged:<tag>` must reference a tag declared on at least one action or spell → `E-REF-01` (see *Tag integrity*).
+- **spells**: `magic` ({level: 1–9, lists: class ids}) + `cost` (vancian level or pool draw) + `effect` + optional `targeting` ({shape: `single | burst`, radius: uint, required iff burst}) + optional `tags` (same matching semantics as action tags — spells participate in `restricts` checks through the same matcher as actions, FR-9). A spell is an action with metadata — there is no magic subsystem (FR-9). Class/armor casting restrictions live on classes (pack data).
+- **races**: `caps?` (map classId → uint max level — the classic cap curve, FR-6); unknown classId → `E-REF-02`. `size?` (`small | medium | large`, default medium, documented no-op for adjacency in v1 — FR-11 seam).
 - **feats**: passive or reactive (`trigger.on`); the sample packs ship ≥ 1 reactive feat (FR-12 proof 2).
 - **skills**: `ability` (must name an ability declared in `stats`).
 
@@ -190,19 +213,21 @@ answer (FR-23).
 
 One error shape everywhere (`schema/error-card.ts`); this registry is the DB-owned
 enumeration of v1 rule ids. Mock-attested ids are **fixed by approved design**.
+**Unchanged by v1.1** — the revision reuses existing ids only (tag integrity rides
+`E-REF-01`; turn-slot cost resolution rides `E-ECON-01`); no id added, renamed, or retired.
 
 | Rule id | Family | Meaning |
 |---|---|---|
 | `E-SCHEMA-01` | structure | Document fails structural shape (missing section, wrong type) |
 | `E-SCHEMA-02` | structure | Unknown/forbidden field; key/id mismatch in a map section |
 | `E-DUP-01` | identity | Duplicate artifact id across the pack (also defined at …) |
-| `E-REF-01` | reference | Dangling reference (target does not exist in this pack) |
+| `E-REF-01` | reference | Dangling reference (target does not exist in this pack) — includes v1.1 tag references from `restricts` patterns |
 | `E-REF-02` | reference | Reference to unknown class (race cap, list membership, …) |
 | `E-REF-03` | reference | Missing progression for a declared class / orphaned progression |
 | `E-FORM-01` | DSL | Formula/effect parse error |
 | `E-FORM-02` | DSL | Unknown function (closed registry) |
 | `E-FORM-03` | DSL | Unknown ability/save identifier (hint: did you mean …) |
-| `E-ECON-01` | economy | Action costs an undeclared slot name / unknown pool or slot level |
+| `E-ECON-01` | economy | Action costs an undeclared slot name / unknown pool or slot level — v1.1: when `economy` is present, slot names must resolve to `economy.turnSlots` keys |
 | `E-TBL-01` | tables | Malformed weights/ranges; nesting depth exceeded |
 | `E-OVR-01` | override | Override targets an unknown artifact id |
 | `E-SNAP-01` | snapshot | Pack identity mismatch on load — loud refusal (FR-14) |
@@ -226,6 +251,8 @@ all built or compiled once at load (architecture: parse once, play many):
 | Roll a table | seeded RNG stream through the one table engine | `Rng` (sfc32) + `TableDef` |
 | Snapshot round-trip | `JSON.stringify` / structured revive over plain-JSON state | plain-JSON constraint (FR-5/14) |
 | Trigger dispatch | event pattern → registered reactive actions | event→action index, built at load |
+| Restricts matching (v1.1) | declared tag set per action/spell → condition patterns | tag index built at load; runtime matcher consults it |
+| Turn-slot grants (v1.1) | `economy.turnSlots` or the documented per-cost default | grant table resolved at load |
 
 ---
 
@@ -233,7 +260,8 @@ all built or compiled once at load (architecture: parse once, play many):
 
 The only initial data in the repository are the **two sample theme templates**
 (`src/compiler/themes/dark-fantasy.json`, `zombie-urban.json`) — JSON, not code (FR-21).
-DB owns their **shape** (knob declarations, stage inputs, patch vocabulary); their content
+DB owns their **shape** (knob declarations, stage inputs, patch vocabulary, and the v1.1
+fields: `economy.turnSlots` grants, action/spell `tags`, `restricts` patterns); their content
 is authored coined material per the FR-21 coverage floor and expression policy (Q7/Q8).
 No database seeding exists — there is no database.
 
@@ -247,7 +275,8 @@ request back to DB, never a scope adjustment for Coder** (DB.md contract).
 
 | # | schemaVersion | Description | Files |
 |---|---|---|---|
-| 1 | 1 | Initial contract layer: pack document (8 sections), three snapshot envelopes, override document, ErrorCard rule registry | `src/schema/contracts/pack.schema.json` · `snapshots.schema.json` · `override.schema.json` |
+| 1 | 1 (v1.0) | Initial contract layer: pack document (8 sections), three snapshot envelopes, override document, ErrorCard rule registry | `src/schema/contracts/pack.schema.json` · `snapshots.schema.json` · `override.schema.json` |
+| 2 | 1 (v1.1) | **S-CONTRACT-GAP resolution (builder Option A):** optional `economy.turnSlots` turn-economy declaration (FR-4 grant source); optional `tags` on actions and spells; `restricts` pattern `actions.tagged:<tag>` must reference a declared tag (`E-REF-01`). Pre-release in-place revision: purely additive-optional fields, no field removed/renamed, no rule id added/renamed/retired, `schemaVersion` stays 1 (registry discipline: additive optional = compatible) | same three files (pack.schema.json revised) |
 
 **Versioning discipline (FR-23, formalized):**
 - Additive optional fields within v1 = compatible (minor).
