@@ -26,8 +26,8 @@ yarn-error.log*
 # demiurge
 /.program/
 /program-agents/
-/program/shard-breaker/prompts/
-/program/shard-breaker/demiurge.yaml
-/program/shard-breaker/img-source/
-/program/shard-breaker/runs/
-/program/shard-breaker/STATE.md
+/program/d20-rpg-system/prompts/
+/program/d20-rpg-system/demiurge.yaml
+/program/d20-rpg-system/img-source/
+/program/d20-rpg-system/runs/
+/program/d20-rpg-system/STATE.md
