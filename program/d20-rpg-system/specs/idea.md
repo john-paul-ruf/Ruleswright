@@ -1,10 +1,11 @@
-# Idea — d20-rpg-system
+# Idea — Ruleswright
 
-> **Status:** draft for builder approval — Spec, phase `idea`
+> **Status:** approved by builder (phase gate passed). Revised: product renamed to **Ruleswright**; expression policy applied.
+> Internal repo codename: `d20-rpg-system` — internal paths are not published use.
 
 ## One-Sentence Summary
 
-**d20-rpg-system is a headless TypeScript library that turns a one-line theme — "zombie urban," "dark fantasy" — into a complete, playable d20 campaign, emitted as a JSON content pack consumed by an embeddable party / character / combat runtime.**
+**Ruleswright is a headless TypeScript library that turns a one-line theme — "zombie urban," "dark fantasy" — into a complete, playable d20-style campaign, emitted as a JSON content pack consumed by an embeddable party / character / combat runtime.**
 
 ## Problem
 
@@ -66,4 +67,4 @@ These are v1 design commitments, made so the v2 reaches are content and schema w
 
 ---
 
-*Phase gate: builder approval required before `requirements` begins.*
+*Phase gate: passed — builder approved; the requirements phase has consumed these questions.*
