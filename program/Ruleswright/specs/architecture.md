@@ -1,6 +1,9 @@
 # Architecture — Ruleswright
 
 > **Status:** draft for builder approval — Architect, phase `architecture`.
+> Revised in review: **library root corrected to the repo root (`./`)** per builder —
+> package.json, `src/`, and `tests/` live at the repository root; `program/Ruleswright/`
+> holds program artifacts (specs, mocks) and is never part of the shipped package.
 > Read with `specs/idea.md`, `specs/requirements.md` (approved), and
 > `specs/design.md` (approved, v2 — 18 surfaces). FR references throughout.
 > **Design contract compliance is tracked at the bottom** — no corrections to
@@ -36,15 +39,17 @@
 | **State representation** | Plain-JSON state objects; engine logic as functions operating on state; public API exposes thin facades (`char.derived()`) that wrap {state, runtime} | Class graphs with methods and private fields; ECS framework | FR-5/FR-14: state must be plain serializable JSON — no class instances, no closures. Facades give the ergonomic mock-API surface (`api-map.html`) while `serialize()` emits the plain state. An ECS framework is machinery the requirements never asked for. |
 | **Build tool** | tsup | unbuild; raw `tsc`; vite lib mode | Per-entry dts + dual format with the least config. Raw tsc can't bundle or produce the single-file runtime bundle the CI proof consumes. |
 | **Test framework** | Vitest | Jest | Jest + ESM + TS still requires transform archaeology; Vitest is native and its browser mode is the determinism contract's test vehicle. |
+| **Library root** | **Repository root (`./`)** — builder decision in review | `program/Ruleswright/` | The repo *is* the package; program artifacts are project bookkeeping. With the root at `./`, `package.json` must carry a strict `files` field (`dist`, `README`, `LICENSE`) so `program/` and agent docs never enter the npm tarball. |
 
 ---
 
 ## Module Structure
 
 Precise paths — Planner lifts these directly into its Module Registry.
+**All paths are repository-relative; the repo root is the package root.**
 
 ```
-program/Ruleswright/            ← library root (package.json lives here)
+./                              ← repo root = library root (package.json lives here)
 ├── src/
 │   ├── schema/                 — SURFACE 2: pack format (dependency of both others)
 │   │   ├── pack.ts             — Pack document type: manifest, stats, actions, formulas,
@@ -94,7 +99,10 @@ program/Ruleswright/            ← library root (package.json lives here)
 │   └── index.ts                — root entry: re-exports the three subpath entries only;
 │                                  contains no logic and no cross-surface barrel
 ├── tests/                      — Vitest; proofs/ holds the FR-12 trio + bundle check
-└── package.json                — exports map: ".", "./runtime", "./schema", "./compiler"
+├── program/Ruleswright/        — program artifacts: specs/, mocks/, PROGRAM-CONFIG —
+│                                  project bookkeeping; excluded from the npm tarball
+└── package.json                — exports map: ".", "./runtime", "./schema", "./compiler";
+                                   strict `files` field: [dist, README, LICENSE]
 ```
 
 ## Module Contracts
@@ -182,7 +190,7 @@ The budgets are NFR commitments; the architecture meets them by construction:
 ## Deployment Architecture
 
 - **Target:** npm (`ruleswright`), subpath exports per the packaging decision. Dual ESM/CJS; TypeScript types ship alongside every entry.
-- **Build:** `tsup` per entry → `dist/`; `exports` map in `package.json`; side-effect-free for tree-shaking.
+- **Build:** `tsup` per entry → `dist/`; `exports` map in `package.json`; side-effect-free for tree-shaking. **Strict `files` field** (`dist`, `README`, `LICENSE`) — with the package root at the repo root, this is what keeps `program/` and tooling docs out of the published tarball.
 - **Runtime:** consumer's process (Node ≥ 20, browser, Electron). The library never spawns, listens, fetches, or writes.
 - **CI gates:** typecheck · lint security rules · unit + browser determinism matrix · FR-12 proof trio · runtime-bundle isolation (no `generateCampaign` string) · perf budgets as regression thresholds · sample-theme generation + validation for both FR-21 packs.
 
@@ -201,9 +209,9 @@ How the approved design constrains this architecture — no corrections were nee
 | `combat-loop.html` / FR-4 — generic slot economy, classic structure as data | `action-economy.ts` implements slots/points generically; `turnSlots`/triggered actions are pack content |
 | Expression policy (Q7/Q8) | Theme templates are authored coined content; nothing in the architecture mints or transforms names |
 
-## Open Architectural Questions (builder input)
+## Open Architectural Questions
 
-1. **Library root confirmation:** architecture assumes the package root is `program/Ruleswright/` (package.json + src/ + tests/ there). Confirm — or name a different root and this document's paths shift one level.
-2. **Node floor:** I've set the minimum at Node 20 LTS (current maintenance line at time of writing). If you want a lower floor for Electron-adjacent users, say so now — it pins the tsup target and test matrix.
+1. ~~**Library root**~~ — **Resolved in review:** repo root (`./`) is the package root; paths in this document are repository-relative; `files` field pins the tarball.
+2. **Node floor:** set at Node 20 LTS unless the builder says otherwise before the phase gate closes — it pins the tsup target and the CI test matrix.
 
 Everything else above is decided and documented with its trade-offs.
