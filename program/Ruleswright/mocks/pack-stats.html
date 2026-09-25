@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stats &amp; Abilities — Ruleswright Mock</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .font-display { font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif; }
+  .font-data { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .kw { color: #D9843B; }
+  .str { color: #7BA05B; }
+  .com { color: #9A8F7E; font-style: italic; }
+  .num { color: #6A93A8; }
+</style>
+</head>
+<body class="bg-[#1A1714] text-[#E8E2D6] min-h-screen">
+
+<header class="border-b border-[#3A322A]">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-2">
+    <a href="index.html" class="font-data text-sm text-[#D9843B] hover:underline">← design index</a>
+    <div class="flex gap-2 flex-wrap">
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-5</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-3</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-14</span>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-4xl mx-auto px-6 py-10">
+
+  <h1 class="font-display text-4xl mb-3">Stats &amp; abilities — name-keyed</h1>
+  <p class="text-[#9A8F7E] mb-10 max-w-2xl">The engine stores abilities and saves <em>by string name</em>. The pack declares which exist; the v1 validator enforces the classic six abilities and the five named saves as a convention (FR-5). Extending either later is a validator relaxation — never an engine change.</p>
+
+  <!-- PACK STATS -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">pack.stats — the naming contract</h2>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+      <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">pack.json · stats section</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="str">"stats"</span>: {
+  <span class="kw">"abilities"</span>: [<span class="str">"might"</span>,<span class="str">"grace"</span>,<span class="str">"vigor"</span>,<span class="str">"reason"</span>,<span class="str">"insight"</span>,<span class="str">"presence"</span>],
+  <span class="kw">"saves"</span>:     [<span class="str">"vigor"</span>,<span class="str">"grace"</span>,<span class="str">"tenacity"</span>,<span class="str">"reason"</span>,<span class="str">"presence"</span>]
+}</code></pre>
+    </div>
+    <p class="text-sm text-[#9A8F7E] mt-3">A classic-CRPG pack ships five named saves; a three-save pack ships three; the engine has no opinion. All names coined (Q7/Q8).</p>
+  </section>
+
+  <!-- DERIVED STATS -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">Derived stats are pack formulas</h2>
+    <p class="text-sm text-[#9A8F7E] mb-4 max-w-2xl">HP, AC, attack bonus, save targets, pool capacities — all computed by the formula DSL from abilities, class, level, and equipment. Nothing derived is hard-coded (FR-3).</p>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+        <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">formula grammar (informal)</div>
+        <pre class="font-data text-[12px] leading-relaxed p-4 overflow-x-auto"><code>term    ::= dice | ability | level
+          | class.level | equip.ref
+          | number
+formula ::= term ((+ - *) term)+
+          | min(f, f) | max(f, f)
+dice    ::= dS | NdS (kh K | kl K)?</code></pre>
+      </div>
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+        <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">pack.json · formulas section</div>
+        <pre class="font-data text-[12px] leading-relaxed p-4 overflow-x-auto"><code><span class="str">"hp"</span>:          <span class="str">"hd(class) + vigor"</span>,
+<span class="str">"ac"</span>:          <span class="str">"10 + grace + armor"</span>,
+<span class="str">"attackBonus"</span>: <span class="str">"table(class.attack, level) + might"</span>,
+<span class="str">"saveTarget"</span>:  <span class="str">"10 + save.class(save, level)"</span>,
+<span class="str">"poolCap"</span>:     <span class="str">"8 + vigor"</span></code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHARACTER STATE -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">A character is plain JSON</h2>
+    <p class="text-sm text-[#9A8F7E] mb-4 max-w-2xl">No class instances, no closures, no hidden state — JSON in, JSON out (FR-5, FR-14). Snapshot-safe by construction.</p>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+      <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">character state — brynn, warden 1</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>{
+  <span class="kw">"id"</span>: <span class="str">"brynn"</span>,
+  <span class="kw">"abilities"</span>: { <span class="str">"might"</span>: <span class="num">14</span>, <span class="str">"grace"</span>: <span class="num">12</span>, <span class="str">"vigor"</span>: <span class="num">13</span>,
+                <span class="str">"reason"</span>: <span class="num">9</span>, <span class="str">"insight"</span>: <span class="num">10</span>, <span class="str">"presence"</span>: <span class="num">11</span> },
+  <span class="kw">"classes"</span>:   [ { <span class="kw">"id"</span>: <span class="str">"warden"</span>, <span class="kw">"level"</span>: <span class="num">1</span>, <span class="kw">"xp"</span>: <span class="num">0</span> } ],
+  <span class="kw">"skills"</span>:    [ { <span class="kw">"id"</span>: <span class="str">"herbalism"</span>, <span class="kw">"ranks"</span>: <span class="num">2</span> } ],
+  <span class="kw">"feats"</span>:     [<span class="str">"steady-hands"</span>],
+  <span class="kw">"pools"</span>:     { },
+  <span class="kw">"slots"</span>:     { <span class="str">"1"</span>: [<span class="kw">null</span>, <span class="kw">null</span>] },
+  <span class="kw">"conditions"</span>: [],
+  <span class="kw">"inventory"</span>: [ { <span class="kw">"id"</span>: <span class="str">"oaken-cudgel"</span>, <span class="kw">"equipped"</span>: <span class="kw">true</span> } ]
+}</code></pre>
+    </div>
+  </section>
+
+  <!-- ILLEGAL BUILDS -->
+  <section class="mb-4">
+    <h2 class="font-display text-2xl mb-4">Illegal builds are rejected, rule named</h2>
+    <div class="space-y-3">
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+        <div class="border-l-4 border-[#C4523E] p-4">
+          <div class="flex flex-wrap items-center gap-2 mb-2">
+            <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#C4523E] text-[#1A1714] font-bold">ERROR</span>
+            <span class="font-data text-[12px] text-[#6A93A8]">characters[brynn].feats</span>
+            <span class="font-data text-[12px] text-[#9A8F7E] ml-auto">rule: E-BUILD-01</span>
+          </div>
+          <p class="text-sm">Feat <span class="font-data text-[13px] text-[#D9843B]">"twin-strike"</span> requires warden 2+; brynn is warden 1.</p>
+          <p class="text-xs text-[#9A8F7E] mt-1">hint — legal at warden 2, or choose from: <span class="font-data text-[12px]">steady-hands, woodwise</span></p>
+        </div>
+      </div>
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+        <div class="border-l-4 border-[#C4523E] p-4">
+          <div class="flex flex-wrap items-center gap-2 mb-2">
+            <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#C4523E] text-[#1A1714] font-bold">ERROR</span>
+            <span class="font-data text-[12px] text-[#6A93A8]">characters[brynn].classes</span>
+            <span class="font-data text-[12px] text-[#9A8F7E] ml-auto">rule: E-BUILD-02</span>
+          </div>
+          <p class="text-sm">Race <span class="font-data text-[13px] text-[#D9843B]">hillfolk</span> × class <span class="font-data text-[13px] text-[#D9843B]">gravehand</span> is forbidden by the race/class restriction matrix (FR-6) — which is pack data, so a permissive pack may allow it.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="border-t border-[#3A322A] mt-12">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex justify-between flex-wrap gap-2">
+    <a href="pack-anatomy.html" class="font-data text-[11px] text-[#9A8F7E] hover:underline">← pack anatomy</a>
+    <a href="progression.html" class="font-data text-[11px] text-[#D9843B] hover:underline">next: progression &amp; multi-class →</a>
+  </div>
+</footer>
+
+</body>
+</html>

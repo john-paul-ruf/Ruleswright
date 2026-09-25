@@ -24,15 +24,17 @@
 
 <main class="max-w-5xl mx-auto px-6 py-10">
 
-  <h1 class="font-display text-4xl mb-3">Five surfaces, zero screens</h1>
-  <p class="text-[#9A8F7E] max-w-2xl mb-8">Ruleswright ships no UI — its hosts own all presentation. What gets designed here is what a developer <em>sees and copies</em>: the docs, the pack contract, the event stream, the errors, the knobs. Each mock is a DX contract, not an implementation target.</p>
+  <h1 class="font-display text-4xl mb-3">Eighteen surfaces, zero screens</h1>
+  <p class="text-[#9A8F7E] max-w-2xl mb-8">Ruleswright ships no UI — its hosts own all presentation. What gets designed here is what a developer <em>sees and copies</em>: the docs, the pack contract, the event stream, the errors, the knobs. Every functional requirement is exercised by at least one surface; each mock is a DX contract, not an implementation target.</p>
 
   <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 mb-12 flex gap-3">
     <span class="text-[#6A93A8] shrink-0">◈</span>
-    <p class="text-sm">Code inside these mocks is <span class="text-[#E8E2D6]">API illustrative</span> — the Architect owns final signatures. The pack document shape, event anatomy, and error anatomy are contracts.</p>
+    <p class="text-sm">Code inside these mocks is <span class="text-[#E8E2D6]">API illustrative</span> — the Architect owns final signatures. The pack document shape, event anatomy, error anatomy, and snapshot payloads are contracts.</p>
   </div>
 
-  <h2 class="font-display text-2xl mb-5">Surfaces</h2>
+  <!-- FOUNDATIONS -->
+  <h2 class="font-display text-2xl mb-1">Foundations</h2>
+  <p class="font-data text-[11px] text-[#9A8F7E] mb-4">the copy-paste path · the randomness spine · the name-keyed stat model</p>
   <div class="grid md:grid-cols-2 gap-4 mb-12">
 
     <a href="quickstart.html" class="group rounded-md border border-[#3A322A] bg-[#241F1A] p-5 hover:border-[#D9843B] hover:bg-[#2C261F] transition-colors">
@@ -43,45 +45,172 @@
       <p class="text-sm text-[#9A8F7E]">The copy-paste path: one theme, one seed — generate a pack, build a character, run three rounds. Every line runnable; every example shows its expected output.</p>
     </a>
 
+    <a href="quickstart-annotated.html" class="group rounded-md border border-[#3A322A] bg-[#241F1A] p-5 hover:border-[#D9843B] hover:bg-[#2C261F] transition-colors">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-display text-lg group-hover:text-[#D9843B]">02 · Quickstart, annotated</h3>
+        <span class="font-data text-[10px] text-[#9A8F7E]">NFR-DX</span>
+      </div>
+      <p class="text-sm text-[#9A8F7E]">The same three steps with the requirements pinned to each line — the reviewer's proof that the doc bar (runnable, expected-output, no I/O) is met clause by clause.</p>
+    </a>
+
+    <a href="dice.html" class="group rounded-md border border-[#3A322A] bg-[#241F1A] p-5 hover:border-[#D9843B] hover:bg-[#2C261F] transition-colors">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-display text-lg group-hover:text-[#D9843B]">03 · Dice &amp; determinism</h3>
+        <span class="font-data text-[10px] text-[#9A8F7E]">FR-1 · FR-14 · NFR-det.</span>
+      </div>
+      <p class="text-sm text-[#9A8F7E]">One injectable RNG; structured rolls with purpose and verdict; the dice vocabulary formulas may use; RNG state that travels inside snapshots.</p>
+    </a>
+
+    <a href="pack-stats.html" class="group rounded-md border border-[#3A322A] bg-[#241F1A] p-5 hover:border-[#D9843B] hover:bg-[#2C261F] transition-colors">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-display text-lg group-hover:text-[#D9843B]">04 · Stats &amp; abilities</h3>
+        <span class="font-data text-[10px] text-[#9A8F7E]">FR-5 · FR-3 · FR-14</span>
+      </div>
+      <p class="text-sm text-[#9A8F7E]">Name-keyed abilities and saves; derived stats from pack formulas; a character is plain JSON; illegal builds rejected with the rule named.</p>
+    </a>
+
+  </div>
+
+  <!-- PACK CONTRACTS -->
+  <h2 class="font-display text-2xl mb-1">The pack contracts</h2>
+  <p class="font-data text-[11px] text-[#9A8F7E] mb-4">one document · the same machinery everywhere</p>
+  <div class="grid md:grid-cols-2 gap-4 mb-12">
+
     <a href="pack-anatomy.html" class="group rounded-md border border-[#3A322A] bg-[#241F1A] p-5 hover:border-[#D9843B] hover:bg-[#2C261F] transition-colors">
       <div class="flex items-center justify-between mb-2">
-        <h3 class="font-display text-lg group-hover:text-[#D9843B]">02 · Pack anatomy</h3>
+        <h3 class="font-display text-lg group-hover:text-[#D9843B]">05 · Pack anatomy</h3>
         <span class="font-data text-[10px] text-[#9A8F7E]">FR-2 · FR-19 · FR-23</span>
       </div>
       <p class="text-sm text-[#9A8F7E]">One JSON document: manifest, rules, content. Overrides merge at load; schemaVersion gates compatibility. Hand-authored packs are first-class citizens.</p>
     </a>
 
+    <a href="progression.html" class="group rounded-md border border-[#3A322A] bg-[#241F1A] p-5 hover:border-[#D9843B] hover:bg-[#2C261F] transition-colors">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-display text-lg group-hover:text-[#D9843B]">06 · Progression &amp; multi-class</h3>
+        <span class="font-data text-[10px] text-[#9A8F7E]">FR-6 · FR-13</span>
+      </div>
+      <p class="text-sm text-[#9A8F7E]">Leveling reads from pack tables; the host awards XP; direct level-set and earned levels validate identically; multi-class and demihuman caps as data.</p>
+    </a>
+
+    <a href="conditions.html" class="group rounded-md border border-[#3A322A] bg-[#241F1A] p-5 hover:border-[#D9843B] hover:bg-[#2C261F] transition-colors">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-display text-lg group-hover:text-[#D9843B]">07 · Conditions</h3>
+        <span class="font-data text-[10px] text-[#9A8F7E]">FR-7 · FR-4 · FR-13</span>
+      </div>
+      <p class="text-sm text-[#9A8F7E]">Durations, per-condition stacking policies, and <span class="font-data">restricts</span> teeth — all pack data, all riding the event stream.</p>
+    </a>
+
+    <a href="magic.html" class="group rounded-md border border-[#3A322A] bg-[#241F1A] p-5 hover:border-[#D9843B] hover:bg-[#2C261F] transition-colors">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-display text-lg group-hover:text-[#D9843B]">08 · Magic — no subsystem</h3>
+        <span class="font-data text-[10px] text-[#9A8F7E]">FR-8 · FR-9 · FR-11</span>
+      </div>
+      <p class="text-sm text-[#9A8F7E]">Spells are actions: vancian bindings and drain pools on one engine; the slot lifecycle; multi-target, per-target saves, mixed outcomes.</p>
+    </a>
+
+  </div>
+
+  <!-- COMBAT -->
+  <h2 class="font-display text-2xl mb-1">Combat</h2>
+  <p class="font-data text-[11px] text-[#9A8F7E] mb-4">stepwise · spatially optional · reactive by event</p>
+  <div class="grid md:grid-cols-3 gap-4 mb-12">
+
     <a href="combat-loop.html" class="group rounded-md border border-[#3A322A] bg-[#241F1A] p-5 hover:border-[#D9843B] hover:bg-[#2C261F] transition-colors">
       <div class="flex items-center justify-between mb-2">
-        <h3 class="font-display text-lg group-hover:text-[#D9843B]">03 · Combat loop</h3>
+        <h3 class="font-display text-lg group-hover:text-[#D9843B]">09 · Combat loop</h3>
         <span class="font-data text-[10px] text-[#9A8F7E]">FR-4 · FR-10 · FR-13 · FR-14</span>
       </div>
-      <p class="text-sm text-[#9A8F7E]">Stepwise and resumable: begin turn → declare → resolve → end. Every mutation emits an event carrying <span class="font-data">why</span>. Snapshots carry state, RNG, and pack identity.</p>
+      <p class="text-sm text-[#9A8F7E]">Stepwise and resumable: begin turn → declare → resolve → end. Every mutation emits an event carrying <span class="font-data">why</span>.</p>
+    </a>
+
+    <a href="spatial.html" class="group rounded-md border border-[#3A322A] bg-[#241F1A] p-5 hover:border-[#D9843B] hover:bg-[#2C261F] transition-colors">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-display text-lg group-hover:text-[#D9843B]">10 · Spatial layer</h3>
+        <span class="font-data text-[10px] text-[#9A8F7E]">FR-11 · FR-4</span>
+      </div>
+      <p class="text-sm text-[#9A8F7E]">Optional positions, adjacency, reach — declared per pack. Theater-of-mind packs pay nothing; single-target and burst are the v1 shapes.</p>
+    </a>
+
+    <a href="triggers.html" class="group rounded-md border border-[#3A322A] bg-[#241F1A] p-5 hover:border-[#D9843B] hover:bg-[#2C261F] transition-colors">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-display text-lg group-hover:text-[#D9843B]">11 · Triggered actions</h3>
+        <span class="font-data text-[10px] text-[#9A8F7E]">FR-4 · FR-12 · FR-13</span>
+      </div>
+      <p class="text-sm text-[#9A8F7E]">Reactions as data riding the event substrate — the engine offers, the host answers. FR-12 proof 2 lives here.</p>
+    </a>
+
+  </div>
+
+  <!-- SYSTEM & TOOLING -->
+  <h2 class="font-display text-2xl mb-1">System &amp; tooling</h2>
+  <p class="font-data text-[11px] text-[#9A8F7E] mb-4">persistence · failure · generation · consumption</p>
+  <div class="grid md:grid-cols-2 gap-4 mb-12">
+
+    <a href="snapshots.html" class="group rounded-md border border-[#3A322A] bg-[#241F1A] p-5 hover:border-[#D9843B] hover:bg-[#2C261F] transition-colors">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-display text-lg group-hover:text-[#D9843B]">12 · Snapshots &amp; persistence</h3>
+        <span class="font-data text-[10px] text-[#9A8F7E]">FR-14 · FR-1 · FR-23</span>
+      </div>
+      <p class="text-sm text-[#9A8F7E]">Three independent serializers, RNG state included, loud refusal on mismatch — and an engine that performs no I/O of any kind.</p>
     </a>
 
     <a href="validation-errors.html" class="group rounded-md border border-[#3A322A] bg-[#241F1A] p-5 hover:border-[#D9843B] hover:bg-[#2C261F] transition-colors">
       <div class="flex items-center justify-between mb-2">
-        <h3 class="font-display text-lg group-hover:text-[#D9843B]">04 · Validation errors</h3>
+        <h3 class="font-display text-lg group-hover:text-[#D9843B]">13 · Validation errors</h3>
         <span class="font-data text-[10px] text-[#9A8F7E]">FR-2 · FR-14</span>
       </div>
-      <p class="text-sm text-[#9A8F7E]">Bad content is rejected loudly at load: artifact id, JSON path, violated rule, hint. A failing pack is never partially loaded.</p>
+      <p class="text-sm text-[#9A8F7E]">The error-card gallery: broken references, duplicates, formula errors, spatial refusals, snapshot mismatch — artifact, path, rule, hint.</p>
     </a>
 
-    <a href="theme-knobs.html" class="group rounded-md border border-[#3A322A] bg-[#241F1A] p-5 md:col-span-2 hover:border-[#D9843B] hover:bg-[#2C261F] transition-colors">
+    <a href="bestiary-encounters.html" class="group rounded-md border border-[#3A322A] bg-[#241F1A] p-5 hover:border-[#D9843B] hover:bg-[#2C261F] transition-colors">
       <div class="flex items-center justify-between mb-2">
-        <h3 class="font-display text-lg group-hover:text-[#D9843B]">05 · Theme knobs &amp; composition</h3>
-        <span class="font-data text-[10px] text-[#9A8F7E]">FR-17 · FR-18 · FR-20</span>
+        <h3 class="font-display text-lg group-hover:text-[#D9843B]">14 · Bestiary &amp; encounters</h3>
+        <span class="font-data text-[10px] text-[#9A8F7E]">FR-15 · FR-16</span>
       </div>
-      <p class="text-sm text-[#9A8F7E]">Themes declare their knobs as machine-readable data — so any host renders a settings form without knowing the theme. And themes compose: a new theme is JSON with patches, not code.</p>
+      <p class="text-sm text-[#9A8F7E]">Monsters from the same character machinery; one table engine for runtime and compiler; deterministic threat-budget assembly.</p>
+    </a>
+
+    <a href="generation-pipeline.html" class="group rounded-md border border-[#3A322A] bg-[#241F1A] p-5 hover:border-[#D9843B] hover:bg-[#2C261F] transition-colors">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-display text-lg group-hover:text-[#D9843B]">15 · Generation pipeline</h3>
+        <span class="font-data text-[10px] text-[#9A8F7E]">FR-17 · FR-21</span>
+      </div>
+      <p class="text-sm text-[#9A8F7E]">Named stages behind a stable interface; two sample themes, two showcases; byte-identical determinism as the contract.</p>
+    </a>
+
+    <a href="theme-knobs.html" class="group rounded-md border border-[#3A322A] bg-[#241F1A] p-5 hover:border-[#D9843B] hover:bg-[#2C261F] transition-colors">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-display text-lg group-hover:text-[#D9843B]">16 · Theme knobs &amp; composition</h3>
+        <span class="font-data text-[10px] text-[#9A8F7E]">FR-18 · FR-20</span>
+      </div>
+      <p class="text-sm text-[#9A8F7E]">Themes declare knobs as machine-readable data — any host renders the settings form. Themes compose: base + patches, JSON not code.</p>
+    </a>
+
+    <a href="packaging.html" class="group rounded-md border border-[#3A322A] bg-[#241F1A] p-5 hover:border-[#D9843B] hover:bg-[#2C261F] transition-colors">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-display text-lg group-hover:text-[#D9843B]">17 · Packaging &amp; surfaces</h3>
+        <span class="font-data text-[10px] text-[#9A8F7E]">FR-22 · FR-23 · NFR-dep.</span>
+      </div>
+      <p class="text-sm text-[#9A8F7E]">Runtime / schema / compiler, separately consumable; the runtime-only bundle is a CI proof, not a promise; one versioning discipline.</p>
+    </a>
+
+    <a href="api-map.html" class="group rounded-md border border-[#3A322A] bg-[#241F1A] p-5 md:col-span-2 hover:border-[#D9843B] hover:bg-[#2C261F] transition-colors">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-display text-lg group-hover:text-[#D9843B]">18 · API map</h3>
+        <span class="font-data text-[10px] text-[#9A8F7E]">all FRs · API illustrative</span>
+      </div>
+      <p class="text-sm text-[#9A8F7E]">The whole public library on one page — coverage, not signatures: every functional requirement appears at least once in a callable shape. If the final API can't fit a page, it is too big.</p>
     </a>
 
   </div>
 
   <h2 class="font-display text-2xl mb-4">User flows</h2>
   <ol class="space-y-2 text-sm text-[#9A8F7E] mb-12 list-decimal list-inside">
-    <li><span class="text-[#E8E2D6]">Docs reader:</span> quickstart → combat-loop — copy-paste to a live, evented, resumable fight.</li>
-    <li><span class="text-[#E8E2D6]">Pack author:</span> pack-anatomy → validation-errors — author content, read located errors.</li>
-    <li><span class="text-[#E8E2D6]">Theme user:</span> theme-knobs → pack-anatomy — knobs → generated pack → single-artifact override.</li>
+    <li><span class="text-[#E8E2D6]">Docs reader:</span> quickstart → annotated → dice → combat-loop — copy-paste to a live, evented, resumable fight.</li>
+    <li><span class="text-[#E8E2D6]">Pack author:</span> pack-anatomy → stats → progression → conditions → magic → validation-errors — author content, read located errors.</li>
+    <li><span class="text-[#E8E2D6]">Theme user:</span> theme-knobs → generation-pipeline → pack-anatomy — knobs → generated pack → single-artifact override.</li>
+    <li><span class="text-[#E8E2D6]">Systems reader:</span> combat-loop → spatial → triggers → snapshots — the full combat spine end to end.</li>
+    <li><span class="text-[#E8E2D6]">Evaluator:</span> packaging → api-map — three surfaces, one page of API, the FR coverage table.</li>
   </ol>
 
   <h2 class="font-display text-2xl mb-4">Design language</h2>
@@ -110,7 +239,7 @@
 
 <footer class="border-t border-[#3A322A]">
   <div class="max-w-5xl mx-auto px-6 py-4 flex justify-between flex-wrap gap-2">
-    <span class="font-data text-[11px] text-[#9A8F7E]">Ruleswright design mock · index of 6</span>
+    <span class="font-data text-[11px] text-[#9A8F7E]">Ruleswright design mock · index of 18</span>
     <a href="quickstart.html" class="font-data text-[11px] text-[#D9843B] hover:underline">next: quickstart →</a>
   </div>
 </footer>

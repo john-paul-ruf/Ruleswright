@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Magic — Ruleswright Mock</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .font-display { font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif; }
+  .font-data { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .kw { color: #D9843B; }
+  .str { color: #7BA05B; }
+  .com { color: #9A8F7E; font-style: italic; }
+  .num { color: #6A93A8; }
+</style>
+</head>
+<body class="bg-[#1A1714] text-[#E8E2D6] min-h-screen">
+
+<header class="border-b border-[#3A322A]">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-2">
+    <a href="index.html" class="font-data text-sm text-[#D9843B] hover:underline">← design index</a>
+    <div class="flex gap-2 flex-wrap">
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-8</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-9</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-11</span>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-4xl mx-auto px-6 py-10">
+
+  <h1 class="font-display text-4xl mb-3">Magic — pools, slots, spells as data</h1>
+  <p class="text-[#9A8F7E] mb-10 max-w-2xl">There is <em>no magic subsystem</em>. A spell is an action declaration plus magic metadata plus a cost. Memorized-slot magic and drain pools are both just pack resource policies on the same engine (FR-8, FR-9).</p>
+
+  <!-- TWO MODELS -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">Two resource models, one engine</h2>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+        <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">vancian — dark fantasy showcase</div>
+        <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="str">"slots"</span>: {
+  <span class="str">"1"</span>: [<span class="str">"grave-light"</span>, <span class="kw">null</span>, <span class="str">"ward-ward"</span>],  <span class="com">// bindings</span>
+  <span class="str">"2"</span>: [<span class="kw">null</span>]
+}
+<span class="com">// casting consumes a BOUND slot of the matching level;</span>
+<span class="com">// an empty slot cannot cast. Bindings are plain JSON</span>
+<span class="com">// inside the character snapshot (FR-8, FR-14).</span></code></pre>
+      </div>
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+        <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">drain pool — zombie urban showcase</div>
+        <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="str">"stamina"</span>: { <span class="kw">"cap"</span>: <span class="str">"8 + vigor"</span>, <span class="kw">"current"</span>: <span class="num">6</span> }
+<span class="com">// "adrenal-surge" costs 2 stamina — spend points,</span>
+<span class="com">// refill per pack policy. Same snapshot rules.</span></code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLOT LIFECYCLE -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">The slot lifecycle</h2>
+    <div class="flex flex-wrap items-stretch gap-2 mb-3">
+      <div class="flex-1 min-w-[130px] rounded-md border border-[#3A322A] bg-[#241F1A] p-3">
+        <div class="font-data text-[11px] text-[#D9843B] mb-1">1 · prepare</div>
+        <p class="text-xs text-[#9A8F7E]">pack-declared action · gated by known-spells restriction tables (FR-9)</p>
+      </div>
+      <div class="self-center text-[#9A8F7E]">→</div>
+      <div class="flex-1 min-w-[130px] rounded-md border border-[#3A322A] bg-[#241F1A] p-3">
+        <div class="font-data text-[11px] text-[#D9843B] mb-1">2 · bind</div>
+        <p class="text-xs text-[#9A8F7E]">slot ← spell id · house rules (swap-on-rest) stay data</p>
+      </div>
+      <div class="self-center text-[#9A8F7E]">→</div>
+      <div class="flex-1 min-w-[130px] rounded-md border border-[#3A322A] bg-[#241F1A] p-3">
+        <div class="font-data text-[11px] text-[#D9843B] mb-1">3 · cast</div>
+        <p class="text-xs text-[#9A8F7E]">consume bound slot → effect DSL → events (the normal action pipeline)</p>
+      </div>
+      <div class="self-center text-[#9A8F7E]">→</div>
+      <div class="flex-1 min-w-[130px] rounded-md border border-[#3A322A] bg-[#241F1A] p-3">
+        <div class="font-data text-[11px] text-[#D9843B] mb-1">4 · rest</div>
+        <p class="text-xs text-[#9A8F7E]">host-emitted event · slots clear &amp; pools refill per pack policy (FR-8)</p>
+      </div>
+    </div>
+    <p class="text-sm text-[#9A8F7E]">Casting rides the normal action pipeline: validate → consume → resolve effect DSL → emit events. No spell-specific code anywhere.</p>
+  </section>
+
+  <!-- TARGETING -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">Targeting — multi-target, per-target saves, mixed outcomes</h2>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden mb-3">
+      <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">a burst spell — complete declaration</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>{
+  <span class="kw">"id"</span>: <span class="str">"ember-bloom"</span>,
+  <span class="kw">"magic"</span>: { <span class="kw">"level"</span>: <span class="num">2</span>, <span class="kw">"lists"</span>: [<span class="str">"hexer"</span>] },
+  <span class="kw">"cost"</span>: { <span class="kw">"vancian"</span>: <span class="num">2</span> },
+  <span class="kw">"targeting"</span>: { <span class="kw">"shape"</span>: <span class="str">"burst"</span>, <span class="kw">"radius"</span>: <span class="num">2</span> },   <span class="com">// FR-11: single + burst in v1</span>
+  <span class="kw">"effect"</span>: { <span class="kw">"perTarget"</span>: {
+    <span class="kw">"save"</span>: <span class="str">"reason"</span>,
+    <span class="kw">"fail"</span>: <span class="str">"damage(3d6)"</span>,
+    <span class="kw">"pass"</span>: <span class="str">"damage(half)"</span>   <span class="com">// save-for-half, per target</span>
+  } }
+}</code></pre>
+    </div>
+    <div class="rounded-md border border-[#3A322A] bg-[#1E1A16] overflow-hidden">
+      <div class="px-4 py-2 border-b border-[#3A322A] font-data text-xs text-[#9A8F7E]">output</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="str">✓</span> burst r2 centered on grave-shambles · 3 targets
+  grave-shambles  save reason 11 &lt; 14 → fail · 9 fire
+  grave-shambles  save reason 16 ≥ 14 → half · 5 fire
+  brynn (ally)    save reason 13 ≥ 14 → half · 5 fire   <span class="com">// friendly fire is a pack choice</span></code></pre>
+    </div>
+  </section>
+
+  <!-- RESTRICTIONS -->
+  <section class="mb-4">
+    <h2 class="font-display text-2xl mb-4">Restrictions are pack data</h2>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+      <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">class/armor matrix + known-spells gate</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="str">"casting"</span>: {
+  <span class="kw">"armor"</span>: { <span class="str">"hexer"</span>: [<span class="str">"leather"</span>], <span class="str">"warden"</span>: [] },
+  <span class="kw">"knownGate"</span>: <span class="str">"list.spells(level &lt;= casterLevel/2 + 1)"</span>  <span class="com">// pack policy</span>
+}</code></pre>
+    </div>
+  </section>
+
+  <!-- CALLOUTS -->
+  <div class="space-y-3 mt-10">
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
+      <span class="text-[#7BA05B] shrink-0">✓</span>
+      <p class="text-sm">CI proof 3 (FR-12): a test pack adds a <span class="text-[#E8E2D6]">new spell</span> — it is memorized, bound, and cast with zero engine diffs.</p>
+    </div>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
+      <span class="text-[#C4523E] shrink-0">▲</span>
+      <p class="text-sm">Cone and line shapes are <span class="text-[#E8E2D6]">deferred, not faked</span> — they are engine geometry and cannot be smuggled in as data (FR-11). Single-target and burst ship in v1.</p>
+    </div>
+  </div>
+
+</main>
+
+<footer class="border-t border-[#3A322A] mt-12">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex justify-between flex-wrap gap-2">
+    <a href="conditions.html" class="font-data text-[11px] text-[#9A8F7E] hover:underline">← conditions</a>
+    <a href="combat-loop.html" class="font-data text-[11px] text-[#D9843B] hover:underline">next: combat loop →</a>
+  </div>
+</footer>
+
+</body>
+</html>

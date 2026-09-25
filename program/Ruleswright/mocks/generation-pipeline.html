@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Generation Pipeline — Ruleswright Mock</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .font-display { font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif; }
+  .font-data { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .kw { color: #D9843B; }
+  .str { color: #7BA05B; }
+  .com { color: #9A8F7E; font-style: italic; }
+  .num { color: #6A93A8; }
+</style>
+</head>
+<body class="bg-[#1A1714] text-[#E8E2D6] min-h-screen">
+
+<header class="border-b border-[#3A322A]">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-2">
+    <a href="index.html" class="font-data text-sm text-[#D9843B] hover:underline">← design index</a>
+    <div class="flex gap-2 flex-wrap">
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-17</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-15</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-21</span>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-4xl mx-auto px-6 py-10">
+
+  <h1 class="font-display text-4xl mb-3">The generation pipeline</h1>
+  <p class="text-[#9A8F7E] mb-10 max-w-2xl"><span class="font-data text-[#E8E2D6]">generateCampaign({ theme, seed, knobs })</span> is one call, but underneath it is a chain of <em>named stages</em> behind a stable interface (Extension Commitment 3). A future narrative stage slots in without touching existing stages — that is the v2 seam, built into v1.</p>
+
+  <!-- STAGE CHAIN -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">Named stages, stable interface</h2>
+    <div class="flex flex-wrap items-stretch gap-2 mb-3">
+      <div class="flex-1 min-w-[120px] rounded-md border border-[#3A322A] bg-[#241F1A] p-3">
+        <div class="font-data text-[11px] text-[#D9843B] mb-1">1 · stats</div>
+        <p class="text-xs text-[#9A8F7E]">abilities, named saves</p>
+      </div>
+      <div class="self-center text-[#9A8F7E]">→</div>
+      <div class="flex-1 min-w-[120px] rounded-md border border-[#3A322A] bg-[#241F1A] p-3">
+        <div class="font-data text-[11px] text-[#D9843B] mb-1">2 · skills</div>
+        <p class="text-xs text-[#9A8F7E]">theme-flavored skill list</p>
+      </div>
+      <div class="self-center text-[#9A8F7E]">→</div>
+      <div class="flex-1 min-w-[120px] rounded-md border border-[#3A322A] bg-[#241F1A] p-3">
+        <div class="font-data text-[11px] text-[#D9843B] mb-1">3 · feats</div>
+        <p class="text-xs text-[#9A8F7E]">incl. one reactive (FR-12)</p>
+      </div>
+      <div class="self-center text-[#9A8F7E]">→</div>
+      <div class="flex-1 min-w-[120px] rounded-md border border-[#3A322A] bg-[#241F1A] p-3">
+        <div class="font-data text-[11px] text-[#D9843B] mb-1">4 · classes</div>
+        <p class="text-xs text-[#9A8F7E]">progression tables, 1–10</p>
+      </div>
+      <div class="self-center text-[#9A8F7E]">→</div>
+      <div class="flex-1 min-w-[120px] rounded-md border border-[#3A322A] bg-[#241F1A] p-3">
+        <div class="font-data text-[11px] text-[#D9843B] mb-1">5 · magic</div>
+        <p class="text-xs text-[#9A8F7E]">spells, pools, slots</p>
+      </div>
+      <div class="self-center text-[#9A8F7E]">→</div>
+      <div class="flex-1 min-w-[120px] rounded-md border border-[#3A322A] bg-[#241F1A] p-3">
+        <div class="font-data text-[11px] text-[#D9843B] mb-1">6 · bestiary</div>
+        <p class="text-xs text-[#9A8F7E]">statblocks, threats</p>
+      </div>
+      <div class="self-center text-[#9A8F7E]">→</div>
+      <div class="flex-1 min-w-[120px] rounded-md border border-[#3A322A] bg-[#241F1A] p-3">
+        <div class="font-data text-[11px] text-[#D9843B] mb-1">7 · tables</div>
+        <p class="text-xs text-[#9A8F7E]">encounters, loot, flavor</p>
+      </div>
+     <div class="self-center text-[#9A8F7E]">→</div>
+      <div class="flex-1 min-w-[120px] rounded-md border border-[#D9843B] bg-[#2C261F] p-3">
+        <div class="font-data text-[11px] text-[#D9843B] mb-1">8 · validate</div>
+        <p class="text-xs text-[#9A8F7E]">the runtime's own validator (FR-2) — dogfooded</p>
+      </div>
+    </div>
+    <p class="text-sm text-[#9A8F7E]">Each stage reads the theme template, the knobs, and the seeded RNG; each contributes its section of the pack. Stages are registered, ordered, and replaceable — generation is a pipeline, not a monolith.</p>
+  </section>
+
+  <!-- TWO THEMES, TWO SHOWCASES -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">Two sample themes, two showcases</h2>
+    <p class="text-sm text-[#9A8F7E] mb-4 max-w-2xl">Both themes exercise every capability at least once (the FR-21 coverage floor); each leans into a different proof (FR-21).</p>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-5">
+        <h3 class="font-display text-lg mb-1">dark-fantasy</h3>
+        <p class="font-data text-[11px] text-[#9A8F7E] mb-3">vancian showcase</p>
+        <ul class="text-sm text-[#9A8F7E] space-y-1.5 list-disc list-inside">
+          <li><span class="text-[#E8E2D6]">~3 classes</span> with attack tables &amp; HD</li>
+          <li><span class="text-[#E8E2D6]">~40 spells, levels 1–3</span> — all coined names (Q8)</li>
+          <li>full race matrix, demihuman multi-class, level caps</li>
+          <li>five named saves · melee + ranged + one burst spell</li>
+        </ul>
+      </div>
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-5">
+        <h3 class="font-display text-lg mb-1">zombie-urban</h3>
+        <p class="font-data text-[11px] text-[#9A8F7E] mb-3">drain-pool &amp; table showcase</p>
+        <ul class="text-sm text-[#9A8F7E] space-y-1.5 list-disc list-inside">
+          <li>survivor classes, <span class="text-[#E8E2D6]">stamina pool</span> — no vancian</li>
+          <li>skills-heavy: scavenging, fortification, streetwise</li>
+          <li>table-heavy: infection saves, district loot</li>
+          <li>same coverage floor — proves the engine needs neither slots nor spells</li>
+        </ul>
+      </div>
+    </div>
+    <div class="rounded-md border border-[#3A322A] bg-[#1E1A16] overflow-hidden mt-4">
+      <div class="px-4 py-2 border-b border-[#3A322A] font-data text-xs text-[#9A8F7E]">output</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="str">✓</span> dark-fantasy · seed 42 · 1,204 artifacts · validated in 214 ms
+<span class="str">✓</span> zombie-urban · seed 42 ·   962 artifacts · validated in 187 ms
+  <span class="com">// fully offline; no network calls; &lt; 2 s per pack (NFR-Performance)</span></code></pre>
+    </div>
+  </section>
+
+  <!-- DETERMINISM -->
+  <section class="mb-4">
+    <h2 class="font-display text-2xl mb-4">Determinism is the contract</h2>
+    <div class="space-y-3">
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
+        <span class="text-[#7BA05B] shrink-0">✓</span>
+        <p class="text-sm">Same theme + seed + knobs ⇒ <span class="text-[#E8E2D6]">byte-identical pack</span> (FR-17). This is what makes GM hand-edits anchorable across regenerations (FR-19) — the theme-knobs surface shows the loop.</p>
+      </div>
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
+        <span class="text-[#6A93A8] shrink-0">◈</span>
+        <p class="text-sm">Knob values feed generation and are <span class="text-[#E8E2D6]">recorded in the pack's provenance</span> (FR-18) — the manifest tells you why the pack came out the way it did.</p>
+      </div>
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
+        <span class="text-[#D9843B] shrink-0">▲</span>
+        <p class="text-sm">The compiler emits <em>only</em> packs the runtime validator accepts. There is no separate "generator QA" — dogfooding is the QA (FR-2, FR-17).</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="border-t border-[#3A322A] mt-12">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex justify-between flex-wrap gap-2">
+    <a href="snapshots.html" class="font-data text-[11px] text-[#9A8F7E] hover:underline">← snapshots</a>
+    <a href="packaging.html" class="font-data text-[11px] text-[#D9843B] hover:underline">next: packaging &amp; surfaces →</a>
+  </div>
+</footer>
+
+</body>
+</html>

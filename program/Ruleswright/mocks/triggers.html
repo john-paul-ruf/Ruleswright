@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Triggered Actions — Ruleswright Mock</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .font-display { font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif; }
+  .font-data { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .kw { color: #D9843B; }
+  .str { color: #7BA05B; }
+  .com { color: #9A8F7E; font-style: italic; }
+  .num { color: #6A93A8; }
+</style>
+</head>
+<body class="bg-[#1A1714] text-[#E8E2D6] min-h-screen">
+
+<header class="border-b border-[#3A322A]">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-2">
+    <a href="index.html" class="font-data text-sm text-[#D9843B] hover:underline">← design index</a>
+    <div class="flex gap-2 flex-wrap">
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-4</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-12</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-13</span>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-4xl mx-auto px-6 py-10">
+
+  <h1 class="font-display text-4xl mb-3">Triggered actions — reactions as data</h1>
+  <p class="text-[#9A8F7E] mb-10 max-w-2xl">Packs declare actions that ride the event substrate: <em>when event X occurs, actor Y may react</em>. The engine supplies the hook mechanism and nothing else — it has never heard of "parry" (FR-4, FR-13).</p>
+
+  <!-- ANATOMY -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">Anatomy</h2>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+      <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">pack actions — one reactive action, one reactive feat</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="str">"parry"</span>: {
+  <span class="kw">"trigger"</span>: <span class="str">"on:event(attack:rolled, target=self)"</span>,
+  <span class="kw">"cost"</span>: { <span class="kw">"slots"</span>: { <span class="str">"reaction"</span>: <span class="num">1</span> } },
+  <span class="kw">"effect"</span>: { <span class="kw">"opposed"</span>: <span class="str">"grace vs attacker.grace"</span>,
+             <span class="kw">"onWin"</span>: <span class="str">"negate(attack)"</span> }
+}
+
+<span class="com">// a feat can be reactive too — same substrate</span>
+<span class="str">"second-wind"</span>: {
+  <span class="kw">"trigger"</span>: <span class="str">"on:event(condition:applied, target=self)"</span>,
+  <span class="kw">"once"</span>: <span class="str">"per:encounter"</span>,       <span class="com">// gating is pack data</span>
+  <span class="kw">"effect"</span>: { <span class="kw">"heal"</span>: <span class="str">"1d6 + vigor"</span> }
+}</code></pre>
+    </div>
+  </section>
+
+  <!-- TIMELINE -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">The timeline as the stream shows it</h2>
+    <div class="space-y-2">
+      <div class="rounded border border-[#3A322A] bg-[#241F1A] px-4 py-2 font-data text-[12px] flex flex-wrap gap-x-6 gap-y-1">
+        <span class="text-[#6A93A8]">attack:rolled</span><span class="text-[#9A8F7E]">wight.claw → brynn · 17 ≥ 15</span><span class="text-[#9A8F7E] ml-auto">why: claw.attackBonus (pack formula)</span>
+      </div>
+      <div class="rounded border border-[#D9843B] bg-[#2C261F] px-4 py-2 font-data text-[12px] flex flex-wrap gap-x-6 gap-y-1">
+        <span class="text-[#D9843B]">trigger:fired</span><span class="text-[#9A8F7E]">brynn.parry offered · event matches, reaction slot open</span><span class="text-[#9A8F7E] ml-auto">why: pack action parry (FR-4)</span>
+      </div>
+      <div class="rounded border border-[#3A322A] bg-[#241F1A] px-4 py-2 font-data text-[12px] flex flex-wrap gap-x-6 gap-y-1">
+        <span class="text-[#6A93A8]">react:resolved</span><span class="text-[#9A8F7E]">parry · grace 15 vs grace 12 → win</span><span class="text-[#9A8F7E] ml-auto">why: d20[12]+3 vs d20[5]+1</span>
+      </div>
+      <div class="rounded border border-[#3A322A] bg-[#241F1A] px-4 py-2 font-data text-[12px] flex flex-wrap gap-x-6 gap-y-1">
+        <span class="text-[#7BA05B]">attack:negated</span><span class="text-[#9A8F7E]">wight.claw negated by parry</span><span class="text-[#9A8F7E] ml-auto">why: parry.onWin · brynn.reaction 1→0</span>
+      </div>
+      <div class="rounded border border-[#3A322A] bg-[#241F1A] px-4 py-2 font-data text-[12px] flex flex-wrap gap-x-6 gap-y-1">
+        <span class="text-[#9A8F7E]">trigger:declined</span><span class="text-[#9A8F7E]">second-wind not taken · host prompt returned nothing</span><span class="text-[#9A8F7E] ml-auto">why: engine offers; the host decides pacing</span>
+      </div>
+    </div>
+    <p class="text-sm text-[#9A8F7E] mt-3">The engine <em>offers</em> a trigger as an event; the host answers in its own pacing — prompt a player, let the AI answer, decline. Stepwise by construction (FR-10).</p>
+  </section>
+
+  <!-- PROOF -->
+  <section class="mb-4">
+    <h2 class="font-display text-2xl mb-4">The proof this page exists to make</h2>
+    <div class="rounded-md border border-[#3A322A] bg-[#1E1A16] overflow-hidden">
+      <div class="px-4 py-2 border-b border-[#3A322A] font-data text-xs text-[#9A8F7E]">CI — FR-12 proof 2</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>test pack: <span class="str">"proof-reactive"</span>  — declares parry + second-wind
+  ✓ trigger fired on attack:rolled (event substrate)
+  ✓ reaction consumed a declared slot
+  ✓ combat outcome changed (negation happened)
+  <span class="str">✓ engine diff: none — zero lines</span></code></pre>
+    </div>
+    <p class="text-sm text-[#9A8F7E] mt-3">Same guarantee, three proofs (FR-12): new action + condition, triggered action, new spell. The rules-are-data principle is under CI, not under trust.</p>
+  </section>
+
+</main>
+
+<footer class="border-t border-[#3A322A] mt-12">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex justify-between flex-wrap gap-2">
+    <a href="spatial.html" class="font-data text-[11px] text-[#9A8F7E] hover:underline">← spatial layer</a>
+    <a href="bestiary-encounters.html" class="font-data text-[11px] text-[#D9843B] hover:underline">next: bestiary &amp; encounters →</a>
+  </div>
+</footer>
+
+</body>
+</html>

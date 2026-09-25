@@ -17,6 +17,7 @@
     <a href="index.html" class="font-data text-sm text-[#D9843B] hover:underline">← design index</a>
     <div class="flex gap-2 flex-wrap">
       <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-2</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-5</span>
       <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-14</span>
     </div>
   </div>
@@ -79,8 +80,19 @@
             <span class="font-data text-[12px] text-[#6A93A8]">content.spells[87].effect</span>
             <span class="font-data text-[12px] text-[#9A8F7E] ml-auto">rule: E-FORM-03</span>
           </div>
-          <p class="text-sm">Formula error: <span class="font-data text-[13px] text-[#D9843B]">damage(2d6 + wis)</span> — <span class="font-data text-[13px] text-[#D9843B]">wis</span> is not an ability in this pack. This pack's abilities: <span class="font-data text-[12px]">might, grace, vigor, reason, presence</span>.</p>
-          <p class="text-xs text-[#9A8F7E] mt-1">hint — did you mean <span class="font-data text-[12px]">reason</span>?</p>
+          <p class="text-sm">Formula error: <span class="font-data text-[13px] text-[#D9843B]">damage(2d6 + wis)</span> — <span class="font-data text-[13px] text-[#D9843B]">wis</span> is not an ability in this pack. This pack's abilities: <span class="font-data text-[12px]">might, grace, vigor, reason, insight, presence</span>.</p>
+          <p class="text-xs text-[#9A8F7E] mt-1">hint — did you mean <span class="font-data text-[12px]">insight</span>?</p>
+        </div>
+      </div>
+
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+        <div class="border-l-4 border-[#C4523E] p-4">
+          <div class="flex flex-wrap items-center gap-2 mb-2">
+            <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#C4523E] text-[#1A1714] font-bold">ERROR</span>
+            <span class="font-data text-[12px] text-[#6A93A8]">combat.action.declare</span>
+            <span class="font-data text-[12px] text-[#9A8F7E] ml-auto">rule: E-SPAT-01</span>
+          </div>
+          <p class="text-sm">Action <span class="font-data text-[13px] text-[#D9843B]">strike</span> requires an adjacent target (pack reach: 1); nearest enemy <span class="font-data text-[13px] text-[#D9843B]">grave-shambles</span> is 3 away. Spatial rules are pack-declared (FR-11) — this pack opted in.</p>
         </div>
       </div>
 
@@ -96,7 +108,7 @@
         </div>
       </div>
 
- <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
         <div class="border-l-4 border-[#7BA05B] p-4">
           <div class="flex flex-wrap items-center gap-2 mb-2">
             <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#7BA05B] text-[#1A1714] font-bold">PASS</span>
@@ -131,7 +143,7 @@
 <footer class="border-t border-[#3A322A] mt-12">
   <div class="max-w-4xl mx-auto px-6 py-4 flex justify-between flex-wrap gap-2">
     <a href="combat-loop.html" class="font-data text-[11px] text-[#9A8F7E] hover:underline">← combat loop</a>
-    <a href="theme-knobs.html" class="font-data text-[11px] text-[#D9843B] hover:underline">next: theme knobs →</a>
+    <a href="snapshots.html" class="font-data text-[11px] text-[#D9843B] hover:underline">next: snapshots &amp; persistence →</a>
   </div>
 </footer>
 

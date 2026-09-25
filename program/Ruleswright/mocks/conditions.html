@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conditions — Ruleswright Mock</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .font-display { font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif; }
+  .font-data { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .kw { color: #D9843B; }
+  .str { color: #7BA05B; }
+  .com { color: #9A8F7E; font-style: italic; }
+  .num { color: #6A93A8; }
+</style>
+</head>
+<body class="bg-[#1A1714] text-[#E8E2D6] min-h-screen">
+
+<header class="border-b border-[#3A322A]">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-2">
+    <a href="index.html" class="font-data text-sm text-[#D9843B] hover:underline">← design index</a>
+    <div class="flex gap-2 flex-wrap">
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-7</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-4</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-13</span>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-4xl mx-auto px-6 py-10">
+
+  <h1 class="font-display text-4xl mb-3">Conditions &amp; status effects</h1>
+  <p class="text-[#9A8F7E] mb-10 max-w-2xl">Conditions are pack data: durations, stacking policy, and what they forbid. Application and removal ride the event stream (FR-7, FR-13), and their teeth come from <span class="font-data text-[#E8E2D6]">restricts</span> — a declared rule about what the sufferer may not do (FR-4).</p>
+
+  <!-- ANATOMY -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">Anatomy</h2>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+      <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">content.conditions — two of the sample pack's several</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>{
+  <span class="kw">"id"</span>: <span class="str">"sapped"</span>,
+  <span class="kw">"duration"</span>: <span class="num">3</span>,                       <span class="com">// rounds; ticks at endTurn (FR-10)</span>
+  <span class="kw">"stacking"</span>: <span class="str">"refresh"</span>,               <span class="com">// pack-declared policy</span>
+  <span class="kw">"restricts"</span>: [<span class="str">"actions.tagged:main"</span>] <span class="com">// no main-slot actions</span>
+}
+{
+  <span class="kw">"id"</span>: <span class="str">"dazzed"</span>,
+  <span class="kw">"duration"</span>: <span class="num">3</span>,
+  <span class="kw">"stacking"</span>: <span class="str">"refresh"</span>,
+  <span class="kw">"restricts"</span>: [<span class="str">"attacks.tagged:precise"</span>]  <span class="com">// sight-dependent work</span>
+}</code></pre>
+    </div>
+  </section>
+
+  <!-- STACKING -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">Stacking is a per-condition policy</h2>
+    <p class="text-sm text-[#9A8F7E] mb-4 max-w-2xl">The engine implements the policies generically; each condition declares which one it uses. No condition is special-cased in code.</p>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+      <table class="w-full font-data text-[13px]">
+        <thead>
+          <tr class="bg-[#2C261F] text-[#9A8F7E] text-xs text-left">
+            <th class="px-4 py-2 font-normal">policy</th>
+            <th class="px-4 py-2 font-normal">re-application behavior</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-t border-[#3A322A]"><td class="px-4 py-2 text-[#D9843B]">refresh</td><td class="px-4 py-2 text-[#9A8F7E]">duration resets to the new value</td></tr>
+          <tr class="border-t border-[#3A322A]"><td class="px-4 py-2 text-[#D9843B]">stack</td><td class="px-4 py-2 text-[#9A8F7E]">instances accumulate; each ticks</td></tr>
+          <tr class="border-t border-[#3A322A]"><td class="px-4 py-2 text-[#D9843B]">strongest</td><td class="px-4 py-2 text-[#9A8F7E]">highest-magnitude instance wins; weaker re-applies are no-ops</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- RESTRICTS -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">Conditions with teeth</h2>
+    <div class="grid md:grid-cols-3 gap-4">
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4">
+        <div class="font-data text-[13px] text-[#D9843B] mb-2">sapped</div>
+        <p class="text-sm text-[#9A8F7E]">Restricts <span class="font-data text-[12px]">actions.tagged:main</span> — the turn arrives, and the main slot has nothing legal to spend on.</p>
+      </div>
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4">
+        <div class="font-data text-[13px] text-[#D9843B] mb-2">silent-tongue</div>
+        <p class="text-sm text-[#9A8F7E]">Restricts casting from the Hexer's spoken-word list — the classic "silenced" shape, written as pack data against a pack-declared list tag.</p>
+      </div>
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4">
+        <div class="font-data text-[13px] text-[#D9843B] mb-2">rooted</div>
+        <p class="text-sm text-[#9A8F7E]">Restricts move actions — meaningful only in packs that opted into the spatial layer (FR-11); theater-of-mind packs simply never apply it.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- EVENT STREAM -->
+  <section class="mb-4">
+    <h2 class="font-display text-2xl mb-4">On the event stream</h2>
+    <div class="space-y-2">
+      <div class="rounded border border-[#3A322A] bg-[#241F1A] px-4 py-2 font-data text-[12px] flex flex-wrap gap-x-6 gap-y-1">
+        <span class="text-[#D9843B]">condition:applied</span><span class="text-[#9A8F7E]">sapped (3 rounds) → brynn</span><span class="text-[#9A8F7E] ml-auto">why: grave-shambles.cold-grip · save tenacity 8 &lt; 12</span>
+      </div>
+      <div class="rounded border border-[#3A322A] bg-[#241F1A] px-4 py-2 font-data text-[12px] flex flex-wrap gap-x-6 gap-y-1">
+        <span class="text-[#6A93A8]">condition:tick</span><span class="text-[#9A8F7E]">brynn.sapped 3→2 · at endTurn</span><span class="text-[#9A8F7E] ml-auto">why: combat.endTurn (FR-10)</span>
+      </div>
+      <div class="rounded border border-[#3A322A] bg-[#241F1A] px-4 py-2 font-data text-[12px] flex flex-wrap gap-x-6 gap-y-1">
+        <span class="text-[#7BA05B]">condition:expired</span><span class="text-[#9A8F7E]">brynn.sapped removed</span><span class="text-[#9A8F7E] ml-auto">why: duration elapsed</span>
+      </div>
+      <div class="rounded border border-[#3A322A] bg-[#241F1A] px-4 py-2 font-data text-[12px] flex flex-wrap gap-x-6 gap-y-1">
+        <span class="text-[#7BA05B]">trigger:fired</span><span class="text-[#9A8F7E]">second-wind offered (on:condition:applied[self])</span><span class="text-[#9A8F7E] ml-auto">why: reactive feat · FR-12 proof 2</span>
+      </div>
+    </div>
+    <p class="text-sm text-[#9A8F7E] mt-3">Application, ticking, expiry, and the reactive hooks they fire — all observable, all replayable (FR-13).</p>
+  </section>
+
+  <!-- CALLOUT -->
+  <div class="space-y-3 mt-10">
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
+      <span class="text-[#7BA05B] shrink-0">✓</span>
+      <p class="text-sm">CI proof 1 (FR-12): a test pack adds a <span class="text-[#E8E2D6]">new action + new condition</span> and combat behavior changes — zero engine diffs. That is the whole point of this page.</p>
+    </div>
+  </div>
+
+</main>
+
+<footer class="border-t border-[#3A322A] mt-12">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex justify-between flex-wrap gap-2">
+    <a href="progression.html" class="font-data text-[11px] text-[#9A8F7E] hover:underline">← progression</a>
+    <a href="magic.html" class="font-data text-[11px] text-[#D9843B] hover:underline">next: magic →</a>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Map — Ruleswright Mock</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .font-display { font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif; }
+  .font-data { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .kw { color: #D9843B; }
+  .str { color: #7BA05B; }
+  .com { color: #9A8F7E; font-style: italic; }
+  .num { color: #6A93A8; }
+</style>
+</head>
+<body class="bg-[#1A1714] text-[#E8E2D6] min-h-screen">
+
+<header class="border-b border-[#3A322A]">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-2">
+    <a href="index.html" class="font-data text-sm text-[#D9843B] hover:underline">← design index</a>
+    <div class="flex gap-2 flex-wrap">
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">all FRs</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">API illustrative</span>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-4xl mx-auto px-6 py-10">
+
+  <h1 class="font-display text-4xl mb-3">API map — the whole library on one page</h1>
+  <p class="text-[#9A8F7E] mb-10 max-w-2xl"><em>Every signature here is illustrative</em> — Architect owns the real ones. What this page fixes is <em>coverage</em>: each requirement appears at least once in a callable shape, and the whole public area fits on one page. If the final API can't fit a page, it is too big.</p>
+
+  <!-- COMPILER -->
+  <section class="mb-10">
+    <h2 class="font-display text-2xl mb-3">compiler</h2>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>generateCampaign({ theme, seed, knobs? })     <span class="com">→ Pack</span>          <span class="com">// FR-17 · &lt; 2 s · offline</span>
+listThemeKnobs(theme)                          <span class="com">→ KnobDecl[]</span>    <span class="com">// FR-18 · machine-readable</span></code></pre>
+    </div>
+  </section>
+
+  <!-- RUNTIME / LIFECYCLE -->
+  <section class="mb-10">
+    <h2 class="font-display text-2xl mb-3">runtime — lifecycle</h2>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="kw">new</span> Runtime(pack)                              <span class="com">// validates at load (FR-2) · throws ErrorCard[]</span>
+rt.createCharacter({ name, race, classes })    <span class="com">→ Character</span>     <span class="com">// FR-5 · direct level-set</span>
+rt.awardXp(char, amount)                        <span class="com">→ Event[]</span>       <span class="com">// FR-6 · host awards</span>
+rt.spawnMonster(id)                             <span class="com">→ Combatant</span>     <span class="com">// FR-16 · same machinery</span>
+rt.assembleEncounter({ budget, party, seed })   <span class="com">→ Encounter</span>     <span class="com">// FR-16 · deterministic</span>
+rt.startCombat({ allies, enemies }, opts?)      <span class="com">→ Combat</span>        <span class="com">// opts.rng injectable (FR-1)</span></code></pre>
+    </div>
+  </section>
+
+  <!-- CHARACTER -->
+  <section class="mb-10">
+    <h2 class="font-display text-2xl mb-3">character</h2>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>char.derived()                                  <span class="com">→ hp · ac · attackBonus · saveTargets</span>   <span class="com">// FR-3</span>
+char.knownSpells / char.slots / char.pools      <span class="com">// FR-8 · FR-9 · plain JSON</span>
+char.applyTheme(id) / char.removeTheme(id)      <span class="com">// conditions (FR-7)</span>
+char.prepare(spellId, slotRef)                  <span class="com">// memorize — a pack action (FR-9)</span>
+char.serialize() / Character.deserialize(json)  <span class="com">// FR-14 · serializer 1 of 3</span></code></pre>
+    </div>
+  </section>
+
+  <!-- COMBAT -->
+  <section class="mb-10">
+    <h2 class="font-display text-2xl mb-3">combat — stepwise</h2>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>fight.step()                                    <span class="com">// begin → declare → resolve → end (FR-10)</span>
+fight.roundComplete                             <span class="com">// host paces the loop</span>
+fight.declare(actionId, targetRef)              <span class="com">// validity checked against pack (FR-4)</span>
+fight.respond(triggerId, choice)                <span class="com">// answer an offered trigger (FR-4, FR-13)</span>
+fight.on(fn) / fight.off(fn)                    <span class="com">// subscribe — never required (FR-13)</span>
+fight.events.sinceRound(n)                      <span class="com">// the provenance stream</span>
+fight.serialize() / Combat.deserialize(snap, pack)  <span class="com">// FR-14 · serializer 3 of 3 · rng included</span></code></pre>
+    </div>
+  </section>
+
+  <!-- TABLES -->
+  <section class="mb-10">
+    <h2 class="font-display text-2xl mb-3">tables — one engine (FR-15)</h2>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>rt.rollTable(<span class="str">"tables.district-scavenge"</span>, rng?)  <span class="com">→ RollResult · weighted / ranged / nested</span></code></pre>
+    </div>
+  </section>
+
+  <!-- ERRORS -->
+  <section class="mb-4">
+    <h2 class="font-display text-2xl mb-3">the error surface</h2>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>ErrorCard { severity · artifactId · jsonPath · rule · message · hint? }</code></pre>
+    </div>
+    <p class="text-sm text-[#9A8F7E] mt-3">One error shape everywhere — load validation, illegal builds, snapshot refusal (FR-2, FR-5, FR-14). The validation-errors surface is its gallery.</p>
+  </section>
+
+</main>
+
+<footer class="border-t border-[#3A322A] mt-12">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex justify-between flex-wrap gap-2">
+    <a href="packaging.html" class="font-data text-[11px] text-[#9A8F7E] hover:underline">← packaging</a>
+    <a href="index.html" class="font-data text-[11px] text-[#D9843B] hover:underline">back to index ↺</a>
+  </div>
+</footer>
+
+</body>
+</html>

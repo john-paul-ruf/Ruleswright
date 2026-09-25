@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snapshots &amp; Persistence — Ruleswright Mock</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .font-display { font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif; }
+  .font-data { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .kw { color: #D9843B; }
+  .str { color: #7BA05B; }
+  .com { color: #9A8F7E; font-style: italic; }
+  .num { color: #6A93A8; }
+</style>
+</head>
+<body class="bg-[#1A1714] text-[#E8E2D6] min-h-screen">
+
+<header class="border-b border-[#3A322A]">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-2">
+    <a href="index.html" class="font-data text-sm text-[#D9843B] hover:underline">← design index</a>
+    <div class="flex gap-2 flex-wrap">
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-14</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-1</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-23</span>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-4xl mx-auto px-6 py-10">
+
+  <h1 class="font-display text-4xl mb-3">Snapshots &amp; persistence</h1>
+  <p class="text-[#9A8F7E] mb-10 max-w-2xl">Lossless, plain-JSON snapshots the host stores wherever it likes. The engine performs <em>no I/O of any kind</em> — no filesystem, no DB, no localStorage, no autosave timers. <span class="font-data text-[#E8E2D6]">serialize()</span> returns a string; storage adapters are third-party territory (FR-14).</p>
+
+  <!-- THREE SERIALIZERS -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">Three independent serializers</h2>
+    <div class="grid md:grid-cols-3 gap-4">
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+        <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">character.serialize()</div>
+        <pre class="font-data text-[12px] leading-relaxed p-4 overflow-x-auto"><code>{
+  <span class="kw">"id"</span>: <span class="str">"brynn"</span>,
+  <span class="kw">"abilities"</span>: { <span class="com">/* … */</span> },
+  <span class="kw">"classes"</span>: [ { <span class="kw">"id"</span>: <span class="str">"warden"</span>,
+    <span class="kw">"level"</span>: <span class="num">3</span>, <span class="kw">"xp"</span>: <span class="num">2400</span> },
+    { <span class="kw">"id"</span>: <span class="str">"hexer"</span>, <span class="kw">"level"</span>: <span class="num">2</span> } ],
+  <span class="kw">"pools"</span>: { <span class="str">"stamina"</span>: { <span class="com">/* … */</span> } },
+  <span class="kw">"slots"</span>: { <span class="com">/* bindings */</span> },
+  <span class="kw">"conditions"</span>: [<span class="str">"sapped"</span>],
+  <span class="kw">"inventory"</span>: [ <span class="com">/* … */</span> ]
+}</code></pre>
+      </div>
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+        <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">party.serialize()</div>
+        <pre class="font-data text-[12px] leading-relaxed p-4 overflow-x-auto"><code>{
+  <span class="kw">"id"</span>: <span class="str">"party-1"</span>,
+  <span class="kw">"members"</span>: [<span class="str">"brynn"</span>, <span class="str">"sela"</span>],
+  <span class="kw">"shared"</span>: { <span class="kw">"rations"</span>: <span class="num">4</span> }
+}
+<span class="com">// membership + shared state;</span>
+<span class="com">// characters serialize separately</span></code></pre>
+      </div>
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+        <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">combat.serialize()</div>
+        <pre class="font-data text-[12px] leading-relaxed p-4 overflow-x-auto"><code>{
+  <span class="kw">"pairsWith"</span>: <span class="str">"party-1"</span>,
+  <span class="kw">"round"</span>: <span class="num">2</span>, <span class="kw">"turn"</span>: <span class="num">3</span>,
+  <span class="kw">"order"</span>: [<span class="str">"wight"</span>,<span class="str">"brynn"</span>],
+  <span class="kw">"combatants"</span>: { <span class="com">/* transients */</span> },
+  <span class="kw">"rng"</span>: { <span class="kw">"state"</span>: <span class="str">"0x9f3a…"</span> },
+  <span class="kw">"pack"</span>: { <span class="kw">"id"</span>: <span class="str">"dark-fantasy"</span>,
+    <span class="kw">"schemaVersion"</span>: <span class="num">1</span>,
+    <span class="kw">"contentHash"</span>: <span class="str">"e41c…"</span> }
+}</code></pre>
+      </div>
+    </div>
+    <p class="text-sm text-[#9A8F7E] mt-3">A combat snapshot names the party snapshot it pairs with — the pairing is stated in the docs (FR-14), and the pack identity rides inside every snapshot.</p>
+  </section>
+
+  <!-- RESUME TEST -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">Resume means the next roll matches</h2>
+    <div class="rounded-md border border-[#3A322A] bg-[#1E1A16] overflow-hidden">
+      <div class="px-4 py-2 border-b border-[#3A322A] font-data text-xs text-[#9A8F7E]">output — the FR-14 test, stated plainly</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>uninterrupted:  d20[7] · claw hits · 6 slashing
+serialized at round 2, turn 3, mid-turn
+resumed:        d20[7] · claw hits · 6 slashing   <span class="str">✓ identical</span></code></pre>
+    </div>
+    <p class="text-sm text-[#9A8F7E] mt-3">RNG state is part of the payload (FR-1) — that is the whole trick, and it is testable, not aspirational.</p>
+  </section>
+
+  <!-- REFUSAL -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">Load refuses loudly on mismatch</h2>
+    <div class="space-y-3">
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+        <div class="border-l-4 border-[#6A93A8] p-4">
+          <div class="flex flex-wrap items-center gap-2 mb-2">
+            <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#6A93A8] text-[#1A1714] font-bold">REFUSED</span>
+            <span class="font-data text-[12px] text-[#6A93A8]">snapshot.load</span>
+            <span class="font-data text-[12px] text-[#9A8F7E] ml-auto">rule: E-SNAP-01</span>
+          </div>
+          <p class="text-sm">Pack hash <span class="font-data text-[13px] text-[#D9843B]">e41c…</span> expected, <span class="font-data text-[13px] text-[#D9843B]">9a02…</span> loaded — refusing rather than producing mangled characters.</p>
+        </div>
+      </div>
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
+        <span class="text-[#D9843B] shrink-0">▲</span>
+        <p class="text-sm">No v1 migration, by contract: a schema or content version bump renders old snapshots <span class="text-[#E8E2D6]">stale</span>, and the API says so plainly — the error names the versioning discipline (FR-23) rather than guessing.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- BOUNDARY -->
+  <section class="mb-4">
+    <h2 class="font-display text-2xl mb-4">The boundary is the point</h2>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4">
+        <p class="text-sm"><span class="text-[#7BA05B]">✓</span> <span class="text-[#E8E2D6]">The engine:</span> computes, validates, serializes. Pure functions over pure data.</p>
+      </div>
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4">
+        <p class="text-sm"><span class="text-[#9A8F7E]">—</span> <span class="text-[#E8E2D6]">The host:</span> files, databases, localStorage, autosave, cloud sync, undo stacks — all third-party territory, all shapes supported because the payload is plain JSON.</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="border-t border-[#3A322A] mt-12">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex justify-between flex-wrap gap-2">
+    <a href="bestiary-encounters.html" class="font-data text-[11px] text-[#9A8F7E] hover:underline">← bestiary &amp; encounters</a>
+    <a href="generation-pipeline.html" class="font-data text-[11px] text-[#D9843B] hover:underline">next: generation pipeline →</a>
+  </div>
+</footer>
+
+</body>
+</html>

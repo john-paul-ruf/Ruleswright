@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dice &amp; Determinism — Ruleswright Mock</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .font-display { font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif; }
+  .font-data { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .kw { color: #D9843B; }
+  .str { color: #7BA05B; }
+  .com { color: #9A8F7E; font-style: italic; }
+  .num { color: #6A93A8; }
+</style>
+</head>
+<body class="bg-[#1A1714] text-[#E8E2D6] min-h-screen">
+
+<header class="border-b border-[#3A322A]">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-2">
+    <a href="index.html" class="font-data text-sm text-[#D9843B] hover:underline">← design index</a>
+    <div class="flex gap-2 flex-wrap">
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-1</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-14</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">NFR-det.</span>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-4xl mx-auto px-6 py-10">
+
+  <h1 class="font-display text-4xl mb-3">Dice &amp; determinism</h1>
+  <p class="text-[#9A8F7E] mb-10 max-w-2xl">All randomness flows through one injectable, seedable, exportable RNG. Same seed and same call sequence ⇒ identical results on Node, in browsers, in Electron. There is no ambient <span class="font-data text-[#E8E2D6]">Math.random</span> anywhere in the library — and CI keeps it that way (FR-1).</p>
+
+  <!-- INJECTION -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">One injection point</h2>
+    <p class="text-sm text-[#9A8F7E] mb-4 max-w-2xl">The engine ships a seeded default; hosts may inject their own — a rigged stream for tests, a recorded stream for replays, any distribution the host wants. Determinism is a property of the injection, not a hope.</p>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+      <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">combat.ts — API illustrative</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="kw">import</span> { mulberry32 } <span class="kw">from</span> <span class="str">"ruleswright/runtime"</span>;
+
+<span class="kw">const</span> fight = rt.startCombat(
+  { allies: [brynn], enemies: [rt.spawnMonster(<span class="str">"barrow-wight"</span>)] },
+  { rng: mulberry32(<span class="num">42</span>) }   <span class="com">// or your own (seed) =&gt; number</span>
+);</code></pre>
+    </div>
+  </section>
+
+  <!-- ROLL ANATOMY -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">A roll is structured, never a bare number</h2>
+    <p class="text-sm text-[#9A8F7E] mb-4 max-w-2xl">Every roll carries its purpose, its parts, and its verdict — so events (FR-13) can quote it and replays can re-render it without re-deriving anything.</p>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+      <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">roll anatomy</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>{
+  <span class="kw">"purpose"</span>:  <span class="str">"attack"</span>,
+  <span class="kw">"sides"</span>:    <span class="num">20</span>,  <span class="kw">"values"</span>: [<span class="num">14</span>],
+  <span class="kw">"modifier"</span>: <span class="num">3</span>,  <span class="kw">"total"</span>:  <span class="num">17</span>,
+  <span class="kw">"verdict"</span>:  { <span class="kw">"defense"</span>: <span class="str">"ac"</span>, <span class="kw">"value"</span>: <span class="num">15</span>, <span class="kw">"result"</span>: <span class="str">"hit"</span> }
+}</code></pre>
+    </div>
+  </section>
+
+  <!-- RECIPES -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">Recipes — the dice vocabulary formulas may use</h2>
+    <p class="text-sm text-[#9A8F7E] mb-4 max-w-2xl">These terms appear inside pack formulas (FR-3) and tables (FR-15). The engine evaluates them; packs combine them.</p>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+      <table class="w-full font-data text-[13px]">
+        <thead>
+          <tr class="bg-[#2C261F] text-[#9A8F7E] text-xs text-left">
+            <th class="px-4 py-2 font-normal">expression</th>
+            <th class="px-4 py-2 font-normal">meaning</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-t border-[#3A322A]"><td class="px-4 py-2 text-[#D9843B]">d20 + attackBonus</td><td class="px-4 py-2 text-[#9A8F7E]">the one resolution primitive (FR-3)</td></tr>
+          <tr class="border-t border-[#3A322A]"><td class="px-4 py-2 text-[#D9843B]">4d6kh3</td><td class="px-4 py-2 text-[#9A8F7E]">roll four, keep highest three — stat lines</td></tr>
+          <tr class="border-t border-[#3A322A]"><td class="px-4 py-2 text-[#D9843B]">2d20kh1</td><td class="px-4 py-2 text-[#9A8F7E]">keep-highest of two — expressible as data</td></tr>
+          <tr class="border-t border-[#3A322A]"><td class="px-4 py-2 text-[#D9843B]">1d8 + might</td><td class="px-4 py-2 text-[#9A8F7E]">damage with an ability term</td></tr>
+          <tr class="border-t border-[#3A322A]"><td class="px-4 py-2 text-[#D9843B]">d100</td><td class="px-4 py-2 text-[#9A8F7E]">percentile — table rolls (FR-15)</td></tr>
+          <tr class="border-t border-[#3A322A]"><td class="px-4 py-2 text-[#D9843B]">3d6kl2</td><td class="px-4 py-2 text-[#9A8F7E]">keep-lowest — grim packs write it themselves</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- RNG STATE -->
+  <section class="mb-4">
+    <h2 class="font-display text-2xl mb-4">RNG state travels with the snapshot</h2>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden mb-3">
+      <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">resume.ts — API illustrative</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="kw">const</span> snap = fight.serialize();          <span class="com">// includes rng.state</span>
+<span class="com">// …process restarts, hosts reload the same pack…</span>
+<span class="kw">const</span> resumed = Combat.deserialize(snap, pack);
+resumed.step();   <span class="com">// next roll == the uninterrupted fight's next roll</span></code></pre>
+    </div>
+    <div class="rounded-md border border-[#3A322A] bg-[#1E1A16] overflow-hidden">
+      <div class="px-4 py-2 border-b border-[#3A322A] font-data text-xs text-[#9A8F7E]">output</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="str">✓</span> rng state 0x9f3a… restored
+<span class="str">✓</span> next roll d20[7] — matches the uninterrupted run (FR-14, testable)</code></pre>
+    </div>
+  </section>
+
+  <!-- CALLOUTS -->
+  <div class="space-y-3 mt-10">
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
+      <span class="text-[#C4523E] shrink-0">▲</span>
+      <p class="text-sm">No ambient randomness: a CI lint rule fails any <span class="font-data text-[13px]">Math.random</span> under <span class="font-data text-[13px]">src/</span>. The rule is boring; the guarantee is total (FR-1).</p>
+    </div>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
+      <span class="text-[#6A93A8] shrink-0">◈</span>
+      <p class="text-sm">Cross-platform determinism: an integer-based generator, fixed rounding, no clock or locale in the roll path — same seed ⇒ same values on every engine (NFR-Determinism).</p>
+    </div>
+  </div>
+
+</main>
+
+<footer class="border-t border-[#3A322A] mt-12">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex justify-between flex-wrap gap-2">
+    <a href="quickstart-annotated.html" class="font-data text-[11px] text-[#9A8F7E] hover:underline">← quickstart, annotated</a>
+    <a href="pack-anatomy.html" class="font-data text-[11px] text-[#D9843B] hover:underline">next: pack anatomy →</a>
+  </div>
+</footer>
+
+</body>
+</html>

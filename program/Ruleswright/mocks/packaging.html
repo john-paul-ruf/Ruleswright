@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Packaging &amp; Surfaces — Ruleswright Mock</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .font-display { font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif; }
+  .font-data { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .kw { color: #D9843B; }
+  .str { color: #7BA05B; }
+  .com { color: #9A8F7E; font-style: italic; }
+  .num { color: #6A93A8; }
+</style>
+</head>
+<body class="bg-[#1A1714] text-[#E8E2D6] min-h-screen">
+
+<header class="border-b border-[#3A322A]">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-2">
+    <a href="index.html" class="font-data text-sm text-[#D9843B] hover:underline">← design index</a>
+    <div class="flex gap-2 flex-wrap">
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-22</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-23</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">NFR-dep.</span>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-4xl mx-auto px-6 py-10">
+
+  <h1 class="font-display text-4xl mb-3">Packaging &amp; surfaces</h1>
+  <p class="text-[#9A8F7E] mb-10 max-w-2xl">Three public surfaces, separately consumable (FR-22). The mechanism — subpath exports vs. workspace packages — is an architecture-phase decision; what is <em>fixed here</em> is that runtime-only consumption is first-class and the bundle never carries what you didn't ask for.</p>
+
+  <!-- THREE SURFACES -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">The three surfaces</h2>
+    <div class="grid md:grid-cols-3 gap-4">
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-5">
+        <div class="font-data text-[13px] text-[#D9843B] mb-2">ruleswright/runtime</div>
+        <p class="text-sm text-[#9A8F7E] mb-3">Dice, characters, parties, combat, conditions, snapshots, events, tables, encounters.</p>
+        <p class="font-data text-[12px] text-[#9A8F7E]">imports generator code: <span class="text-[#C4523E]">never</span></p>
+      </div>
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-5">
+        <div class="font-data text-[13px] text-[#D9843B] mb-2">ruleswright/schema</div>
+        <p class="text-sm text-[#9A8F7E] mb-3">The pack format: types, validators, <span class="font-data text-[12px]">schemaVersion</span> contract (FR-23). Consumed by authors and by the compiler itself.</p>
+        <p class="font-data text-[12px] text-[#9A8F7E]">dependency of both others</p>
+      </div>
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-5">
+        <div class="font-data text-[13px] text-[#D9843B] mb-2">ruleswright/compiler</div>
+        <p class="text-sm text-[#9A8F7E] mb-3"><span class="font-data text-[12px]">generateCampaign</span>, theme templates, knobs, stage pipeline. Dev-time and host-app territory.</p>
+        <p class="font-data text-[12px] text-[#9A8F7E]">imports: schema + runtime validator</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- BUNDLE PROOF -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">The runtime-only bundle is a proof, not a promise</h2>
+    <div class="rounded-md border border-[#3A322A] bg-[#1E1A16] overflow-hidden">
+      <div class="px-4 py-2 border-b border-[#3A322A] font-data text-xs text-[#9A8F7E]">CI bundle check</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>entry: <span class="str">"ruleswright/runtime"</span>   <span class="com">// tree-shaken browser build</span>
+<span class="str">✓</span> contains: dice · characters · combat · events · snapshots · tables
+<span class="str">✓</span> absent:   generateCampaign · theme templates · stage pipeline
+<span class="str">✓</span> CI fails if the string "generateCampaign" appears in the bundle</code></pre>
+    </div>
+    <p class="text-sm text-[#9A8F7E] mt-3">A dev embedding combat in an existing game ships none of the compiler. That is the FR-22 requirement, made enforceable.</p>
+  </section>
+
+  <!-- DX -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">The DX contract</h2>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-5">
+        <p class="text-sm"><span class="text-[#7BA05B]">✓</span> <span class="text-[#E8E2D6]">Full TypeScript types</span> on every public surface; consumable from plain JavaScript with types available (NFR-DX, NFR-Platform).</p>
+      </div>
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-5">
+        <p class="text-sm"><span class="text-[#7BA05B]">✓</span> <span class="text-[#E8E2D6]">ESM primary</span>; Node LTS, evergreen browsers, Electron. No network calls, no telemetry — anywhere.</p>
+      </div>
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-5">
+        <p class="text-sm"><span class="text-[#7BA05B]">✓</span> <span class="text-[#E8E2D6]">Near-zero runtime dependencies</span> — build/dev tooling unconstrained, runtime constrained (NFR-Dependencies).</p>
+      </div>
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-5">
+        <p class="text-sm"><span class="text-[#7BA05B]">✓</span> <span class="text-[#E8E2D6]">Docs whose examples run</span> — the quickstart mock is the bar: copy-paste, expected output, every step.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- VERSIONING -->
+  <section class="mb-4">
+    <h2 class="font-display text-2xl mb-4">One versioning discipline</h2>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3 mb-3">
+      <span class="text-[#D9843B] shrink-0">▲</span>
+      <p class="text-sm">Packs, overrides, and snapshots share the <span class="font-data text-[13px]">schemaVersion</span> contract (FR-23): every pack declares it; the engine validates compatibility at load; major bumps are breaking by definition and ship with a written compatibility note. One discipline, learned once — the same contract the snapshot refusal enforces (FR-14).</p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="border-t border-[#3A322A] mt-12">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex justify-between flex-wrap gap-2">
+    <a href="generation-pipeline.html" class="font-data text-[11px] text-[#9A8F7E] hover:underline">← generation pipeline</a>
+    <a href="api-map.html" class="font-data text-[11px] text-[#D9843B] hover:underline">next: API map →</a>
+  </div>
+</footer>
+
+</body>
+</html>

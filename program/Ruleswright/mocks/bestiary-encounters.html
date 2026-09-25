@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bestiary &amp; Encounters — Ruleswright Mock</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .font-display { font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif; }
+  .font-data { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .kw { color: #D9843B; }
+  .str { color: #7BA05B; }
+  .com { color: #9A8F7E; font-style: italic; }
+  .num { color: #6A93A8; }
+</style>
+</head>
+<body class="bg-[#1A1714] text-[#E8E2D6] min-h-screen">
+
+<header class="border-b border-[#3A322A]">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-2">
+    <a href="index.html" class="font-data text-sm text-[#D9843B] hover:underline">← design index</a>
+    <div class="flex gap-2 flex-wrap">
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-15</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-16</span>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-4xl mx-auto px-6 py-10">
+
+  <h1 class="font-display text-4xl mb-3">Bestiary &amp; encounters</h1>
+  <p class="text-[#9A8F7E] mb-10 max-w-2xl">Monsters are pack statblocks built from the <em>same character machinery</em> — abilities, class attack tables, saves, actions. There is no second combatant code path (FR-16). And one table engine serves runtime lookups and the compiler alike (FR-15).</p>
+
+  <!-- STATBLOCK -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">A monster is a statblock, and a statblock is a character</h2>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+      <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">bestiary.barrow-wight</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>{
+  <span class="kw">"id"</span>: <span class="str">"barrow-wight"</span>,
+  <span class="kw">"hp"</span>: <span class="str">"hd + vigor × 2"</span>,           <span class="com">// same formula DSL (FR-3)</span>
+  <span class="kw">"ac"</span>: <span class="str">"16"</span>,                        <span class="com">// descending, pack convention</span>
+  <span class="kw">"attackTable"</span>: [<span class="com">/* same table shape as warden */</span>],
+  <span class="kw">"saves"</span>: { <span class="kw">"vigor"</span>: <span class="num">2</span>, <span class="kw">"reason"</span>: <span class="num">3</span> },
+  <span class="kw">"actions"</span>: [<span class="str">"claw"</span>, <span class="str">"grave-gaze"</span>],
+  <span class="kw">"threat"</span>: <span class="num">3</span>                        <span class="com">// feeds encounter budgets</span>
+}</code></pre>
+    </div>
+    <p class="text-sm text-[#9A8F7E] mt-3">A host spawns it with <span class="font-data text-[13px] text-[#E8E2D6]">rt.spawnMonster("barrow-wight")</span> and it fights in the same loop, emits the same events, and snapshots the same way.</p>
+  </section>
+
+  <!-- TABLES -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">One table engine</h2>
+    <p class="text-sm text-[#9A8F7E] mb-4 max-w-2xl">Weighted, ranged, nested. The runtime rolls loot and encounters from it; the compiler generates content from it. Two consumers, zero second implementations (FR-15) — and table rolls ride the seeded RNG, so the same seed replays the same loot (FR-1).</p>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+      <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">tables.district-scavenge</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>{
+  <span class="kw">"id"</span>: <span class="str">"district-scavenge"</span>,
+  <span class="kw">"entries"</span>: [
+    { <span class="kw">"weight"</span>: <span class="num">40</span>, <span class="kw">"value"</span>: <span class="str">"tables.scavenged-supplies"</span> },   <span class="com">// nested</span>
+    { <span class="kw">"weight"</span>: <span class="num">25</span>, <span class="kw">"value"</span>: <span class="str">"tables.street-remnants"</span> },
+    { <span class="kw">"weight"</span>: <span class="num">20</span>, <span class="kw">"range"</span>: [<span class="num">1</span>, <span class="num">3</span>], <span class="kw">"value"</span>: <span class="str">"equipment.med-kits"</span> },
+    { <span class="kw">"weight"</span>: <span class="num">15</span>, <span class="kw">"value"</span>: <span class="str">"encounter:hazard"</span> }             <span class="com">// runtime hook</span>
+  ]
+}</code></pre>
+    </div>
+  </section>
+
+  <!-- ENCOUNTER ASSEMBLY -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">Encounter assembly — deterministic per seed</h2>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+        <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">API illustrative</div>
+        <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="kw">const</span> enc = rt.assembleEncounter({
+  budget: <span class="num">6</span>,                 <span class="com">// threat points</span>
+  party: [brynn, sela],
+  table: <span class="str">"encounters.barrowland"</span>,
+  seed: <span class="num">42</span>,                  <span class="com">// deterministic per seed (FR-16)</span>
+});</code></pre>
+      </div>
+      <div class="rounded-md border border-[#3A322A] bg-[#1E1A16] overflow-hidden">
+        <div class="px-4 py-2 border-b border-[#3A322A] font-data text-xs text-[#9A8F7E]">output</div>
+        <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="str">✓</span> threat 6 of 6 spent · seed 42
+  1× barrow-wight (3) · 2× grave-shambles (1.5)
+  heuristic: warden-favored · documented in FR-16 notes
+  <span class="com">// hosts may override or bypass assembly entirely</span></code></pre>
+      </div>
+    </div>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3 mt-4">
+      <span class="text-[#6A93A8] shrink-0">◈</span>
+      <p class="text-sm">The assembly heuristic is <span class="text-[#E8E2D6]">documented, not sacred</span> (FR-16): a pack may replace it or skip it — the engine ships one sensible default and gets out of the way.</p>
+    </div>
+  </section>
+
+  <!-- CALLOUT -->
+  <div class="space-y-3">
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
+      <span class="text-[#7BA05B] shrink-0">✓</span>
+      <p class="text-sm">Coverage floor (FR-21): both sample packs ship encounter/loot tables and knobs that visibly change output — proven by the theme-knobs surface, consumed here.</p>
+    </div>
+  </div>
+
+</main>
+
+<footer class="border-t border-[#3A322A] mt-12">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex justify-between flex-wrap gap-2">
+    <a href="triggers.html" class="font-data text-[11px] text-[#9A8F7E] hover:underline">← triggered actions</a>
+    <a href="snapshots.html" class="font-data text-[11px] text-[#D9843B] hover:underline">next: snapshots &amp; persistence →</a>
+  </div>
+</footer>
+
+</body>
+</html>

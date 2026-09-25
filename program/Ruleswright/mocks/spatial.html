@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spatial Layer — Ruleswright Mock</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .font-display { font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif; }
+  .font-data { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .kw { color: #D9843B; }
+  .str { color: #7BA05B; }
+  .com { color: #9A8F7E; font-style: italic; }
+  .num { color: #6A93A8; }
+</style>
+</head>
+<body class="bg-[#1A1714] text-[#E8E2D6] min-h-screen">
+
+<header class="border-b border-[#3A322A]">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-2">
+    <a href="index.html" class="font-data text-sm text-[#D9843B] hover:underline">← design index</a>
+    <div class="flex gap-2 flex-wrap">
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-11</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-4</span>
+      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-7</span>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-4xl mx-auto px-6 py-10">
+
+  <h1 class="font-display text-4xl mb-3">The optional spatial layer</h1>
+  <p class="text-[#9A8F7E] mb-10 max-w-2xl">Packs may declare positions, adjacency, and reach — or declare none, and everything else works untouched. Theater-of-mind packs pay nothing; tactical packs get geometry (FR-11).</p>
+
+  <!-- OPT-IN -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">An opt-in, declared per pack</h2>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4">
+        <p class="text-sm"><span class="text-[#7BA05B]">✓</span> <span class="text-[#E8E2D6]">Declared:</span> melee actions may require adjacency; a reach value extends it; burst shapes exist. All read from the pack.</p>
+      </div>
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4">
+        <p class="text-sm"><span class="text-[#9A8F7E]">—</span> <span class="text-[#E8E2D6]">Absent:</span> no position state, no adjacency checks, <span class="font-data text-[13px]">valid</span> clauses never reference distance. Nothing else changes — same combat loop, same events.</p>
+      </div>
+    </div>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden mt-4">
+      <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">pack.json · spatial declaration</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="str">"spatial"</span>: {
+  <span class="kw">"model"</span>: <span class="str">"grid"</span>,           <span class="com">// or omit the block entirely</span>
+  <span class="kw">"reach"</span>: { <span class="kw">"default"</span>: <span class="num">1</span>, <span class="kw">"weapons.long-spear"</span>: <span class="num">2</span> },
+  <span class="kw">"shapes"</span>: [<span class="str">"single"</span>, <span class="str">"burst"</span>]   <span class="com">// v1 set (FR-11)</span>
+}</code></pre>
+    </div>
+  </section>
+
+  <!-- ADJACENCY IN AN ACTION -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">Adjacency lives in the action's validity clause</h2>
+    <p class="text-sm text-[#9A8F7E] mb-4 max-w-2xl">The same action body that works in a spatial pack fails <em>declaratively</em> — never by engine special case — in one that has no geometry.</p>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+      <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">actions.strike — spatial pack vs. theater-of-mind pack</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="com">// spatial pack (dark fantasy)</span>
+{ <span class="kw">"id"</span>: <span class="str">"strike"</span>,
+  <span class="kw">"valid"</span>: <span class="str">"hasTarget(adjacent)"</span>,
+  <span class="kw">"cost"</span>: { <span class="kw">"slots"</span>: { <span class="str">"main"</span>: <span class="num">1</span> } },
+  <span class="kw">"effect"</span>: { <span class="kw">"attack"</span>: <span class="str">"melee"</span>, <span class="kw">"onHit"</span>: <span class="str">"damage(1d8 + might)"</span> } }
+
+<span class="com">// theater-of-mind pack (same fight, no grid)</span>
+{ <span class="kw">"id"</span>: <span class="str">"strike"</span>,
+  <span class="kw">"valid"</span>: <span class="str">"hasTarget(engaged)"</span>,   <span class="com">// pack-declared predicate</span>
+  <span class="kw">"cost"</span>: { <span class="kw">"slots"</span>: { <span class="str">"main"</span>: <span class="num">1</span> } },
+  <span class="kw">"effect"</span>: { <span class="kw">"attack"</span>: <span class="str">"melee"</span>, <span class="kw">"onHit"</span>: <span class="str">"damage(1d8 + might)"</span> } }</code></pre>
+    </div>
+  </section>
+
+  <!-- BURST -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">Area effects resolve through targeting, not geometry code</h2>
+    <p class="text-sm text-[#9A8F7E] mb-4 max-w-2xl">A burst is a shape the targeting DSL (FR-9) understands: all entities in shape, per-target saves, mixed outcomes. The engine supplies the shape; the pack supplies the consequences.</p>
+    <div class="rounded-md border border-[#3A322A] bg-[#1E1A16] overflow-hidden">
+      <div class="px-4 py-2 border-b border-[#3A322A] font-data text-xs text-[#9A8F7E]">output — ember-bloom, radius 2</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>shape burst r2 @ (4,3): grave-shambles · bone-choir · brynn
+  per-target save reason → fail 9 fire · half 5 fire · half 5 fire
+  <span class="com">// mixed outcomes per target — one declaration, three verdicts</span></code></pre>
+    </div>
+  </section>
+
+  <!-- CALLOUTS -->
+  <div class="space-y-3">
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
+      <span class="text-[#C4523E] shrink-0">▲</span>
+      <p class="text-sm">Cone and line are <span class="text-[#E8E2D6]">deferred, not faked</span> (FR-11): they are engine geometry, and the spatial model ships exactly the v1 set — single-target and burst.</p>
+    </div>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
+      <span class="text-[#6A93A8] shrink-0">◈</span>
+      <p class="text-sm">Conditions can be spatial too: <span class="font-data text-[13px]">rooted</span> restricts move actions and only means anything in packs that opted in (FR-7) — see the conditions surface.</p>
+    </div>
+  </div>
+
+</main>
+
+<footer class="border-t border-[#3A322A] mt-12">
+  <div class="max-w-4xl mx-auto px-6 py-4 flex justify-between flex-wrap gap-2">
+    <a href="combat-loop.html" class="font-data text-[11px] text-[#9A8F7E] hover:underline">← combat loop</a>
+    <a href="triggers.html" class="font-data text-[11px] text-[#D9843B] hover:underline">next: triggered actions →</a>
+  </div>
+</footer>
+
+</body>
+</html>
