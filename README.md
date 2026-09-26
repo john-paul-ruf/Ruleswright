@@ -9,7 +9,8 @@ specifics, the engine interprets them.
 
 - Zero runtime dependencies. Engine performs no I/O — hosts own storage, pacing, and UI.
 - Determinism to the byte: same theme + seed + knobs ⇒ byte-identical packs; same seed +
-  same call sequence ⇒ identical rolls on Node, browsers, and Electron.
+  same call sequence ⇒ identical rolls. Verified on the Node 18/20/22 CI matrix; the
+  browser leg of the matrix is a tracked v1.1 follow-up (browser-mode Vitest config).
 - Three surfaces: `ruleswright/runtime` (dice, characters, combat, snapshots, events),
   `ruleswright/schema` (the pack format, validator, version contract), and
   `ruleswright/compiler` (theme → pack generation, knobs, stage pipeline).
@@ -117,8 +118,8 @@ d20[9]=9 < ac12 actions.cut-down.attackBonus
 - The engine performed **no I/O** anywhere above — `serialize()` hands you JSON;
   your app owns storage (FR-14).
 - Same theme + seed + knobs ⇒ byte-identical pack; same seed + same call sequence
-  ⇒ identical rolls on Node, browsers, Electron (FR-1, FR-17; the cross-runtime
-  browser matrix runs in CI).
+  ⇒ identical rolls on Node, browsers, Electron (FR-1, FR-17; the Node matrix is
+  verified in CI, the browser leg is a tracked v1.1 follow-up).
 
 ## Development
 
@@ -137,6 +138,9 @@ Engine determinism contract: all randomness flows through the seeded, injectable
 (`core/rng`) whose state serializes as four uint32 words — snapshots carry it so a
 resumed fight rolls the same future as an uninterrupted one.
 
-CI (`.github/workflows/ci.yml`) runs the matrix (Node 18/20/22), the FR-12
-proof trio (rules-are-data: zero engine diffs), the FR-21 coverage floor for both
-sample themes, and the bundle-isolation + security-sweep gates on every push.
+CI (`.github/workflows/ci.yml`) runs the Node matrix (18/20/22 — the whole suite,
+so same-seed ⇒ identical rolls is proven on all three lines), the FR-12 proof trio
+(rules-are-data: zero engine diffs), the FR-21 coverage floor for both sample
+themes, and the bundle-isolation + security-sweep gates on every push. The browser
+determinism leg is the tracked v1.1 follow-up (needs a browser-mode Vitest config),
+documented here so the README never promises a CI run CI does not perform.

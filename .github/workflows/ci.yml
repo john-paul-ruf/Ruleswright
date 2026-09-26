@@ -1,15 +1,16 @@
-/**
- * CI workflow — architecture.md's CI-gates list (FR-22/NFR-Security/NFR-DX):
- * matrix Node 18/20/22; typecheck; lint (security rules); unit tests; build +
- * bundle isolation + security sweep; FR-12 proof trio; FR-21 theme generation +
- * validation; perf budgets as regression thresholds.
- *
- * The browser determinism matrix (Custom Rule 5) needs a browser-mode Vitest
- * config this repo does not carry in v1 (D4: node env only locally) — the job
- * below runs the determinism suites under the node config on all three Node
- * lines and documents the browser-mode step as the v1.1 follow-up, failing
- * loudly if the config appears and is skipped.
- */
+# CI workflow — the committed CI-gates list (FR-22/NFR-Security/NFR-DX):
+# matrix Node 18/20/22; typecheck; lint (security rules); unit tests; build +
+# bundle isolation + security sweep; FR-12 proof trio; FR-21 theme generation +
+# validation; perf budgets as regression thresholds.
+#
+# Determinism in v1: the WHOLE suite runs on all three Node lines below —
+# same-seed ⇒ identical results is the v1 determinism proof, and a scoped
+# rerun of the same tests would prove nothing pnpm test didn't already prove.
+# The browser-mode leg (Custom Rule 5, NFR-Determinism's browser/Electron
+# clause) is a TRACKED v1.1 follow-up: it needs a browser-mode Vitest config
+# this repo does not carry yet (D4: node env locally). When that config lands,
+# add the matrix run here — the README already points here for the browser
+# leg and names this follow-up, so the doc claim and CI stay one truth.
 name: CI
 
 on:
@@ -19,7 +20,7 @@ on:
 
 jobs:
   test:
-    name: typecheck · lint · test (node ${{ matrix.node }})
+    name: typecheck · lint · test + determinism (node ${{ matrix.node }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -38,8 +39,8 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
-      - run: pnpm exec vitest run tests/core/rng.test.ts tests/core/tables.test.ts tests/runtime/encounter.test.ts
-        name: determinism suites (same-seed ⇒ identical results; browser-mode config = v1.1 follow-up)
+        # Whole suite on all three Node lines = the v1 determinism proof:
+        # same seed ⇒ identical results across engines (FR-1).
 
   package:
     name: build · bundle isolation · security sweep (node 22)
@@ -76,4 +77,4 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec vitest run tests/compiler/coverage-floor.test.ts
-        name: both themes to the coverage floor (50 tests) — the proof-4 input
+        name: both themes to the coverage floor — the FR-21 proof input

@@ -18,6 +18,12 @@
  * assertions; the typecheck pass keeps both and maps the package specifiers to
  * the real source entries — a consumer's `ruleswright/*` resolves through the
  * package exports to the same compiled source.
+ *
+ * The anatomy test additionally pins the README's CI claims against what
+ * ci.yml actually does: the browser determinism leg is a tracked v1.1
+ * follow-up, and the README must say so — never promise a CI run CI does
+ * not perform.
+ *
  * Expected outputs are asserted from the README's own output blocks:
  *   01 → a validated pack (manifest.id = dark-fantasy, 3 classes, 33 spells)
  *   02 → derived() = { hp: 27, ac: 12, saves: all-zero at level 1 }
@@ -171,6 +177,12 @@ describe('README quickstart runs verbatim (NFR-DX)', () => {
     expect(readme).toContain('profileFromCharacter(rt, brynn)');
     expect(readme).toContain('actions.cut-down.attackBonus');
     expect(readme).toContain('no I/O');
+    // CI-claim honesty (NFR-DX): the README must never promise a CI run CI
+    // does not perform. The browser determinism leg is a tracked v1.1
+    // follow-up — ci.yml runs the Node matrix only, and says so.
+    expect(readme).toContain('browser leg');
+    expect(readme).toContain('v1.1 follow-up');
+    expect(readme).not.toContain('browser matrix runs in CI');
   });
 
   it('the README’s fenced ```ts blocks compile under the consumer’s strict tsc (NFR-DX)', () => {
