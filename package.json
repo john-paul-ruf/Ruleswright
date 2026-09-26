@@ -7,6 +7,31 @@
   "engines": {
     "node": ">=18"
   },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime.d.ts",
+      "require": "./dist/runtime.cjs",
+      "default": "./dist/runtime.js"
+    },
+    "./schema": {
+      "types": "./dist/schema.d.ts",
+      "require": "./dist/schema.cjs",
+      "default": "./dist/schema.js"
+    },
+    "./compiler": {
+      "types": "./dist/compiler.d.ts",
+      "require": "./dist/compiler.cjs",
+      "default": "./dist/compiler.js"
+    }
+  },
   "files": [
     "dist",
     "README.md"
@@ -15,7 +40,10 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext .ts",
     "test": "vitest run",
-    "build": "tsup"
+    "build": "tsup",
+    "check:isolation": "node scripts/check-runtime-isolation.mjs",
+    "check:security": "node scripts/check-security-lint.mjs",
+    "verify:package": "pnpm build && pnpm check:isolation && pnpm check:security"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.8.1",
