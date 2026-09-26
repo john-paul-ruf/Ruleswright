@@ -5,6 +5,7 @@ import { Runtime } from '../../../src/runtime/runtime';
 import { profileFromStatblock, type CombatantProfile } from '../../../src/runtime/combat/resolve';
 import { startCombat, Combat, displayRoll, type CombatantState, type StepOutcome } from '../../../src/runtime/combat/combat';
 import type { RuntimeEvent } from '../../../src/runtime/events';
+import { serializeCombat, deserializeCombat, type CombatRestoreRequest } from '../../../src/runtime/snapshots';
 
 /**
  * The first narrow journey (program-level, CAP-6): generate (fixture pack) →
@@ -221,5 +222,148 @@ describe('displayRoll — the mock\u2019s roll anatomy', () => {
   it('renders the combat-loop.html roll strings verbatim', () => {
     expect(displayRoll({ purpose: 'attack', sides: 20, values: [14], modifier: 3, total: 17, verdict: { defense: 'ac', value: 15, result: 'hit' } })).toBe('d20[14]+3=17 ≥ ac15');
     expect(displayRoll({ purpose: 'damage', sides: 6, values: [4], modifier: 2, total: 6 })).toBe('d6[4]+2=6');
+  });
+});
+
+/**
+ * The end-of-combat rule (D-26, engine-universal): after any resolution, when
+ * every combatant on one side is at hp ≤ 0 the fight is `combat-over` and one
+ * `combat:ended` event names the winner; downed combatants take no turns and
+ * are offered no triggers. `surge` (unconditional 2d6) makes the killing blow
+ * deterministic; initiative bonuses pin the turn order.
+ */
+interface RuleCombatant {
+  readonly id: string;
+  readonly actions: readonly string[];
+  readonly hp?: number;
+  readonly initiativeBonus: number;
+}
+
+function ruleProfile(runtime: Runtime, member: RuleCombatant): { id: string; profile: CombatantProfile; balances: { pools: Record<string, number> } } {
+  const base = profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, member.id);
+  return {
+    id: member.id,
+    profile: { ...base, actions: [...member.actions], hp: member.hp ?? base.hp, initiativeBonus: member.initiativeBonus },
+    balances: { pools: { stamina: 10 } },
+  };
+}
+
+function ruleSides(runtime: Runtime, allies: readonly RuleCombatant[], enemies: readonly RuleCombatant[]): CombatRestoreRequest {
+  return { allies: allies.map((member) => ruleProfile(runtime, member)), enemies: enemies.map((member) => ruleProfile(runtime, member)) };
+}
+
+function ruleFight(allies: readonly RuleCombatant[], enemies: readonly RuleCombatant[]): { runtime: Runtime; fight: Combat; events: RuntimeEvent[] } {
+  const runtime = new Runtime(emberMarchesPack());
+  const events: RuntimeEvent[] = [];
+  runtime.events.on((event) => {
+    events.push(event);
+  });
+  const fight = startCombat(runtime, { ...ruleSides(runtime, allies, enemies), rng: new Rng('end-rule') });
+  return { runtime, fight, events };
+}
+
+const BRYNN: RuleCombatant = { id: 'brynn', actions: ['surge'], initiativeBonus: 100 };
+const WIGHT_AT_1: RuleCombatant = { id: 'wight', actions: ['wight-claw'], hp: 1, initiativeBonus: 0 };
+const GHOUL: RuleCombatant = { id: 'ghoul', actions: ['wight-claw'], hp: 40, initiativeBonus: 50 };
+
+function lastSideDefeated(): ReturnType<typeof ruleFight> {
+  const setup = ruleFight([BRYNN], [WIGHT_AT_1]);
+  expect(setup.fight.step().kind).toBe('turn-started');
+  expect(setup.fight.state.active).toBe('brynn');
+  setup.fight.declare('surge');
+  return setup;
+}
+
+describe('the end-of-combat rule (D-26: combat.sideDefeated)', () => {
+  it('the last standing enemy downed → combat-over, one combat:ended naming the winner, guards hold', () => {
+    const { fight, events } = lastSideDefeated();
+    expect(fight.state.combatants['wight']!.hp.current).toBeLessThanOrEqual(0);
+    expect(fight.state.phase).toBe('combat-over');
+    const ended = events.filter((event) => event.type === 'combat:ended');
+    expect(ended).toHaveLength(1);
+    expect(ended[0]!.why).toEqual({ rule: 'combat.sideDefeated', rolls: [] });
+    expect(ended[0]!.payload).toEqual({ winner: 'allies', defeated: 'enemies' });
+    expect(events[events.length - 2]!.type).toBe('action:resolved');
+    expect(events[events.length - 1]).toBe(ended[0]);
+    expect(fight.pendingTriggers).toEqual([]);
+
+    const count = events.length;
+    expect(fight.step()).toEqual({ kind: 'combat-over' });
+    expect(fight.step()).toEqual({ kind: 'combat-over' });
+    expect(() => fight.declare('surge')).toThrow('combat is over');
+    expect(events).toHaveLength(count);
+  });
+
+  it('no-change path: a downed enemy with a standing ally leaves the fight running, and the downed turn is skipped', () => {
+    const { fight, events } = ruleFight([BRYNN], [WIGHT_AT_1, GHOUL]);
+    expect(fight.state.order).toEqual(['brynn', 'ghoul', 'wight']);
+    fight.step();
+    fight.declare('surge', { targetId: 'wight' });
+    expect(fight.state.combatants['wight']!.hp.current).toBeLessThanOrEqual(0);
+    expect(fight.state.phase).toBe('resolved');
+    expect(events.some((event) => event.type === 'combat:ended')).toBe(false);
+
+    expect(fight.step()).toEqual({ kind: 'turn-ended', combatantId: 'brynn' });
+    expect(fight.state.active).toBe('ghoul');
+    fight.step();
+    fight.declare('wight-claw');
+    // Ghoul's turn ends and the downed wight is passed over: the round completes.
+    expect(fight.step()).toEqual({ kind: 'round-completed', round: 1 });
+    expect(fight.state.active).toBe('brynn');
+    expect(fight.state.phase).toBe('awaiting-declare');
+    expect(events.filter((event) => event.type === 'turn:began').map((event) => event.actor)).toEqual(['brynn', 'ghoul']);
+  });
+
+  it('a downed combatant is offered no trigger; the same attack on a standing one is', () => {
+    const attackSentry = (sentryHp: number | undefined) => {
+      const setup = ruleFight(
+        [{ id: 'sentry', actions: ['parry'], hp: sentryHp, initiativeBonus: 50 }, { id: 'brynn', actions: ['surge'], initiativeBonus: 0 }],
+        [{ id: 'wight', actions: ['wight-claw'], initiativeBonus: 100 }],
+      );
+      expect(setup.fight.state.order).toEqual(['wight', 'sentry', 'brynn']);
+      setup.fight.step();
+      setup.fight.declare('wight-claw', { targetId: 'sentry' });
+      return setup;
+    };
+
+    const standing = attackSentry(undefined);
+    expect(standing.fight.pendingTriggers.map((offer) => offer.triggerId)).toEqual(['sentry.parry']);
+
+    const downed = attackSentry(0);
+    expect(downed.fight.pendingTriggers).toEqual([]);
+    expect(downed.events.some((event) => event.type === 'trigger:fired')).toBe(false);
+    expect(downed.fight.state.phase).toBe('resolved');
+    // The downed sentry's turn is skipped: the wight hands straight to brynn.
+    expect(downed.fight.step()).toEqual({ kind: 'turn-ended', combatantId: 'wight' });
+    expect(downed.fight.state.active).toBe('brynn');
+  });
+
+  it('serialize at combat-over → deserialize → still combat-over', () => {
+    const { fight } = lastSideDefeated();
+    const snap = serializeCombat(fight, { pairsWith: 'party-1' });
+    const fresh = new Runtime(emberMarchesPack());
+    const restored = deserializeCombat(fresh, JSON.parse(JSON.stringify(snap)), ruleSides(fresh, [BRYNN], [WIGHT_AT_1]));
+    expect(restored.state.phase).toBe('combat-over');
+    expect(restored.step()).toEqual({ kind: 'combat-over' });
+    expect(() => restored.declare('surge')).toThrow('combat is over');
+    expect(new Combat(fresh, fight.serialize()).state.phase).toBe('combat-over');
+  });
+
+  it('a mid-fight snapshot (one side partly downed) restores exactly as before: awaiting-declare at the frozen turn', () => {
+    const { fight } = ruleFight([BRYNN], [WIGHT_AT_1, GHOUL]);
+    fight.step();
+    fight.declare('surge', { targetId: 'wight' });
+    const snap = serializeCombat(fight, { pairsWith: 'party-1' });
+    const fresh = new Runtime(emberMarchesPack());
+    const restored = deserializeCombat(fresh, JSON.parse(JSON.stringify(snap)), ruleSides(fresh, [BRYNN], [WIGHT_AT_1, GHOUL]));
+    expect(restored.state.phase).toBe('awaiting-declare');
+    expect(restored.state.round).toBe(1);
+    expect(restored.state.turn).toBe(0);
+    expect(restored.state.active).toBe('brynn');
+    expect(restored.state.order).toEqual(fight.state.order);
+    for (const id of fight.state.order) {
+      expect(restored.state.combatants[id]!.hp.current).toBe(fight.state.combatants[id]!.hp.current);
+    }
+    expect(restored.state.rng).toEqual(fight.state.rng);
   });
 });

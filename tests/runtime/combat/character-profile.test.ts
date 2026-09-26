@@ -77,7 +77,7 @@ describe('CA-08 — every bundled class at level 1 maps through the production p
  * The engine-side acceptance script: the hero (a level-1 character) against
  * the first bestiary entry, driven only by step/declare/respond — every turn
  * declares the first action the engine accepts, every trigger offer is
- * declined — for at most 500 steps.
+ * declined — until `combat-over` (the side-defeated end rule) or 500 steps.
  */
 function fightScript(themeId: string, race: string, classId: string) {
   const rt = new Runtime(packFor(themeId));
@@ -113,9 +113,13 @@ describe('CA-08 / CAP-09 engine acceptance — every level-1 class fights throug
   for (const { themeId, race } of THEMES) {
     const classIds = Object.keys(new Runtime(packFor(themeId)).pack.content.classes ?? {});
     for (const classId of classIds) {
-      it(`${themeId}·42 · ${classId}: legal declares every turn, bounded, deterministic`, () => {
+      it(`${themeId}·42 · ${classId}: legal declares every turn, reaches combat-over within 500 steps, deterministic`, () => {
         const first = fightScript(themeId, race, classId);
+        expect(first.fight.state.phase).toBe('combat-over');
         expect(first.steps).toBeLessThanOrEqual(500);
+        const ended = first.events.filter((event) => event.type === 'combat:ended');
+        expect(ended).toHaveLength(1);
+        expect(ended[0]!.why.rule).toBe('combat.sideDefeated');
         expect(first.resolved['hero']).toBeGreaterThan(0);
         expect(first.events.some((event) => event.type === 'action:resolved' && event.actor === 'hero')).toBe(true);
         expect(first.events.some((event) => event.type === 'declare:rejected' && event.actor === 'hero')).toBe(false);
@@ -125,8 +129,6 @@ describe('CA-08 / CAP-09 engine acceptance — every level-1 class fights throug
       });
     }
   }
-
-  it.todo('each fight reaches phase combat-over within 500 steps — blocked: the combat engine has no transition into combat-over (SESSION-E1 handoff)');
 });
 
 describe('CA-08 — attack conventions', () => {

@@ -237,6 +237,10 @@ export class Combat {
   step(): StepOutcome {
     if (this.state.phase === 'combat-over') return { kind: 'combat-over' };
     if (this.state.phase === 'awaiting-declare') {
+      if (isDowned(this.state.combatants[this.state.active]!)) {
+        this.setClock();
+        return this.advanceFrom(this.state.turn + 1, this.state.active);
+      }
       this.setClock();
       replenish(this.state.combatants[this.state.active]!.slots, this.grants);
       this.runtime.events.emit({
@@ -457,13 +461,33 @@ export class Combat {
       payload: { actionId, targetId: target.id },
       why: { rule: `${this.ruleBaseOf(actionId)}`, rolls: [] },
     });
+    this.endIfSideDefeated();
     return this.runtime.events.sinceRound(this.state.round);
   }
 
-  /** After any mutation event, offer every matching reactive action (FR-13 substrate). */
+  /**
+   * The end rule (engine-universal, not pack data): once every combatant on one
+   * side is at hp ≤ 0, the fight is over — open offers lapse and one
+   * `combat:ended` event names the winning side.
+   */
+  private endIfSideDefeated(): void {
+    const defeated = defeatedSide(this.state.combatants);
+    if (defeated === undefined) return;
+    this.state = { ...this.state, phase: 'combat-over' };
+    this.pendingTriggers.length = 0;
+    this.runtime.events.emit({
+      type: 'combat:ended',
+      payload: { winner: defeated === 'allies' ? 'enemies' : 'allies', defeated },
+      why: { rule: 'combat.sideDefeated', rolls: [] },
+    });
+  }
+
+  /** After any mutation event, offer every matching reactive action to standing combatants (FR-13 substrate); none once the fight is over. */
   private surfaceOffers(events: readonly RuntimeEvent[]): void {
+    if (this.state.phase === 'combat-over') return;
     for (const event of events) {
       for (const offer of offersForEvent(this.runtime, this.state.combatants, event)) {
+        if (isDowned(this.state.combatants[offer.actorId]!)) continue;
         this.pendingTriggers.push(offer);
         emitOffer(this.runtime, offer, this.offeredCount);
         this.offeredCount += 1;
@@ -556,16 +580,37 @@ export class Combat {
     const actorId = this.state.active;
     this.setClock();
     this.runtime.events.emit({ type: 'turn:ended', actor: actorId, payload: { turn: this.state.turn, round: this.state.round }, why: { rule: 'combat.endTurn', rolls: [] } });
-    const nextTurn = this.state.turn + 1;
-    if (nextTurn >= this.state.order.length) {
+    return this.advanceFrom(this.state.turn + 1, actorId);
+  }
+
+  /** Hand the turn to the first standing combatant at or after `turn`; past the order's end, the round completes. */
+  private advanceFrom(turn: number, previousId: string): StepOutcome {
+    const standing = (from: number) => this.state.order.findIndex((id, index) => index >= from && !isDowned(this.state.combatants[id]!));
+    const nextTurn = standing(turn);
+    if (nextTurn === -1) {
       this.runtime.events.emit({ type: 'round:completed', payload: { round: this.state.round }, why: { rule: 'combat.roundComplete', rolls: [] } });
-      this.state = { ...this.state, round: this.state.round + 1, turn: 0, active: this.state.order[0]!, phase: 'awaiting-declare' };
+      const first = Math.max(standing(0), 0);
+      this.state = { ...this.state, round: this.state.round + 1, turn: first, active: this.state.order[first]!, phase: 'awaiting-declare' };
       return { kind: 'round-completed', round: this.state.round - 1 };
     }
     this.state = { ...this.state, turn: nextTurn, active: this.state.order[nextTurn]!, phase: 'awaiting-declare' };
-    return { kind: 'turn-ended', combatantId: actorId };
+    return { kind: 'turn-ended', combatantId: previousId };
   }
 
+}
+
+/** A combatant at hp ≤ 0 is down: it takes no turns and is offered no triggers. */
+export function isDowned(combatant: CombatantState): boolean {
+  return combatant.hp.current <= 0;
+}
+
+/** The side whose every combatant is down, if any (a side with no combatants never counts as defeated). */
+export function defeatedSide(combatants: Readonly<Record<string, CombatantState>>): Side | undefined {
+  for (const side of ['allies', 'enemies'] as const) {
+    const members = Object.values(combatants).filter((combatant) => combatant.side === side);
+    if (members.length > 0 && members.every(isDowned)) return side;
+  }
+  return undefined;
 }
 
 /** Structured roll → the mock's display string (`d20[14]+3=17 ≥ ac15`, `d6[4]+2=6`). */

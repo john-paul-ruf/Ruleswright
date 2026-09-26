@@ -105,6 +105,11 @@ d20[9]=9 < ac12 actions.cut-down.attackBonus
   hp, `derived()` ac/attack bonus, the pack's `initiative` formula, the union of the
   character's class `actions` (pack v1.2), and its pool points + bound spell slots.
   A class with no `actions` cannot fight (`no-combat-actions`).
+- The fight ends by one engine rule (`combat.sideDefeated`): after any resolution, once every
+  combatant on one side is at hp ≤ 0, `fight.state.phase` becomes `combat-over`, one `combat:ended`
+  event names `{ winner, defeated }`, and `step()` returns `{ kind: "combat-over" }` from then on.
+  Downed combatants (hp ≤ 0) skip their turns and are offered no triggers. A combat snapshot
+  taken at the end restores as `combat-over`.
 - v1 limits: active conditions are not carried into the fight; a multiclass character
   on the attack-table convention uses the row of its highest-level table class, at
   that class's level, re-keyed to the character's total level.

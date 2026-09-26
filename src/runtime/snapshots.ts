@@ -37,7 +37,7 @@ import { Rng, type RngState } from '../core/rng';
 import { RuntimeRuleError } from './errors';
 import { buildCharacter, validateBuild } from './progression';
 import { Character, reserveValue } from './character';
-import { Combat, type CombatantState } from './combat/combat';
+import { Combat, defeatedSide, type CombatantState } from './combat/combat';
 import type { CombatantProfile } from './combat/resolve';
 import type { EconomyBalances } from './combat/action-economy';
 import type { Runtime, CharacterState } from './runtime';
@@ -371,8 +371,10 @@ export function serializeCombat(fight: Combat, options: { readonly pairsWith: st
  * gate first, then the host re-states its sides exactly as `startCombat` took
  * them. hp/conditions/slot ledgers carry the frozen transients; the fight
  * resumes mid-round in `awaiting-declare` (the envelope carries no phase -
- * freezing between steps is the FR-10 boundary), and the rng words rebuild
- * the dice stream: the next roll equals the uninterrupted fight's next roll.
+ * freezing between steps is the FR-10 boundary), unless the frozen hp already
+ * satisfy the end rule (every combatant of one side at hp ≤ 0), in which case
+ * it restores as `combat-over`. The rng words rebuild the dice stream: the
+ * next roll equals the uninterrupted fight's next roll.
  */
 export function deserializeCombat(runtime: Runtime, snapshot: unknown, restore: CombatRestoreRequest): Combat {
   const cards = envelopeRefusals('combat', snapshot, runtime.pack);
@@ -412,7 +414,7 @@ export function deserializeCombat(runtime: Runtime, snapshot: unknown, restore: 
     turn: saved.turn,
     order: [...saved.order],
     active: saved.order[saved.turn] ?? '',
-    phase: 'awaiting-declare',
+    phase: defeatedSide(combatants) === undefined ? 'awaiting-declare' : 'combat-over',
     combatants,
     rng: { ...saved.rng },
   });
