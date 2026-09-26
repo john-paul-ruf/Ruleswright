@@ -15,10 +15,10 @@ import { runPipeline, defaultStages } from './pipeline';
 export interface GenerateCampaignRequest {
   readonly theme: ThemeTemplate;
   readonly seed: number | string;
+  /** Caller knob values — validated against the theme's declarations, recorded in provenance (FR-18). */
   readonly knobs?: Readonly<Record<string, string | number>>;
 }
 
 export function generateCampaign(request: GenerateCampaignRequest, dslChecker: DslChecker = packDslChecker): Pack {
-  void defaultStages;
-  return runPipeline(request.theme, request.seed, defaultStages(), dslChecker);
+  return runPipeline(request.theme, request.seed, defaultStages(), request.knobs, dslChecker);
 }

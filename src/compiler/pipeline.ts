@@ -83,13 +83,19 @@ function substituteTokens(value: unknown, knobs: Readonly<Record<string, string 
 }
 
 /**
- * Run stages 1–7 over the theme (with knobs resolved + per-stage streams),
- * then stage 8: the same `schema.validatePack` external packs face. Any error
- * card anywhere — stage or validator — aggregates into one GenerationError;
- * a failed campaign never returns a partial pack (FR-2).
+ * Run stages 1–7 over the theme (with knobs resolved from the caller's values
+ * + per-stage streams), then stage 8: the same `schema.validatePack` external
+ * packs face. Any error card anywhere — stage or validator — aggregates into
+ * one GenerationError; a failed campaign never returns a partial pack (FR-2).
  */
-export function runPipeline(theme: ThemeTemplate, seed: number | string, stages: readonly Stage[] = defaultStages(), dslChecker: DslChecker = packDslChecker): Pack {
-  const knobs = resolveKnobs(theme);
+export function runPipeline(
+  theme: ThemeTemplate,
+  seed: number | string,
+  stages: readonly Stage[] = defaultStages(),
+  callerKnobs?: Readonly<Record<string, unknown>>,
+  dslChecker: DslChecker = packDslChecker,
+): Pack {
+  const knobs = resolveKnobs(theme, callerKnobs);
   const inputs = resolveKnobTokens(theme, knobs);
   const themeView: ThemeTemplate = { ...theme, ...(inputs as unknown as ThemeTemplate) };
   const provenance: PackProvenance = { theme: theme.id, seed, knobs };
