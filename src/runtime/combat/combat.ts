@@ -22,6 +22,7 @@ import type { ActionDef, ActionCost } from '../../schema/artifacts';
 import { Rng, type RandomSource, type RngState } from '../../core/rng';
 import type { Runtime } from '../runtime';
 import type { RuntimeEvent, EventClock } from '../events';
+import { emitDeclined, emitOffer, offersForEvent } from './triggers';
 import {
   checkCost,
   freshLedger,
@@ -208,8 +209,9 @@ function rngStateOf(rng: RandomSource): RngState {
 export class Combat {
   readonly runtime: Runtime;
   state: CombatState;
-  private readonly pending: PendingAction | undefined;
-  private readonly pendingTrigger: PendingTrigger | undefined;
+  /** Open trigger offers (triggers.html): the host answers each via respond(). */
+  readonly pendingTriggers: PendingTrigger[] = [];
+  private offeredCount = 0;
 
   private readonly grants: SlotGrants;
   /** The fight's own dice stream — snapshot-resumable via state.rng (FR-14). */
@@ -261,7 +263,7 @@ export class Combat {
    */
   declare(actionId: string, options: DeclareOptions = {}): readonly RuntimeEvent[] {
     if (this.state.phase === 'combat-over') throw new Error('combat is over');
-    if (this.pendingTrigger !== undefined) throw new Error('a trigger awaits respond() — the host decides (FR-10)');
+
     const actorId = this.state.active;
     const actor = this.state.combatants[actorId]!;
     const pack = this.runtime.pack;
@@ -290,19 +292,25 @@ export class Combat {
       return [this.rejectionEvent(actorId, spendRejection)];
     }
     this.applyNonSlotCosts(actor, def.cost);
-    return this.resolve(actor, actionId, def, target.combatant);
+    const events = this.resolve(actor, actionId, def, target.combatant);
+    this.surfaceOffers(events);
+    return events;
   }
 
   /** Answer an offered trigger (api-map: fight.respond). */
-  respond(triggerId: string, choice: 'take' | 'decline'): readonly RuntimeEvent[] {
-    // Reactive actions resolve in the triggers checkpoint (S05 ck3); the
-    // offer/decline contract is pinned here so hosts can pace against it.
-    void choice;
-    const pending = this.pendingTriggerOf(triggerId);
-    if (pending === undefined) {
+  respond(triggerId: string, choice: 'take' | 'decline', targetId?: string): readonly RuntimeEvent[] {
+    const index = this.pendingTriggers.findIndex((offer) => offer.triggerId === triggerId);
+    if (index === -1) {
       throw new Error(`no pending trigger "${triggerId}" — the host answers an offered trigger, FR-10/FR-13`);
     }
-    return [];
+    const [offer] = this.pendingTriggers.splice(index, 1);
+    if (offer === undefined) return [];
+    if (choice === 'decline') {
+      emitDeclined(this.runtime, offer);
+      const declined = this.runtime.events.sinceRound(this.state.round);
+      return [declined[declined.length - 1]!];
+    }
+    return this.resolveReactive(offer, targetId);
   }
 
   /**
@@ -452,6 +460,48 @@ export class Combat {
     return this.runtime.events.sinceRound(this.state.round);
   }
 
+  /** After any mutation event, offer every matching reactive action (FR-13 substrate). */
+  private surfaceOffers(events: readonly RuntimeEvent[]): void {
+    for (const event of events) {
+      for (const offer of offersForEvent(this.runtime, this.state.combatants, event)) {
+        this.pendingTriggers.push(offer);
+        emitOffer(this.runtime, offer, this.offeredCount);
+        this.offeredCount += 1;
+      }
+    }
+  }
+
+  /** Resolve a taken trigger through the same pipeline as a declared action (FR-4, FR-12 proof 2). */
+  private resolveReactive(offer: PendingTrigger, targetId: string | undefined): readonly RuntimeEvent[] {
+    const reactor = this.state.combatants[offer.actorId]!;
+    const def = this.runtime.pack.actions[offer.actionId]!;
+    const restriction = this.restrictionRejection(reactor, def);
+    if (restriction !== undefined) {
+      return [this.rejectionEvent(reactor.id, restriction)];
+    }
+    const target = this.resolveTarget(reactor, targetId);
+    if ('rejection' in target) {
+      return [this.rejectionEvent(reactor.id, target.rejection)];
+    }
+    const costRejection = checkCost(def.cost, this.grants, this.balancesOf(reactor));
+    if (costRejection !== undefined) {
+      return [this.rejectionEvent(reactor.id, costRejection)];
+    }
+    const spendRejection = spend(reactor.slots, this.grants, def.cost);
+    if (spendRejection !== undefined) {
+      return [this.rejectionEvent(reactor.id, spendRejection)];
+    }
+    this.applyNonSlotCosts(reactor, def.cost);
+    const events = this.resolve(reactor, offer.actionId, def, target.combatant);
+    this.surfaceOffers(events);
+    return events;
+  }
+
+  /** A reactive action resolving outside the declare flow (host took a trigger offer). */
+  declareReactive(offer: PendingTrigger, targetId: string | undefined): readonly RuntimeEvent[] {
+    return this.resolveReactive(offer, targetId);
+  }
+
   private boundActionOf(actionId: string, def: ActionDef): BoundAction {
     const ast = this.runtime.index.actionEffects[actionId];
     if (ast === undefined) {
@@ -516,10 +566,6 @@ export class Combat {
     return { kind: 'turn-ended', combatantId: actorId };
   }
 
-  private pendingTriggerOf(triggerId: string): PendingTrigger | undefined {
-    void triggerId;
-    return undefined;
-  }
 }
 
 /** Structured roll → the mock's display string (`d20[14]+3=17 ≥ ac15`, `d6[4]+2=6`). */

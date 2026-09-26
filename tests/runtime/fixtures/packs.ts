@@ -14,6 +14,14 @@
  */
 import type { Pack } from '../../../src/schema/pack';
 
+/** The optional spatial declaration a pack may carry (FR-11; structural seam for S05's geometry). */
+export type SpatialPack = { spatial?: { defaultReach: number; reachOverrides?: Record<string, number> } };
+
+/** Attach a spatial model to a pack (test helper — the engine reads whatever the pack declares). */
+export function withSpatial(pack: Pack, spatial: { defaultReach: number; reachOverrides?: Record<string, number> }): Pack & SpatialPack {
+  return { ...pack, spatial } as Pack & SpatialPack;
+}
+
 export const EMBER_MARCHES_MANIFEST = {
   id: 'ember-marches',
   schemaVersion: 1,
