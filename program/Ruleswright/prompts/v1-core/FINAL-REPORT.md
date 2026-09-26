@@ -178,4 +178,57 @@ CAP-1…CAP-9 verified against current sources (see table above). Required capab
 
 ### Archivist's Note
 
-*(final Archivist pass pending — appended below once Archivist completes.)*
+## Archivist Note
+
+- **role:** archivist
+- **registryUpdated:** true
+- **reconciled:**
+  - `program/Ruleswright/arch/v1-core.md` — rewritten to the realized state (was 7 session delta sections + 2 owner notes): added the missing SESSION-08/M05 section (packaging/CI/FR-12 trio/docs-run/D19/D20/D21), a mechanically derived module map, and a surfaces section; resolved the stale "S05 declare-time reuse" claim against source (combat.ts inlines its own actions-only matcher; `matchesRestriction`/`isLivePattern` have no non-test consumer); preserved all session commit ids; recorded intra-M03 value-import cycles and the `MAX_TABLE_DEPTH` duplication as drift notes
+  - `program/Ruleswright/PROGRAM-CONFIG.MD` — Module Registry reconciled from "[D] declared, no TypeScript exists yet" to [R] realized edges derived from value imports (M01 +`overrides.ts`; M02 +barrel +`dsl/{shared,registry}`; M03 +`errors.ts`/`snapshots.ts`; M04 +`theme-loader`/`stage`/`compose`/`errors`, −`themes.d.ts`); Conventions, Verification Commands, Git Config, Custom Rules, Author Sources byte-unchanged (diff-verified)
+  - `program/Ruleswright/ARCHIVIST-LOG.md` — created (first dated entry, cycle v1-core)
+- **conventionsAdded:**
+  - (Principle 4 threshold crossed — promote **"decompose final integration sessions into >=2 sessions (build/packaging vs proofs/docs), facts inlined in envelopes; prefer single-checkpoint dispatches after any failure"** to the next MASTER.md's planning step; evidence axis: three distinct sessions/recoveries within one cycle — S03 attempt-1 crash, S04 attempt-1 crash, S08's 5-failure dispatch cluster)
+- **proposedForFramework:**
+  - Subagent runtime fabricates tool inputs under long prompts (invented paths/state, fabricated git output; `run` argv drops: 3 workers) — 1 cycle, 8 in-cycle instances
+  - Empty-final crash on exhaustive checkpoint-0 read sweeps; recovery = checkpoint-scoped reading + commit-then-Handoff guard (S03/S04) — 1 cycle, 2 instances
+  - Surface/barrel completeness needs an explicit checkpoint in the LAST session's lease (OWNER-08-BARREL; D20) — 1 cycle, 2 instances
+  - `commit_pathspec` single-command commits fail on deleted files — 1 cycle, 1 instance
+- **logEntry:** dated entry 2025-09-25 appended (first pass of the run; planning-completeness had been skipped at preflight, no interim checks configured): full reconciliation record above, gate corroboration by this pass (typecheck 0 / lint 0 / test 387 passed **29 files** / build 24 dist files / isolation 0 / security 0 — re-run on a fresh build), CA spot-checks at source (CA-2 seam, CA-4 branches, CA-1 identity gate, CA-8 trio imports, D19/D20/D21 verified), report-count correction to Orchestrator (**Final Report said 28 test files; vitest reports 29 — test total 387 matches** — corrected by this pass's follow-up commit), standing recommendations with minted stable ids, cleanup ledger C1–C5.
+
+### cleanupBriefs
+
+*(none — no cluster crossed a brief threshold; five candidates recorded as tracking: restricts-matcher duplication, `MAX_TABLE_DEPTH` duplication, `readPatch`/`EventSeed`/`EventSink` surface-consumer checks, Final Report file-count correction)*
+
+### standingRecommendations
+
+- **pattern:** Large single-session builds exhaust context on exhaustive checkpoint-0 read sweeps (empty-final crash; recovery = checkpoint-scoped reading)
+- **cycles:** 1
+- **instances:** 2
+- **firstSeen:** v1-core
+- **status:** open
+
+- **pattern:** Subagent model fabricates tool inputs (invented paths, invented project state, fabricated git output) under long-recovery prompts
+- **cycles:** 1
+- **instances:** 5
+- **firstSeen:** v1-core
+- **status:** open
+
+- **pattern:** Public surface/barrel completeness gaps discovered at integration (lease gaps across wave-spanning modules)
+- **cycles:** 1
+- **instances:** 2
+- **firstSeen:** v1-core
+- **status:** open
+
+- **pattern:** run tool drops/misroutes argv; workers pass whole command lines as single argv entries
+- **cycles:** 1
+- **instances:** 3
+- **firstSeen:** v1-core
+- **status:** open
+
+- **pattern:** commit_pathspec-style single-command commits fail on deleted files
+- **cycles:** 1
+- **instances:** 1
+- **firstSeen:** v1-core
+- **status:** open
+
+*(Archivist commits: `7dcff85` — `program/Ruleswright/arch/v1-core.md`, `program/Ruleswright/PROGRAM-CONFIG.MD`, `program/Ruleswright/ARCHIVIST-LOG.md`; explicit pathspec; role docs byte-identical; tree clean at return.)*
