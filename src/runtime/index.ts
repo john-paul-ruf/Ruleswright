@@ -83,6 +83,7 @@ export {
   type MutationRequest,
   type MutationSink,
 } from './combat/resolve';
+export { profileFromCharacter, type CharacterCombatant } from './character-profile';
 export {
   resolveSlotGrants,
   checkCost,
