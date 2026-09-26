@@ -197,17 +197,13 @@ function runDslChecker(ctx: Ctx, request: DslCheckRequest): void {
   for (const card of cards) add(ctx, card);
 }
 
-function nearestId(target: string, candidates: Iterable<string>): string | undefined {
-  let best: string | undefined;
-  let bestDistance = Number.POSITIVE_INFINITY;
-  for (const candidate of candidates) {
-    const distance = editDistance(target, candidate);
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      best = candidate;
-    }
-  }
-  return best;
+/** Nearest candidate ids by edit distance — the error-design hint ("nearest ids", mocks/validation-errors.html). */
+export function nearestIds(target: string, candidates: Iterable<string>, limit = 3): string[] {
+  return [...candidates]
+    .map((id) => ({ id, distance: editDistance(target, id) }))
+    .sort((a, b) => a.distance - b.distance || (a.id < b.id ? -1 : 1))
+    .slice(0, limit)
+    .map((entry) => entry.id);
 }
 
 function editDistance(a: string, b: string): number {
@@ -222,6 +218,10 @@ function editDistance(a: string, b: string): number {
     for (let j = 0; j <= b.length; j += 1) previous[j] = current[j] ?? i;
   }
   return previous[b.length] ?? a.length;
+}
+
+function nearestId(target: string, candidates: Iterable<string>): string | undefined {
+  return nearestIds(target, candidates, 1)[0];
 }
 
 // ---------------------------------------------------------------- pass 1: id collection
