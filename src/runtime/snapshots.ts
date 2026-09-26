@@ -33,10 +33,13 @@
 import { packContentHash } from '../schema/version';
 import { makeErrorCard, type ErrorCard } from '../schema/error-card';
 import type { Pack } from '../schema/pack';
-import { Rng } from '../core/rng';
+import { Rng, type RngState } from '../core/rng';
 import { RuntimeRuleError } from './errors';
 import { buildCharacter, validateBuild } from './progression';
 import { Character, reserveValue } from './character';
+import { Combat, type CombatantState } from './combat/combat';
+import type { CombatantProfile } from './combat/resolve';
+import type { EconomyBalances } from './combat/action-economy';
 import type { Runtime, CharacterState } from './runtime';
 
 /** snapshots.schema.json $defs/packIdentity — exactly {id, schemaVersion, contentHash}. */
@@ -99,6 +102,8 @@ export interface PartySnapshot {
 
 /** The one snapshot format version (D3); any other value refuses with E-SNAP-02. */
 const SNAPSHOT_VERSION = 1;
+/** uint32 word ceiling (exclusive) for the rng-state gate. */
+const UINT32_MAX_WORD = 4294967296;
 
 // ---------------------------------------------------------------- serialize
 
@@ -290,6 +295,192 @@ function restoreCharacterState(runtime: Runtime, saved: SnapshotCharacterState):
     spells: [...(saved.knownSpells ?? [])],
     hp: { current: reserveValue(runtime, 'hp', abilities, built.level, new Rng(0)), temp: 0 },
   };
+}
+
+// ---------------------------------------------------------------- combat
+
+/** snapshots.schema.json $defs/combatSnapshot/properties/combatants/items - the per-combatant def, verbatim. */
+export interface SnapshotCombatant {
+  readonly id: string;
+  readonly hp: number;
+  /** CA-4 transients: the owner's per-turn slot ledger, by slot name. */
+  readonly slotsUsed?: Readonly<Record<string, number>>;
+  readonly conditions?: readonly SnapshotActiveCondition[];
+  /** Present only when the pack declares a spatial model (FR-11). */
+  readonly position?: null | Record<string, unknown>;
+  /** Reactive action currently offered (FR-4/FR-13). */
+  readonly pendingTrigger?: null | string;
+}
+
+/** The combat envelope - pairsWith is the documented combat→party pairing (FR-14). */
+export interface CombatSnapshot {
+  readonly kind: 'combat';
+  readonly snapshotVersion: 1;
+  readonly pack: SnapshotPackIdentity;
+  readonly pairsWith: string;
+  readonly round: number;
+  readonly turn: number;
+  readonly order: readonly string[];
+  readonly rng: RngState;
+  readonly combatants: readonly SnapshotCombatant[];
+}
+
+/** The sides exactly as `startCombat` took them: the host re-states its original request to resume (FR-10 between-steps boundary). */
+export interface CombatRestoreRequest {
+  readonly allies: readonly { id: string; profile: CombatantProfile; balances?: EconomyBalances }[];
+  readonly enemies: readonly { id: string; profile: CombatantProfile; balances?: EconomyBalances }[];
+}
+
+/**
+ * FR-14 - the combat envelope: the whole fight, mid-round included (the state
+ * is whole between any two steps). Per-combatant state carries the CA-4
+ * transients (the per-turn slot ledger). Pool/bound-slot balances ride the
+ * paired party's character states - FR-14's pairsWith discipline.
+ */
+export function serializeCombat(fight: Combat, options: { readonly pairsWith: string }): CombatSnapshot {
+  const state = fight.state;
+  const offeredBy = new Map<string, string>();
+  for (const offer of fight.pendingTriggers) {
+    if (!offeredBy.has(offer.actorId)) offeredBy.set(offer.actorId, offer.actionId);
+  }
+  return {
+    kind: 'combat',
+    snapshotVersion: SNAPSHOT_VERSION,
+    pack: packIdentity(fight.runtime.pack),
+    pairsWith: options.pairsWith,
+    round: state.round,
+    turn: state.turn,
+    order: [...state.order],
+    rng: { ...state.rng },
+    combatants: state.order.map((id) => {
+      const combatant = state.combatants[id]!;
+      const pendingTrigger = offeredBy.get(id);
+      return {
+        id,
+        hp: combatant.hp.current,
+        slotsUsed: { ...combatant.slots.remaining },
+        conditions: combatant.conditions.map((active) => ({ id: active.conditionId, remaining: active.duration })),
+        ...(pendingTrigger !== undefined ? { pendingTrigger } : {}),
+      };
+    }),
+  };
+}
+
+/**
+ * Resume a fight from its envelope (FR-14 resume discipline): the identity
+ * gate first, then the host re-states its sides exactly as `startCombat` took
+ * them. hp/conditions/slot ledgers carry the frozen transients; the fight
+ * resumes mid-round in `awaiting-declare` (the envelope carries no phase -
+ * freezing between steps is the FR-10 boundary), and the rng words rebuild
+ * the dice stream: the next roll equals the uninterrupted fight's next roll.
+ */
+export function deserializeCombat(runtime: Runtime, snapshot: unknown, restore: CombatRestoreRequest): Combat {
+  const cards = envelopeRefusals('combat', snapshot, runtime.pack);
+  if (isRecord(snapshot) && cards.length === 0) {
+    cards.push(...combatRestoreRefusals(runtime, snapshot as CombatSnapshot, restore));
+  }
+  if (cards.length > 0) throw new RuntimeRuleError(cards);
+  validateRngWords(snapshot as Record<string, unknown>);
+  const saved = snapshot as CombatSnapshot;
+  const frozen = new Map(saved.combatants.map((combatant) => [combatant.id, combatant]));
+  const sides = [...restore.allies.map((entry) => ({ ...entry, side: 'allies' as const })), ...restore.enemies.map((entry) => ({ ...entry, side: 'enemies' as const }))];
+  const combatants: Record<string, CombatantState> = {};
+  for (const entry of sides) {
+    const frozenState = frozen.get(entry.id);
+    if (frozenState === undefined) continue; // combatRestoreRefusals already refused this
+    combatants[entry.id] = {
+      id: entry.id,
+      side: entry.side,
+      name: entry.id,
+      hp: { current: frozenState.hp },
+      conditions: frozenState.conditions?.map((active) => ({ conditionId: active.id, duration: active.remaining })) ?? [],
+      slots: { remaining: { ...frozenState.slotsUsed } },
+      pools: { ...(entry.balances?.pools ?? {}) },
+      boundSlots: { ...(entry.balances?.boundSlots ?? {}) },
+      abilities: { ...entry.profile.abilities },
+      saves: { ...entry.profile.saves },
+      level: entry.profile.level,
+      ac: entry.profile.ac,
+      initiativeBonus: entry.profile.initiativeBonus,
+      actions: [...entry.profile.actions],
+      attackTable: entry.profile.attackTable ? entry.profile.attackTable.map((row) => ({ level: row.level, byDefense: { ...row.byDefense } })) : undefined,
+      attackBonus: entry.profile.attackBonus,
+    };
+  }
+  const fight = new Combat(runtime, {
+    round: saved.round,
+    turn: saved.turn,
+    order: [...saved.order],
+    active: saved.order[saved.turn] ?? '',
+    phase: 'awaiting-declare',
+    combatants,
+    rng: { ...saved.rng },
+  });
+  for (const combatant of saved.combatants) {
+    if (combatant.pendingTrigger === undefined || combatant.pendingTrigger === null) continue;
+    const pattern = runtime.pack.actions[combatant.pendingTrigger]!.trigger!.on; // restoreRefusals proved both lookups
+    fight.pendingTriggers.push({
+      triggerId: `${combatant.id}.${combatant.pendingTrigger}`,
+      actorId: combatant.id,
+      actionId: combatant.pendingTrigger,
+      matchingEvent: pattern,
+    });
+  }
+  return fight;
+}
+
+/**
+ * The combat restore's own refusals (E-SNAP-01, the snapshot-load refusal
+ * family): the frozen fight and the host's restore request must describe the
+ * same fight, and a frozen offer must name a reactive action this pack
+ * declares. All cards at once, before anything is rebuilt.
+ */
+function combatRestoreRefusals(runtime: Runtime, saved: CombatSnapshot, restore: CombatRestoreRequest): ErrorCard[] {
+  const cards: ErrorCard[] = [];
+  const artifactId = declaredIdentityId(saved) ?? '(snapshot)';
+  const orderIds = new Set(saved.order);
+  if (saved.order.length === 0) {
+    cards.push(makeErrorCard('E-SNAP-01', artifactId, 'order', 'combat order is empty - an initiative order has at least one combatant (FR-10).'));
+  }
+  const frozenIds = new Set(saved.combatants.map((combatant) => combatant.id));
+  for (const id of saved.order) {
+    if (!frozenIds.has(id)) {
+      cards.push(makeErrorCard('E-SNAP-01', artifactId, 'combatants', `combatant "${id}" is in the order but carries no frozen state - refusing a partially described fight (FR-14).`));
+    }
+  }
+  const sideIds = new Set([...restore.allies, ...restore.enemies].map((entry) => entry.id));
+  if (sideIds.size !== restore.allies.length + restore.enemies.length) {
+    cards.push(makeErrorCard('E-SNAP-01', artifactId, 'restore', 'the restore request repeats a combatant id - each combatant states one side (FR-10).'));
+  }
+  for (const entry of [...restore.allies, ...restore.enemies]) {
+    if (!orderIds.has(entry.id)) {
+      cards.push(makeErrorCard('E-SNAP-01', artifactId, 'restore', `restore request names combatant "${entry.id}", who is not in this fight (FR-14).`));
+    }
+  }
+  for (const id of saved.order) {
+    if (!sideIds.has(id)) {
+      cards.push(makeErrorCard('E-SNAP-01', artifactId, 'combatants', `frozen combatant "${id}" is missing from the restore request - the host re-states every side (FR-10).`));
+    }
+  }
+  saved.combatants.forEach((combatant, index) => {
+    if (combatant.pendingTrigger === undefined || combatant.pendingTrigger === null) return;
+    const def = runtime.pack.actions[combatant.pendingTrigger];
+    if (def === undefined || def.trigger === undefined) {
+      cards.push(makeErrorCard('E-SNAP-01', artifactId, `combatants[${index}].pendingTrigger`, `frozen offer names "${combatant.pendingTrigger}", which is not a reactive action in this pack (FR-4/FR-13).`));
+    }
+  });
+  return cards;
+}
+
+function validateRngWords(snapshot: Record<string, unknown>): void {
+  const rng = snapshot['rng'];
+  if (!isRecord(rng)) return; // the gate's pack/identity cards already fired
+  for (const word of ['a', 'b', 'c', 'd'] as const) {
+    const value = rng[word];
+    if (!Number.isInteger(value) || value < 0 || value > UINT32_MAX_WORD) {
+      throw new RuntimeRuleError([makeErrorCard('E-SNAP-01', declaredIdentityId(snapshot) ?? '(snapshot)', `rng.${word}`, `rng word ${word} must be a uint32, got ${display(value)} - refusing a mangled dice stream (FR-1/FR-14).`)]);
+    }
+  }
 }
 
 // ---------------------------------------------------------------- shared
