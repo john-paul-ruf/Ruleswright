@@ -255,12 +255,12 @@ export function evalFormula(ast: FormulaAst, ctx: FormulaContext, rng: RandomSou
     case 'dice':
       return rollRecipe(ast.recipe!, rng, ctx, 'formula');
     case 'unary':
-      return ast.op === '-' ? -valueOf(evalFormula(ast.operand!, ctx, rng)) : valueOf(evalFormula(ast.operand!, ctx, rng));
+      return ast.op === '-' ? -valueOfFormula(evalFormula(ast.operand!, ctx, rng)) : valueOfFormula(evalFormula(ast.operand!, ctx, rng));
     case 'binary':
       return arithmetic(ast, ctx, rng);
     case 'comparator': {
-      const left = valueOf(evalFormula(ast.left!, ctx, rng));
-      const right = valueOf(evalFormula(ast.right!, ctx, rng));
+      const left = valueOfFormula(evalFormula(ast.left!, ctx, rng));
+      const right = valueOfFormula(evalFormula(ast.right!, ctx, rng));
       return compare(ast.op!, left, right) ? 1 : 0;
     }
     case 'call':
@@ -276,17 +276,17 @@ function arithmetic(ast: FormulaAst, ctx: FormulaContext, rng: RandomSource): Fo
     if (isRoll(left) || isRoll(right)) {
       throw new Error('multiplication and division are defined over scalar operands only — roll first, then scale');
     }
-    const a = valueOf(left);
-    const b = valueOf(right);
+    const a = valueOfFormula(left);
+    const b = valueOfFormula(right);
     if (ast.op === '/' && b === 0) throw new Error('division by zero in formula evaluation');
     return ast.op === '*' ? a * b : a / b;
   }
   const sign: 1 | -1 = ast.op === '-' ? -1 : 1;
   if (isRoll(left) && isRoll(right)) return mergeRolls(left, right, sign);
-  if (isRoll(left)) return foldRoll(left, sign * valueOf(right));
-  if (isRoll(right)) return sign === 1 ? foldRoll(right, valueOf(left)) : foldRoll(negateRoll(right), valueOf(left));
-  const a = valueOf(left);
-  const b = valueOf(right);
+  if (isRoll(left)) return foldRoll(left, sign * valueOfFormula(right));
+  if (isRoll(right)) return sign === 1 ? foldRoll(right, valueOfFormula(left)) : foldRoll(negateRoll(right), valueOfFormula(left));
+  const a = valueOfFormula(left);
+  const b = valueOfFormula(right);
   return ast.op === '+' ? a + b : a - b;
 }
 
@@ -307,7 +307,7 @@ function negateRoll(roll: RollResult): RollResult {
 }
 
 function evalCall(ast: FormulaAst, ctx: FormulaContext, rng: RandomSource): FormulaValue {
-  const scalars = (ast.args ?? []).map((arg) => valueOf(evalFormula(arg, ctx, rng)));
+  const scalars = (ast.args ?? []).map((arg) => valueOfFormula(evalFormula(arg, ctx, rng)));
   switch (ast.text) {
     case 'min':
       return Math.min(scalars[0]!, scalars[1]!);
@@ -339,7 +339,7 @@ function compare(op: string, left: number, right: number): boolean {
   }
 }
 
-function valueOf(value: FormulaValue): number {
+export function valueOfFormula(value: FormulaValue): number {
   return isRoll(value) ? value.total : value;
 }
 
