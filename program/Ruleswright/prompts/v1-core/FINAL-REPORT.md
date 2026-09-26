@@ -9,7 +9,7 @@ Ruleswright v1-core is **built and verified**: the complete headless TypeScript 
 **Final verification (all Orchestrator-run, exit codes read directly):**
 - `pnpm typecheck` → exit 0 (tsc --noEmit, strict + `noUncheckedIndexedAccess`, over src + tests)
 - `pnpm lint` → exit 0 (ESLint incl. security rules)
-- `pnpm test` → **387 passed / 0 failed across 28 test files** (schema 58, core 42, dsl 48, runtime character-side 47, combat 34, encounter 8, snapshots 22, compiler 119, proofs 9, fixtures tripwires)
+- `pnpm test` → **387 passed / 0 failed across 29 collected test files** (schema 58, core 42, dsl 48, runtime character-side 47, combat 34, encounter 8, snapshots 22, compiler 119, proofs 9, fixtures tripwires — count corrected per the final Archivist pass, which re-ran the gates on a fresh build)
 - `pnpm build` → exit 0 (tsup dual ESM/CJS + rolled dts, 24 dist files, per-entry)
 - `pnpm check:isolation` → exit 0 (runtime-only bundle contains NO `generateCampaign` string — FR-22's proof, packaging.html's check)
 - `pnpm check:security` → exit 0 (no eval/new Function/Math.random/Date.now in src/ + dist/)
@@ -53,7 +53,7 @@ Coder checkpoint commits total: **27** (counted from git log across all sessions
 
 ## Verification (actual results vs baseline)
 
-Baseline at plan time: commands not runnable (no package.json). Reconciled progressively: W1 close 100 tests → W2 close 237 → W3 close 378 → final **387/387 (28 files)** + build + isolation + security green. Every gate above was run by Orchestrator at each receive (not taken from handoffs); whole-repo gates re-verified at every wave close per the non-hermetic-concurrency protocol. The one inherited red (S01's 4 lint errors) was corrected mid-run (OWNER-01-LINT).
+Baseline at plan time: commands not runnable (no package.json). Reconciled progressively: W1 close 100 tests → W2 close 237 → W3 close 378 → final **387/387 (29 files)** + build + isolation + security green (re-verified by the final Archivist pass). Every gate above was run by Orchestrator at each receive (not taken from handoffs); whole-repo gates re-verified at every wave close per the non-hermetic-concurrency protocol. The one inherited red (S01's 4 lint errors) was corrected mid-run (OWNER-01-LINT).
 
 ## Capability completion (CAP-1…CAP-9)
 
