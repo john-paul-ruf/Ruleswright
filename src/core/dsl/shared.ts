@@ -31,7 +31,8 @@ export interface Token extends Pos {
 }
 
 /** Parse outcome shared by both compilers; failures carry a source span (E-FORM-01). */
-export type DslParse<T> = { ok: true; value: T } | { ok: false; reason: string; start: number; length: number };
+export type DslParse<T> =
+  { ok: true; value: T } | { ok: false; reason: string; start: number; length: number };
 
 /** Bounded parse depth (CA-2, database.md): deeper nesting is a parse failure, never a hang. */
 export const MAX_PARSE_DEPTH = 24;
@@ -78,7 +79,11 @@ export function tokenize(src: string): DslParse<Token[]> {
       continue;
     }
     if (ch === '(' || ch === ')' || ch === ',') {
-      tokens.push({ kind: ch === '(' ? 'lparen' : ch === ')' ? 'rparen' : 'comma', text: ch, pos: { start, length: 1 } });
+      tokens.push({
+        kind: ch === '(' ? 'lparen' : ch === ')' ? 'rparen' : 'comma',
+        text: ch,
+        pos: { start, length: 1 },
+      });
       i += 1;
       continue;
     }
@@ -152,6 +157,12 @@ function editDistance(a: string, b: string): number {
 
 /** One ErrorCard shape (S01's contract) built literally — core constructs cards without a runtime schema import. */
 export function dslCard(rule: RuleId, request: DslCheckRequest, message: string, hint?: string): ErrorCard {
-  const card: ErrorCard = { severity: 'error', artifactId: request.artifactId, jsonPath: request.jsonPath, rule, message };
+  const card: ErrorCard = {
+    severity: 'error',
+    artifactId: request.artifactId,
+    jsonPath: request.jsonPath,
+    rule,
+    message,
+  };
   return hint === undefined ? card : { ...card, hint };
 }

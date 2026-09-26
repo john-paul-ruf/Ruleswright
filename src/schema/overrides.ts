@@ -79,7 +79,9 @@ function buildArtifactIndex(pack: Pack): Map<string, string> {
 function nearestHint(target: string, index: Map<string, string>): string {
   const ids = [...index.keys()].filter((id) => id !== target);
   const near = nearestIds(target, ids, 3);
-  return near.length > 0 ? `nearest ids: ${near.map((id) => `"${id}"`).join(', ')}` : 'no other artifacts exist in this pack';
+  return near.length > 0
+    ? `nearest ids: ${near.map((id) => `"${id}"`).join(', ')}`
+    : 'no other artifacts exist in this pack';
 }
 
 /**
@@ -113,7 +115,10 @@ function isMergeable(value: unknown): value is Record<string, unknown> {
 function deepMerge(target: Record<string, unknown>, patch: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = { ...target };
   for (const [key, value] of Object.entries(patch)) {
-    out[key] = isMergeable(out[key]) && isMergeable(value) ? deepMerge(out[key] as Record<string, unknown>, value) : value;
+    out[key] =
+      isMergeable(out[key]) && isMergeable(value)
+        ? deepMerge(out[key] as Record<string, unknown>, value)
+        : value;
   }
   return out;
 }

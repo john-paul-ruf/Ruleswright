@@ -43,7 +43,11 @@ export interface CharacterCombatant {
  *   count of bound (memorized) slots.
  * - Active conditions are NOT carried (v1: `StartCombatRequest` has no field).
  */
-export function profileFromCharacter(runtime: Runtime, character: Character, id?: string): CharacterCombatant {
+export function profileFromCharacter(
+  runtime: Runtime,
+  character: Character,
+  id?: string,
+): CharacterCombatant {
   const state = character.state;
   const pack = runtime.pack;
   const actions: string[] = [];
@@ -81,7 +85,8 @@ export function profileFromCharacter(runtime: Runtime, character: Character, id?
       level: state.level,
       hp: state.hp.current,
       ac: derived.ac,
-      initiativeBonus: pack.formulas['initiative'] !== undefined ? evalPackFormula(pack, 'initiative', base) : 0,
+      initiativeBonus:
+        pack.formulas['initiative'] !== undefined ? evalPackFormula(pack, 'initiative', base) : 0,
       actions,
       ...(derived.attackBonus !== undefined ? { attackBonus: derived.attackBonus } : {}),
       ...(attackTable !== undefined ? { attackTable } : {}),

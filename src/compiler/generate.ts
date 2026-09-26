@@ -19,6 +19,9 @@ export interface GenerateCampaignRequest {
   readonly knobs?: Readonly<Record<string, string | number>>;
 }
 
-export function generateCampaign(request: GenerateCampaignRequest, dslChecker: DslChecker = packDslChecker): Pack {
+export function generateCampaign(
+  request: GenerateCampaignRequest,
+  dslChecker: DslChecker = packDslChecker,
+): Pack {
   return runPipeline(request.theme, request.seed, defaultStages(), request.knobs, dslChecker);
 }

@@ -109,16 +109,30 @@ const UINT32_MAX_WORD = 4294967296;
 
 /** FR-14 — the character envelope: state only + pack identity. */
 export function serializeCharacter(runtime: Runtime, state: CharacterState): CharacterSnapshot {
-  return { kind: 'character', snapshotVersion: SNAPSHOT_VERSION, pack: packIdentity(runtime.pack), state: serializeCharacterState(state) };
+  return {
+    kind: 'character',
+    snapshotVersion: SNAPSHOT_VERSION,
+    pack: packIdentity(runtime.pack),
+    state: serializeCharacterState(state),
+  };
 }
 
 /** FR-14 — the party envelope: members as character states under one pack identity. */
 export function serializeParty(runtime: Runtime, members: readonly CharacterState[]): PartySnapshot {
-  return { kind: 'party', snapshotVersion: SNAPSHOT_VERSION, pack: packIdentity(runtime.pack), members: members.map(serializeCharacterState) };
+  return {
+    kind: 'party',
+    snapshotVersion: SNAPSHOT_VERSION,
+    pack: packIdentity(runtime.pack),
+    members: members.map(serializeCharacterState),
+  };
 }
 
 function packIdentity(pack: Pack): SnapshotPackIdentity {
-  return { id: pack.manifest.id, schemaVersion: pack.manifest.schemaVersion, contentHash: packContentHash(pack) };
+  return {
+    id: pack.manifest.id,
+    schemaVersion: pack.manifest.schemaVersion,
+    contentHash: packContentHash(pack),
+  };
 }
 
 /** CharacterState → the envelope's characterState def (fresh plain-JSON copies throughout). */
@@ -128,7 +142,11 @@ function serializeCharacterState(state: CharacterState): SnapshotCharacterState 
   return {
     name: state.name,
     race: state.race,
-    classes: state.classes.map((entry) => ({ id: entry.id, level: entry.level, xp: state.classXp[entry.id] ?? 0 })),
+    classes: state.classes.map((entry) => ({
+      id: entry.id,
+      level: entry.level,
+      xp: state.classXp[entry.id] ?? 0,
+    })),
     abilities: { ...state.abilities },
     knownSpells: [...state.spells],
     pools: { ...state.pools },
@@ -146,7 +164,11 @@ function serializeCharacterState(state: CharacterState): SnapshotCharacterState 
  * what the load request says), pack id / schemaVersion / contentHash
  * (E-SNAP-01), snapshotVersion (E-SNAP-02 — the documented staleness answer).
  */
-function envelopeRefusals(kind: 'character' | 'party' | 'combat', snapshot: unknown, pack: Pack): ErrorCard[] {
+function envelopeRefusals(
+  kind: 'character' | 'party' | 'combat',
+  snapshot: unknown,
+  pack: Pack,
+): ErrorCard[] {
   if (!isRecord(snapshot)) {
     return [makeErrorCard('E-SNAP-01', '(snapshot)', '(root)', 'a snapshot must be a JSON object.')];
   }
@@ -263,11 +285,19 @@ export function restoreParty(runtime: Runtime, snapshot: PartySnapshot): Charact
  * rules, never partially applied (FR-5 discipline).
  */
 function characterBuildRefusals(runtime: Runtime, saved: SnapshotCharacterState): ErrorCard[] {
-  return validateBuild(runtime, saved.race, saved.classes.map((entry) => ({ id: entry.id, level: entry.level })));
+  return validateBuild(
+    runtime,
+    saved.race,
+    saved.classes.map((entry) => ({ id: entry.id, level: entry.level })),
+  );
 }
 
 function restoreCharacterState(runtime: Runtime, saved: SnapshotCharacterState): CharacterState {
-  const built = buildCharacter(runtime, { name: saved.name, race: saved.race, classes: saved.classes.map((entry) => ({ id: entry.id, level: entry.level })) });
+  const built = buildCharacter(runtime, {
+    name: saved.name,
+    race: saved.race,
+    classes: saved.classes.map((entry) => ({ id: entry.id, level: entry.level })),
+  });
   runtime.nextCharacterId += 1;
   const classXp: Record<string, number> = {};
   let xp = 0;
@@ -359,7 +389,10 @@ export function serializeCombat(fight: Combat, options: { readonly pairsWith: st
         id,
         hp: combatant.hp.current,
         slotsUsed: { ...combatant.slots.remaining },
-        conditions: combatant.conditions.map((active) => ({ id: active.conditionId, remaining: active.duration })),
+        conditions: combatant.conditions.map((active) => ({
+          id: active.conditionId,
+          remaining: active.duration,
+        })),
         ...(pendingTrigger !== undefined ? { pendingTrigger } : {}),
       };
     }),
@@ -376,7 +409,11 @@ export function serializeCombat(fight: Combat, options: { readonly pairsWith: st
  * it restores as `combat-over`. The rng words rebuild the dice stream: the
  * next roll equals the uninterrupted fight's next roll.
  */
-export function deserializeCombat(runtime: Runtime, snapshot: unknown, restore: CombatRestoreRequest): Combat {
+export function deserializeCombat(
+  runtime: Runtime,
+  snapshot: unknown,
+  restore: CombatRestoreRequest,
+): Combat {
   const cards = envelopeRefusals('combat', snapshot, runtime.pack);
   if (isRecord(snapshot) && cards.length === 0) {
     cards.push(...combatRestoreRefusals(runtime, snapshot as unknown as CombatSnapshot, restore));
@@ -385,7 +422,10 @@ export function deserializeCombat(runtime: Runtime, snapshot: unknown, restore: 
   validateRngWords(snapshot);
   const saved = snapshot as CombatSnapshot;
   const frozen = new Map(saved.combatants.map((combatant) => [combatant.id, combatant]));
-  const sides = [...restore.allies.map((entry) => ({ ...entry, side: 'allies' as const })), ...restore.enemies.map((entry) => ({ ...entry, side: 'enemies' as const }))];
+  const sides = [
+    ...restore.allies.map((entry) => ({ ...entry, side: 'allies' as const })),
+    ...restore.enemies.map((entry) => ({ ...entry, side: 'enemies' as const })),
+  ];
   const combatants: Record<string, CombatantState> = {};
   for (const entry of sides) {
     const frozenState = frozen.get(entry.id);
@@ -395,7 +435,9 @@ export function deserializeCombat(runtime: Runtime, snapshot: unknown, restore: 
       side: entry.side,
       name: entry.id,
       hp: { current: frozenState.hp },
-      conditions: frozenState.conditions?.map((active) => ({ conditionId: active.id, duration: active.remaining })) ?? [],
+      conditions:
+        frozenState.conditions?.map((active) => ({ conditionId: active.id, duration: active.remaining })) ??
+        [],
       slots: { remaining: { ...frozenState.slotsUsed } },
       pools: { ...(entry.balances?.pools ?? {}) },
       boundSlots: { ...(entry.balances?.boundSlots ?? {}) },
@@ -405,7 +447,9 @@ export function deserializeCombat(runtime: Runtime, snapshot: unknown, restore: 
       ac: entry.profile.ac,
       initiativeBonus: entry.profile.initiativeBonus,
       actions: [...entry.profile.actions],
-      attackTable: entry.profile.attackTable ? entry.profile.attackTable.map((row) => ({ level: row.level, byDefense: { ...row.byDefense } })) : undefined,
+      attackTable: entry.profile.attackTable
+        ? entry.profile.attackTable.map((row) => ({ level: row.level, byDefense: { ...row.byDefense } }))
+        : undefined,
       attackBonus: entry.profile.attackBonus,
     };
   }
@@ -437,38 +481,84 @@ export function deserializeCombat(runtime: Runtime, snapshot: unknown, restore: 
  * same fight, and a frozen offer must name a reactive action this pack
  * declares. All cards at once, before anything is rebuilt.
  */
-function combatRestoreRefusals(runtime: Runtime, saved: CombatSnapshot, restore: CombatRestoreRequest): ErrorCard[] {
+function combatRestoreRefusals(
+  runtime: Runtime,
+  saved: CombatSnapshot,
+  restore: CombatRestoreRequest,
+): ErrorCard[] {
   const cards: ErrorCard[] = [];
   const artifactId = declaredIdentityId(saved) ?? '(snapshot)';
   const orderIds = new Set(saved.order);
   if (saved.order.length === 0) {
-    cards.push(makeErrorCard('E-SNAP-01', artifactId, 'order', 'combat order is empty - an initiative order has at least one combatant (FR-10).'));
+    cards.push(
+      makeErrorCard(
+        'E-SNAP-01',
+        artifactId,
+        'order',
+        'combat order is empty - an initiative order has at least one combatant (FR-10).',
+      ),
+    );
   }
   const frozenIds = new Set(saved.combatants.map((combatant) => combatant.id));
   for (const id of saved.order) {
     if (!frozenIds.has(id)) {
-      cards.push(makeErrorCard('E-SNAP-01', artifactId, 'combatants', `combatant "${id}" is in the order but carries no frozen state - refusing a partially described fight (FR-14).`));
+      cards.push(
+        makeErrorCard(
+          'E-SNAP-01',
+          artifactId,
+          'combatants',
+          `combatant "${id}" is in the order but carries no frozen state - refusing a partially described fight (FR-14).`,
+        ),
+      );
     }
   }
   const sideIds = new Set([...restore.allies, ...restore.enemies].map((entry) => entry.id));
   if (sideIds.size !== restore.allies.length + restore.enemies.length) {
-    cards.push(makeErrorCard('E-SNAP-01', artifactId, 'restore', 'the restore request repeats a combatant id - each combatant states one side (FR-10).'));
+    cards.push(
+      makeErrorCard(
+        'E-SNAP-01',
+        artifactId,
+        'restore',
+        'the restore request repeats a combatant id - each combatant states one side (FR-10).',
+      ),
+    );
   }
   for (const entry of [...restore.allies, ...restore.enemies]) {
     if (!orderIds.has(entry.id)) {
-      cards.push(makeErrorCard('E-SNAP-01', artifactId, 'restore', `restore request names combatant "${entry.id}", who is not in this fight (FR-14).`));
+      cards.push(
+        makeErrorCard(
+          'E-SNAP-01',
+          artifactId,
+          'restore',
+          `restore request names combatant "${entry.id}", who is not in this fight (FR-14).`,
+        ),
+      );
     }
   }
   for (const id of saved.order) {
     if (!sideIds.has(id)) {
-      cards.push(makeErrorCard('E-SNAP-01', artifactId, 'combatants', `frozen combatant "${id}" is missing from the restore request - the host re-states every side (FR-10).`));
+      cards.push(
+        makeErrorCard(
+          'E-SNAP-01',
+          artifactId,
+          'combatants',
+          `frozen combatant "${id}" is missing from the restore request - the host re-states every side (FR-10).`,
+        ),
+      );
     }
   }
   saved.combatants.forEach((combatant, index) => {
     if (combatant.pendingTrigger === undefined || combatant.pendingTrigger === null) return;
     const def = runtime.pack.actions[combatant.pendingTrigger];
     if (def === undefined || def.trigger === undefined) {
-      cards.push(makeErrorCard('E-SNAP-01', artifactId, `combatants[${index}].pendingTrigger`, `frozen offer names "${combatant.pendingTrigger}", which is not a reactive action in this pack (FR-4/FR-13).`));
+      cards.push(
+        makeErrorCard(
+          'E-SNAP-01',
+          artifactId,
+          `combatants[${index}].pendingTrigger`,
+          `frozen offer names "${combatant.pendingTrigger}", which is not a reactive action in this pack (FR-4/FR-13).`,
+        ),
+      );
     }
   });
   return cards;
@@ -480,7 +570,14 @@ function validateRngWords(snapshot: unknown): void {
   for (const word of ['a', 'b', 'c', 'd'] as const) {
     const value = (rng as Record<string, unknown>)[word];
     if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > UINT32_MAX_WORD) {
-      throw new RuntimeRuleError([makeErrorCard('E-SNAP-01', declaredIdentityId(snapshot) ?? '(snapshot)', `rng.${word}`, `rng word ${word} must be a uint32, got ${display(value)} - refusing a mangled dice stream (FR-1/FR-14).`)]);
+      throw new RuntimeRuleError([
+        makeErrorCard(
+          'E-SNAP-01',
+          declaredIdentityId(snapshot) ?? '(snapshot)',
+          `rng.${word}`,
+          `rng word ${word} must be a uint32, got ${display(value)} - refusing a mangled dice stream (FR-1/FR-14).`,
+        ),
+      ]);
     }
   }
 }

@@ -19,7 +19,14 @@ export function checkSchemaVersion(pack: unknown, engineRange: SchemaVersionRang
   const artifactId = typeof manifest?.['id'] === 'string' ? manifest['id'] : '(pack)';
   const version = manifest?.['schemaVersion'];
   if (!isInteger(version)) {
-    return [makeErrorCard('E-SCHEMA-01', artifactId, 'manifest.schemaVersion', 'manifest.schemaVersion must be an integer.')];
+    return [
+      makeErrorCard(
+        'E-SCHEMA-01',
+        artifactId,
+        'manifest.schemaVersion',
+        'manifest.schemaVersion must be an integer.',
+      ),
+    ];
   }
   if (version < engineRange.min || version > engineRange.max) {
     return [

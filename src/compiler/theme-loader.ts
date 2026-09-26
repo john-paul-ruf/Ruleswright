@@ -22,6 +22,8 @@ export function loadTheme(name: string): ThemeTemplate {
     case 'zombie-urban':
       return ZOMBIE_URBAN;
     default:
-      throw new Error(`unknown built-in theme "${name}" — themes are data files under src/compiler/themes (FR-17).`);
+      throw new Error(
+        `unknown built-in theme "${name}" — themes are data files under src/compiler/themes (FR-17).`,
+      );
   }
 }

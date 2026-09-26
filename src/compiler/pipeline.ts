@@ -33,7 +33,15 @@ import { bestiaryStage } from './stages/bestiary';
 import { tablesStage } from './stages/tables';
 
 export type { GenerationContext, Stage };
-export const STAGE_ORDER: readonly string[] = ['stats', 'skills', 'feats', 'classes', 'magic', 'bestiary', 'tables'];
+export const STAGE_ORDER: readonly string[] = [
+  'stats',
+  'skills',
+  'feats',
+  'classes',
+  'magic',
+  'bestiary',
+  'tables',
+];
 
 /** The default registry, in pipeline order. */
 export function defaultStages(): readonly Stage[] {
@@ -41,7 +49,16 @@ export function defaultStages(): readonly Stage[] {
 }
 
 /** Stage inputs the stages read, section-keyed like the pack. */
-const STAGE_INPUT_SECTIONS: readonly string[] = ['stats', 'economy', 'actions', 'formulas', 'content', 'progression', 'bestiary', 'tables'];
+const STAGE_INPUT_SECTIONS: readonly string[] = [
+  'stats',
+  'economy',
+  'actions',
+  'formulas',
+  'content',
+  'progression',
+  'bestiary',
+  'tables',
+];
 
 /**
  * Resolve `#knob/<id>` tokens across the theme's stage inputs against the
@@ -50,7 +67,10 @@ const STAGE_INPUT_SECTIONS: readonly string[] = ['stats', 'economy', 'actions', 
  * naming an undeclared knob is a located rejection — the theme's data defect,
  * caught before stages run.
  */
-function resolveKnobTokens(theme: ThemeTemplate, knobs: Readonly<Record<string, string | number>>): Record<string, unknown> {
+function resolveKnobTokens(
+  theme: ThemeTemplate,
+  knobs: Readonly<Record<string, string | number>>,
+): Record<string, unknown> {
   const resolved: Record<string, unknown> = {};
   for (const section of STAGE_INPUT_SECTIONS) {
     const value = (theme as unknown as Record<string, unknown>)[section];
@@ -61,22 +81,35 @@ function resolveKnobTokens(theme: ThemeTemplate, knobs: Readonly<Record<string, 
 
 const KNOB_TOKEN = /#knob\/([a-z][a-z0-9-]*)/g;
 
-function substituteTokens(value: unknown, knobs: Readonly<Record<string, string | number>>, path: string, themeId: string): unknown {
+function substituteTokens(
+  value: unknown,
+  knobs: Readonly<Record<string, string | number>>,
+  path: string,
+  themeId: string,
+): unknown {
   if (typeof value === 'string') {
     return value.replace(KNOB_TOKEN, (token: string, id: string) => {
       const knob = knobs[id];
       if (knob === undefined) {
         throw new GenerationError([
-          { severity: 'error', artifactId: '(theme)', jsonPath: path, rule: 'E-SCHEMA-01', message: `knob token "${token}" names knob "${id}", which the theme "${themeId}" does not declare.` },
+          {
+            severity: 'error',
+            artifactId: '(theme)',
+            jsonPath: path,
+            rule: 'E-SCHEMA-01',
+            message: `knob token "${token}" names knob "${id}", which the theme "${themeId}" does not declare.`,
+          },
         ]);
       }
       return String(knob);
     });
   }
-  if (Array.isArray(value)) return value.map((entry, index) => substituteTokens(entry, knobs, `${path}[${index}]`, themeId));
+  if (Array.isArray(value))
+    return value.map((entry, index) => substituteTokens(entry, knobs, `${path}[${index}]`, themeId));
   if (value !== null && typeof value === 'object') {
     const out: Record<string, unknown> = {};
-    for (const [key, entry] of Object.entries(value)) out[key] = substituteTokens(entry, knobs, `${path}.${key}`, themeId);
+    for (const [key, entry] of Object.entries(value))
+      out[key] = substituteTokens(entry, knobs, `${path}.${key}`, themeId);
     return out;
   }
   return value;

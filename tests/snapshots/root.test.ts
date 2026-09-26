@@ -40,7 +40,11 @@ describe('the root surface (M05, FR-22)', () => {
   });
 
   it('is a dumb re-export: it adds no logic of its own', () => {
-    const known = new Set([...Object.keys(schemaSurface), ...Object.keys(runtimeSurface), ...Object.keys(compilerSurface)]);
+    const known = new Set([
+      ...Object.keys(schemaSurface),
+      ...Object.keys(runtimeSurface),
+      ...Object.keys(compilerSurface),
+    ]);
     const ownKeys = Object.getOwnPropertyNames(root).filter((key) => key !== '__esModule' && !known.has(key));
     expect(ownKeys).toEqual([]);
   });

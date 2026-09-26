@@ -113,14 +113,18 @@ export function parsePackEffects(pack: Pack): Map<string, EffectAst> {
   for (const [id, def] of Object.entries(pack.actions)) {
     const parsed = parseEffect(def.effect);
     if (!parsed.ok) {
-      throw new Error(`pack action "${id}" failed to parse at play time — a validated pack never reaches here: ${parsed.reason}`);
+      throw new Error(
+        `pack action "${id}" failed to parse at play time — a validated pack never reaches here: ${parsed.reason}`,
+      );
     }
     asts.set(id, parsed.value);
   }
   for (const [id, spell] of Object.entries(pack.content.spells ?? {})) {
     const parsed = parseEffect(spell.effect);
     if (!parsed.ok) {
-      throw new Error(`pack spell "${id}" failed to parse at play time — a validated pack never reaches here: ${parsed.reason}`);
+      throw new Error(
+        `pack spell "${id}" failed to parse at play time — a validated pack never reaches here: ${parsed.reason}`,
+      );
     }
     asts.set(id, parsed.value);
   }
@@ -128,7 +132,9 @@ export function parsePackEffects(pack: Pack): Map<string, EffectAst> {
     if (feat.effect === undefined) continue;
     const parsed = parseEffect(feat.effect);
     if (!parsed.ok) {
-      throw new Error(`pack feat "${id}" failed to parse at play time — a validated pack never reaches here: ${parsed.reason}`);
+      throw new Error(
+        `pack feat "${id}" failed to parse at play time — a validated pack never reaches here: ${parsed.reason}`,
+      );
     }
     asts.set(id, parsed.value);
   }
@@ -150,21 +156,28 @@ export function checkPackDsl(pack: Pack): ReturnType<typeof packDslChecker> {
   });
   for (const [id, def] of Object.entries(pack.actions)) {
     cards.push(...packDslChecker(request(def.effect, 'effect', id, `actions.${id}.effect`)));
-    if (def.valid !== undefined) cards.push(...packDslChecker(request(def.valid, 'valid', id, `actions.${id}.valid`)));
+    if (def.valid !== undefined)
+      cards.push(...packDslChecker(request(def.valid, 'valid', id, `actions.${id}.valid`)));
   }
   for (const [id, spell] of Object.entries(pack.content.spells ?? {})) {
     cards.push(...packDslChecker(request(spell.effect, 'effect', id, `content.spells.${id}.effect`)));
   }
   for (const [id, feat] of Object.entries(pack.content.feats ?? {})) {
-    if (feat.effect !== undefined) cards.push(...packDslChecker(request(feat.effect, 'effect', id, `content.feats.${id}.effect`)));
-    if (feat.passive !== undefined) cards.push(...packDslChecker(request(feat.passive, 'passive', id, `content.feats.${id}.passive`)));
+    if (feat.effect !== undefined)
+      cards.push(...packDslChecker(request(feat.effect, 'effect', id, `content.feats.${id}.effect`)));
+    if (feat.passive !== undefined)
+      cards.push(...packDslChecker(request(feat.passive, 'passive', id, `content.feats.${id}.passive`)));
   }
   for (const [id, formula] of Object.entries(pack.formulas)) {
     cards.push(...packDslChecker(request(formula.expr, 'formula', id, `formulas.${id}.expr`)));
   }
   for (const [classId, progression] of Object.entries(pack.progression)) {
     if (progression.attackBonus !== undefined) {
-      cards.push(...packDslChecker(request(progression.attackBonus, 'attackBonus', classId, `progression.${classId}.attackBonus`)));
+      cards.push(
+        ...packDslChecker(
+          request(progression.attackBonus, 'attackBonus', classId, `progression.${classId}.attackBonus`),
+        ),
+      );
     }
   }
   return cards;
@@ -202,7 +215,8 @@ export function profileFromStatblock(pack: Pack, block: Statblock, id: string): 
     level,
     hp: evalPackFormula(pack, 'hp', base),
     ac: evalPackFormula(pack, 'ac', base),
-    initiativeBonus: pack.formulas['initiative'] !== undefined ? evalPackFormula(pack, 'initiative', base) : 0,
+    initiativeBonus:
+      pack.formulas['initiative'] !== undefined ? evalPackFormula(pack, 'initiative', base) : 0,
     actions: [...block.actions],
     attackTable: progressionTableById(progression?.attackTable),
     attackBonus: attackBonusFromFormula(progression, base),
@@ -210,7 +224,9 @@ export function profileFromStatblock(pack: Pack, block: Statblock, id: string): 
 }
 
 /** The referenced progression's attack-table rows, or undefined (bonus convention / no rows). */
-function progressionTableById(rows: readonly { level: number; byDefense: Record<string, number> }[] | undefined) {
+function progressionTableById(
+  rows: readonly { level: number; byDefense: Record<string, number> }[] | undefined,
+) {
   if (rows === undefined) return undefined;
   return rows.map((row) => ({ level: row.level, byDefense: { ...row.byDefense } }));
 }
@@ -228,7 +244,9 @@ function attackBonusFromFormula(
 export function evalPackFormula(pack: Pack, id: string, vars: Readonly<Record<string, number>>): number {
   const def = pack.formulas[id];
   if (def === undefined) {
-    throw new Error(`formula "${id}" is not declared in the pack — derived stats resolve only through pack formulas (CA-6).`);
+    throw new Error(
+      `formula "${id}" is not declared in the pack — derived stats resolve only through pack formulas (CA-6).`,
+    );
   }
   return evalDslFormula(def.expr, vars);
 }
@@ -236,7 +254,8 @@ export function evalPackFormula(pack: Pack, id: string, vars: Readonly<Record<st
 /** Evaluate a raw formula-DSL string against the zero-RNG stream (see the zeroRng note). */
 function evalDslFormula(expr: string, vars: Readonly<Record<string, number>>): number {
   const parsed = parseFormula(expr);
-  if (!parsed.ok) throw new Error(`formula does not parse — a validated pack never reaches here: ${parsed.reason}`);
+  if (!parsed.ok)
+    throw new Error(`formula does not parse — a validated pack never reaches here: ${parsed.reason}`);
   const value = evalFormula(parsed.value, vars, zeroRng);
   return typeof value === 'object' ? value.total : value;
 }
@@ -253,7 +272,12 @@ export function defenseValue(defender: CombatantProfile): number {
 }
 
 /** Roll d20 + attacker bonus against the defense target. Both sides are pack data (FR-3). */
-export function attackRoll(attackBonus: number, defenseTarget: number, defenseName: string, rng: RandomSource): { roll: RollResult; hit: boolean } {
+export function attackRoll(
+  attackBonus: number,
+  defenseTarget: number,
+  defenseName: string,
+  rng: RandomSource,
+): { roll: RollResult; hit: boolean } {
   const raw = rng.int(20) + 1;
   const total = raw + attackBonus;
   const roll: RollResult = {
@@ -278,7 +302,9 @@ export function attackBonusAgainst(attacker: CombatantProfile, defenseValue: num
   const toHit = row?.byDefense[String(defenseValue)];
   if (toHit !== undefined) return toHit;
   if (attacker.attackBonus === undefined) {
-    throw new Error(`combatant "${attacker.id}" has no attack progression covering defense ${defenseValue} — the pack's table must declare the row (FR-3).`);
+    throw new Error(
+      `combatant "${attacker.id}" has no attack progression covering defense ${defenseValue} — the pack's table must declare the row (FR-3).`,
+    );
   }
   return attacker.attackBonus;
 }

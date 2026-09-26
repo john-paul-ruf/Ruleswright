@@ -31,7 +31,11 @@ export interface SpatialGeometry {
   /** Whether `from` may melee `to` under the model's reach rules. */
   canReach(from: Position, to: Position, reach: number): boolean;
   /** All positions within a burst radius of the center (FR-11's burst shape). */
-  inBurst(center: Position, radius: number, candidates: readonly (readonly [string, Position])[]): readonly string[];
+  inBurst(
+    center: Position,
+    radius: number,
+    candidates: readonly (readonly [string, Position])[],
+  ): readonly string[];
 }
 
 /** The no-op: packs without positions never fail a spatial check. */
@@ -47,13 +51,22 @@ export function gridGeometry(model: SpatialModel): SpatialGeometry {
   return {
     enabled: true,
     distance: (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)),
-    canReach: (from, to, reach) => Math.max(Math.abs(from.x - to.x), Math.abs(from.y - to.y)) <= Math.max(reach, model.defaultReach),
-    inBurst: (center, radius, candidates) => candidates.filter(([, position]) => Math.max(Math.abs(position.x - center.x), Math.abs(position.y - center.y)) <= radius).map(([id]) => id),
+    canReach: (from, to, reach) =>
+      Math.max(Math.abs(from.x - to.x), Math.abs(from.y - to.y)) <= Math.max(reach, model.defaultReach),
+    inBurst: (center, radius, candidates) =>
+      candidates
+        .filter(
+          ([, position]) =>
+            Math.max(Math.abs(position.x - center.x), Math.abs(position.y - center.y)) <= radius,
+        )
+        .map(([id]) => id),
   };
 }
 
 /** Build the pack's geometry: absent declaration → theater-of-mind (FR-11). */
-export function spatialFromPack(pack: { spatial?: { defaultReach: number; reachOverrides?: Record<string, number> } }): SpatialGeometry {
+export function spatialFromPack(pack: {
+  spatial?: { defaultReach: number; reachOverrides?: Record<string, number> };
+}): SpatialGeometry {
   if (pack.spatial === undefined) return theaterOfMind;
   return gridGeometry(pack.spatial);
 }

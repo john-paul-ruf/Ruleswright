@@ -46,7 +46,17 @@ describe('recipe parsing (dice.html recipes table)', () => {
   });
 
   it('rejects malformed recipes loudly with the reason', () => {
-    for (const source of ['', '2d6+3d4', 'd0', '0d6', '2d6kh0', '-d6', 'd6 + (2)', '2xd6', 'd6 + attack-bonus!']) {
+    for (const source of [
+      '',
+      '2d6+3d4',
+      'd0',
+      '0d6',
+      '2d6kh0',
+      '-d6',
+      'd6 + (2)',
+      '2xd6',
+      'd6 + attack-bonus!',
+    ]) {
       const parsed = parseRecipe(source);
       expect(parsed.ok, `"${source}" must be rejected`).toBe(false);
       if (!parsed.ok) expect(parsed.reason.length).toBeGreaterThan(0);
@@ -107,7 +117,12 @@ describe('rollRecipe (CA-2 RollResult shape)', () => {
   });
 
   it('carries negative modifiers and multiple variables with signs', () => {
-    const roll = rollRecipe(mustParse('d6 - 1 - fatigue + fury'), scripted([4]), { fatigue: 2, fury: 3 }, 'weary-blow');
+    const roll = rollRecipe(
+      mustParse('d6 - 1 - fatigue + fury'),
+      scripted([4]),
+      { fatigue: 2, fury: 3 },
+      'weary-blow',
+    );
     expect(roll.modifier).toBe(0);
     expect(roll.total).toBe(4);
   });
@@ -120,7 +135,10 @@ describe('rollRecipe (CA-2 RollResult shape)', () => {
 describe('verdicts belong to the caller', () => {
   it('core computes rolls only — the caller attaches verdict', () => {
     const roll = rollRecipe(mustParse('d20 + 3'), scripted([14]), {}, 'attack');
-    const judged = { ...roll, verdict: { defense: 'ac', value: 15, result: roll.total >= 15 ? 'hit' : 'miss' } };
+    const judged = {
+      ...roll,
+      verdict: { defense: 'ac', value: 15, result: roll.total >= 15 ? 'hit' : 'miss' },
+    };
     expect(roll.total).toBe(17);
     expect(judged.verdict).toEqual({ defense: 'ac', value: 15, result: 'hit' });
     expect(judged.purpose).toBe('attack');

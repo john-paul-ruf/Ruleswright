@@ -22,11 +22,21 @@ import { RuntimeRuleError, ruleCard } from './errors';
 import type { RuntimeEvent } from './events';
 
 /** Evaluate a pool-capacity formula against the character's scalars (CA-4: the pack formula is the only math). */
-function evalPoolFormula(runtime: Runtime, pool: string, abilities: Readonly<Record<string, number>>, level: number): number {
+function evalPoolFormula(
+  runtime: Runtime,
+  pool: string,
+  abilities: Readonly<Record<string, number>>,
+  level: number,
+): number {
   const ast = runtime.index.formulaAsts[pool];
   if (ast === undefined) {
     throw new RuntimeRuleError([
-      ruleCard('unknown-pool', pool, `pools.${pool}`, `pool "${pool}" has no capacity formula — a drain pool's capacity is a pack formula (FR-3/FR-8).`),
+      ruleCard(
+        'unknown-pool',
+        pool,
+        `pools.${pool}`,
+        `pool "${pool}" has no capacity formula — a drain pool's capacity is a pack formula (FR-3/FR-8).`,
+      ),
     ]);
   }
   return valueOfFormula(evalFormula(ast, { ...abilities, level }, new Rng(0)));
@@ -49,7 +59,11 @@ export function poolVocabulary(runtime: Runtime): readonly string[] {
 }
 
 /** Initial pool state: every pack-declared pool at its formula cap (abilities + level scalars). */
-export function initPools(runtime: Runtime, abilities: Readonly<Record<string, number>>, level: number): Record<string, number> {
+export function initPools(
+  runtime: Runtime,
+  abilities: Readonly<Record<string, number>>,
+  level: number,
+): Record<string, number> {
   const pools: Record<string, number> = {};
   for (const pool of poolVocabulary(runtime)) {
     pools[pool] = evalPoolFormula(runtime, pool, abilities, level);
@@ -62,19 +76,37 @@ export function initPools(runtime: Runtime, abilities: Readonly<Record<string, n
  * rejected with no durable change (named rule); the spend emits
  * `pool:drained` with the pool formula as provenance (FR-13).
  */
-export function spendPool(runtime: Runtime, character: CharacterState, pool: string, amount: number): RuntimeEvent {
+export function spendPool(
+  runtime: Runtime,
+  character: CharacterState,
+  pool: string,
+  amount: number,
+): RuntimeEvent {
   if (!Number.isInteger(amount) || amount <= 0) {
-    throw new RuntimeRuleError([ruleCard('invalid-spend', pool, 'amount', `pool spend must be a positive integer, got ${amount}.`)]);
+    throw new RuntimeRuleError([
+      ruleCard('invalid-spend', pool, 'amount', `pool spend must be a positive integer, got ${amount}.`),
+    ]);
   }
   const current = character.pools[pool];
   if (current === undefined) {
     throw new RuntimeRuleError([
-      ruleCard('unknown-pool', pool, 'pools', `pool "${pool}" is not part of this character's pack vocabulary.`, `pack pools: ${poolVocabulary(runtime).join(', ') || '(none)'}`),
+      ruleCard(
+        'unknown-pool',
+        pool,
+        'pools',
+        `pool "${pool}" is not part of this character's pack vocabulary.`,
+        `pack pools: ${poolVocabulary(runtime).join(', ') || '(none)'}`,
+      ),
     ]);
   }
   if (current < amount) {
     throw new RuntimeRuleError([
-      ruleCard('insufficient-points', pool, `pools.${pool}`, `pool "${pool}" has ${current} point(s); spending ${amount} would overdraw — rejected, no state changed.`),
+      ruleCard(
+        'insufficient-points',
+        pool,
+        `pools.${pool}`,
+        `pool "${pool}" has ${current} point(s); spending ${amount} would overdraw — rejected, no state changed.`,
+      ),
     ]);
   }
   character.pools[pool] = current - amount;
@@ -91,29 +123,65 @@ export function spendPool(runtime: Runtime, character: CharacterState, pool: str
  * `magic.lists` must intersect one of the character's classes' spellLists)
  * into an empty slot of the matching level. Emits `spell:prepared`.
  */
-export function prepareSpell(runtime: Runtime, character: CharacterState, spellId: string, slotIndex?: number): RuntimeEvent {
+export function prepareSpell(
+  runtime: Runtime,
+  character: CharacterState,
+  spellId: string,
+  slotIndex?: number,
+): RuntimeEvent {
   const spell = runtime.pack.content.spells?.[spellId];
   if (spell === undefined) {
-    throw new RuntimeRuleError([ruleCard('unknown-spell', spellId, 'spells', `unknown spell "${spellId}" — not declared in content.spells.`)]);
+    throw new RuntimeRuleError([
+      ruleCard(
+        'unknown-spell',
+        spellId,
+        'spells',
+        `unknown spell "${spellId}" — not declared in content.spells.`,
+      ),
+    ]);
   }
   if (!knownSpells(runtime, character).includes(spellId)) {
     throw new RuntimeRuleError([
-      ruleCard('spell-not-known', spellId, 'spells', `spell "${spellId}" is not known — its lists (${spell.magic.lists.join(', ')}) match none of the character's classes (FR-9).`),
+      ruleCard(
+        'spell-not-known',
+        spellId,
+        'spells',
+        `spell "${spellId}" is not known — its lists (${spell.magic.lists.join(', ')}) match none of the character's classes (FR-9).`,
+      ),
     ]);
   }
   const slotLevel = String(spell.magic.level);
   const slots = character.slots[slotLevel];
   if (slots === undefined) {
     throw new RuntimeRuleError([
-      ruleCard('no-slot', spellId, `slots.${slotLevel}`, `no level-${slotLevel} slots — the character's classes grant none at their levels (FR-8).`),
+      ruleCard(
+        'no-slot',
+        spellId,
+        `slots.${slotLevel}`,
+        `no level-${slotLevel} slots — the character's classes grant none at their levels (FR-8).`,
+      ),
     ]);
   }
   const index = slotIndex ?? slots.findIndex((bound) => bound === null);
   if (index === -1 || index >= slots.length) {
-    throw new RuntimeRuleError([ruleCard('no-empty-slot', spellId, `slots.${slotLevel}`, `no empty level-${slotLevel} slot to prepare "${spellId}" into (FR-8).`)]);
+    throw new RuntimeRuleError([
+      ruleCard(
+        'no-empty-slot',
+        spellId,
+        `slots.${slotLevel}`,
+        `no empty level-${slotLevel} slot to prepare "${spellId}" into (FR-8).`,
+      ),
+    ]);
   }
   if (slots[index] !== null) {
-    throw new RuntimeRuleError([ruleCard('slot-bound', spellId, `slots.${slotLevel}[${index}]`, `level-${slotLevel} slot ${index} already holds "${slots[index]}" — clear or rest first (FR-8).`)]);
+    throw new RuntimeRuleError([
+      ruleCard(
+        'slot-bound',
+        spellId,
+        `slots.${slotLevel}[${index}]`,
+        `level-${slotLevel} slot ${index} already holds "${slots[index]}" — clear or rest first (FR-8).`,
+      ),
+    ]);
   }
   slots[index] = spellId;
   return runtime.events.emit({
@@ -130,22 +198,55 @@ export function prepareSpell(runtime: Runtime, character: CharacterState, spellI
  * spell cannot cast this one. Rejections leave no durable change; success
  * empties the slot and emits `spell:cast`.
  */
-export function castSpell(runtime: Runtime, character: CharacterState, spellId: string, slotIndex?: number): RuntimeEvent {
+export function castSpell(
+  runtime: Runtime,
+  character: CharacterState,
+  spellId: string,
+  slotIndex?: number,
+): RuntimeEvent {
   const spell = runtime.pack.content.spells?.[spellId];
   if (spell === undefined) {
-    throw new RuntimeRuleError([ruleCard('unknown-spell', spellId, 'spells', `unknown spell "${spellId}" — not declared in content.spells.`)]);
+    throw new RuntimeRuleError([
+      ruleCard(
+        'unknown-spell',
+        spellId,
+        'spells',
+        `unknown spell "${spellId}" — not declared in content.spells.`,
+      ),
+    ]);
   }
   const slotLevel = String(spell.magic.level);
   const slots = character.slots[slotLevel];
   if (slots === undefined) {
-    throw new RuntimeRuleError([ruleCard('no-slot', spellId, `slots.${slotLevel}`, `no level-${slotLevel} slots — an empty slot cannot cast (FR-8).`)]);
+    throw new RuntimeRuleError([
+      ruleCard(
+        'no-slot',
+        spellId,
+        `slots.${slotLevel}`,
+        `no level-${slotLevel} slots — an empty slot cannot cast (FR-8).`,
+      ),
+    ]);
   }
   const index = slotIndex ?? slots.findIndex((bound) => bound === spellId);
   if (index === -1 || index >= slots.length) {
-    throw new RuntimeRuleError([ruleCard('not-prepared', spellId, `slots.${slotLevel}`, `"${spellId}" is not bound in any level-${slotLevel} slot — an empty slot cannot cast (FR-8).`)]);
+    throw new RuntimeRuleError([
+      ruleCard(
+        'not-prepared',
+        spellId,
+        `slots.${slotLevel}`,
+        `"${spellId}" is not bound in any level-${slotLevel} slot — an empty slot cannot cast (FR-8).`,
+      ),
+    ]);
   }
   if (slots[index] !== spellId) {
-    throw new RuntimeRuleError([ruleCard('slot-mismatch', spellId, `slots.${slotLevel}[${index}]`, `level-${slotLevel} slot ${index} holds "${slots[index]}", not "${spellId}" — casting consumes a bound slot of the matching level (FR-8).`)]);
+    throw new RuntimeRuleError([
+      ruleCard(
+        'slot-mismatch',
+        spellId,
+        `slots.${slotLevel}[${index}]`,
+        `level-${slotLevel} slot ${index} holds "${slots[index]}", not "${spellId}" — casting consumes a bound slot of the matching level (FR-8).`,
+      ),
+    ]);
   }
   slots[index] = null;
   return runtime.events.emit({

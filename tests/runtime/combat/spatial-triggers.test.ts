@@ -11,8 +11,19 @@ import { Rng } from '../../../src/core/rng';
 import { emberMarchesPack, type SpatialPack } from '../fixtures/packs';
 import { Runtime } from '../../../src/runtime/runtime';
 import { profileFromStatblock, type CombatantProfile } from '../../../src/runtime/combat/resolve';
-import { startCombat, type Combat, type CombatantState, type StepOutcome } from '../../../src/runtime/combat/combat';
-import { gridGeometry, theaterOfMind, spatialFromPack, checkReach, type Position } from '../../../src/runtime/combat/spatial';
+import {
+  startCombat,
+  type Combat,
+  type CombatantState,
+  type StepOutcome,
+} from '../../../src/runtime/combat/combat';
+import {
+  gridGeometry,
+  theaterOfMind,
+  spatialFromPack,
+  checkReach,
+  type Position,
+} from '../../../src/runtime/combat/spatial';
 import { eventMatches, reactiveActionsFor } from '../../../src/runtime/combat/triggers';
 import type { RuntimeEvent } from '../../../src/runtime/events';
 
@@ -22,9 +33,19 @@ function parryFight(): { fight: Combat; events: RuntimeEvent[] } {
   runtime.events.on((event) => {
     seen.push(event);
   });
-  const parrier: CombatantProfile = { ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'brynn'), actions: ['parry'] };
-  const attacker: CombatantProfile = { ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'wight'), actions: ['wight-claw'] };
-  const fight = startCombat(runtime, { allies: [{ id: 'brynn', profile: parrier }], enemies: [{ id: 'wight', profile: attacker }], rng: new Rng('parry') });
+  const parrier: CombatantProfile = {
+    ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'brynn'),
+    actions: ['parry'],
+  };
+  const attacker: CombatantProfile = {
+    ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'wight'),
+    actions: ['wight-claw'],
+  };
+  const fight = startCombat(runtime, {
+    allies: [{ id: 'brynn', profile: parrier }],
+    enemies: [{ id: 'wight', profile: attacker }],
+    rng: new Rng('parry'),
+  });
   return { fight, events: seen };
 }
 
@@ -38,7 +59,9 @@ function stepToDeclare(fight: Combat, id: string, skipWith = 'withdraw'): void {
     const outcome: StepOutcome = fight.step();
     if (outcome.kind === 'combat-over') throw new Error('combat ended before the awaited turn');
   }
-  throw new Error(`never reached ${id}'s declare phase (phase=${fight.state.phase}, active=${fight.state.active})`);
+  throw new Error(
+    `never reached ${id}'s declare phase (phase=${fight.state.phase}, active=${fight.state.active})`,
+  );
 }
 
 describe('spatial layer (FR-11)', () => {
@@ -47,7 +70,9 @@ describe('spatial layer (FR-11)', () => {
     expect(geometry.enabled).toBe(false);
     expect(geometry).toBe(theaterOfMind);
     expect(geometry.canReach({ x: 0, y: 0 }, { x: 100, y: 100 }, 1)).toBe(true);
-    expect(checkReach(geometry, { position: { x: 0, y: 0 } }, { id: 'wight', position: { x: 99, y: 99 } }, 1)).toBeUndefined();
+    expect(
+      checkReach(geometry, { position: { x: 0, y: 0 } }, { id: 'wight', position: { x: 99, y: 99 } }, 1),
+    ).toBeUndefined();
   });
 
   it('a declared grid enforces adjacency and reach from pack data', () => {
@@ -72,7 +97,12 @@ describe('spatial layer (FR-11)', () => {
 
   it('out-of-reach declares a typed rejection (E-SPAT-01 pending DB, recorded verbatim)', () => {
     const geometry = gridGeometry({ defaultReach: 1 });
-    const rejection = checkReach(geometry, { position: { x: 0, y: 0 } }, { id: 'grave-shambles', position: { x: 3, y: 0 } }, 1);
+    const rejection = checkReach(
+      geometry,
+      { position: { x: 0, y: 0 } },
+      { id: 'grave-shambles', position: { x: 3, y: 0 } },
+      1,
+    );
     expect(rejection).toBeDefined();
     expect(rejection!.pendingId).toBe('E-SPAT-01 (unregistered — DB decision pending)');
     expect(rejection!.message).toContain('pack-declared');
@@ -138,8 +168,20 @@ describe('triggered actions (FR-4/FR-13, FR-12 proof 2 shape)', () => {
     expect(eventMatches('attack:rolled', event({}), reactor)).toBe(true);
     expect(eventMatches('attack:rolled[target=self]', event({ target: 'brynn' }), reactor)).toBe(true);
     expect(eventMatches('attack:rolled[target=self]', event({ target: 'wight' }), reactor)).toBe(false);
-    expect(eventMatches('condition:applied[actor=self]', event({ type: 'condition:applied', actor: 'brynn' }), reactor)).toBe(true);
-    expect(eventMatches('condition:applied[actor=self]', event({ type: 'condition:applied', actor: 'wight' }), reactor)).toBe(false);
+    expect(
+      eventMatches(
+        'condition:applied[actor=self]',
+        event({ type: 'condition:applied', actor: 'brynn' }),
+        reactor,
+      ),
+    ).toBe(true);
+    expect(
+      eventMatches(
+        'condition:applied[actor=self]',
+        event({ type: 'condition:applied', actor: 'wight' }),
+        reactor,
+      ),
+    ).toBe(false);
     expect(eventMatches('damage:applied', event({ type: 'damage:applied' }), reactor)).toBe(true);
   });
 

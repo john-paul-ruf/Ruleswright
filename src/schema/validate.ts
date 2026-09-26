@@ -142,27 +142,72 @@ function isInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value);
 }
 
-function reqFields(ctx: Ctx, holder: Record<string, unknown>, fields: readonly string[], artifactId: string, basePath: string): void {
+function reqFields(
+  ctx: Ctx,
+  holder: Record<string, unknown>,
+  fields: readonly string[],
+  artifactId: string,
+  basePath: string,
+): void {
   for (const field of fields) {
     if (holder[field] === undefined) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, `${basePath}.${field}`, `required field "${field}" is missing.`));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          artifactId,
+          `${basePath}.${field}`,
+          `required field "${field}" is missing.`,
+        ),
+      );
     }
   }
 }
 
-function forbidUnknown(ctx: Ctx, holder: Record<string, unknown>, allowed: readonly string[], artifactId: string, basePath: string): void {
+function forbidUnknown(
+  ctx: Ctx,
+  holder: Record<string, unknown>,
+  allowed: readonly string[],
+  artifactId: string,
+  basePath: string,
+): void {
   for (const key of Object.keys(holder)) {
     if (!allowed.includes(key)) {
-      add(ctx, makeErrorCard('E-SCHEMA-02', artifactId, `${basePath}.${key}`, `unknown field "${key}" — the contract is closed (additionalProperties: false).`));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-02',
+          artifactId,
+          `${basePath}.${key}`,
+          `unknown field "${key}" — the contract is closed (additionalProperties: false).`,
+        ),
+      );
     }
   }
 }
 
-function checkStringField(ctx: Ctx, holder: Record<string, unknown>, field: string, artifactId: string, basePath: string, minLength = 0): void {
+function checkStringField(
+  ctx: Ctx,
+  holder: Record<string, unknown>,
+  field: string,
+  artifactId: string,
+  basePath: string,
+  minLength = 0,
+): void {
   const value = holder[field];
   if (value === undefined) return;
   if (typeof value !== 'string' || value.length < minLength) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, `${basePath}.${field}`, minLength > 0 ? `${field} must be a string of at least ${minLength} character(s).` : `${field} must be a string.`));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        artifactId,
+        `${basePath}.${field}`,
+        minLength > 0
+          ? `${field} must be a string of at least ${minLength} character(s).`
+          : `${field} must be a string.`,
+      ),
+    );
   }
 }
 
@@ -170,20 +215,49 @@ function checkStringField(ctx: Ctx, holder: Record<string, unknown>, field: stri
 function registerId(ctx: Ctx, id: string, path: string): void {
   const first = ctx.knownIds.get(id);
   if (first !== undefined) {
-    add(ctx, makeErrorCard('E-DUP-01', id, path, `Duplicate id "${id}" — also defined at ${first}. Ids must be unique across the whole pack; overrides address them by id.`));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-DUP-01',
+        id,
+        path,
+        `Duplicate id "${id}" — also defined at ${first}. Ids must be unique across the whole pack; overrides address them by id.`,
+      ),
+    );
   } else {
     ctx.knownIds.set(id, path);
   }
 }
 
 /** DSL string field: presence is the caller's (required-field) duty; type + checker run here. */
-function checkDslField(ctx: Ctx, value: unknown, kind: DslCheckRequest['kind'], artifactId: string, jsonPath: string): void {
+function checkDslField(
+  ctx: Ctx,
+  value: unknown,
+  kind: DslCheckRequest['kind'],
+  artifactId: string,
+  jsonPath: string,
+): void {
   if (value === undefined) return;
   if (typeof value !== 'string' || value.length < 1) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, jsonPath, 'must be a non-empty DSL string (formula/effect mini-language).'));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        artifactId,
+        jsonPath,
+        'must be a non-empty DSL string (formula/effect mini-language).',
+      ),
+    );
     return;
   }
-  runDslChecker(ctx, { expr: value, kind, artifactId, jsonPath, abilities: [...(ctx.abilityIds ?? [])], saves: [...(ctx.saveIds ?? [])] });
+  runDslChecker(ctx, {
+    expr: value,
+    kind,
+    artifactId,
+    jsonPath,
+    abilities: [...(ctx.abilityIds ?? [])],
+    saves: [...(ctx.saveIds ?? [])],
+  });
 }
 
 function runDslChecker(ctx: Ctx, request: DslCheckRequest): void {
@@ -192,7 +266,15 @@ function runDslChecker(ctx: Ctx, request: DslCheckRequest): void {
     cards = ctx.dslChecker(request);
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    cards = [makeErrorCard('E-FORM-01', request.artifactId, request.jsonPath, `dsl checker failed: ${detail}`, request.expr)];
+    cards = [
+      makeErrorCard(
+        'E-FORM-01',
+        request.artifactId,
+        request.jsonPath,
+        `dsl checker failed: ${detail}`,
+        request.expr,
+      ),
+    ];
   }
   for (const card of cards) add(ctx, card);
 }
@@ -213,7 +295,11 @@ function editDistance(a: string, b: string): number {
   for (let i = 1; i <= a.length; i += 1) {
     current[0] = i;
     for (let j = 1; j <= b.length; j += 1) {
-      current[j] = Math.min(previous[j] ?? j, current[j - 1] ?? i, (previous[j - 1] ?? i - 1) + (a[i - 1] === b[j - 1] ? 0 : 1));
+      current[j] = Math.min(
+        previous[j] ?? j,
+        current[j - 1] ?? i,
+        (previous[j - 1] ?? i - 1) + (a[i - 1] === b[j - 1] ? 0 : 1),
+      );
     }
     for (let j = 0; j <= b.length; j += 1) previous[j] = current[j] ?? i;
   }
@@ -328,7 +414,16 @@ function collectTagsInto(ctx: Ctx, value: unknown): void {
 // ---------------------------------------------------------------- pass 2: sections
 
 function checkRootSections(ctx: Ctx, doc: Record<string, unknown>): void {
-  const required = ['manifest', 'stats', 'actions', 'formulas', 'content', 'progression', 'bestiary', 'tables'];
+  const required = [
+    'manifest',
+    'stats',
+    'actions',
+    'formulas',
+    'content',
+    'progression',
+    'bestiary',
+    'tables',
+  ];
   for (const section of required) {
     if (doc[section] === undefined) {
       add(ctx, makeErrorCard('E-SCHEMA-01', section, section, `required section "${section}" is missing.`));
@@ -336,7 +431,15 @@ function checkRootSections(ctx: Ctx, doc: Record<string, unknown>): void {
   }
   for (const key of Object.keys(doc)) {
     if (!required.includes(key) && key !== 'economy') {
-      add(ctx, makeErrorCard('E-SCHEMA-02', key, key, `unknown top-level section "${key}" — the pack document is closed.`));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-02',
+          key,
+          key,
+          `unknown top-level section "${key}" — the pack document is closed.`,
+        ),
+      );
     }
   }
 }
@@ -347,48 +450,108 @@ function checkManifest(ctx: Ctx, value: unknown): void {
     return;
   }
   reqFields(ctx, value, ['id', 'schemaVersion', 'title'], 'manifest', 'manifest');
-  forbidUnknown(ctx, value, ['id', 'schemaVersion', 'title', 'license', 'attribution', 'provenance'], 'manifest', 'manifest');
+  forbidUnknown(
+    ctx,
+    value,
+    ['id', 'schemaVersion', 'title', 'license', 'attribution', 'provenance'],
+    'manifest',
+    'manifest',
+  );
   const id = value['id'];
   if (typeof id === 'string') {
     if (!ID_PATTERN.test(id)) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', id, 'manifest.id', `manifest id "${id}" must match ^[a-z][a-z0-9-]*$.`));
+      add(
+        ctx,
+        makeErrorCard('E-SCHEMA-01', id, 'manifest.id', `manifest id "${id}" must match ^[a-z][a-z0-9-]*$.`),
+      );
     } else {
       registerId(ctx, id, 'manifest.id');
     }
   }
   const version = value['schemaVersion'];
   if (version !== undefined && (!isInteger(version) || version !== 1)) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', 'manifest', 'manifest.schemaVersion', `manifest.schemaVersion must be 1 for this contract layer (got ${JSON.stringify(version) ?? String(version)}).`));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        'manifest',
+        'manifest.schemaVersion',
+        `manifest.schemaVersion must be 1 for this contract layer (got ${JSON.stringify(version) ?? String(version)}).`,
+      ),
+    );
   }
   const title = value['title'];
   if (title !== undefined && (typeof title !== 'string' || title.length < 1)) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', 'manifest', 'manifest.title', 'manifest.title must be a non-empty string.'));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        'manifest',
+        'manifest.title',
+        'manifest.title must be a non-empty string.',
+      ),
+    );
   }
   checkStringField(ctx, value, 'license', 'manifest', 'manifest');
   checkStringField(ctx, value, 'attribution', 'manifest', 'manifest');
   const provenance = value['provenance'];
   if (provenance === undefined) return;
   if (!isPlainObject(provenance)) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', 'manifest', 'manifest.provenance', 'manifest.provenance must be an object {theme, seed, knobs?}.'));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        'manifest',
+        'manifest.provenance',
+        'manifest.provenance must be an object {theme, seed, knobs?}.',
+      ),
+    );
     return;
   }
   reqFields(ctx, provenance, ['theme', 'seed'], 'manifest', 'manifest.provenance');
   forbidUnknown(ctx, provenance, ['theme', 'seed', 'knobs'], 'manifest', 'manifest.provenance');
   if (provenance['theme'] !== undefined && typeof provenance['theme'] !== 'string') {
-    add(ctx, makeErrorCard('E-SCHEMA-01', 'manifest', 'manifest.provenance.theme', 'provenance.theme must be a string.'));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        'manifest',
+        'manifest.provenance.theme',
+        'provenance.theme must be a string.',
+      ),
+    );
   }
   const seed = provenance['seed'];
   if (seed !== undefined && !isInteger(seed) && typeof seed !== 'string') {
-    add(ctx, makeErrorCard('E-SCHEMA-01', 'manifest', 'manifest.provenance.seed', 'provenance.seed must be an integer or a string.'));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        'manifest',
+        'manifest.provenance.seed',
+        'provenance.seed must be an integer or a string.',
+      ),
+    );
   }
   if (provenance['knobs'] !== undefined && !isPlainObject(provenance['knobs'])) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', 'manifest', 'manifest.provenance.knobs', 'provenance.knobs must be an object (recorded knob values, FR-18).'));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        'manifest',
+        'manifest.provenance.knobs',
+        'provenance.knobs must be an object (recorded knob values, FR-18).',
+      ),
+    );
   }
 }
 
 function checkStats(ctx: Ctx, value: unknown): void {
   if (!isPlainObject(value)) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', 'stats', 'stats', 'stats must be an object with abilities and saves.'));
+    add(
+      ctx,
+      makeErrorCard('E-SCHEMA-01', 'stats', 'stats', 'stats must be an object with abilities and saves.'),
+    );
     return;
   }
   reqFields(ctx, value, ['abilities', 'saves'], 'stats', 'stats');
@@ -400,17 +563,41 @@ function checkStats(ctx: Ctx, value: unknown): void {
 /** Structural check of a kebab-id array (stats.abilities / stats.saves). These are name-keyed vocabularies, not artifact ids — they never enter the global uniqueness namespace. Collection semantics happened in pass 1. */
 function checkIdList(ctx: Ctx, value: unknown, artifactId: string, basePath: string): void {
   if (!Array.isArray(value) || value.length < 1) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, basePath, `${basePath} must be a non-empty array of kebab ids (minItems 1).`));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        artifactId,
+        basePath,
+        `${basePath} must be a non-empty array of kebab ids (minItems 1).`,
+      ),
+    );
     return;
   }
   const seen = new Set<string>();
   for (const [index, entry] of value.entries()) {
     if (typeof entry !== 'string' || !ID_PATTERN.test(entry)) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, `${basePath}[${index}]`, `${basePath}[${index}] must match ^[a-z][a-z0-9-]*$.`));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          artifactId,
+          `${basePath}[${index}]`,
+          `${basePath}[${index}] must match ^[a-z][a-z0-9-]*$.`,
+        ),
+      );
       continue;
     }
     if (seen.has(entry)) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, `${basePath}[${index}]`, `${basePath} entries must be unique (uniqueItems) — "${entry}" repeats.`));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          artifactId,
+          `${basePath}[${index}]`,
+          `${basePath} entries must be unique (uniqueItems) — "${entry}" repeats.`,
+        ),
+      );
     }
     seen.add(entry);
   }
@@ -418,25 +605,57 @@ function checkIdList(ctx: Ctx, value: unknown, artifactId: string, basePath: str
 
 function checkCost(ctx: Ctx, value: unknown, artifactId: string, basePath: string): boolean {
   if (!isPlainObject(value)) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, basePath, `${basePath} must be an object declaring at least one cost (slots | points | vancian).`));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        artifactId,
+        basePath,
+        `${basePath} must be an object declaring at least one cost (slots | points | vancian).`,
+      ),
+    );
     return false;
   }
   forbidUnknown(ctx, value, ['slots', 'points', 'vancian'], artifactId, basePath);
   const declared = (['slots', 'points', 'vancian'] as const).filter((field) => value[field] !== undefined);
   if (declared.length === 0) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, basePath, `${basePath} must declare at least one of slots, points, vancian (minProperties 1).`));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        artifactId,
+        basePath,
+        `${basePath} must declare at least one of slots, points, vancian (minProperties 1).`,
+      ),
+    );
     return false;
   }
   let ok = true;
   const slots = value['slots'];
   if (slots !== undefined) {
     if (!isPlainObject(slots) || Object.keys(slots).length < 1) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, `${basePath}.slots`, `${basePath}.slots must be an object with at least one slot name -> integer >= 1.`));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          artifactId,
+          `${basePath}.slots`,
+          `${basePath}.slots must be an object with at least one slot name -> integer >= 1.`,
+        ),
+      );
       ok = false;
     } else {
       for (const [name, amount] of Object.entries(slots)) {
         if (!isInteger(amount) || amount < 1) {
-          add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, `${basePath}.slots.${name}`, `${basePath}.slots.${name} must be an integer >= 1.`));
+          add(
+            ctx,
+            makeErrorCard(
+              'E-SCHEMA-01',
+              artifactId,
+              `${basePath}.slots.${name}`,
+              `${basePath}.slots.${name} must be an integer >= 1.`,
+            ),
+          );
           ok = false;
         }
       }
@@ -446,28 +665,60 @@ function checkCost(ctx: Ctx, value: unknown, artifactId: string, basePath: strin
   const points = value['points'];
   if (points !== undefined) {
     if (!isPlainObject(points)) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, `${basePath}.points`, `${basePath}.points must be an object {pool, amount}.`));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          artifactId,
+          `${basePath}.points`,
+          `${basePath}.points must be an object {pool, amount}.`,
+        ),
+      );
       ok = false;
     } else {
       reqFields(ctx, points, ['pool', 'amount'], artifactId, `${basePath}.points`);
       forbidUnknown(ctx, points, ['pool', 'amount'], artifactId, `${basePath}.points`);
       const pool = points['pool'];
       if (pool !== undefined && (typeof pool !== 'string' || pool.length < 1)) {
-        add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, `${basePath}.points.pool`, `${basePath}.points.pool must be a non-empty pool id.`));
+        add(
+          ctx,
+          makeErrorCard(
+            'E-SCHEMA-01',
+            artifactId,
+            `${basePath}.points.pool`,
+            `${basePath}.points.pool must be a non-empty pool id.`,
+          ),
+        );
         ok = false;
       } else if (typeof pool === 'string') {
         resolvePool(ctx, pool, artifactId, `${basePath}.points.pool`);
       }
       const amount = points['amount'];
       if (amount !== undefined && (!isInteger(amount) || amount < 1)) {
-        add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, `${basePath}.points.amount`, `${basePath}.points.amount must be an integer >= 1.`));
+        add(
+          ctx,
+          makeErrorCard(
+            'E-SCHEMA-01',
+            artifactId,
+            `${basePath}.points.amount`,
+            `${basePath}.points.amount must be an integer >= 1.`,
+          ),
+        );
         ok = false;
       }
     }
   }
   const vancian = value['vancian'];
   if (vancian !== undefined && (!isInteger(vancian) || vancian < 1 || vancian > MAX_SPELL_LEVEL)) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, `${basePath}.vancian`, `${basePath}.vancian must be an integer in 1..${MAX_SPELL_LEVEL} — the level of the BOUND slot it consumes (FR-8).`));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        artifactId,
+        `${basePath}.vancian`,
+        `${basePath}.vancian must be an integer in 1..${MAX_SPELL_LEVEL} — the level of the BOUND slot it consumes (FR-8).`,
+      ),
+    );
     ok = false;
   }
   return ok;
@@ -511,33 +762,69 @@ function resolvePool(ctx: Ctx, pool: string, artifactId: string, jsonPath: strin
   }
 }
 
-function checkTrigger(ctx: Ctx, value: unknown, artifactId: string, basePath: string, onMinLength: number): void {
+function checkTrigger(
+  ctx: Ctx,
+  value: unknown,
+  artifactId: string,
+  basePath: string,
+  onMinLength: number,
+): void {
   if (value === undefined) return; // optional field
   if (!isPlainObject(value)) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, basePath, `${basePath} must be an object {on: eventPattern}.`));
+    add(
+      ctx,
+      makeErrorCard('E-SCHEMA-01', artifactId, basePath, `${basePath} must be an object {on: eventPattern}.`),
+    );
     return;
   }
   reqFields(ctx, value, ['on'], artifactId, basePath);
   forbidUnknown(ctx, value, ['on'], artifactId, basePath);
   const on = value['on'];
   if (on !== undefined && (typeof on !== 'string' || on.length < onMinLength)) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, `${basePath}.on`, `${basePath}.on must be a string of at least ${onMinLength} character(s).`));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        artifactId,
+        `${basePath}.on`,
+        `${basePath}.on must be a string of at least ${onMinLength} character(s).`,
+      ),
+    );
   }
 }
 
 function checkTagsField(ctx: Ctx, value: unknown, artifactId: string, basePath: string): void {
   if (!Array.isArray(value)) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, basePath, `${basePath} must be an array of kebab tag ids.`));
+    add(
+      ctx,
+      makeErrorCard('E-SCHEMA-01', artifactId, basePath, `${basePath} must be an array of kebab tag ids.`),
+    );
     return;
   }
   const seen = new Set<string>();
   for (const [index, tag] of value.entries()) {
     if (typeof tag !== 'string' || !ID_PATTERN.test(tag)) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, `${basePath}[${index}]`, `${basePath}[${index}] must match ^[a-z][a-z0-9-]*$.`));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          artifactId,
+          `${basePath}[${index}]`,
+          `${basePath}[${index}] must match ^[a-z][a-z0-9-]*$.`,
+        ),
+      );
       continue;
     }
     if (seen.has(tag)) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, `${basePath}[${index}]`, `${basePath} entries must be unique (uniqueItems) — "${tag}" repeats.`));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          artifactId,
+          `${basePath}[${index}]`,
+          `${basePath} entries must be unique (uniqueItems) — "${tag}" repeats.`,
+        ),
+      );
     }
     seen.add(tag);
   }
@@ -545,13 +832,19 @@ function checkTagsField(ctx: Ctx, value: unknown, artifactId: string, basePath: 
 
 function checkActions(ctx: Ctx, value: unknown): void {
   if (!isPlainObject(value)) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', 'actions', 'actions', 'actions must be an object keyed by action id.'));
+    add(
+      ctx,
+      makeErrorCard('E-SCHEMA-01', 'actions', 'actions', 'actions must be an object keyed by action id.'),
+    );
     return;
   }
   for (const [id, def] of Object.entries(value)) {
     const basePath = `actions.${id}`;
     if (!ID_PATTERN.test(id)) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', id, basePath, `action map key "${id}" must match ^[a-z][a-z0-9-]*$.`));
+      add(
+        ctx,
+        makeErrorCard('E-SCHEMA-01', id, basePath, `action map key "${id}" must match ^[a-z][a-z0-9-]*$.`),
+      );
       continue;
     }
     registerId(ctx, id, basePath);
@@ -562,7 +855,15 @@ function checkActions(ctx: Ctx, value: unknown): void {
     reqFields(ctx, def, ['cost', 'effect'], id, basePath);
     forbidUnknown(ctx, def, ['cost', 'valid', 'trigger', 'effect', 'tags'], id, basePath);
     if (def['id'] !== undefined && def['id'] !== id) {
-      add(ctx, makeErrorCard('E-SCHEMA-02', id, `${basePath}.id`, `definition repeats id ${JSON.stringify(def['id'])} under map key "${id}" — the map key is the id (map-as-namespace).`));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-02',
+          id,
+          `${basePath}.id`,
+          `definition repeats id ${JSON.stringify(def['id'])} under map key "${id}" — the map key is the id (map-as-namespace).`,
+        ),
+      );
     }
     checkDslField(ctx, def['effect'], 'effect', id, `${basePath}.effect`);
     checkDslField(ctx, def['valid'], 'valid', id, `${basePath}.valid`);
@@ -575,36 +876,74 @@ function checkActions(ctx: Ctx, value: unknown): void {
 function checkEconomy(ctx: Ctx, value: unknown): void {
   if (value === undefined) return; // optional (v1.1): absence = documented engine default at play time
   if (!isPlainObject(value)) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', 'economy', 'economy', 'economy must be an object with a turnSlots grant table.'));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        'economy',
+        'economy',
+        'economy must be an object with a turnSlots grant table.',
+      ),
+    );
     return;
   }
   reqFields(ctx, value, ['turnSlots'], 'economy', 'economy');
   forbidUnknown(ctx, value, ['turnSlots'], 'economy', 'economy');
   const turnSlots = value['turnSlots'];
   if (!isPlainObject(turnSlots) || Object.keys(turnSlots).length < 1) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', 'economy', 'economy.turnSlots', 'economy.turnSlots must be an object with at least one slot name -> integer >= 1.'));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        'economy',
+        'economy.turnSlots',
+        'economy.turnSlots must be an object with at least one slot name -> integer >= 1.',
+      ),
+    );
     return;
   }
   for (const [name, count] of Object.entries(turnSlots)) {
     if (!ID_PATTERN.test(name)) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', 'economy', `economy.turnSlots.${name}`, `slot name "${name}" must match ^[a-z][a-z0-9-]*$.`));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          'economy',
+          `economy.turnSlots.${name}`,
+          `slot name "${name}" must match ^[a-z][a-z0-9-]*$.`,
+        ),
+      );
     }
     if (!isInteger(count) || count < 1) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', 'economy', `economy.turnSlots.${name}`, `economy.turnSlots.${name} must be an integer >= 1 (slots granted per turn, FR-4).`));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          'economy',
+          `economy.turnSlots.${name}`,
+          `economy.turnSlots.${name} must be an integer >= 1 (slots granted per turn, FR-4).`,
+        ),
+      );
     }
   }
 }
 
 function checkFormulas(ctx: Ctx, value: unknown): void {
   if (!isPlainObject(value)) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', 'formulas', 'formulas', 'formulas must be an object keyed by formula id.'));
+    add(
+      ctx,
+      makeErrorCard('E-SCHEMA-01', 'formulas', 'formulas', 'formulas must be an object keyed by formula id.'),
+    );
     return;
   }
   for (const [id, def] of Object.entries(value)) {
     const basePath = `formulas.${id}`;
     registerId(ctx, id, basePath);
     if (!isPlainObject(def)) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', id, basePath, 'formula definition must be an object {expr, params?}.'));
+      add(
+        ctx,
+        makeErrorCard('E-SCHEMA-01', id, basePath, 'formula definition must be an object {expr, params?}.'),
+      );
       continue;
     }
     reqFields(ctx, def, ['expr'], id, basePath);
@@ -613,14 +952,38 @@ function checkFormulas(ctx: Ctx, value: unknown): void {
     const params = def['params'];
     if (params !== undefined) {
       if (!Array.isArray(params)) {
-        add(ctx, makeErrorCard('E-SCHEMA-01', id, `${basePath}.params`, 'params must be an array of parameter names.'));
+        add(
+          ctx,
+          makeErrorCard(
+            'E-SCHEMA-01',
+            id,
+            `${basePath}.params`,
+            'params must be an array of parameter names.',
+          ),
+        );
       } else {
         const seen = new Set<string>();
         for (const [index, param] of params.entries()) {
           if (typeof param !== 'string') {
-            add(ctx, makeErrorCard('E-SCHEMA-01', id, `${basePath}.params[${index}]`, 'params entries must be strings.'));
+            add(
+              ctx,
+              makeErrorCard(
+                'E-SCHEMA-01',
+                id,
+                `${basePath}.params[${index}]`,
+                'params entries must be strings.',
+              ),
+            );
           } else if (seen.has(param)) {
-            add(ctx, makeErrorCard('E-SCHEMA-01', id, `${basePath}.params[${index}]`, `params entries must be unique (uniqueItems) — "${param}" repeats.`));
+            add(
+              ctx,
+              makeErrorCard(
+                'E-SCHEMA-01',
+                id,
+                `${basePath}.params[${index}]`,
+                `params entries must be unique (uniqueItems) — "${param}" repeats.`,
+              ),
+            );
           }
           seen.add(param);
         }
@@ -648,10 +1011,19 @@ function checkFormulas(ctx: Ctx, value: unknown): void {
 
 function checkContent(ctx: Ctx, value: unknown): void {
   if (!isPlainObject(value)) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', 'content', 'content', 'content must be an object of artifact maps.'));
+    add(
+      ctx,
+      makeErrorCard('E-SCHEMA-01', 'content', 'content', 'content must be an object of artifact maps.'),
+    );
     return;
   }
-  forbidUnknown(ctx, value, ['classes', 'races', 'skills', 'feats', 'spells', 'conditions', 'items'], 'content', 'content');
+  forbidUnknown(
+    ctx,
+    value,
+    ['classes', 'races', 'skills', 'feats', 'spells', 'conditions', 'items'],
+    'content',
+    'content',
+  );
   checkClasses(ctx, value['classes']);
   checkRaces(ctx, value['races']);
   checkSkills(ctx, value['skills']);
@@ -664,13 +1036,24 @@ function checkContent(ctx: Ctx, value: unknown): void {
 function checkClasses(ctx: Ctx, value: unknown): void {
   if (value === undefined) return;
   if (!isPlainObject(value)) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', 'content.classes', 'content.classes', 'content.classes must be an object keyed by class id.'));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        'content.classes',
+        'content.classes',
+        'content.classes must be an object keyed by class id.',
+      ),
+    );
     return;
   }
   for (const [id, def] of Object.entries(value)) {
     const basePath = `content.classes.${id}`;
     if (!ID_PATTERN.test(id)) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', id, basePath, `class map key "${id}" must match ^[a-z][a-z0-9-]*$.`));
+      add(
+        ctx,
+        makeErrorCard('E-SCHEMA-01', id, basePath, `class map key "${id}" must match ^[a-z][a-z0-9-]*$.`),
+      );
       continue;
     }
     registerId(ctx, id, basePath);
@@ -686,22 +1069,49 @@ function checkClasses(ctx: Ctx, value: unknown): void {
     const features = def['features'];
     if (features !== undefined) {
       if (!Array.isArray(features)) {
-        add(ctx, makeErrorCard('E-SCHEMA-01', id, `${basePath}.features`, 'features must be an array of {level, ref}.'));
+        add(
+          ctx,
+          makeErrorCard(
+            'E-SCHEMA-01',
+            id,
+            `${basePath}.features`,
+            'features must be an array of {level, ref}.',
+          ),
+        );
       } else {
         for (const [index, feature] of features.entries()) {
           const featurePath = `${basePath}.features[${index}]`;
           if (!isPlainObject(feature)) {
-            add(ctx, makeErrorCard('E-SCHEMA-01', id, featurePath, 'feature must be an object {level, ref}.'));
+            add(
+              ctx,
+              makeErrorCard('E-SCHEMA-01', id, featurePath, 'feature must be an object {level, ref}.'),
+            );
             continue;
           }
           reqFields(ctx, feature, ['level', 'ref'], id, featurePath);
           forbidUnknown(ctx, feature, ['level', 'ref'], id, featurePath);
           const level = feature['level'];
           if (level !== undefined && (!isInteger(level) || level < 1)) {
-            add(ctx, makeErrorCard('E-SCHEMA-01', id, `${featurePath}.level`, 'feature.level must be an integer >= 1.'));
+            add(
+              ctx,
+              makeErrorCard(
+                'E-SCHEMA-01',
+                id,
+                `${featurePath}.level`,
+                'feature.level must be an integer >= 1.',
+              ),
+            );
           }
           if (feature['ref'] !== undefined && typeof feature['ref'] !== 'string') {
-            add(ctx, makeErrorCard('E-SCHEMA-01', id, `${featurePath}.ref`, 'feature.ref must be a string (the feature artifact id).'));
+            add(
+              ctx,
+              makeErrorCard(
+                'E-SCHEMA-01',
+                id,
+                `${featurePath}.ref`,
+                'feature.ref must be a string (the feature artifact id).',
+              ),
+            );
           }
         }
       }
@@ -714,18 +1124,32 @@ function checkClasses(ctx: Ctx, value: unknown): void {
 function checkClassActions(ctx: Ctx, value: unknown, classId: string, basePath: string): void {
   if (value === undefined) return;
   if (!Array.isArray(value)) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', classId, basePath, `${basePath} must be an array of unique action ids.`));
+    add(
+      ctx,
+      makeErrorCard('E-SCHEMA-01', classId, basePath, `${basePath} must be an array of unique action ids.`),
+    );
     return;
   }
   const seen = new Set<string>();
   for (const [index, actionId] of value.entries()) {
     const entryPath = `${basePath}[${index}]`;
     if (typeof actionId !== 'string' || !ID_PATTERN.test(actionId)) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', classId, entryPath, `${entryPath} must match ^[a-z][a-z0-9-]*$.`));
+      add(
+        ctx,
+        makeErrorCard('E-SCHEMA-01', classId, entryPath, `${entryPath} must match ^[a-z][a-z0-9-]*$.`),
+      );
       continue;
     }
     if (seen.has(actionId)) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', classId, entryPath, `${basePath} entries must be unique (uniqueItems) — "${actionId}" repeats.`));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          classId,
+          entryPath,
+          `${basePath} entries must be unique (uniqueItems) — "${actionId}" repeats.`,
+        ),
+      );
       continue;
     }
     seen.add(actionId);
@@ -738,7 +1162,9 @@ function checkClassActions(ctx: Ctx, value: unknown, classId: string, basePath: 
           classId,
           entryPath,
           `class "${classId}" grants action "${actionId}", which is not declared in actions — characters ride the same action machinery as statblocks (FR-16).`,
-          near === undefined ? `declared actions: ${[...ctx.actionIds].sort().join(', ') || '(none)'}` : `did you mean "${near}"?`,
+          near === undefined
+            ? `declared actions: ${[...ctx.actionIds].sort().join(', ') || '(none)'}`
+            : `did you mean "${near}"?`,
         ),
       );
     }
@@ -753,7 +1179,15 @@ function checkStringArray(ctx: Ctx, value: unknown, artifactId: string, basePath
   }
   for (const [index, entry] of value.entries()) {
     if (typeof entry !== 'string') {
-      add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, `${basePath}[${index}]`, `${basePath}[${index}] must be a string.`));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          artifactId,
+          `${basePath}[${index}]`,
+          `${basePath}[${index}] must be a string.`,
+        ),
+      );
     }
   }
 }
@@ -761,13 +1195,24 @@ function checkStringArray(ctx: Ctx, value: unknown, artifactId: string, basePath
 function checkRaces(ctx: Ctx, value: unknown): void {
   if (value === undefined) return;
   if (!isPlainObject(value)) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', 'content.races', 'content.races', 'content.races must be an object keyed by race id.'));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        'content.races',
+        'content.races',
+        'content.races must be an object keyed by race id.',
+      ),
+    );
     return;
   }
   for (const [id, def] of Object.entries(value)) {
     const basePath = `content.races.${id}`;
     if (!ID_PATTERN.test(id)) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', id, basePath, `race map key "${id}" must match ^[a-z][a-z0-9-]*$.`));
+      add(
+        ctx,
+        makeErrorCard('E-SCHEMA-01', id, basePath, `race map key "${id}" must match ^[a-z][a-z0-9-]*$.`),
+      );
       continue;
     }
     registerId(ctx, id, basePath);
@@ -781,11 +1226,27 @@ function checkRaces(ctx: Ctx, value: unknown): void {
     const caps = def['caps'];
     if (caps !== undefined) {
       if (!isPlainObject(caps)) {
-        add(ctx, makeErrorCard('E-SCHEMA-01', id, `${basePath}.caps`, 'caps must be an object classId -> max level.'));
+        add(
+          ctx,
+          makeErrorCard(
+            'E-SCHEMA-01',
+            id,
+            `${basePath}.caps`,
+            'caps must be an object classId -> max level.',
+          ),
+        );
       } else {
         for (const [classId, maxLevel] of Object.entries(caps)) {
           if (!isInteger(maxLevel) || maxLevel < 1) {
-            add(ctx, makeErrorCard('E-SCHEMA-01', id, `${basePath}.caps.${classId}`, `${basePath}.caps.${classId} must be an integer >= 1.`));
+            add(
+              ctx,
+              makeErrorCard(
+                'E-SCHEMA-01',
+                id,
+                `${basePath}.caps.${classId}`,
+                `${basePath}.caps.${classId} must be an integer >= 1.`,
+              ),
+            );
           }
           if (ctx.classIds !== null && !ctx.classIds.has(classId)) {
             const near = nearestId(classId, ctx.classIds);
@@ -796,7 +1257,9 @@ function checkRaces(ctx: Ctx, value: unknown): void {
                 id,
                 `${basePath}.caps.${classId}`,
                 `race "${id}" declares a level cap for class "${classId}", which is not in the class table.`,
-                near === undefined ? `known classes: ${[...ctx.classIds].sort().join(', ') || '(none)'}` : `did you mean "${near}"?`,
+                near === undefined
+                  ? `known classes: ${[...ctx.classIds].sort().join(', ') || '(none)'}`
+                  : `did you mean "${near}"?`,
               ),
             );
           }
@@ -805,7 +1268,15 @@ function checkRaces(ctx: Ctx, value: unknown): void {
     }
     const size = def['size'];
     if (size !== undefined && size !== 'small' && size !== 'medium' && size !== 'large') {
-      add(ctx, makeErrorCard('E-SCHEMA-01', id, `${basePath}.size`, 'size must be one of "small" | "medium" | "large" (defaults medium; documented no-op for adjacency in v1).'));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          id,
+          `${basePath}.size`,
+          'size must be one of "small" | "medium" | "large" (defaults medium; documented no-op for adjacency in v1).',
+        ),
+      );
     }
   }
 }
@@ -813,13 +1284,24 @@ function checkRaces(ctx: Ctx, value: unknown): void {
 function checkSkills(ctx: Ctx, value: unknown): void {
   if (value === undefined) return;
   if (!isPlainObject(value)) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', 'content.skills', 'content.skills', 'content.skills must be an object keyed by skill id.'));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        'content.skills',
+        'content.skills',
+        'content.skills must be an object keyed by skill id.',
+      ),
+    );
     return;
   }
   for (const [id, def] of Object.entries(value)) {
     const basePath = `content.skills.${id}`;
     if (!ID_PATTERN.test(id)) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', id, basePath, `skill map key "${id}" must match ^[a-z][a-z0-9-]*$.`));
+      add(
+        ctx,
+        makeErrorCard('E-SCHEMA-01', id, basePath, `skill map key "${id}" must match ^[a-z][a-z0-9-]*$.`),
+      );
       continue;
     }
     registerId(ctx, id, basePath);
@@ -832,7 +1314,15 @@ function checkSkills(ctx: Ctx, value: unknown): void {
     checkStringField(ctx, def, 'name', id, basePath, 1);
     const ability = def['ability'];
     if (ability !== undefined && typeof ability !== 'string') {
-      add(ctx, makeErrorCard('E-SCHEMA-01', id, `${basePath}.ability`, 'ability must be a string naming an ability in stats.abilities.'));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          id,
+          `${basePath}.ability`,
+          'ability must be a string naming an ability in stats.abilities.',
+        ),
+      );
     } else if (typeof ability === 'string' && ctx.abilityIds !== null && !ctx.abilityIds.has(ability)) {
       const near = nearestId(ability, ctx.abilityIds);
       add(
@@ -842,7 +1332,9 @@ function checkSkills(ctx: Ctx, value: unknown): void {
           id,
           `${basePath}.ability`,
           `skill "${id}" references ability "${ability}", which is not declared in stats.abilities.`,
-          near === undefined ? `this pack's abilities: ${[...(ctx.abilityIds ?? [])].sort().join(', ') || '(none)'}` : `did you mean "${near}"?`,
+          near === undefined
+            ? `this pack's abilities: ${[...(ctx.abilityIds ?? [])].sort().join(', ') || '(none)'}`
+            : `did you mean "${near}"?`,
         ),
       );
     }
@@ -852,13 +1344,24 @@ function checkSkills(ctx: Ctx, value: unknown): void {
 function checkFeats(ctx: Ctx, value: unknown): void {
   if (value === undefined) return;
   if (!isPlainObject(value)) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', 'content.feats', 'content.feats', 'content.feats must be an object keyed by feat id.'));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        'content.feats',
+        'content.feats',
+        'content.feats must be an object keyed by feat id.',
+      ),
+    );
     return;
   }
   for (const [id, def] of Object.entries(value)) {
     const basePath = `content.feats.${id}`;
     if (!ID_PATTERN.test(id)) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', id, basePath, `feat map key "${id}" must match ^[a-z][a-z0-9-]*$.`));
+      add(
+        ctx,
+        makeErrorCard('E-SCHEMA-01', id, basePath, `feat map key "${id}" must match ^[a-z][a-z0-9-]*$.`),
+      );
       continue;
     }
     registerId(ctx, id, basePath);
@@ -878,13 +1381,24 @@ function checkFeats(ctx: Ctx, value: unknown): void {
 function checkSpells(ctx: Ctx, value: unknown): void {
   if (value === undefined) return;
   if (!isPlainObject(value)) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', 'content.spells', 'content.spells', 'content.spells must be an object keyed by spell id.'));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        'content.spells',
+        'content.spells',
+        'content.spells must be an object keyed by spell id.',
+      ),
+    );
     return;
   }
   for (const [id, def] of Object.entries(value)) {
     const basePath = `content.spells.${id}`;
     if (!ID_PATTERN.test(id)) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', id, basePath, `spell map key "${id}" must match ^[a-z][a-z0-9-]*$.`));
+      add(
+        ctx,
+        makeErrorCard('E-SCHEMA-01', id, basePath, `spell map key "${id}" must match ^[a-z][a-z0-9-]*$.`),
+      );
       continue;
     }
     registerId(ctx, id, basePath);
@@ -900,22 +1414,49 @@ function checkSpells(ctx: Ctx, value: unknown): void {
     const magic = def['magic'];
     if (magic !== undefined) {
       if (!isPlainObject(magic)) {
-        add(ctx, makeErrorCard('E-SCHEMA-01', id, `${basePath}.magic`, 'magic must be an object {level, lists}.'));
+        add(
+          ctx,
+          makeErrorCard('E-SCHEMA-01', id, `${basePath}.magic`, 'magic must be an object {level, lists}.'),
+        );
       } else {
         reqFields(ctx, magic, ['level', 'lists'], id, `${basePath}.magic`);
         forbidUnknown(ctx, magic, ['level', 'lists'], id, `${basePath}.magic`);
         const level = magic['level'];
         if (level !== undefined && (!isInteger(level) || level < 1 || level > MAX_SPELL_LEVEL)) {
-          add(ctx, makeErrorCard('E-SCHEMA-01', id, `${basePath}.magic.level`, `magic.level must be an integer in 1..${MAX_SPELL_LEVEL}.`));
+          add(
+            ctx,
+            makeErrorCard(
+              'E-SCHEMA-01',
+              id,
+              `${basePath}.magic.level`,
+              `magic.level must be an integer in 1..${MAX_SPELL_LEVEL}.`,
+            ),
+          );
         }
         const lists = magic['lists'];
         if (lists !== undefined) {
           if (!Array.isArray(lists) || lists.length < 1) {
-            add(ctx, makeErrorCard('E-SCHEMA-01', id, `${basePath}.magic.lists`, 'magic.lists must be a non-empty array of class ids (minItems 1).'));
+            add(
+              ctx,
+              makeErrorCard(
+                'E-SCHEMA-01',
+                id,
+                `${basePath}.magic.lists`,
+                'magic.lists must be a non-empty array of class ids (minItems 1).',
+              ),
+            );
           } else {
             for (const [index, list] of lists.entries()) {
               if (typeof list !== 'string') {
-                add(ctx, makeErrorCard('E-SCHEMA-01', id, `${basePath}.magic.lists[${index}]`, 'magic.lists entries must be class id strings.'));
+                add(
+                  ctx,
+                  makeErrorCard(
+                    'E-SCHEMA-01',
+                    id,
+                    `${basePath}.magic.lists[${index}]`,
+                    'magic.lists entries must be class id strings.',
+                  ),
+                );
               } else if (ctx.classIds !== null && !ctx.classIds.has(list)) {
                 const near = nearestId(list, ctx.classIds);
                 add(
@@ -925,7 +1466,9 @@ function checkSpells(ctx: Ctx, value: unknown): void {
                     id,
                     `${basePath}.magic.lists[${index}]`,
                     `spell "${id}" claims list membership in class "${list}", which is not declared in content.classes.`,
-                    near === undefined ? `known classes: ${[...ctx.classIds].sort().join(', ') || '(none)'}` : `did you mean "${near}"?`,
+                    near === undefined
+                      ? `known classes: ${[...ctx.classIds].sort().join(', ') || '(none)'}`
+                      : `did you mean "${near}"?`,
                   ),
                 );
               }
@@ -945,37 +1488,78 @@ function checkSpells(ctx: Ctx, value: unknown): void {
 /** Structural conditional (v1): radius is required iff shape is "burst" — and meaningless (forbidden) otherwise. */
 function checkTargeting(ctx: Ctx, value: unknown, artifactId: string, basePath: string): void {
   if (!isPlainObject(value)) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, basePath, 'targeting must be an object {shape, radius?}.'));
+    add(
+      ctx,
+      makeErrorCard('E-SCHEMA-01', artifactId, basePath, 'targeting must be an object {shape, radius?}.'),
+    );
     return;
   }
   reqFields(ctx, value, ['shape'], artifactId, basePath);
   forbidUnknown(ctx, value, ['shape', 'radius'], artifactId, basePath);
   const shape = value['shape'];
   if (shape !== undefined && shape !== 'single' && shape !== 'burst') {
-    add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, `${basePath}.shape`, 'shape must be "single" or "burst" (v1 shapes only; cone/line deferred as engine geometry, FR-11).'));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        artifactId,
+        `${basePath}.shape`,
+        'shape must be "single" or "burst" (v1 shapes only; cone/line deferred as engine geometry, FR-11).',
+      ),
+    );
   }
   const radius = value['radius'];
   if (radius !== undefined && (!isInteger(radius) || radius < 1)) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, `${basePath}.radius`, 'radius must be an integer >= 1.'));
+    add(
+      ctx,
+      makeErrorCard('E-SCHEMA-01', artifactId, `${basePath}.radius`, 'radius must be an integer >= 1.'),
+    );
   }
   if (shape === 'burst' && radius === undefined) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, `${basePath}.radius`, 'shape "burst" requires a radius (radius iff burst).'));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        artifactId,
+        `${basePath}.radius`,
+        'shape "burst" requires a radius (radius iff burst).',
+      ),
+    );
   }
   if (shape === 'single' && radius !== undefined) {
-    add(ctx, makeErrorCard('E-SCHEMA-02', artifactId, `${basePath}.radius`, 'radius is only valid for shape "burst" — a single-target effect has no area.'));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-02',
+        artifactId,
+        `${basePath}.radius`,
+        'radius is only valid for shape "burst" — a single-target effect has no area.',
+      ),
+    );
   }
 }
 
 function checkConditions(ctx: Ctx, value: unknown): void {
   if (value === undefined) return;
   if (!isPlainObject(value)) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', 'content.conditions', 'content.conditions', 'content.conditions must be an object keyed by condition id.'));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        'content.conditions',
+        'content.conditions',
+        'content.conditions must be an object keyed by condition id.',
+      ),
+    );
     return;
   }
   for (const [id, def] of Object.entries(value)) {
     const basePath = `content.conditions.${id}`;
     if (!ID_PATTERN.test(id)) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', id, basePath, `condition map key "${id}" must match ^[a-z][a-z0-9-]*$.`));
+      add(
+        ctx,
+        makeErrorCard('E-SCHEMA-01', id, basePath, `condition map key "${id}" must match ^[a-z][a-z0-9-]*$.`),
+      );
       continue;
     }
     registerId(ctx, id, basePath);
@@ -992,11 +1576,27 @@ function checkConditions(ctx: Ctx, value: unknown): void {
     }
     const stacking = def['stacking'];
     if (stacking !== undefined && stacking !== 'refresh' && stacking !== 'stack' && stacking !== 'ignore') {
-      add(ctx, makeErrorCard('E-SCHEMA-01', id, `${basePath}.stacking`, 'stacking must be one of "refresh" | "stack" | "ignore" (pack-declared policy, FR-7).'));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          id,
+          `${basePath}.stacking`,
+          'stacking must be one of "refresh" | "stack" | "ignore" (pack-declared policy, FR-7).',
+        ),
+      );
     }
     const restricts = def['restricts'];
     if (restricts !== undefined && !Array.isArray(restricts)) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', id, `${basePath}.restricts`, 'restricts must be an array of action tag patterns.'));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          id,
+          `${basePath}.restricts`,
+          'restricts must be an array of action tag patterns.',
+        ),
+      );
     }
   }
 }
@@ -1004,13 +1604,24 @@ function checkConditions(ctx: Ctx, value: unknown): void {
 function checkItems(ctx: Ctx, value: unknown): void {
   if (value === undefined) return;
   if (!isPlainObject(value)) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', 'content.items', 'content.items', 'content.items must be an object keyed by item id.'));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        'content.items',
+        'content.items',
+        'content.items must be an object keyed by item id.',
+      ),
+    );
     return;
   }
   for (const [id, def] of Object.entries(value)) {
     const basePath = `content.items.${id}`;
     if (!ID_PATTERN.test(id)) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', id, basePath, `item map key "${id}" must match ^[a-z][a-z0-9-]*$.`));
+      add(
+        ctx,
+        makeErrorCard('E-SCHEMA-01', id, basePath, `item map key "${id}" must match ^[a-z][a-z0-9-]*$.`),
+      );
       continue;
     }
     registerId(ctx, id, basePath);
@@ -1028,13 +1639,29 @@ function checkItems(ctx: Ctx, value: unknown): void {
 function checkProgression(ctx: Ctx, value: unknown): void {
   if (value === undefined) return; // absence handled by root + E-REF-03
   if (!isPlainObject(value)) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', 'progression', 'progression', 'progression must be an object keyed by class id.'));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        'progression',
+        'progression',
+        'progression must be an object keyed by class id.',
+      ),
+    );
     return;
   }
   for (const [classId, prog] of Object.entries(value)) {
     const basePath = `progression.${classId}`;
     if (!ID_PATTERN.test(classId)) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', classId, basePath, `progression map key "${classId}" must match ^[a-z][a-z0-9-]*$.`));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          classId,
+          basePath,
+          `progression map key "${classId}" must match ^[a-z][a-z0-9-]*$.`,
+        ),
+      );
       continue;
     }
     // progression is keyed BY class id — it is the class's own table, not a second artifact; pairing is E-REF-03's duty
@@ -1046,15 +1673,34 @@ function checkProgression(ctx: Ctx, value: unknown): void {
     forbidUnknown(ctx, prog, ['hd', 'attackTable', 'attackBonus', 'saves', 'slots'], classId, basePath);
     const hd = prog['hd'];
     if (hd !== undefined && !HD_DICE.includes(hd as string)) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', classId, `${basePath}.hd`, `hd must be one of ${HD_DICE.join(' | ')}.`));
+      add(
+        ctx,
+        makeErrorCard('E-SCHEMA-01', classId, `${basePath}.hd`, `hd must be one of ${HD_DICE.join(' | ')}.`),
+      );
     }
     // XOR rule (FR-3): exactly one attack convention per class.
     const hasTable = prog['attackTable'] !== undefined;
     const hasBonus = prog['attackBonus'] !== undefined;
     if (hasTable && hasBonus) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', classId, basePath, 'progression declares both attackTable and attackBonus — exactly one attack convention per class (XOR rule, FR-3).'));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          classId,
+          basePath,
+          'progression declares both attackTable and attackBonus — exactly one attack convention per class (XOR rule, FR-3).',
+        ),
+      );
     } else if (!hasTable && !hasBonus) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', classId, basePath, 'progression declares neither attackTable nor attackBonus — exactly one attack convention per class is required (XOR rule, FR-3).'));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          classId,
+          basePath,
+          'progression declares neither attackTable nor attackBonus — exactly one attack convention per class is required (XOR rule, FR-3).',
+        ),
+      );
     }
     if (hasTable) {
       checkAttackTable(ctx, prog['attackTable'], classId, `${basePath}.attackTable`);
@@ -1065,10 +1711,24 @@ function checkProgression(ctx: Ctx, value: unknown): void {
     const saves = prog['saves'];
     if (isPlainObject(saves)) {
       if (Object.keys(saves).length < 1) {
-        add(ctx, makeErrorCard('E-SCHEMA-01', classId, `${basePath}.saves`, 'saves must declare at least one save progression (minProperties 1).'));
+        add(
+          ctx,
+          makeErrorCard(
+            'E-SCHEMA-01',
+            classId,
+            `${basePath}.saves`,
+            'saves must declare at least one save progression (minProperties 1).',
+          ),
+        );
       }
       for (const [saveName, values] of Object.entries(saves)) {
-        checkIntegerArray(ctx, values, classId, `${basePath}.saves.${saveName}`, `save progression "${saveName}"`);
+        checkIntegerArray(
+          ctx,
+          values,
+          classId,
+          `${basePath}.saves.${saveName}`,
+          `save progression "${saveName}"`,
+        );
         if (ctx.saveIds !== null && !ctx.saveIds.has(saveName)) {
           const near = nearestId(saveName, ctx.saveIds);
           add(
@@ -1078,7 +1738,9 @@ function checkProgression(ctx: Ctx, value: unknown): void {
               classId,
               `${basePath}.saves.${saveName}`,
               `progression save "${saveName}" is not declared in stats.saves — the pack declares which saves exist (FR-5).`,
-              near === undefined ? `declared saves: ${[...(ctx.saveIds ?? [])].sort().join(', ') || '(none)'}` : `did you mean "${near}"?`,
+              near === undefined
+                ? `declared saves: ${[...(ctx.saveIds ?? [])].sort().join(', ') || '(none)'}`
+                : `did you mean "${near}"?`,
             ),
           );
         }
@@ -1087,10 +1749,25 @@ function checkProgression(ctx: Ctx, value: unknown): void {
     const slots = prog['slots'];
     if (slots !== undefined) {
       if (!isPlainObject(slots)) {
-        add(ctx, makeErrorCard('E-SCHEMA-01', classId, `${basePath}.slots`, 'slots must be an object spellLevel -> per-class-level slot counts.'));
+        add(
+          ctx,
+          makeErrorCard(
+            'E-SCHEMA-01',
+            classId,
+            `${basePath}.slots`,
+            'slots must be an object spellLevel -> per-class-level slot counts.',
+          ),
+        );
       } else {
         for (const [level, values] of Object.entries(slots)) {
-          checkIntegerArray(ctx, values, classId, `${basePath}.slots.${level}`, `vancian slot table for spell level ${level}`, 0);
+          checkIntegerArray(
+            ctx,
+            values,
+            classId,
+            `${basePath}.slots.${level}`,
+            `vancian slot table for spell level ${level}`,
+            0,
+          );
         }
       }
     }
@@ -1099,29 +1776,69 @@ function checkProgression(ctx: Ctx, value: unknown): void {
 
 function checkAttackTable(ctx: Ctx, value: unknown, artifactId: string, basePath: string): void {
   if (!Array.isArray(value) || value.length < 1) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, basePath, 'attackTable must be a non-empty array of {level, byDefense} rows.'));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        artifactId,
+        basePath,
+        'attackTable must be a non-empty array of {level, byDefense} rows.',
+      ),
+    );
     return;
   }
   for (const [index, row] of value.entries()) {
     const rowPath = `${basePath}[${index}]`;
     if (!isPlainObject(row)) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, rowPath, 'attack table row must be an object {level, byDefense}.'));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          artifactId,
+          rowPath,
+          'attack table row must be an object {level, byDefense}.',
+        ),
+      );
       continue;
     }
     reqFields(ctx, row, ['level', 'byDefense'], artifactId, rowPath);
     forbidUnknown(ctx, row, ['level', 'byDefense'], artifactId, rowPath);
     const level = row['level'];
     if (level !== undefined && (!isInteger(level) || level < 1 || level > MAX_ATTACK_TABLE_LEVEL)) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, `${rowPath}.level`, `attack table level must be an integer in 1..${MAX_ATTACK_TABLE_LEVEL}.`));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          artifactId,
+          `${rowPath}.level`,
+          `attack table level must be an integer in 1..${MAX_ATTACK_TABLE_LEVEL}.`,
+        ),
+      );
     }
     const byDefense = row['byDefense'];
     if (byDefense !== undefined) {
       if (!isPlainObject(byDefense) || Object.keys(byDefense).length < 1) {
-        add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, `${rowPath}.byDefense`, 'byDefense must be an object with at least one defenseValue -> toHit entry.'));
+        add(
+          ctx,
+          makeErrorCard(
+            'E-SCHEMA-01',
+            artifactId,
+            `${rowPath}.byDefense`,
+            'byDefense must be an object with at least one defenseValue -> toHit entry.',
+          ),
+        );
       } else {
         for (const [defense, toHit] of Object.entries(byDefense)) {
           if (!isInteger(toHit)) {
-            add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, `${rowPath}.byDefense.${defense}`, 'byDefense values (to-hit) must be integers; defense keys are pack convention (FR-3).'));
+            add(
+              ctx,
+              makeErrorCard(
+                'E-SCHEMA-01',
+                artifactId,
+                `${rowPath}.byDefense.${defense}`,
+                'byDefense values (to-hit) must be integers; defense keys are pack convention (FR-3).',
+              ),
+            );
           }
         }
       }
@@ -1129,27 +1846,56 @@ function checkAttackTable(ctx: Ctx, value: unknown, artifactId: string, basePath
   }
 }
 
-function checkIntegerArray(ctx: Ctx, value: unknown, artifactId: string, basePath: string, label: string, minimum = Number.NEGATIVE_INFINITY): void {
+function checkIntegerArray(
+  ctx: Ctx,
+  value: unknown,
+  artifactId: string,
+  basePath: string,
+  label: string,
+  minimum = Number.NEGATIVE_INFINITY,
+): void {
   if (!Array.isArray(value) || value.length < 1) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, basePath, `${label} must be a non-empty array of integers (minItems 1).`));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        artifactId,
+        basePath,
+        `${label} must be a non-empty array of integers (minItems 1).`,
+      ),
+    );
     return;
   }
   for (const [index, entry] of value.entries()) {
     if (!isInteger(entry) || entry < minimum) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, `${basePath}[${index}]`, `${label} entries must be integers${minimum === Number.NEGATIVE_INFINITY ? '' : ` >= ${minimum}`}.`));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          artifactId,
+          `${basePath}[${index}]`,
+          `${label} entries must be integers${minimum === Number.NEGATIVE_INFINITY ? '' : ` >= ${minimum}`}.`,
+        ),
+      );
     }
   }
 }
 
 function checkBestiary(ctx: Ctx, value: unknown): void {
   if (!isPlainObject(value)) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', 'bestiary', 'bestiary', 'bestiary must be an object keyed by monster id.'));
+    add(
+      ctx,
+      makeErrorCard('E-SCHEMA-01', 'bestiary', 'bestiary', 'bestiary must be an object keyed by monster id.'),
+    );
     return;
   }
   for (const [id, block] of Object.entries(value)) {
     const basePath = `bestiary.${id}`;
     if (!ID_PATTERN.test(id)) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', id, basePath, `bestiary map key "${id}" must match ^[a-z][a-z0-9-]*$.`));
+      add(
+        ctx,
+        makeErrorCard('E-SCHEMA-01', id, basePath, `bestiary map key "${id}" must match ^[a-z][a-z0-9-]*$.`),
+      );
       continue;
     }
     registerId(ctx, id, basePath);
@@ -1158,11 +1904,25 @@ function checkBestiary(ctx: Ctx, value: unknown): void {
       continue;
     }
     reqFields(ctx, block, ['name', 'threat', 'actions'], id, basePath);
-    forbidUnknown(ctx, block, ['name', 'threat', 'level', 'hd', 'abilityOverrides', 'saveOverrides', 'attackTable', 'actions'], id, basePath);
+    forbidUnknown(
+      ctx,
+      block,
+      ['name', 'threat', 'level', 'hd', 'abilityOverrides', 'saveOverrides', 'attackTable', 'actions'],
+      id,
+      basePath,
+    );
     checkStringField(ctx, block, 'name', id, basePath, 1);
     const threat = block['threat'];
     if (threat !== undefined && (typeof threat !== 'number' || Number.isNaN(threat) || threat <= 0)) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', id, `${basePath}.threat`, 'threat must be a number > 0 (the FR-16 budget weight).'));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          id,
+          `${basePath}.threat`,
+          'threat must be a number > 0 (the FR-16 budget weight).',
+        ),
+      );
     }
     const level = block['level'];
     if (level !== undefined && (!isInteger(level) || level < 1)) {
@@ -1170,14 +1930,25 @@ function checkBestiary(ctx: Ctx, value: unknown): void {
     }
     const hd = block['hd'];
     if (hd !== undefined && !HD_DICE.includes(hd as string)) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', id, `${basePath}.hd`, `hd must be one of ${HD_DICE.join(' | ')}.`));
+      add(
+        ctx,
+        makeErrorCard('E-SCHEMA-01', id, `${basePath}.hd`, `hd must be one of ${HD_DICE.join(' | ')}.`),
+      );
     }
     checkOverrides(ctx, block['abilityOverrides'], id, `${basePath}.abilityOverrides`, 'abilityOverrides');
     checkOverrides(ctx, block['saveOverrides'], id, `${basePath}.saveOverrides`, 'saveOverrides');
     const attackTable = block['attackTable'];
     if (attackTable !== undefined) {
       if (typeof attackTable !== 'string') {
-        add(ctx, makeErrorCard('E-SCHEMA-01', id, `${basePath}.attackTable`, 'attackTable must be a string referencing a progression attack table.'));
+        add(
+          ctx,
+          makeErrorCard(
+            'E-SCHEMA-01',
+            id,
+            `${basePath}.attackTable`,
+            'attackTable must be a string referencing a progression attack table.',
+          ),
+        );
       } else if (ctx.progressionIds !== null && !ctx.progressionIds.has(attackTable)) {
         const near = nearestId(attackTable, ctx.progressionIds);
         add(
@@ -1187,7 +1958,9 @@ function checkBestiary(ctx: Ctx, value: unknown): void {
             id,
             `${basePath}.attackTable`,
             `statblock "${id}" references attack table "${attackTable}", which is not a progression entry in this pack.`,
-            near === undefined ? `known progressions: ${[...ctx.progressionIds].sort().join(', ') || '(none)'}` : `did you mean "${near}"?`,
+            near === undefined
+              ? `known progressions: ${[...ctx.progressionIds].sort().join(', ') || '(none)'}`
+              : `did you mean "${near}"?`,
           ),
         );
       }
@@ -1195,11 +1968,27 @@ function checkBestiary(ctx: Ctx, value: unknown): void {
     const actions = block['actions'];
     if (actions !== undefined) {
       if (!Array.isArray(actions) || actions.length < 1) {
-        add(ctx, makeErrorCard('E-SCHEMA-01', id, `${basePath}.actions`, 'actions must be a non-empty array of action ids (minItems 1).'));
+        add(
+          ctx,
+          makeErrorCard(
+            'E-SCHEMA-01',
+            id,
+            `${basePath}.actions`,
+            'actions must be a non-empty array of action ids (minItems 1).',
+          ),
+        );
       } else {
         for (const [index, actionId] of actions.entries()) {
           if (typeof actionId !== 'string') {
-            add(ctx, makeErrorCard('E-SCHEMA-01', id, `${basePath}.actions[${index}]`, 'actions entries must be action id strings.'));
+            add(
+              ctx,
+              makeErrorCard(
+                'E-SCHEMA-01',
+                id,
+                `${basePath}.actions[${index}]`,
+                'actions entries must be action id strings.',
+              ),
+            );
           } else if (ctx.actionIds !== null && !ctx.actionIds.has(actionId)) {
             const near = nearestId(actionId, ctx.actionIds);
             add(
@@ -1209,7 +1998,9 @@ function checkBestiary(ctx: Ctx, value: unknown): void {
                 id,
                 `${basePath}.actions[${index}]`,
                 `statblock "${id}" uses action "${actionId}", which is not declared in actions — monsters ride the same action machinery as characters (FR-16).`,
-                near === undefined ? `declared actions: ${[...ctx.actionIds].sort().join(', ') || '(none)'}` : `did you mean "${near}"?`,
+                near === undefined
+                  ? `declared actions: ${[...ctx.actionIds].sort().join(', ') || '(none)'}`
+                  : `did you mean "${near}"?`,
               ),
             );
           }
@@ -1222,12 +2013,28 @@ function checkBestiary(ctx: Ctx, value: unknown): void {
 function checkOverrides(ctx: Ctx, value: unknown, artifactId: string, basePath: string, label: string): void {
   if (value === undefined) return;
   if (!isPlainObject(value)) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, basePath, `${label} must be an object of name -> integer override.`));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        artifactId,
+        basePath,
+        `${label} must be an object of name -> integer override.`,
+      ),
+    );
     return;
   }
   for (const [name, score] of Object.entries(value)) {
     if (!isInteger(score)) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, `${basePath}.${name}`, `${label}.${name} must be an integer.`));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          artifactId,
+          `${basePath}.${name}`,
+          `${label}.${name} must be an integer.`,
+        ),
+      );
     }
   }
 }
@@ -1240,7 +2047,10 @@ function checkTables(ctx: Ctx, value: unknown): void {
   for (const [id, def] of Object.entries(value)) {
     const basePath = `tables.${id}`;
     if (!ID_PATTERN.test(id)) {
-      add(ctx, makeErrorCard('E-SCHEMA-01', id, basePath, `table map key "${id}" must match ^[a-z][a-z0-9-]*$.`));
+      add(
+        ctx,
+        makeErrorCard('E-SCHEMA-01', id, basePath, `table map key "${id}" must match ^[a-z][a-z0-9-]*$.`),
+      );
       continue;
     }
     registerId(ctx, id, basePath);
@@ -1252,15 +2062,38 @@ function checkTables(ctx: Ctx, value: unknown): void {
     forbidUnknown(ctx, def, ['kind', 'entries'], id, basePath);
     const kind = def['kind'];
     if (kind !== undefined && kind !== 'weighted' && kind !== 'ranged' && kind !== 'nested') {
-      add(ctx, makeErrorCard('E-SCHEMA-01', id, `${basePath}.kind`, 'kind must be one of "weighted" | "ranged" | "nested".'));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          id,
+          `${basePath}.kind`,
+          'kind must be one of "weighted" | "ranged" | "nested".',
+        ),
+      );
     }
     const entries = def['entries'];
     if (entries !== undefined) {
       if (!Array.isArray(entries) || entries.length < 1) {
-        add(ctx, makeErrorCard('E-SCHEMA-01', id, `${basePath}.entries`, 'entries must be a non-empty array (minItems 1).'));
+        add(
+          ctx,
+          makeErrorCard(
+            'E-SCHEMA-01',
+            id,
+            `${basePath}.entries`,
+            'entries must be a non-empty array (minItems 1).',
+          ),
+        );
       } else {
         for (const [index, entry] of entries.entries()) {
-          checkTableEntry(ctx, entry, id, `${basePath}.entries[${index}]`, kind === 'weighted', kind === 'ranged');
+          checkTableEntry(
+            ctx,
+            entry,
+            id,
+            `${basePath}.entries[${index}]`,
+            kind === 'weighted',
+            kind === 'ranged',
+          );
         }
       }
     }
@@ -1271,19 +2104,42 @@ function checkTables(ctx: Ctx, value: unknown): void {
 }
 
 /** Entry shape per database.md's kind contracts: weighted -> {weight >= 1, value}; ranged -> {min <= max, value}; nested -> value may reference tables. The schema leaves entries open; the semantic contract closes them (E-TBL-01), and unknown fields are closed-shape errors. */
-function checkTableEntry(ctx: Ctx, entry: unknown, artifactId: string, basePath: string, requireWeight: boolean, requireRange: boolean): void {
+function checkTableEntry(
+  ctx: Ctx,
+  entry: unknown,
+  artifactId: string,
+  basePath: string,
+  requireWeight: boolean,
+  requireRange: boolean,
+): void {
   if (!isPlainObject(entry)) {
     add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, basePath, 'table entry must be an object.'));
     return;
   }
   forbidUnknown(ctx, entry, ['weight', 'min', 'max', 'value'], artifactId, basePath);
   if (entry['value'] === undefined) {
-    add(ctx, makeErrorCard('E-SCHEMA-01', artifactId, `${basePath}.value`, 'table entry requires a value (scalar, object, or nested table reference).'));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        artifactId,
+        `${basePath}.value`,
+        'table entry requires a value (scalar, object, or nested table reference).',
+      ),
+    );
   }
   const weight = entry['weight'];
   if (requireWeight) {
     if (!isInteger(weight) || weight < 1) {
-      add(ctx, makeErrorCard('E-TBL-01', artifactId, `${basePath}.weight`, 'weighted table entries require an integer weight >= 1.'));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-TBL-01',
+          artifactId,
+          `${basePath}.weight`,
+          'weighted table entries require an integer weight >= 1.',
+        ),
+      );
     }
   } else if (weight !== undefined && (!isInteger(weight) || weight < 1)) {
     add(ctx, makeErrorCard('E-TBL-01', artifactId, `${basePath}.weight`, 'weight must be an integer >= 1.'));
@@ -1292,20 +2148,45 @@ function checkTableEntry(ctx: Ctx, entry: unknown, artifactId: string, basePath:
   const max = entry['max'];
   if (requireRange) {
     if (!isInteger(min) || !isInteger(max)) {
-      add(ctx, makeErrorCard('E-TBL-01', artifactId, basePath, 'ranged table entries require integer min and max.'));
+      add(
+        ctx,
+        makeErrorCard('E-TBL-01', artifactId, basePath, 'ranged table entries require integer min and max.'),
+      );
     } else if (min > max) {
-      add(ctx, makeErrorCard('E-TBL-01', artifactId, basePath, `ranged entry is malformed: min (${min}) > max (${max}).`));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-TBL-01',
+          artifactId,
+          basePath,
+          `ranged entry is malformed: min (${min}) > max (${max}).`,
+        ),
+      );
     }
   } else if ((min !== undefined || max !== undefined) && (!isInteger(min) || !isInteger(max))) {
     add(ctx, makeErrorCard('E-TBL-01', artifactId, basePath, 'range bounds min/max must be integers.'));
   } else if (isInteger(min) && isInteger(max) && min > max) {
-    add(ctx, makeErrorCard('E-TBL-01', artifactId, basePath, `ranged entry is malformed: min (${min}) > max (${max}).`));
+    add(
+      ctx,
+      makeErrorCard(
+        'E-TBL-01',
+        artifactId,
+        basePath,
+        `ranged entry is malformed: min (${min}) > max (${max}).`,
+      ),
+    );
   }
 }
 
 /** E-TBL-01: nesting depth is bounded at load so a pathological pack fails validation instead of hanging load. */
 /** E-TBL-01: nesting depth is bounded at load so a pathological pack fails validation instead of hanging load. */
-function checkNestedDepth(ctx: Ctx, entries: unknown[], tableId: string, basePath: string, visiting: Set<string>): void {
+function checkNestedDepth(
+  ctx: Ctx,
+  entries: unknown[],
+  tableId: string,
+  basePath: string,
+  visiting: Set<string>,
+): void {
   for (const [index, entry] of entries.entries()) {
     if (!isPlainObject(entry)) continue;
     const value = entry['value'];
@@ -1322,17 +2203,35 @@ function checkNestedDepth(ctx: Ctx, entries: unknown[], tableId: string, basePat
           tableId,
           refPath,
           `nested table entry references table "${ref}", which does not exist in this pack.`,
-          near === undefined ? `known tables: ${[...ctx.tableIds].sort().join(', ') || '(none)'}` : `did you mean "${near}"?`,
+          near === undefined
+            ? `known tables: ${[...ctx.tableIds].sort().join(', ') || '(none)'}`
+            : `did you mean "${near}"?`,
         ),
       );
       continue;
     }
     if (visiting.size >= MAX_TABLE_DEPTH) {
-      add(ctx, makeErrorCard('E-TBL-01', tableId, refPath, `table nesting exceeds the documented depth limit (${MAX_TABLE_DEPTH}) — bounded work at load (E-TBL-01).`));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-TBL-01',
+          tableId,
+          refPath,
+          `table nesting exceeds the documented depth limit (${MAX_TABLE_DEPTH}) — bounded work at load (E-TBL-01).`,
+        ),
+      );
       return;
     }
     if (visiting.has(ref)) {
-      add(ctx, makeErrorCard('E-TBL-01', tableId, refPath, `table nesting cycle through "${ref}" — nesting depth is bounded (E-TBL-01).`));
+      add(
+        ctx,
+        makeErrorCard(
+          'E-TBL-01',
+          tableId,
+          refPath,
+          `table nesting cycle through "${ref}" — nesting depth is bounded (E-TBL-01).`,
+        ),
+      );
       return;
     }
     const nested = getNestedEntries(ctx, ref);
@@ -1409,7 +2308,9 @@ function checkRestrictsTags(ctx: Ctx, content: unknown): void {
             id,
             `content.conditions.${id}.restricts[${index}]`,
             `condition "${id}" restricts pattern "${pattern}" names tag "${tag}", which no action or spell declares — a condition that can never bite is a broken reference, not a silent no-op (v1.1 tag integrity).`,
-            near === undefined ? `declared tags: ${[...ctx.declaredTags].sort().join(', ') || '(none)'}` : `did you mean "${near}"?`,
+            near === undefined
+              ? `declared tags: ${[...ctx.declaredTags].sort().join(', ') || '(none)'}`
+              : `did you mean "${near}"?`,
           ),
         );
       }

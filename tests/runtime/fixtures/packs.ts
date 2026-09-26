@@ -18,7 +18,10 @@ import type { Pack } from '../../../src/schema/pack';
 export type SpatialPack = { spatial?: { defaultReach: number; reachOverrides?: Record<string, number> } };
 
 /** Attach a spatial model to a pack (test helper — the engine reads whatever the pack declares). */
-export function withSpatial(pack: Pack, spatial: { defaultReach: number; reachOverrides?: Record<string, number> }): Pack & SpatialPack {
+export function withSpatial(
+  pack: Pack,
+  spatial: { defaultReach: number; reachOverrides?: Record<string, number> },
+): Pack & SpatialPack {
   return { ...pack, spatial } as Pack & SpatialPack;
 }
 
@@ -31,8 +34,14 @@ export const EMBER_MARCHES_MANIFEST = {
 } as const;
 
 const WARDEN_TABLE = [
-  { level: 1, byDefense: { '2': 18, '3': 17, '4': 16, '5': 15, '6': 14, '7': 13, '8': 12, '9': 11, '10': 10 } },
-  { level: 2, byDefense: { '2': 17, '3': 16, '4': 15, '5': 14, '6': 13, '7': 12, '8': 11, '9': 10, '10': 9 } },
+  {
+    level: 1,
+    byDefense: { '2': 18, '3': 17, '4': 16, '5': 15, '6': 14, '7': 13, '8': 12, '9': 11, '10': 10 },
+  },
+  {
+    level: 2,
+    byDefense: { '2': 17, '3': 16, '4': 15, '5': 14, '6': 13, '7': 12, '8': 11, '9': 10, '10': 9 },
+  },
 ];
 
 export function emberMarchesPack(): Pack {
@@ -222,8 +231,17 @@ export function emberMarchesAscendingPack(): Pack {
     formulas: { ...pack.formulas, ac: { expr: '10 + level' } },
     progression: {
       ...pack.progression,
-      warden: { hd: 'd10', attackBonus: 'level + might', saves: { vigor: [2, 3], reflexes: [1, 2], grit: [1, 1] } },
-      hexer: { hd: 'd6', attackBonus: 'floor(level / 2) + might', saves: { reason: [2, 4], reflexes: [0, 1] }, slots: { '1': [2, 3], '2': [0, 1] } },
+      warden: {
+        hd: 'd10',
+        attackBonus: 'level + might',
+        saves: { vigor: [2, 3], reflexes: [1, 2], grit: [1, 1] },
+      },
+      hexer: {
+        hd: 'd6',
+        attackBonus: 'floor(level / 2) + might',
+        saves: { reason: [2, 4], reflexes: [0, 1] },
+        slots: { '1': [2, 3], '2': [0, 1] },
+      },
       'wight-frames': { hd: 'd10', attackBonus: 'level', saves: { vigor: [2, 3], reason: [3, 4] } },
       'shamble-frames': { hd: 'd8', attackBonus: 'level - 1', saves: { vigor: [1, 2], reason: [0, 0] } },
     },

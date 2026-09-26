@@ -14,7 +14,10 @@
         "additionalProperties": false,
         "required": ["target", "patch"],
         "properties": {
-          "target": { "type": "string", "description": "Artifact id — unique across the whole pack by E-DUP-01, so unambiguous" },
+          "target": {
+            "type": "string",
+            "description": "Artifact id — unique across the whole pack by E-DUP-01, so unambiguous"
+          },
           "patch": {
             "type": "object",
             "minProperties": 1,

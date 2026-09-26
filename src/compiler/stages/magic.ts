@@ -22,13 +22,23 @@ export const magicStage: Stage = {
       for (const [id, spell] of Object.entries(spells)) {
         if (spell.magic.level < 1 || spell.magic.level > MAX_SPELL_LEVEL) {
           throw new GenerationError([
-            themeCard('E-SCHEMA-01', id, `content.spells.${id}.magic.level`, `spell "${id}" declares level ${spell.magic.level} — magic.level must be an integer in 1..${MAX_SPELL_LEVEL}.`),
+            themeCard(
+              'E-SCHEMA-01',
+              id,
+              `content.spells.${id}.magic.level`,
+              `spell "${id}" declares level ${spell.magic.level} — magic.level must be an integer in 1..${MAX_SPELL_LEVEL}.`,
+            ),
           ]);
         }
         for (const list of spell.magic.lists) {
           if (ctx.theme.content?.classes?.[list] === undefined) {
             throw new GenerationError([
-              themeCard('E-REF-01', id, `content.spells.${id}.magic.lists`, `spell "${id}" claims list membership in class "${list}", which the theme does not declare.`),
+              themeCard(
+                'E-REF-01',
+                id,
+                `content.spells.${id}.magic.lists`,
+                `spell "${id}" claims list membership in class "${list}", which the theme does not declare.`,
+              ),
             ]);
           }
         }
@@ -44,7 +54,12 @@ export const magicStage: Stage = {
       const capacity = ctx.theme.formulas?.[pool];
       if (capacity === undefined) {
         throw new GenerationError([
-          themeCard('E-ECON-01', pool, `formulas.${pool}`, `a spell's point cost draws from pool "${pool}", but the theme declares no capacity formula for it (a drain pool's capacity is a pack formula, FR-3/FR-8).`),
+          themeCard(
+            'E-ECON-01',
+            pool,
+            `formulas.${pool}`,
+            `a spell's point cost draws from pool "${pool}", but the theme declares no capacity formula for it (a drain pool's capacity is a pack formula, FR-3/FR-8).`,
+          ),
         ]);
       }
       formulas[pool] = structuredClone(capacity);
@@ -56,11 +71,14 @@ export const magicStage: Stage = {
 };
 
 /** The pool ids any spell point cost names, in theme declaration order (CA-4 vocabulary). */
-function spellPoolsOf(spells: Record<string, { cost: { points?: { pool: string } } }> | undefined): readonly string[] {
+function spellPoolsOf(
+  spells: Record<string, { cost: { points?: { pool: string } } }> | undefined,
+): readonly string[] {
   const pools: string[] = [];
   if (spells === undefined) return pools;
   for (const spell of Object.values(spells)) {
-    if (spell.cost.points !== undefined && !pools.includes(spell.cost.points.pool)) pools.push(spell.cost.points.pool);
+    if (spell.cost.points !== undefined && !pools.includes(spell.cost.points.pool))
+      pools.push(spell.cost.points.pool);
   }
   return pools;
 }

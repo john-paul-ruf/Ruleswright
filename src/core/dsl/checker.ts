@@ -8,4 +8,5 @@ import type { DslChecker } from '../../schema/validate';
 import { checkEffect } from './effect';
 import { checkFormula } from './formula';
 
-export const packDslChecker: DslChecker = (request) => (request.kind === 'effect' ? checkEffect(request) : checkFormula(request));
+export const packDslChecker: DslChecker = (request) =>
+  request.kind === 'effect' ? checkEffect(request) : checkFormula(request);

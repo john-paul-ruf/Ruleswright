@@ -21,10 +21,17 @@ export function microTheme(): ThemeTemplate {
   return {
     id: 'micro-vale',
     title: 'The Micro Vale',
-    stats: { abilities: ['might', 'grace', 'vigor', 'reason', 'insight', 'presence'], saves: ['vigor', 'grace', 'tenacity', 'reason', 'presence'] },
+    stats: {
+      abilities: ['might', 'grace', 'vigor', 'reason', 'insight', 'presence'],
+      saves: ['vigor', 'grace', 'tenacity', 'reason', 'presence'],
+    },
     economy: { turnSlots: { main: 1, move: 1, reaction: 1 } },
     actions: {
-      strike: { cost: { slots: { main: 1 } }, effect: 'sequence(attack(ac, might), damage(1d8 + might, sharp))', tags: ['main'] },
+      strike: {
+        cost: { slots: { main: 1 } },
+        effect: 'sequence(attack(ac, might), damage(1d8 + might, sharp))',
+        tags: ['main'],
+      },
       withdraw: { cost: { slots: { move: 1 } }, effect: 'applyCondition(braced, 2)', tags: ['move'] },
       parry: {
         cost: { slots: { reaction: 1 } },
@@ -54,7 +61,11 @@ export function microTheme(): ThemeTemplate {
       },
       feats: {
         ironhide: { name: 'Ironhide' },
-        'second-gust': { name: 'Second Gust', trigger: { on: 'condition:applied[self]' }, effect: 'applyCondition(braced, 2)' },
+        'second-gust': {
+          name: 'Second Gust',
+          trigger: { on: 'condition:applied[self]' },
+          effect: 'applyCondition(braced, 2)',
+        },
       },
       spells: {
         'hex-bolt': {
@@ -86,8 +97,14 @@ export function microTheme(): ThemeTemplate {
       warden: {
         hd: 'd10',
         attackTable: [
-          { level: 1, byDefense: { '2': 18, '3': 17, '4': 16, '5': 15, '6': 14, '7': 13, '8': 12, '9': 11, '10': 10 } },
-          { level: 2, byDefense: { '2': 17, '3': 16, '4': 15, '5': 14, '6': 13, '7': 12, '8': 11, '9': 10, '10': 9 } },
+          {
+            level: 1,
+            byDefense: { '2': 18, '3': 17, '4': 16, '5': 15, '6': 14, '7': 13, '8': 12, '9': 11, '10': 10 },
+          },
+          {
+            level: 2,
+            byDefense: { '2': 17, '3': 16, '4': 15, '5': 14, '6': 13, '7': 12, '8': 11, '9': 10, '10': 9 },
+          },
         ],
         saves: { vigor: [2, 3], grace: [1, 2], tenacity: [1, 1] },
         slots: { '1': [2, 3], '2': [0, 1] },
@@ -156,7 +173,9 @@ describe('stage order and replacement (pipeline discipline)', () => {
         ctx.own = 'probed';
       },
     };
-    expect(() => runPipeline(microTheme(), 42, [...defaultStages().slice(0, 2), probe, ...defaultStages().slice(2)])).not.toThrow();
+    expect(() =>
+      runPipeline(microTheme(), 42, [...defaultStages().slice(0, 2), probe, ...defaultStages().slice(2)]),
+    ).not.toThrow();
   });
 });
 
@@ -184,7 +203,12 @@ describe('per-stage streams (FR-17 determinism discipline)', () => {
 
 describe('knobs (FR-18)', () => {
   const knobs = {
-    threat: { type: 'enum', values: ['low', 'medium', 'high'], default: 'medium', desc: 'Bestiary threat budget' },
+    threat: {
+      type: 'enum',
+      values: ['low', 'medium', 'high'],
+      default: 'medium',
+      desc: 'Bestiary threat budget',
+    },
     spellDensity: { type: 'range', min: 1, max: 5, default: 3, desc: 'Spells per level, L1\u20133' },
   } as const;
 
@@ -233,11 +257,25 @@ describe('knobs (FR-18)', () => {
 describe('theme composition (FR-20 \u2014 the patch vocabulary)', () => {
   it('base + add/remove/merge patches compose a deterministic derived theme (the mock\u2019s winter-march shape)', () => {
     const patches: readonly ThemePatch[] = [
-      { op: 'add', path: '/content/conditions/frostbitten', value: { name: 'Frostbitten', duration: 5, stacking: 'refresh' } },
+      {
+        op: 'add',
+        path: '/content/conditions/frostbitten',
+        value: { name: 'Frostbitten', duration: 5, stacking: 'refresh' },
+      },
       { op: 'remove', path: '/bestiary/barrow-wight' },
-      { op: 'merge', path: '/knobs', value: { coldSeverity: { type: 'range', min: 1, max: 3, default: 2, desc: 'Cold severity' } } },
+      {
+        op: 'merge',
+        path: '/knobs',
+        value: { coldSeverity: { type: 'range', min: 1, max: 3, default: 2, desc: 'Cold severity' } },
+      },
     ];
-    const derived: ThemeTemplate = { ...microTheme(), id: 'winter-march', title: 'The Winter March', base: 'micro-vale', patches };
+    const derived: ThemeTemplate = {
+      ...microTheme(),
+      id: 'winter-march',
+      title: 'The Winter March',
+      base: 'micro-vale',
+      patches,
+    };
     const composed = composeTheme(derived, microTheme());
     expect(composed.id).toBe('winter-march');
     expect(composed.content?.conditions?.frostbitten).toBeDefined();

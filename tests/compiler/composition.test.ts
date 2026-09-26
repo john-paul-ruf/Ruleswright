@@ -18,7 +18,15 @@ import { packContentHash } from '../../src/schema/version';
 describe('patch merge semantics (FR-20, the mock\u2019s vocabulary)', () => {
   it('add sets a new path; merging into a missing container creates it', () => {
     const root: Record<string, unknown> = {};
-    readPatch(root, { op: 'add', path: '/content/conditions/frostbitten', value: { name: 'Frostbitten', duration: 5, stacking: 'refresh' } }, 0);
+    readPatch(
+      root,
+      {
+        op: 'add',
+        path: '/content/conditions/frostbitten',
+        value: { name: 'Frostbitten', duration: 5, stacking: 'refresh' },
+      },
+      0,
+    );
     expect((root['content'] as Record<string, unknown>)['conditions']).toBeDefined();
   });
 
@@ -28,8 +36,18 @@ describe('patch merge semantics (FR-20, the mock\u2019s vocabulary)', () => {
   });
 
   it('merge deep-merges object values and replaces scalars, in array order (later wins)', () => {
-    const root: Record<string, unknown> = { knobs: { threat: { type: 'enum', default: 'medium', desc: 'a' } } };
-    readPatch(root, { op: 'merge', path: '/knobs', value: { threat: { default: 'high' }, cold: { type: 'range', default: 2, desc: 'b' } } }, 0);
+    const root: Record<string, unknown> = {
+      knobs: { threat: { type: 'enum', default: 'medium', desc: 'a' } },
+    };
+    readPatch(
+      root,
+      {
+        op: 'merge',
+        path: '/knobs',
+        value: { threat: { default: 'high' }, cold: { type: 'range', default: 2, desc: 'b' } },
+      },
+      0,
+    );
     readPatch(root, { op: 'merge', path: '/knobs', value: { threat: { default: 'low' } } }, 1);
     const knobs = root['knobs'] as Record<string, Record<string, unknown>>;
     expect(knobs['threat']!.default).toBe('low'); // later patch wins
@@ -41,13 +59,19 @@ describe('patch merge semantics (FR-20, the mock\u2019s vocabulary)', () => {
     const root: Record<string, unknown> = { bestiary: { 'barrow-wight': { threat: 3 } } };
     readPatch(root, { op: 'remove', path: '/bestiary/barrow-wight' }, 0);
     expect(Object.keys(root['bestiary'] as object)).toEqual([]);
-    expect(() => readPatch(root, { op: 'remove', path: '/bestiary/barrow-wight' }, 1)).toThrow(GenerationError);
+    expect(() => readPatch(root, { op: 'remove', path: '/bestiary/barrow-wight' }, 1)).toThrow(
+      GenerationError,
+    );
   });
 
   it('patch paths cannot descend through arrays or scalars (located)', () => {
     const root: Record<string, unknown> = { stats: { abilities: ['might'] } };
-    expect(() => readPatch(root, { op: 'merge', path: '/stats/abilities/might', value: 1 }, 0)).toThrow(GenerationError);
-    expect(() => readPatch(root, { op: 'merge', path: '/stats/abilities/x', value: 1 }, 0)).toThrow(GenerationError);
+    expect(() => readPatch(root, { op: 'merge', path: '/stats/abilities/might', value: 1 }, 0)).toThrow(
+      GenerationError,
+    );
+    expect(() => readPatch(root, { op: 'merge', path: '/stats/abilities/x', value: 1 }, 0)).toThrow(
+      GenerationError,
+    );
   });
 
   it('an empty pointer path is rejected', () => {
@@ -59,16 +83,34 @@ describe('patch merge semantics (FR-20, the mock\u2019s vocabulary)', () => {
 describe('composeTheme (FR-20 \u2014 base + patches, deterministic)', () => {
   it('the mock\u2019s winter-march: add + remove + merge over dark-fantasy composes and generates clean', () => {
     const patches: readonly ThemePatch[] = [
-      { op: 'add', path: '/content/conditions/frostbitten', value: { name: 'Frostbitten', duration: 5, stacking: 'refresh' } },
+      {
+        op: 'add',
+        path: '/content/conditions/frostbitten',
+        value: { name: 'Frostbitten', duration: 5, stacking: 'refresh' },
+      },
       { op: 'remove', path: '/content/spells/suns-verdict' },
-      { op: 'merge', path: '/knobs', value: { 'cold-severity': { type: 'range', min: 1, max: 3, default: 2, desc: 'Cold severity' } } },
+      {
+        op: 'merge',
+        path: '/knobs',
+        value: { 'cold-severity': { type: 'range', min: 1, max: 3, default: 2, desc: 'Cold severity' } },
+      },
     ];
-    const derived: ThemeTemplate = { ...DARK_FANTASY, id: 'winter-march', title: 'The Winter March', base: 'dark-fantasy', patches };
+    const derived: ThemeTemplate = {
+      ...DARK_FANTASY,
+      id: 'winter-march',
+      title: 'The Winter March',
+      base: 'dark-fantasy',
+      patches,
+    };
     const composed = composeTheme(derived, DARK_FANTASY);
     expect(composed.id).toBe('winter-march');
     expect(composed.title).toBe('The Winter March');
     expect(composed.base).toBe('dark-fantasy');
-    expect(composed.content?.conditions?.frostbitten).toEqual({ name: 'Frostbitten', duration: 5, stacking: 'refresh' });
+    expect(composed.content?.conditions?.frostbitten).toEqual({
+      name: 'Frostbitten',
+      duration: 5,
+      stacking: 'refresh',
+    });
     expect(composed.content?.spells?.['suns-verdict']).toBeUndefined();
     expect(composed.knobs?.['cold-severity']).toBeDefined();
     expect(composed.stats).toEqual(DARK_FANTASY.stats); // base fields carry through
@@ -80,8 +122,16 @@ describe('composeTheme (FR-20 \u2014 base + patches, deterministic)', () => {
   });
 
   it('composition is deterministic: same base + patches \u21d2 byte-identical generated pack', () => {
-    const patches: readonly ThemePatch[] = [{ op: 'add', path: '/content/items/snow-shroud', value: { name: 'Snow Shroud', kind: 'armor' } }];
-    const derived: ThemeTemplate = { ...DARK_FANTASY, id: 'winter-march', title: 'w', base: 'dark-fantasy', patches };
+    const patches: readonly ThemePatch[] = [
+      { op: 'add', path: '/content/items/snow-shroud', value: { name: 'Snow Shroud', kind: 'armor' } },
+    ];
+    const derived: ThemeTemplate = {
+      ...DARK_FANTASY,
+      id: 'winter-march',
+      title: 'w',
+      base: 'dark-fantasy',
+      patches,
+    };
     const a = runPipeline(composeTheme(derived, DARK_FANTASY), 42);
     const b = runPipeline(composeTheme(derived, DARK_FANTASY), 42);
     expect(packContentHash(a)).toBe(packContentHash(b));
@@ -89,7 +139,13 @@ describe('composeTheme (FR-20 \u2014 base + patches, deterministic)', () => {
 
   it('the base template is not mutated by composition (read-only base)', () => {
     const before = packContentHash(runPipeline(DARK_FANTASY, 42));
-    const derived: ThemeTemplate = { ...DARK_FANTASY, id: 'winter-march', title: 'w', base: 'dark-fantasy', patches: [{ op: 'add', path: '/content/items/x', value: { name: 'X' } }] };
+    const derived: ThemeTemplate = {
+      ...DARK_FANTASY,
+      id: 'winter-march',
+      title: 'w',
+      base: 'dark-fantasy',
+      patches: [{ op: 'add', path: '/content/items/x', value: { name: 'X' } }],
+    };
     composeTheme(derived, DARK_FANTASY);
     expect(packContentHash(runPipeline(DARK_FANTASY, 42))).toBe(before);
   });
@@ -119,14 +175,25 @@ describe('entry surface (M04 \u2014 the compiler\u2019s public shape, api-map.ht
   it('generateCampaign({ theme, seed }) returns a complete valid pack \u2014 the quickstart\u2019s one call', () => {
     const pack = generateCampaign({ theme: DARK_FANTASY, seed: 42 });
     expect(validatePack(pack, packDslChecker)).toEqual([]);
-    expect(pack.manifest.provenance).toEqual({ theme: 'dark-fantasy', seed: 42, knobs: { threat: 'medium', 'spell-density': 3, grittiness: 'heroic', 'demihuman-caps': 'on' } });
+    expect(pack.manifest.provenance).toEqual({
+      theme: 'dark-fantasy',
+      seed: 42,
+      knobs: { threat: 'medium', 'spell-density': 3, grittiness: 'heroic', 'demihuman-caps': 'on' },
+    });
   });
 
   it('generateCampaign accepts knobs and records them verbatim in provenance (FR-18)', () => {
     const pack = generateCampaign({ theme: DARK_FANTASY, seed: 42, knobs: { threat: 'high' } });
-    expect(pack.manifest.provenance?.knobs).toEqual({ threat: 'high', 'spell-density': 3, grittiness: 'heroic', 'demihuman-caps': 'on' });
+    expect(pack.manifest.provenance?.knobs).toEqual({
+      threat: 'high',
+      'spell-density': 3,
+      grittiness: 'heroic',
+      'demihuman-caps': 'on',
+    });
     // a caller knob not declared by the theme is a typed rejection
-    expect(() => generateCampaign({ theme: DARK_FANTASY, seed: 42, knobs: { danger: 3 } })).toThrow(GenerationError);
+    expect(() => generateCampaign({ theme: DARK_FANTASY, seed: 42, knobs: { danger: 3 } })).toThrow(
+      GenerationError,
+    );
   });
 
   it('listThemeKnobs(theme) is machine-readable from the surface (FR-18: a host renders a form)', () => {

@@ -3,28 +3,101 @@
   "title": "The Quarantine Mile",
   "readme": "Zombie-urban drain-pool & table showcase (FR-21). Deliberately omits the optional economy section: the engine's documented default grants 1 of each slot name seen in action costs (main, move, reaction) — S05's both-branches proof from the pack side. Knobs: threat (wandering table weight), infectionRate (district loot/infection table weighting 1-5, default 2), scavenging (supplies table density 1-5, default 3), adrenalineMode (drain-pool flavor: adrenaline vs stamina naming). Example override (FR-19): { \"overrides\": [ { \"target\": \"grave-shambler\", \"patch\": { \"threat\": 2 } } ] } — same-seed regeneration reproduces the pack, so the edit anchors.",
   "knobs": {
-    "threat": { "type": "enum", "values": ["low", "medium", "high"], "default": "medium", "desc": "Wandering-threat weight: low thins the district, high stacks the hordes." },
-    "infection-rate": { "type": "range", "min": 1, "max": 5, "default": 2, "desc": "Infection-table weighting: how often bites turn." },
-    "scavenging": { "type": "range", "min": 1, "max": 5, "default": 3, "desc": "Supplies-table density: how much the blocks still yield." },
-    "adrenaline-mode": { "type": "enum", "values": ["adrenaline", "stamina"], "default": "adrenaline", "desc": "The survivor pool's flavor name (same engine, drain both ways)." }
+    "threat": {
+      "type": "enum",
+      "values": ["low", "medium", "high"],
+      "default": "medium",
+      "desc": "Wandering-threat weight: low thins the district, high stacks the hordes."
+    },
+    "infection-rate": {
+      "type": "range",
+      "min": 1,
+      "max": 5,
+      "default": 2,
+      "desc": "Infection-table weighting: how often bites turn."
+    },
+    "scavenging": {
+      "type": "range",
+      "min": 1,
+      "max": 5,
+      "default": 3,
+      "desc": "Supplies-table density: how much the blocks still yield."
+    },
+    "adrenaline-mode": {
+      "type": "enum",
+      "values": ["adrenaline", "stamina"],
+      "default": "adrenaline",
+      "desc": "The survivor pool's flavor name (same engine, drain both ways)."
+    }
   },
   "stats": {
     "abilities": ["might", "grace", "vigor", "reason", "insight", "presence"],
     "saves": ["vigor", "grace", "tenacity", "reason", "presence"]
   },
   "actions": {
-    "baton-blow": { "cost": { "slots": { "main": 1 } }, "valid": "hasTarget(adjacent)", "effect": "sequence(attack(ac, might), damage(1d6 + might, bludgeon))", "tags": ["main"] },
-    "shambler-claw": { "cost": { "slots": { "main": 1 } }, "effect": "sequence(attack(ac, 0), damage(1d6, grave-touch))", "tags": ["main"] },
-    "slab-swipe": { "cost": { "slots": { "main": 1 } }, "effect": "sequence(attack(ac, 0), damage(1d8, bludgeon))", "tags": ["main"] },
-    "pistol-shot": { "cost": { "slots": { "main": 1 }, "points": { "pool": "adrenaline", "amount": 1 } }, "effect": "sequence(attack(ac, 0), damage(2d6, pierce))", "tags": ["main"] },
-    "crossbow-bolt": { "cost": { "slots": { "main": 1 } }, "effect": "sequence(attack(ac, 0), damage(1d8, pierce))", "tags": ["main"] },
-    "fall-back": { "cost": { "slots": { "move": 1 } }, "effect": "applyCondition(braced, 2)", "tags": ["move"] },
-    "barricade": { "cost": { "slots": { "move": 1 }, "points": { "pool": "adrenaline", "amount": 2 } }, "effect": "applyCondition(fortified, 3)", "tags": ["move"] },
-    "dodge-roll": { "cost": { "slots": { "reaction": 1 } }, "trigger": { "on": "attack:rolled[target=self]" }, "effect": "applyCondition(braced, 1)", "tags": ["reaction"] },
-    "wrench-parry": { "cost": { "slots": { "reaction": 1 } }, "trigger": { "on": "attack:rolled[target=self]" }, "effect": "sequence(attack(ac, grace), damage(1d4, bludgeon))", "tags": ["reaction"] },
-    "adrenal-spike": { "cost": { "points": { "pool": "adrenaline", "amount": 3 } }, "effect": "applyCondition(spiked, 3)", "tags": ["free"] },
-    "infection-word": { "cost": { "slots": { "main": 1 } }, "effect": "save(vigor, 12, applyCondition(sapped, 3), damage(half))", "tags": ["casting"] },
-    "rot-speech": { "cost": { "slots": { "main": 1 } }, "effect": "save(presence, 11, applyCondition(hexbound, 2), applyCondition(hexbound, 1))", "tags": ["casting"] }
+    "baton-blow": {
+      "cost": { "slots": { "main": 1 } },
+      "valid": "hasTarget(adjacent)",
+      "effect": "sequence(attack(ac, might), damage(1d6 + might, bludgeon))",
+      "tags": ["main"]
+    },
+    "shambler-claw": {
+      "cost": { "slots": { "main": 1 } },
+      "effect": "sequence(attack(ac, 0), damage(1d6, grave-touch))",
+      "tags": ["main"]
+    },
+    "slab-swipe": {
+      "cost": { "slots": { "main": 1 } },
+      "effect": "sequence(attack(ac, 0), damage(1d8, bludgeon))",
+      "tags": ["main"]
+    },
+    "pistol-shot": {
+      "cost": { "slots": { "main": 1 }, "points": { "pool": "adrenaline", "amount": 1 } },
+      "effect": "sequence(attack(ac, 0), damage(2d6, pierce))",
+      "tags": ["main"]
+    },
+    "crossbow-bolt": {
+      "cost": { "slots": { "main": 1 } },
+      "effect": "sequence(attack(ac, 0), damage(1d8, pierce))",
+      "tags": ["main"]
+    },
+    "fall-back": {
+      "cost": { "slots": { "move": 1 } },
+      "effect": "applyCondition(braced, 2)",
+      "tags": ["move"]
+    },
+    "barricade": {
+      "cost": { "slots": { "move": 1 }, "points": { "pool": "adrenaline", "amount": 2 } },
+      "effect": "applyCondition(fortified, 3)",
+      "tags": ["move"]
+    },
+    "dodge-roll": {
+      "cost": { "slots": { "reaction": 1 } },
+      "trigger": { "on": "attack:rolled[target=self]" },
+      "effect": "applyCondition(braced, 1)",
+      "tags": ["reaction"]
+    },
+    "wrench-parry": {
+      "cost": { "slots": { "reaction": 1 } },
+      "trigger": { "on": "attack:rolled[target=self]" },
+      "effect": "sequence(attack(ac, grace), damage(1d4, bludgeon))",
+      "tags": ["reaction"]
+    },
+    "adrenal-spike": {
+      "cost": { "points": { "pool": "adrenaline", "amount": 3 } },
+      "effect": "applyCondition(spiked, 3)",
+      "tags": ["free"]
+    },
+    "infection-word": {
+      "cost": { "slots": { "main": 1 } },
+      "effect": "save(vigor, 12, applyCondition(sapped, 3), damage(half))",
+      "tags": ["casting"]
+    },
+    "rot-speech": {
+      "cost": { "slots": { "main": 1 } },
+      "effect": "save(presence, 11, applyCondition(hexbound, 2), applyCondition(hexbound, 1))",
+      "tags": ["casting"]
+    }
   },
   "formulas": {
     "hp": { "expr": "6 + level + vigor * 2" },
@@ -35,13 +108,39 @@
   },
   "content": {
     "classes": {
-      "scavenger": { "name": "Scavenger", "spellLists": [], "features": [{ "level": 1, "ref": "scavengers-instinct" }, { "level": 4, "ref": "block-runner" }], "actions": ["baton-blow", "crossbow-bolt", "fall-back", "dodge-roll"] },
-      "fixer": { "name": "Fixer", "spellLists": [], "features": [{ "level": 1, "ref": "milers-read" }], "actions": ["baton-blow", "pistol-shot", "barricade", "wrench-parry", "adrenal-spike"] },
-      "medic": { "name": "Medic", "spellLists": [], "features": [{ "level": 2, "ref": "field-surgery" }], "actions": ["baton-blow", "fall-back", "dodge-roll"] }
+      "scavenger": {
+        "name": "Scavenger",
+        "spellLists": [],
+        "features": [
+          { "level": 1, "ref": "scavengers-instinct" },
+          { "level": 4, "ref": "block-runner" }
+        ],
+        "actions": ["baton-blow", "crossbow-bolt", "fall-back", "dodge-roll"]
+      },
+      "fixer": {
+        "name": "Fixer",
+        "spellLists": [],
+        "features": [{ "level": 1, "ref": "milers-read" }],
+        "actions": ["baton-blow", "pistol-shot", "barricade", "wrench-parry", "adrenal-spike"]
+      },
+      "medic": {
+        "name": "Medic",
+        "spellLists": [],
+        "features": [{ "level": 2, "ref": "field-surgery" }],
+        "actions": ["baton-blow", "fall-back", "dodge-roll"]
+      }
     },
     "races": {
-      "mile-born": { "name": "Mile-born", "caps": { "scavenger": 10, "fixer": 8, "medic": 6 }, "size": "medium" },
-      "highrises": { "name": "Highrises", "caps": { "scavenger": 8, "fixer": 10, "medic": 4 }, "size": "medium" },
+      "mile-born": {
+        "name": "Mile-born",
+        "caps": { "scavenger": 10, "fixer": 8, "medic": 6 },
+        "size": "medium"
+      },
+      "highrises": {
+        "name": "Highrises",
+        "caps": { "scavenger": 8, "fixer": 10, "medic": 4 },
+        "size": "medium"
+      },
       "blockless": { "name": "Blockless", "caps": { "fixer": 5 }, "size": "small" }
     },
     "skills": {
@@ -56,21 +155,69 @@
     "feats": {
       "scrap-flechette": { "name": "Scrap Flechette", "passive": "1" },
       "cold-brew": { "name": "Cold Brew", "passive": "1" },
-      "second-gust": { "name": "Second Gust", "trigger": { "on": "condition:applied[self]" }, "effect": "applyCondition(braced, 2)" },
-      "last-legs": { "name": "Last Legs", "trigger": { "on": "condition:applied[self]" }, "effect": "applyCondition(spiked, 2)" }
+      "second-gust": {
+        "name": "Second Gust",
+        "trigger": { "on": "condition:applied[self]" },
+        "effect": "applyCondition(braced, 2)"
+      },
+      "last-legs": {
+        "name": "Last Legs",
+        "trigger": { "on": "condition:applied[self]" },
+        "effect": "applyCondition(spiked, 2)"
+      }
     },
     "spells": {
-      "bind-the-bite": { "name": "Bind the Bite", "magic": { "level": 1, "lists": ["medic"] }, "cost": { "points": { "pool": "adrenaline", "amount": 4 } }, "effect": "damage(1d8 - vigor, mending)", "tags": ["casting"] },
-      "clean-sear": { "name": "Clean Sear", "magic": { "level": 1, "lists": ["medic"] }, "cost": { "points": { "pool": "adrenaline", "amount": 2 } }, "effect": "damage(1d6, sear)", "tags": ["casting"] },
-      "quietsong": { "name": "Quietsong", "magic": { "level": 1, "lists": ["fixer"] }, "cost": { "points": { "pool": "stamina", "amount": 3 } }, "targeting": { "shape": "burst", "radius": 2 }, "effect": "target(burst-2, save(presence, 11, applyCondition(dazzled, 2), damage(half)))", "tags": ["casting"] },
-      "rot-read": { "name": "Rot Read", "magic": { "level": 1, "lists": ["fixer"] }, "cost": { "points": { "pool": "stamina", "amount": 2 } }, "effect": "applyCondition(hexsight, 5)", "tags": ["casting"] }
+      "bind-the-bite": {
+        "name": "Bind the Bite",
+        "magic": { "level": 1, "lists": ["medic"] },
+        "cost": { "points": { "pool": "adrenaline", "amount": 4 } },
+        "effect": "damage(1d8 - vigor, mending)",
+        "tags": ["casting"]
+      },
+      "clean-sear": {
+        "name": "Clean Sear",
+        "magic": { "level": 1, "lists": ["medic"] },
+        "cost": { "points": { "pool": "adrenaline", "amount": 2 } },
+        "effect": "damage(1d6, sear)",
+        "tags": ["casting"]
+      },
+      "quietsong": {
+        "name": "Quietsong",
+        "magic": { "level": 1, "lists": ["fixer"] },
+        "cost": { "points": { "pool": "stamina", "amount": 3 } },
+        "targeting": { "shape": "burst", "radius": 2 },
+        "effect": "target(burst-2, save(presence, 11, applyCondition(dazzled, 2), damage(half)))",
+        "tags": ["casting"]
+      },
+      "rot-read": {
+        "name": "Rot Read",
+        "magic": { "level": 1, "lists": ["fixer"] },
+        "cost": { "points": { "pool": "stamina", "amount": 2 } },
+        "effect": "applyCondition(hexsight, 5)",
+        "tags": ["casting"]
+      }
     },
     "conditions": {
-      "sapped": { "name": "Sapped", "duration": 3, "stacking": "refresh", "restricts": ["actions.tagged:main"] },
-      "hexbound": { "name": "Hexbound", "duration": 2, "stacking": "stack", "restricts": ["spells.tagged:casting"] },
+      "sapped": {
+        "name": "Sapped",
+        "duration": 3,
+        "stacking": "refresh",
+        "restricts": ["actions.tagged:main"]
+      },
+      "hexbound": {
+        "name": "Hexbound",
+        "duration": 2,
+        "stacking": "stack",
+        "restricts": ["spells.tagged:casting"]
+      },
       "braced": { "name": "Braced", "duration": 2, "stacking": "refresh" },
       "fortified": { "name": "Fortified", "duration": 3, "stacking": "refresh" },
-      "rooted": { "name": "Rooted", "duration": 3, "stacking": "refresh", "restricts": ["actions.tagged:move"] },
+      "rooted": {
+        "name": "Rooted",
+        "duration": 3,
+        "stacking": "refresh",
+        "restricts": ["actions.tagged:move"]
+      },
       "dazzled": { "name": "Dazzled", "duration": 2, "stacking": "ignore" },
       "spiked": { "name": "Spiked", "duration": 3, "stacking": "refresh" },
       "hexsight": { "name": "Hexsight", "duration": 5, "stacking": "ignore" }
@@ -88,16 +235,46 @@
     "scavenger": {
       "hd": "d10",
       "attackTable": [
-        { "level": 1, "byDefense": { "2": 19, "3": 18, "4": 17, "5": 16, "6": 15, "7": 14, "8": 13, "9": 12, "10": 11 } },
-        { "level": 2, "byDefense": { "2": 19, "3": 18, "4": 17, "5": 16, "6": 15, "7": 14, "8": 13, "9": 12, "10": 11 } },
-        { "level": 3, "byDefense": { "2": 18, "3": 17, "4": 16, "5": 15, "6": 14, "7": 13, "8": 12, "9": 11, "10": 10 } },
-        { "level": 4, "byDefense": { "2": 18, "3": 17, "4": 16, "5": 15, "6": 14, "7": 13, "8": 12, "9": 11, "10": 10 } },
-        { "level": 5, "byDefense": { "2": 17, "3": 16, "4": 15, "5": 14, "6": 13, "7": 12, "8": 11, "9": 10, "10": 9 } },
-        { "level": 6, "byDefense": { "2": 17, "3": 16, "4": 15, "5": 14, "6": 13, "7": 12, "8": 11, "9": 10, "10": 9 } },
-        { "level": 7, "byDefense": { "2": 16, "3": 15, "4": 14, "5": 13, "6": 12, "7": 11, "8": 10, "9": 9, "10": 8 } },
-        { "level": 8, "byDefense": { "2": 16, "3": 15, "4": 14, "5": 13, "6": 12, "7": 11, "8": 10, "9": 9, "10": 8 } },
-        { "level": 9, "byDefense": { "2": 15, "3": 14, "4": 13, "5": 12, "6": 11, "7": 10, "8": 9, "9": 8, "10": 7 } },
-        { "level": 10, "byDefense": { "2": 15, "3": 14, "4": 13, "5": 12, "6": 11, "7": 10, "8": 9, "9": 8, "10": 7 } }
+        {
+          "level": 1,
+          "byDefense": { "2": 19, "3": 18, "4": 17, "5": 16, "6": 15, "7": 14, "8": 13, "9": 12, "10": 11 }
+        },
+        {
+          "level": 2,
+          "byDefense": { "2": 19, "3": 18, "4": 17, "5": 16, "6": 15, "7": 14, "8": 13, "9": 12, "10": 11 }
+        },
+        {
+          "level": 3,
+          "byDefense": { "2": 18, "3": 17, "4": 16, "5": 15, "6": 14, "7": 13, "8": 12, "9": 11, "10": 10 }
+        },
+        {
+          "level": 4,
+          "byDefense": { "2": 18, "3": 17, "4": 16, "5": 15, "6": 14, "7": 13, "8": 12, "9": 11, "10": 10 }
+        },
+        {
+          "level": 5,
+          "byDefense": { "2": 17, "3": 16, "4": 15, "5": 14, "6": 13, "7": 12, "8": 11, "9": 10, "10": 9 }
+        },
+        {
+          "level": 6,
+          "byDefense": { "2": 17, "3": 16, "4": 15, "5": 14, "6": 13, "7": 12, "8": 11, "9": 10, "10": 9 }
+        },
+        {
+          "level": 7,
+          "byDefense": { "2": 16, "3": 15, "4": 14, "5": 13, "6": 12, "7": 11, "8": 10, "9": 9, "10": 8 }
+        },
+        {
+          "level": 8,
+          "byDefense": { "2": 16, "3": 15, "4": 14, "5": 13, "6": 12, "7": 11, "8": 10, "9": 9, "10": 8 }
+        },
+        {
+          "level": 9,
+          "byDefense": { "2": 15, "3": 14, "4": 13, "5": 12, "6": 11, "7": 10, "8": 9, "9": 8, "10": 7 }
+        },
+        {
+          "level": 10,
+          "byDefense": { "2": 15, "3": 14, "4": 13, "5": 12, "6": 11, "7": 10, "8": 9, "9": 8, "10": 7 }
+        }
       ],
       "saves": {
         "vigor": [0, 0, 1, 1, 1, 2, 2, 2, 3, 3],

@@ -21,7 +21,13 @@ import { parseEffect, type EffectAst } from '../core/dsl/effect';
 import { parseFormula, type FormulaAst } from '../core/dsl/formula';
 import type { ErrorCard } from '../schema/error-card';
 import { EventStream, type RuntimeEvent } from './events';
-import { createCharacter, Character, type ActiveCondition, type CharacterState, type ClassEntry } from './character';
+import {
+  createCharacter,
+  Character,
+  type ActiveCondition,
+  type CharacterState,
+  type ClassEntry,
+} from './character';
 import { levelSet, awardXp } from './progression';
 
 /** The load-time artifact index: everything a character-side lookup needs, keyed by id. */
@@ -43,7 +49,9 @@ export class PackLoadError extends Error {
   readonly errors: readonly ErrorCard[];
 
   constructor(errors: readonly ErrorCard[]) {
-    super(`pack load failed with ${errors.length} error card(s) — first: ${errors[0]?.rule} ${errors[0]?.message}`);
+    super(
+      `pack load failed with ${errors.length} error card(s) — first: ${errors[0]?.rule} ${errors[0]?.message}`,
+    );
     this.name = 'PackLoadError';
     this.errors = errors;
   }
@@ -128,12 +136,17 @@ export class Runtime {
 export type { ActiveCondition, CharacterState, ClassEntry };
 
 /** Parse-once effect compilation (CA-2) — a validator pass should never fail here. */
-function compileEffects<T extends { readonly effect: string }>(defs: Readonly<Record<string, T>>, effectOf: (def: T) => string): Record<string, EffectAst> {
+function compileEffects<T extends { readonly effect: string }>(
+  defs: Readonly<Record<string, T>>,
+  effectOf: (def: T) => string,
+): Record<string, EffectAst> {
   const compiled: Record<string, EffectAst> = {};
   for (const [id, def] of Object.entries(defs)) {
     const parsed = parseEffect(effectOf(def));
     if (!parsed.ok) {
-      throw new Error(`effect parse failed for "${id}" at load — ${parsed.reason} (the validator's dslChecker should have caught this)`);
+      throw new Error(
+        `effect parse failed for "${id}" at load — ${parsed.reason} (the validator's dslChecker should have caught this)`,
+      );
     }
     compiled[id] = parsed.value;
   }
@@ -153,7 +166,9 @@ function compileFormulas(formulas: Readonly<Record<string, { expr: string }>>): 
   for (const [id, def] of Object.entries(formulas)) {
     const parsed = parseFormula(def.expr);
     if (!parsed.ok) {
-      throw new Error(`formula parse failed for "${id}" at load — ${parsed.reason} (the validator's dslChecker should have caught this)`);
+      throw new Error(
+        `formula parse failed for "${id}" at load — ${parsed.reason} (the validator's dslChecker should have caught this)`,
+      );
     }
     compiled[id] = parsed.value;
   }

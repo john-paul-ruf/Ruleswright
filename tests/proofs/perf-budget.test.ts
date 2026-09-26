@@ -45,7 +45,13 @@ describe('perf budgets (CI-generous local bounds)', () => {
     const runtime = new Runtime(emberMarchesPack());
     const combatants: { id: string; profile: CombatantProfile }[] = [];
     for (let i = 0; i < 5; i += 1) {
-      combatants.push({ id: `ally-${i}`, profile: { ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, `ally-${i}`), actions: ['strike', 'withdraw'] } });
+      combatants.push({
+        id: `ally-${i}`,
+        profile: {
+          ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, `ally-${i}`),
+          actions: ['strike', 'withdraw'],
+        },
+      });
       combatants.push({ id: `foe-${i}`, profile: spawnMonster(runtime, 'barrow-wight', `foe-${i}`) });
     }
     const fight = startCombat(runtime, {
@@ -71,12 +77,25 @@ describe('perf budgets (CI-generous local bounds)', () => {
 
   it('snapshot round-trip < 50 ms', () => {
     const runtime = new Runtime(emberMarchesPack());
-    const brynn: CombatantProfile = { ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'brynn'), actions: ['strike', 'withdraw'] };
-    const wight: CombatantProfile = { ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'wight'), actions: ['wight-claw'] };
-    const fight = startCombat(runtime, { allies: [{ id: 'brynn', profile: brynn }], enemies: [{ id: 'wight', profile: wight }], rng: new Rng('snap') });
+    const brynn: CombatantProfile = {
+      ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'brynn'),
+      actions: ['strike', 'withdraw'],
+    };
+    const wight: CombatantProfile = {
+      ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'wight'),
+      actions: ['wight-claw'],
+    };
+    const fight = startCombat(runtime, {
+      allies: [{ id: 'brynn', profile: brynn }],
+      enemies: [{ id: 'wight', profile: wight }],
+      rng: new Rng('snap'),
+    });
     const snap = serializeCombat(fight, { pairsWith: 'party-1' });
     const started = performance.now();
-    const restored = deserializeCombat(runtime, snap, { allies: [{ id: 'brynn', profile: brynn }], enemies: [{ id: 'wight', profile: wight }] });
+    const restored = deserializeCombat(runtime, snap, {
+      allies: [{ id: 'brynn', profile: brynn }],
+      enemies: [{ id: 'wight', profile: wight }],
+    });
     const elapsedMs = performance.now() - started;
     expect(restored.state.round).toBe(fight.state.round);
     expect(elapsedMs).toBeLessThan(50);

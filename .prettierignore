@@ -1,0 +1,14 @@
+# Prettier formats source, config, and docs that travel with the repo.
+# Excluded: build output, lockfiles (pnpm owns their shape), and local-only
+# program material that never ships.
+dist/
+node_modules/
+coverage/
+pnpm-lock.yaml
+program/
+program-agents/
+.program/
+.idea/
+.zencoder/
+LICENSE
+.DS_Store

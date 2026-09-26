@@ -13,7 +13,9 @@ function mergedCards(doc: OverrideDocument): string[] {
 describe('applyOverrides (FR-19)', () => {
   it('merges patches at their dotted paths, deep', () => {
     const { pack, errors } = applyOverrides(VALID_PACK, {
-      overrides: [{ target: 'barrow-wight', patch: { 'abilityOverrides.might': 16, name: 'Barrow Wight Ascendant' } }],
+      overrides: [
+        { target: 'barrow-wight', patch: { 'abilityOverrides.might': 16, name: 'Barrow Wight Ascendant' } },
+      ],
     });
     expect(errors).toEqual([]);
     const wight = pack.bestiary['barrow-wight']!;
@@ -76,7 +78,11 @@ describe('applyOverrides (FR-19)', () => {
     });
     expect(pack.economy).toEqual({ turnSlots: { main: 1, move: 1 } });
     const cards = validatePack(pack, stubDslChecker);
-    expect(cards.some((card) => card.rule === 'E-SCHEMA-02' && card.jsonPath.startsWith('bestiary.barrow-wight.economy'))).toBe(true);
+    expect(
+      cards.some(
+        (card) => card.rule === 'E-SCHEMA-02' && card.jsonPath.startsWith('bestiary.barrow-wight.economy'),
+      ),
+    ).toBe(true);
   });
 
   it('a full valid round trip: patched pack revalidates clean', () => {

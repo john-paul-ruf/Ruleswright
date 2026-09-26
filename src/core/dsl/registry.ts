@@ -40,7 +40,14 @@ export function isReservedWord(name: string): boolean {
 }
 
 /** Effect vocabulary the registry must cover — asserted by the freeze test (CA-2). */
-export const EFFECT_VOCABULARY: readonly string[] = ['attack', 'save', 'damage', 'applyCondition', 'target', 'sequence'];
+export const EFFECT_VOCABULARY: readonly string[] = [
+  'attack',
+  'save',
+  'damage',
+  'applyCondition',
+  'target',
+  'sequence',
+];
 
 /** Validity vocabulary the registry must cover (S01's `valid` kind). */
 export const VALIDITY_VOCABULARY: readonly string[] = ['hasTarget'];

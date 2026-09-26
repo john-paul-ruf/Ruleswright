@@ -7,7 +7,17 @@
 import { describe, expect, it } from 'vitest';
 import { Runtime } from '../../src/runtime/runtime';
 import { RuntimeRuleError } from '../../src/runtime/errors';
-import { matchesRestriction, isLivePattern, applyCondition, removeCondition, tickConditions, isRestricted, restrictedIds, applyTheme, removeTheme } from '../../src/runtime/conditions';
+import {
+  matchesRestriction,
+  isLivePattern,
+  applyCondition,
+  removeCondition,
+  tickConditions,
+  isRestricted,
+  restrictedIds,
+  applyTheme,
+  removeTheme,
+} from '../../src/runtime/conditions';
 import { cloneRuntimePack } from './fixtures/pack';
 import type { Pack } from '../../src/schema/pack';
 
@@ -46,15 +56,21 @@ describe('restricts matcher (v1.1 tag consumption — S05 reuses at declare time
     const state = runtime.createCharacter({ name: 'X', race: 'ashkin', classes: ['warden'] }).state;
     applyCondition(runtime, state, 'sapped'); // pattern references 'main' — declared by strike
     // Force a pattern referencing an undeclared tag through the matcher directly:
-    expect(matchesRestriction('actions.tagged:no-such-tag', 'action', ['no-such-tag'], new Set(['main', 'move']))).toBe(false);
+    expect(
+      matchesRestriction('actions.tagged:no-such-tag', 'action', ['no-such-tag'], new Set(['main', 'move'])),
+    ).toBe(false);
     expect(matchesRestriction('actions.tagged:main', 'action', ['main'], new Set(['main']))).toBe(true);
     expect(isLivePattern(runtime, 'actions.tagged:main')).toBe(true);
     expect(isLivePattern(runtime, 'spells.tagged:no-such-tag')).toBe(false);
   });
 
   it('wrong-kind prefix never matches (actions pattern vs spell tags)', () => {
-    expect(matchesRestriction('actions.tagged:casting', 'spell', ['casting'], new Set(['casting']))).toBe(false);
-    expect(matchesRestriction('spells.tagged:casting', 'spell', ['casting'], new Set(['casting']))).toBe(true);
+    expect(matchesRestriction('actions.tagged:casting', 'spell', ['casting'], new Set(['casting']))).toBe(
+      false,
+    );
+    expect(matchesRestriction('spells.tagged:casting', 'spell', ['casting'], new Set(['casting']))).toBe(
+      true,
+    );
   });
 });
 
@@ -125,7 +141,7 @@ describe('condition lifecycle (FR-7)', () => {
 });
 
 describe('applyTheme / removeTheme (FR-7 via pack theme tables)', () => {
-  it('applies a theme table\'s declared conditions through the event system', () => {
+  it("applies a theme table's declared conditions through the event system", () => {
     const runtime = new Runtime(cloneRuntimePack());
     const state = runtime.createCharacter({ name: 'Brynn', race: 'ashkin', classes: ['warden'] }).state;
     const events = applyTheme(runtime, state, 'wandering-dread');

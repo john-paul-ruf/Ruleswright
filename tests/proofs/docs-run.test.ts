@@ -96,7 +96,9 @@ function typecheckQuickstart(source: string): readonly string[] {
     // clearing it routes the README's package specifiers through the map below.
     resolveModuleNameLiterals: undefined,
     getSourceFile(fileName, languageVersionOrOptions, onError, shouldCreateNewSourceFile) {
-      return fileName === DOC_FILE ? sourceFile : host.getSourceFile(fileName, languageVersionOrOptions, onError, shouldCreateNewSourceFile);
+      return fileName === DOC_FILE
+        ? sourceFile
+        : host.getSourceFile(fileName, languageVersionOrOptions, onError, shouldCreateNewSourceFile);
     },
     fileExists(fileName) {
       return fileName === DOC_FILE || host.fileExists!(fileName);
@@ -107,7 +109,8 @@ function typecheckQuickstart(source: string): readonly string[] {
     resolveModuleNames(moduleNames, containingFile) {
       return moduleNames.map((name) => {
         const surface = SURFACE_MODULES[name];
-        if (surface !== undefined) return { resolvedFileName: surface, extension: '.ts' as const, isExternalLibraryImport: false };
+        if (surface !== undefined)
+          return { resolvedFileName: surface, extension: '.ts' as const, isExternalLibraryImport: false };
         return ts.resolveModuleName(name, containingFile, DOC_OPTIONS, host).resolvedModule;
       });
     },
@@ -129,16 +132,39 @@ describe('README quickstart runs verbatim (NFR-DX)', () => {
     const logs: unknown[][] = [];
     const log = vi.spyOn(console, 'log').mockImplementation((...parts) => logs.push(parts));
     try {
-      // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func -- the README's code is trusted developer input (same trust class as pack data); the test executes it verbatim
+      // The README's code is trusted developer input (same trust class as pack data); executed verbatim via new Function.
       const run = new Function(
-        'generateCampaign', 'loadTheme', 'Runtime', 'startCombat', 'spawnMonster', 'profileFromCharacter',
-        `"use strict";\n${stripped.replace(/import[^;\n]+;/g, '').split('await ').join('')}\nreturn { pack, rt, brynn, fight, attack };`,
+        'generateCampaign',
+        'loadTheme',
+        'Runtime',
+        'startCombat',
+        'spawnMonster',
+        'profileFromCharacter',
+        `"use strict";\n${stripped
+          .replace(/import[^;\n]+;/g, '')
+          .split('await ')
+          .join('')}\nreturn { pack, rt, brynn, fight, attack };`,
       );
-      const { pack, brynn, fight, attack } = run(generateCampaign, loadTheme, Runtime, startCombat, spawnMonster, profileFromCharacter) as {
-        pack: { manifest: { id: string; schemaVersion: number }; content: { classes: Record<string, unknown>; spells: Record<string, unknown> } };
+      const { pack, brynn, fight, attack } = run(
+        generateCampaign,
+        loadTheme,
+        Runtime,
+        startCombat,
+        spawnMonster,
+        profileFromCharacter,
+      ) as {
+        pack: {
+          manifest: { id: string; schemaVersion: number };
+          content: { classes: Record<string, unknown>; spells: Record<string, unknown> };
+        };
         rt: unknown;
-        brynn: { state: { id: string; race: string }; derived: () => { hp: number; ac: number; saves: Record<string, number> } };
-        fight: { state: { combatants: Record<string, { ac: number; hp: { current: number }; actions: string[] }> } };
+        brynn: {
+          state: { id: string; race: string };
+          derived: () => { hp: number; ac: number; saves: Record<string, number> };
+        };
+        fight: {
+          state: { combatants: Record<string, { ac: number; hp: { current: number }; actions: string[] }> };
+        };
         attack: { actor: string; target: string; why: { rolls: string[]; rule: string } } | undefined;
       };
 
@@ -152,7 +178,11 @@ describe('README quickstart runs verbatim (NFR-DX)', () => {
       // line matches the README's output block.
       expect(brynn.state.id).toBe('char-1');
       expect(brynn.state.race).toBe('hillfolk');
-      expect(brynn.derived()).toEqual({ hp: 27, ac: 12, saves: { vigor: 0, grace: 0, tenacity: 0, reason: 0, presence: 0 } });
+      expect(brynn.derived()).toEqual({
+        hp: 27,
+        ac: 12,
+        saves: { vigor: 0, grace: 0, tenacity: 0, reason: 0, presence: 0 },
+      });
 
       // 03 — combat: Brynn fights as herself (her class actions, her derived ac),
       // and the provenanced attack event is the README's verbatim roll line.
@@ -187,6 +217,9 @@ describe('README quickstart runs verbatim (NFR-DX)', () => {
 
   it('the README’s fenced ```ts blocks compile under the consumer’s strict tsc (NFR-DX)', () => {
     const problems = typecheckQuickstart(blocks.join('\n'));
-    expect(problems, 'README quickstart must compile under strict tsc — code that runs but does not compile is half copy-paste-runnable').toEqual([]);
+    expect(
+      problems,
+      'README quickstart must compile under strict tsc — code that runs but does not compile is half copy-paste-runnable',
+    ).toEqual([]);
   }, 60_000);
 });

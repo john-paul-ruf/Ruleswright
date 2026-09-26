@@ -17,16 +17,38 @@ export const tablesStage: Stage = {
     const tables = ctx.theme.tables;
     const actions = ctx.theme.actions;
     if (tables === undefined) {
-      throw new GenerationError([themeCard('E-SCHEMA-01', 'tables', 'tables', 'the theme declares no tables — stage 7 needs encounter/loot tables.')]);
+      throw new GenerationError([
+        themeCard(
+          'E-SCHEMA-01',
+          'tables',
+          'tables',
+          'the theme declares no tables — stage 7 needs encounter/loot tables.',
+        ),
+      ]);
     }
     if (actions === undefined) {
-      throw new GenerationError([themeCard('E-SCHEMA-01', 'actions', 'actions', 'the theme declares no actions — stage 7 needs action declarations.')]);
+      throw new GenerationError([
+        themeCard(
+          'E-SCHEMA-01',
+          'actions',
+          'actions',
+          'the theme declares no actions — stage 7 needs action declarations.',
+        ),
+      ]);
     }
     for (const [id, def] of Object.entries(tables)) {
-      const outcome = rollTable(def as TableDef, ctx.stream, { jsonPath: `tables.${id}`, resolve: resolverOf(tables) });
+      const outcome = rollTable(def as TableDef, ctx.stream, {
+        jsonPath: `tables.${id}`,
+        resolve: resolverOf(tables),
+      });
       if (!outcome.ok) {
         throw new GenerationError([
-          themeCard('E-TBL-01', id, outcome.failure.jsonPath, `table "${id}" does not roll: ${outcome.failure.message} (one table engine, FR-15).`),
+          themeCard(
+            'E-TBL-01',
+            id,
+            outcome.failure.jsonPath,
+            `table "${id}" does not roll: ${outcome.failure.message} (one table engine, FR-15).`,
+          ),
         ]);
       }
     }

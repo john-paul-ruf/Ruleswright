@@ -23,11 +23,11 @@ Every line below is copy-paste runnable and every step shows its expected output
 ### 01 — Generate a campaign
 
 ```ts
-import { generateCampaign, loadTheme } from "ruleswright/compiler";
+import { generateCampaign, loadTheme } from 'ruleswright/compiler';
 
 // Theme + seed + knobs → complete pack. Fully offline.
 const pack = generateCampaign({
-  theme: loadTheme("dark-fantasy"),
+  theme: loadTheme('dark-fantasy'),
   seed: 42,
 });
 ```
@@ -43,14 +43,14 @@ Expected output:
 ### 02 — Build a character
 
 ```ts
-import { Runtime } from "ruleswright/runtime";
+import { Runtime } from 'ruleswright/runtime';
 
 const rt = new Runtime(pack);
 
 const brynn = rt.createCharacter({
-  name: "Brynn",
-  race: "hillfolk",
-  classes: [{ id: "warden", level: 1 }],
+  name: 'Brynn',
+  race: 'hillfolk',
+  classes: [{ id: 'warden', level: 1 }],
 });
 
 console.log(brynn.derived());
@@ -71,27 +71,30 @@ emits a provenanced event (`why.rule` names the pack artifact, `why.rolls` quote
 the dice), and triggers ride the event substrate.
 
 ```ts
-import { startCombat, spawnMonster, profileFromCharacter } from "ruleswright/runtime";
+import { startCombat, spawnMonster, profileFromCharacter } from 'ruleswright/runtime';
 
 const events = [];
 rt.events.on((event) => events.push(event));
 
 // Brynn herself fights: her profile + pool/slot balances, actions from her class.
 const fight = startCombat(rt, {
-  allies: [{ id: "brynn", ...profileFromCharacter(rt, brynn) }],
-  enemies: [{ id: "wight", profile: spawnMonster(rt, "barrow-wight", "wight") }],
+  allies: [{ id: 'brynn', ...profileFromCharacter(rt, brynn) }],
+  enemies: [{ id: 'wight', profile: spawnMonster(rt, 'barrow-wight', 'wight') }],
 });
 
 while (!fight.roundComplete) {
-  if (fight.state.phase === "awaiting-declare") {
+  if (fight.state.phase === 'awaiting-declare') {
     const active = fight.state.combatants[fight.state.active]!;
     fight.declare(active.actions[0]!);
   }
   fight.step(); // begin → declare → resolve → end
 }
 
-const attack = rt.events.sinceRound(1).find((event) => event.type === "attack:rolled");
-if (attack === undefined) throw new Error("no attack:rolled event was emitted — a fight where nobody attacks is a bug, not a quickstart state");
+const attack = rt.events.sinceRound(1).find((event) => event.type === 'attack:rolled');
+if (attack === undefined)
+  throw new Error(
+    'no attack:rolled event was emitted — a fight where nobody attacks is a bug, not a quickstart state',
+  );
 console.log(attack.why.rolls[0], attack.why.rule);
 ```
 
@@ -127,6 +130,8 @@ d20[9]=9 < ac12 actions.cut-down.attackBonus
 pnpm install
 pnpm typecheck        # tsc --noEmit over src/ + tests/
 pnpm lint             # ESLint, including the engine hygiene rules (no Math.random/eval/Date.now under src/)
+pnpm format           # Prettier --write over the whole repo (.prettierrc)
+pnpm format:check     # Prettier --check; CI enforces it
 pnpm test             # Vitest (node environment)
 pnpm build            # tsup — dual ESM/CJS + dts, per-entry
 pnpm check:isolation  # the runtime-only bundle contains no compiler strings (FR-22)
@@ -141,6 +146,6 @@ resumed fight rolls the same future as an uninterrupted one.
 CI (`.github/workflows/ci.yml`) runs the Node matrix (18/20/22 — the whole suite,
 so same-seed ⇒ identical rolls is proven on all three lines), the FR-12 proof trio
 (rules-are-data: zero engine diffs), the FR-21 coverage floor for both sample
-themes, and the bundle-isolation + security-sweep gates on every push. The browser
+themes, the bundle-isolation + security-sweep gates, and the lint + Prettier format checks on every push (lint runs on Node 22 — ESLint 10's floor is above the Node 18 matrix leg). The browser
 determinism leg is the tracked v1.1 follow-up (needs a browser-mode Vitest config),
 documented here so the README never promises a CI run CI does not perform.

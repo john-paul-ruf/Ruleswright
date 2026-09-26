@@ -25,7 +25,12 @@ function patchCard(rule: RuleId, index: number, jsonPath: string, message: strin
 export function composeTheme(derived: ThemeTemplate, base: ThemeTemplate): ThemeTemplate {
   if (derived.base !== undefined && derived.base !== base.id) {
     throw new GenerationError([
-      themeCard('E-OVR-01', '(theme)', 'base', `theme "${derived.id}" declares base "${derived.base}", which does not match the supplied base template "${base.id}".`),
+      themeCard(
+        'E-OVR-01',
+        '(theme)',
+        'base',
+        `theme "${derived.id}" declares base "${derived.base}", which does not match the supplied base template "${base.id}".`,
+      ),
     ]);
   }
   const composed = structuredClone(base) as unknown as Record<string, unknown>;
@@ -53,21 +58,37 @@ function applyPatch(root: Record<string, unknown>, patch: ThemePatch, index: num
   switch (patch.op) {
     case 'add': {
       if (parent[leaf] !== undefined) {
-        throw new GenerationError([patchCard('E-OVR-01', index, 'path', `add path "${patch.path}" already exists — "merge" is the overwriting op.`)]);
+        throw new GenerationError([
+          patchCard(
+            'E-OVR-01',
+            index,
+            'path',
+            `add path "${patch.path}" already exists — "merge" is the overwriting op.`,
+          ),
+        ]);
       }
       parent[leaf] = structuredClone(patch.value);
       return;
     }
     case 'remove': {
       if (parent[leaf] === undefined) {
-        throw new GenerationError([patchCard('E-OVR-01', index, 'path', `remove path "${patch.path}" does not exist in the composed theme.`)]);
+        throw new GenerationError([
+          patchCard(
+            'E-OVR-01',
+            index,
+            'path',
+            `remove path "${patch.path}" does not exist in the composed theme.`,
+          ),
+        ]);
       }
       delete parent[leaf];
       return;
     }
     case 'merge': {
       if (patch.value === undefined) {
-        throw new GenerationError([patchCard('E-SCHEMA-01', index, 'value', `merge patch "${patch.path}" needs a value.`)]);
+        throw new GenerationError([
+          patchCard('E-SCHEMA-01', index, 'value', `merge patch "${patch.path}" needs a value.`),
+        ]);
       }
       parent[leaf] = mergeValue(parent[leaf], patch.value);
       return;
@@ -79,13 +100,19 @@ function applyPatch(root: Record<string, unknown>, patch: ThemePatch, index: num
 function pointerSegments(path: string, index: number): readonly string[] {
   const segments = path.split('/').filter((segment) => segment.length > 0);
   if (segments.length === 0) {
-    throw new GenerationError([patchCard('E-OVR-01', index, 'path', `patch path "${path}" is empty — point it at a theme field.`)]);
+    throw new GenerationError([
+      patchCard('E-OVR-01', index, 'path', `patch path "${path}" is empty — point it at a theme field.`),
+    ]);
   }
   return segments;
 }
 
 /** Walk to the leaf's parent, creating missing object containers (override-merge semantics, FR-19). */
-function resolveParent(root: Record<string, unknown>, segments: readonly string[], index: number): Record<string, unknown> {
+function resolveParent(
+  root: Record<string, unknown>,
+  segments: readonly string[],
+  index: number,
+): Record<string, unknown> {
   let cursor: Record<string, unknown> = root;
   for (let i = 0; i < segments.length - 1; i += 1) {
     const segment = segments[i]!;
@@ -96,7 +123,14 @@ function resolveParent(root: Record<string, unknown>, segments: readonly string[
       continue;
     }
     if (next === null || typeof next !== 'object' || Array.isArray(next)) {
-      throw new GenerationError([patchCard('E-OVR-01', index, 'path', `patch path "${segments.join('/')}" descends through "${segment}", which is not an object.`)]);
+      throw new GenerationError([
+        patchCard(
+          'E-OVR-01',
+          index,
+          'path',
+          `patch path "${segments.join('/')}" descends through "${segment}", which is not an object.`,
+        ),
+      ]);
     }
     cursor = next as Record<string, unknown>;
   }

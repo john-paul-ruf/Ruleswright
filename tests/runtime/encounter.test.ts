@@ -56,7 +56,12 @@ describe('encounter assembly (FR-16): deterministic per seed', () => {
       expect(monster.hp).toBeGreaterThan(0);
     }
     const fight = startCombat(runtime, {
-      allies: [{ id: 'brynn', profile: profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'brynn') }],
+      allies: [
+        {
+          id: 'brynn',
+          profile: profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'brynn'),
+        },
+      ],
       enemies: monsters.map((profile) => ({ id: profile.id, profile })),
       rng: new Rng('assembled'),
     });
@@ -80,8 +85,20 @@ describe('NFR perf smoke (parse-once/eval-many)', () => {
   it('a 10-combatant full round resolves in well under the 50 ms budget (500 ms CI bound)', () => {
     const combatants: { id: string; profile: CombatantProfile }[] = [];
     for (let i = 0; i < 5; i += 1) {
-      combatants.push({ id: `ally-${i}`, profile: { ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, `ally-${i}`), actions: ['strike', 'withdraw'] } });
-      combatants.push({ id: `foe-${i}`, profile: { ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, `foe-${i}`), actions: ['wight-claw', 'withdraw'] } });
+      combatants.push({
+        id: `ally-${i}`,
+        profile: {
+          ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, `ally-${i}`),
+          actions: ['strike', 'withdraw'],
+        },
+      });
+      combatants.push({
+        id: `foe-${i}`,
+        profile: {
+          ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, `foe-${i}`),
+          actions: ['wight-claw', 'withdraw'],
+        },
+      });
     }
     const fight = startCombat(runtime, {
       allies: combatants.filter((entry) => entry.id.startsWith('ally-')),

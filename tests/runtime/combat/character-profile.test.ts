@@ -56,7 +56,18 @@ describe('CA-08 — every bundled class at level 1 maps through the production p
         expect(profile.attackBonus).toBe(derived.attackBonus);
 
         // The statblock path over the same vars yields the same initiative bonus.
-        const mirror = profileFromStatblock(rt.pack, { name: 'mirror', threat: 1, level: state.level, abilityOverrides: { ...state.abilities }, saveOverrides: { ...state.saves }, actions: ['x'] }, 'mirror');
+        const mirror = profileFromStatblock(
+          rt.pack,
+          {
+            name: 'mirror',
+            threat: 1,
+            level: state.level,
+            abilityOverrides: { ...state.abilities },
+            saveOverrides: { ...state.saves },
+            actions: ['x'],
+          },
+          'mirror',
+        );
         expect(profile.initiativeBonus).toBe(mirror.initiativeBonus);
 
         expect(balances.pools).toEqual(state.pools);
@@ -121,8 +132,12 @@ describe('CA-08 / CAP-09 engine acceptance — every level-1 class fights throug
         expect(ended).toHaveLength(1);
         expect(ended[0]!.why.rule).toBe('combat.sideDefeated');
         expect(first.resolved['hero']).toBeGreaterThan(0);
-        expect(first.events.some((event) => event.type === 'action:resolved' && event.actor === 'hero')).toBe(true);
-        expect(first.events.some((event) => event.type === 'declare:rejected' && event.actor === 'hero')).toBe(false);
+        expect(first.events.some((event) => event.type === 'action:resolved' && event.actor === 'hero')).toBe(
+          true,
+        );
+        expect(
+          first.events.some((event) => event.type === 'declare:rejected' && event.actor === 'hero'),
+        ).toBe(false);
         const second = fightScript(themeId, race, classId);
         expect(JSON.stringify(second.events)).toBe(JSON.stringify(first.events));
         expect(second.fight.serialize()).toEqual(first.fight.serialize());
@@ -173,7 +188,9 @@ describe('CA-08 — attack conventions', () => {
       { id: 'warden', level: 1 },
     ]);
     const cryptRow = rt.pack.progression['crypt-warden']!.attackTable!.find((row) => row.level === 1)!;
-    expect(profileFromCharacter(rt, character).profile.attackTable).toEqual([{ level: 2, byDefense: cryptRow.byDefense }]);
+    expect(profileFromCharacter(rt, character).profile.attackTable).toEqual([
+      { level: 2, byDefense: cryptRow.byDefense },
+    ]);
   });
 });
 
@@ -186,7 +203,17 @@ describe('CA-08 — actions and balances', () => {
       { id: 'hexer', level: 1 },
     ]);
     const { profile } = profileFromCharacter(rt, character);
-    expect(profile.actions).toEqual(['strike', 'cut-down', 'withdraw', 'brace', 'parry', 'hurl', 'long-shot', 'ward-glint', 'ember-surge']);
+    expect(profile.actions).toEqual([
+      'strike',
+      'cut-down',
+      'withdraw',
+      'brace',
+      'parry',
+      'hurl',
+      'long-shot',
+      'ward-glint',
+      'ember-surge',
+    ]);
     expect(profile.attackBonus).toBe(character.derived().attackBonus);
     expect(profile.attackTable).toBeUndefined();
   });
@@ -194,7 +221,9 @@ describe('CA-08 — actions and balances', () => {
   it('balances reflect a spent pool point and a prepared spell', () => {
     const character = hero(rt, 'ashkin', [{ id: 'hexer', level: 1 }]);
     const ember = character.state.pools['ember']!;
-    const spell = knownSpells(rt, character.state).find((id) => rt.pack.content.spells![id]!.magic.level === 1)!;
+    const spell = knownSpells(rt, character.state).find(
+      (id) => rt.pack.content.spells![id]!.magic.level === 1,
+    )!;
     expect(profileFromCharacter(rt, character).balances.boundSlots?.['1']).toBe(0);
     character.spend('ember', 1);
     character.prepare(spell);
@@ -213,7 +242,12 @@ describe('CA-08 — actions and balances', () => {
       profileFromCharacter(stripped, character);
     } catch (error) {
       expect((error as RuntimeRuleError).errors).toEqual([
-        expect.objectContaining({ rule: 'no-combat-actions', artifactId: 'warden', jsonPath: 'content.classes', hint: 'declare actions on the class (pack v1.2)' }),
+        expect.objectContaining({
+          rule: 'no-combat-actions',
+          artifactId: 'warden',
+          jsonPath: 'content.classes',
+          hint: 'declare actions on the class (pack v1.2)',
+        }),
       ]);
     }
   });

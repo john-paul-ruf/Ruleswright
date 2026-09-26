@@ -12,8 +12,19 @@
 import { evalFormula, valueOfFormula } from '../core/dsl/formula';
 import { Rng } from '../core/rng';
 import type { CharacterCreateRequest, Runtime } from './runtime';
-import { spendPool as spendPoolFn, prepareSpell as prepareSpellFn, castSpell as castSpellFn, rest as restFn } from './pools';
-import { applyCondition as applyConditionFn, removeCondition as removeConditionFn, tickConditions, applyTheme as applyThemeFn, removeTheme as removeThemeFn } from './conditions';
+import {
+  spendPool as spendPoolFn,
+  prepareSpell as prepareSpellFn,
+  castSpell as castSpellFn,
+  rest as restFn,
+} from './pools';
+import {
+  applyCondition as applyConditionFn,
+  removeCondition as removeConditionFn,
+  tickConditions,
+  applyTheme as applyThemeFn,
+  removeTheme as removeThemeFn,
+} from './conditions';
 import type { RuntimeEvent } from './events';
 import { validateBuild, buildCharacter, CharacterBuildError } from './progression';
 
@@ -119,7 +130,7 @@ export class Character {
     return tickConditions(this.runtime, this.state);
   }
 
-    /** FR-3 — derived stats strictly through the pack's reserved formulas (CA-6). */
+  /** FR-3 — derived stats strictly through the pack's reserved formulas (CA-6). */
   derived(rng: Rng = new Rng(0)): DerivedStats {
     const abilities = this.state.abilities;
     const hp = reserveValue(this.runtime, 'hp', abilities, this.state.level, rng);
@@ -143,7 +154,9 @@ export class Character {
  * the shared build validator — both creation paths run it.
  */
 export function createCharacter(runtime: Runtime, request: CharacterCreateRequest): Character {
-  const entries = request.classes.map((entry) => (typeof entry === 'string' ? { id: entry, level: request.level ?? 1 } : { ...entry }));
+  const entries = request.classes.map((entry) =>
+    typeof entry === 'string' ? { id: entry, level: request.level ?? 1 } : { ...entry },
+  );
   const errors = validateBuild(runtime, request.race, entries);
   if (errors.length > 0) throw new CharacterBuildError(errors);
 
@@ -152,7 +165,12 @@ export function createCharacter(runtime: Runtime, request: CharacterCreateReques
   runtime.events.emit({
     type: 'character:created',
     actor: state.id,
-    payload: { id: state.id, name: state.name, race: state.race, classes: state.classes.map((entry) => ({ ...entry })) },
+    payload: {
+      id: state.id,
+      name: state.name,
+      race: state.race,
+      classes: state.classes.map((entry) => ({ ...entry })),
+    },
     why: { rule: `content.races.${state.race}`, rolls: [] },
   });
   return new Character(runtime, state);
@@ -163,10 +181,18 @@ export function createCharacter(runtime: Runtime, request: CharacterCreateReques
  * (abilities + level) — the shared engine for the reserved ids (CA-6) and
  * pool capacities (CA-4). Formula presence is a load-time guarantee.
  */
-export function formulaValue(runtime: Runtime, formulaId: string, abilities: Readonly<Record<string, number>>, level: number, rng: Rng): number {
+export function formulaValue(
+  runtime: Runtime,
+  formulaId: string,
+  abilities: Readonly<Record<string, number>>,
+  level: number,
+  rng: Rng,
+): number {
   const ast = runtime.index.formulaAsts[formulaId];
   if (ast === undefined) {
-    throw new Error(`formula "${formulaId}" missing at play time — Runtime load should have rejected the pack (E-REF-01)`);
+    throw new Error(
+      `formula "${formulaId}" missing at play time — Runtime load should have rejected the pack (E-REF-01)`,
+    );
   }
   return valueOfFormula(evalFormula(ast, { ...abilities, level }, rng));
 }
@@ -176,6 +202,12 @@ export function formulaValue(runtime: Runtime, formulaId: string, abilities: Rea
  * id against the character's scalars (abilities + level). The load-time
  * recheck in Runtime guarantees the id exists.
  */
-export function reserveValue(runtime: Runtime, reservedId: 'hp' | 'ac', abilities: Readonly<Record<string, number>>, level: number, rng: Rng): number {
+export function reserveValue(
+  runtime: Runtime,
+  reservedId: 'hp' | 'ac',
+  abilities: Readonly<Record<string, number>>,
+  level: number,
+  rng: Rng,
+): number {
   return formulaValue(runtime, reservedId, abilities, level, rng);
 }

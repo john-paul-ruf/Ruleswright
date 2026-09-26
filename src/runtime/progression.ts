@@ -34,7 +34,9 @@ export class CharacterBuildError extends Error {
   readonly errors: readonly ErrorCard[];
 
   constructor(errors: readonly ErrorCard[]) {
-    super(`character build rejected with ${errors.length} error card(s) — first: ${errors[0]?.rule} ${errors[0]?.message}`);
+    super(
+      `character build rejected with ${errors.length} error card(s) — first: ${errors[0]?.rule} ${errors[0]?.message}`,
+    );
     this.name = 'CharacterBuildError';
     this.errors = errors;
   }
@@ -59,13 +61,25 @@ export function validateBuild(runtime: Runtime, race: string, entries: readonly 
     });
   }
   if (entries.length === 0) {
-    cards.push({ severity: 'error', artifactId: '(character)', jsonPath: 'classes', rule: 'invalid-build', message: 'a character needs at least one class.' });
+    cards.push({
+      severity: 'error',
+      artifactId: '(character)',
+      jsonPath: 'classes',
+      rule: 'invalid-build',
+      message: 'a character needs at least one class.',
+    });
   }
   const seen = new Set<string>();
   for (const [index, entry] of entries.entries()) {
     const jsonPath = `classes[${index}]`;
     if (seen.has(entry.id)) {
-      cards.push({ severity: 'error', artifactId: entry.id, jsonPath, rule: 'duplicate-class', message: `class "${entry.id}" appears more than once — concurrent classes are distinct entries (FR-6).` });
+      cards.push({
+        severity: 'error',
+        artifactId: entry.id,
+        jsonPath,
+        rule: 'duplicate-class',
+        message: `class "${entry.id}" appears more than once — concurrent classes are distinct entries (FR-6).`,
+      });
     }
     seen.add(entry.id);
     const classes = runtime.pack.content.classes ?? {};
@@ -81,28 +95,56 @@ export function validateBuild(runtime: Runtime, race: string, entries: readonly 
       continue;
     }
     if (!Number.isInteger(entry.level) || entry.level < 1) {
-      cards.push({ severity: 'error', artifactId: entry.id, jsonPath: `${jsonPath}.level`, rule: 'invalid-level', message: `class "${entry.id}" needs an integer level >= 1, got ${entry.level}.` });
+      cards.push({
+        severity: 'error',
+        artifactId: entry.id,
+        jsonPath: `${jsonPath}.level`,
+        rule: 'invalid-level',
+        message: `class "${entry.id}" needs an integer level >= 1, got ${entry.level}.`,
+      });
       continue;
     }
     const table = runtime.pack.progression[entry.id];
     if (table === undefined) {
-      cards.push({ severity: 'error', artifactId: entry.id, jsonPath, rule: 'missing-progression', message: `class "${entry.id}" has no progression.warden-style table — progression is pack data (FR-6).`, hint: `declared progression tables: ${Object.keys(runtime.pack.progression).join(', ') || '(none)'}` });
+      cards.push({
+        severity: 'error',
+        artifactId: entry.id,
+        jsonPath,
+        rule: 'missing-progression',
+        message: `class "${entry.id}" has no progression.warden-style table — progression is pack data (FR-6).`,
+        hint: `declared progression tables: ${Object.keys(runtime.pack.progression).join(', ') || '(none)'}`,
+      });
       continue;
     }
     const shortest = Math.min(...Object.values(table.saves).map((values) => values.length));
     if (entry.level > shortest) {
-      cards.push({ severity: 'error', artifactId: entry.id, jsonPath, rule: 'missing-progression', message: `progression tables for "${entry.id}" cover ${shortest} level(s); level ${entry.level} is unreadable — extend the pack's tables (FR-6).` });
+      cards.push({
+        severity: 'error',
+        artifactId: entry.id,
+        jsonPath,
+        rule: 'missing-progression',
+        message: `progression tables for "${entry.id}" cover ${shortest} level(s); level ${entry.level} is unreadable — extend the pack's tables (FR-6).`,
+      });
     }
     const cap = races[race]?.caps?.[entry.id];
     if (cap !== undefined && entry.level > cap) {
-      cards.push({ severity: 'error', artifactId: entry.id, jsonPath, rule: 'race-cap-exceeded', message: `level ${entry.level} exceeds the ${race} cap for "${entry.id}" (${cap}) — demihuman caps are pack data (FR-6).` });
+      cards.push({
+        severity: 'error',
+        artifactId: entry.id,
+        jsonPath,
+        rule: 'race-cap-exceeded',
+        message: `level ${entry.level} exceeds the ${race} cap for "${entry.id}" (${cap}) — demihuman caps are pack data (FR-6).`,
+      });
     }
   }
   return cards;
 }
 
 /** Build a fresh plain-JSON character state — the single constructor both paths share. */
-export function buildCharacter(runtime: Runtime, request: { readonly name: string; readonly race: string; readonly classes: readonly ClassEntry[] }): CharacterState {
+export function buildCharacter(
+  runtime: Runtime,
+  request: { readonly name: string; readonly race: string; readonly classes: readonly ClassEntry[] },
+): CharacterState {
   const abilities: Record<string, number> = {};
   for (const ability of runtime.pack.stats.abilities) abilities[ability] = 10;
   const derived = deriveProgression(runtime, request.classes);
@@ -129,14 +171,18 @@ export function buildCharacter(runtime: Runtime, request: { readonly name: strin
 }
 
 /** Per-class save values (best across classes) and slot counts (summed across classes), plus total level. */
-function deriveProgression(runtime: Runtime, entries: readonly ClassEntry[]): { level: number; saves: Record<string, number>; slots: Record<string, (string | null)[]> } {
+function deriveProgression(
+  runtime: Runtime,
+  entries: readonly ClassEntry[],
+): { level: number; saves: Record<string, number>; slots: Record<string, (string | null)[]> } {
   const saves: Record<string, number> = {};
   const slots: Record<string, (string | null)[]> = {};
   for (const entry of entries) {
     const table = runtime.pack.progression[entry.id];
     for (const [saveName, values] of Object.entries(table!.saves)) {
       const value = values[entry.level - 1];
-      if (value !== undefined && (saves[saveName] === undefined || value > saves[saveName]!)) saves[saveName] = value;
+      if (value !== undefined && (saves[saveName] === undefined || value > saves[saveName]!))
+        saves[saveName] = value;
     }
     for (const [spellLevel, counts] of Object.entries(table!.slots ?? {})) {
       const count = counts[entry.level - 1];
@@ -172,7 +218,13 @@ export function levelForXp(runtime: Runtime, xp: number): number {
       if (xp >= min && xp <= max) {
         if (typeof entry.value !== 'number') {
           throw new CharacterBuildError([
-            { severity: 'error', artifactId: 'xp', jsonPath: 'tables.xp', rule: 'invalid-xp-table', message: `tables.xp entry for xp ${xp} must carry a numeric level, got ${JSON.stringify(entry.value)}.` },
+            {
+              severity: 'error',
+              artifactId: 'xp',
+              jsonPath: 'tables.xp',
+              rule: 'invalid-xp-table',
+              message: `tables.xp entry for xp ${xp} must carry a numeric level, got ${JSON.stringify(entry.value)}.`,
+            },
           ]);
         }
         return entry.value;
@@ -205,10 +257,20 @@ export function xpSplit(total: number, count: number): number[] {
  * reapplies progression, and emits `xp:awarded` (why: host.grant) followed by
  * `level:reached` per class whose level changed. Returns the emitted events.
  */
-export function awardXp(runtime: Runtime, character: CharacterState, amount: number): readonly RuntimeEvent[] {
+export function awardXp(
+  runtime: Runtime,
+  character: CharacterState,
+  amount: number,
+): readonly RuntimeEvent[] {
   if (!Number.isInteger(amount) || amount <= 0) {
     throw new CharacterBuildError([
-      { severity: 'error', artifactId: character.id, jsonPath: 'xp', rule: 'invalid-xp', message: `XP award must be a positive integer, got ${amount}.` },
+      {
+        severity: 'error',
+        artifactId: character.id,
+        jsonPath: 'xp',
+        rule: 'invalid-xp',
+        message: `XP award must be a positive integer, got ${amount}.`,
+      },
     ]);
   }
   const events: RuntimeEvent[] = [];
@@ -218,26 +280,34 @@ export function awardXp(runtime: Runtime, character: CharacterState, amount: num
   character.classes.forEach((entry, index) => {
     character.classXp[entry.id] = (character.classXp[entry.id] ?? 0) + shares[index]!;
     const cap = runtime.pack.content.races?.[character.race]?.caps?.[entry.id];
-    const computed = Math.min(levelForXp(runtime, character.classXp[entry.id]!), cap ?? Number.MAX_SAFE_INTEGER, tableLevelCeiling(runtime, entry.id));
+    const computed = Math.min(
+      levelForXp(runtime, character.classXp[entry.id]!),
+      cap ?? Number.MAX_SAFE_INTEGER,
+      tableLevelCeiling(runtime, entry.id),
+    );
     if (computed !== entry.level) {
       entry.level = computed;
       reached.push({ classId: entry.id, level: computed });
     }
   });
   applyProgression(runtime, character);
-  events.push(runtime.events.emit({
-    type: 'xp:awarded',
-    actor: character.id,
-    payload: { amount, total: character.xp, classXp: { ...character.classXp } },
-    why: { rule: 'host.grant', rolls: [] },
-  }));
-  for (const entry of reached) {
-    events.push(runtime.events.emit({
-      type: 'level:reached',
+  events.push(
+    runtime.events.emit({
+      type: 'xp:awarded',
       actor: character.id,
-      payload: { classId: entry.classId, level: entry.level },
-      why: { rule: `progression.${entry.classId}`, rolls: [] },
-    }));
+      payload: { amount, total: character.xp, classXp: { ...character.classXp } },
+      why: { rule: 'host.grant', rolls: [] },
+    }),
+  );
+  for (const entry of reached) {
+    events.push(
+      runtime.events.emit({
+        type: 'level:reached',
+        actor: character.id,
+        payload: { classId: entry.classId, level: entry.level },
+        why: { rule: `progression.${entry.classId}`, rolls: [] },
+      }),
+    );
   }
   return events;
 }
@@ -248,7 +318,11 @@ export function awardXp(runtime: Runtime, character: CharacterState, amount: num
  * per class whose level changed; XP bookkeeping is untouched (a direct set
  * states levels, it does not simulate awards).
  */
-export function levelSet(runtime: Runtime, character: CharacterState, entries: readonly ClassEntry[]): readonly RuntimeEvent[] {
+export function levelSet(
+  runtime: Runtime,
+  character: CharacterState,
+  entries: readonly ClassEntry[],
+): readonly RuntimeEvent[] {
   const errors = validateBuild(runtime, character.race, entries);
   if (errors.length > 0) throw new CharacterBuildError(errors);
   const previous = new Map(character.classes.map((entry) => [entry.id, entry.level]));
@@ -258,12 +332,14 @@ export function levelSet(runtime: Runtime, character: CharacterState, entries: r
   for (const entry of character.classes) {
     const before = previous.get(entry.id) ?? 0;
     if (entry.level !== before) {
-      events.push(runtime.events.emit({
-        type: 'level:reached',
-        actor: character.id,
-        payload: { classId: entry.id, level: entry.level },
-        why: { rule: `progression.${entry.id}`, rolls: [] },
-      }));
+      events.push(
+        runtime.events.emit({
+          type: 'level:reached',
+          actor: character.id,
+          payload: { classId: entry.id, level: entry.level },
+          why: { rule: `progression.${entry.id}`, rolls: [] },
+        }),
+      );
     }
   }
   return events;

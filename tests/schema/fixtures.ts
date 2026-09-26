@@ -49,7 +49,12 @@ export const VALID_PACK: Pack = {
   },
   content: {
     classes: {
-      warden: { name: 'Warden', spellLists: ['warden'], armorCasting: ['mail'], features: [{ level: 1, ref: 'feature-warden-oath' }] },
+      warden: {
+        name: 'Warden',
+        spellLists: ['warden'],
+        armorCasting: ['mail'],
+        features: [{ level: 1, ref: 'feature-warden-oath' }],
+      },
       hexer: { name: 'Hexer', spellLists: ['hexer'] },
     },
     races: {
@@ -89,7 +94,13 @@ export const VALID_PACK: Pack = {
         { level: 1, byDefense: { '2': 20, '9': 13 } },
         { level: 4, byDefense: { '2': 17, '9': 10 } },
       ],
-      saves: { fortitude: [0, 0, 1, 1], reflex: [0, 1, 1, 2], will: [0, 1, 1, 2], toughness: [1, 1, 2, 2], luck: [0, 0, 1, 1] },
+      saves: {
+        fortitude: [0, 0, 1, 1],
+        reflex: [0, 1, 1, 2],
+        will: [0, 1, 1, 2],
+        toughness: [1, 1, 2, 2],
+        luck: [0, 0, 1, 1],
+      },
       slots: { '1': [1, 2, 2, 3] },
     },
     hexer: {

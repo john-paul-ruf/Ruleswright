@@ -3,9 +3,19 @@ import { Rng } from '../../../src/core/rng';
 import { emberMarchesPack } from '../fixtures/packs';
 import { Runtime } from '../../../src/runtime/runtime';
 import { profileFromStatblock, type CombatantProfile } from '../../../src/runtime/combat/resolve';
-import { startCombat, Combat, displayRoll, type CombatantState, type StepOutcome } from '../../../src/runtime/combat/combat';
+import {
+  startCombat,
+  Combat,
+  displayRoll,
+  type CombatantState,
+  type StepOutcome,
+} from '../../../src/runtime/combat/combat';
 import type { RuntimeEvent } from '../../../src/runtime/events';
-import { serializeCombat, deserializeCombat, type CombatRestoreRequest } from '../../../src/runtime/snapshots';
+import {
+  serializeCombat,
+  deserializeCombat,
+  type CombatRestoreRequest,
+} from '../../../src/runtime/snapshots';
 
 /**
  * The first narrow journey (program-level, CAP-6): generate (fixture pack) →
@@ -20,8 +30,14 @@ function journeyFight(): { fight: Combat; events: RuntimeEvent[] } {
     seen.push(event);
   });
   // Brynn: a warden-frame combatant with the strike action; wight: the bestiary's claw.
-  const brynn: CombatantProfile = { ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'brynn'), actions: ['strike'] };
-  const wight: CombatantProfile = { ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'wight'), actions: ['wight-claw'] };
+  const brynn: CombatantProfile = {
+    ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'brynn'),
+    actions: ['strike'],
+  };
+  const wight: CombatantProfile = {
+    ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'wight'),
+    actions: ['wight-claw'],
+  };
   const fight = startCombat(runtime, {
     allies: [{ id: 'brynn', profile: brynn }],
     enemies: [{ id: 'wight', profile: wight }],
@@ -44,7 +60,9 @@ function stepToDeclare(fight: Combat, id: string, skipWith = 'withdraw'): void {
     const outcome: StepOutcome = fight.step();
     if (outcome.kind === 'combat-over') throw new Error('combat ended before the awaited turn');
   }
-  throw new Error(`never reached ${id}'s declare phase (phase=${fight.state.phase}, active=${fight.state.active})`);
+  throw new Error(
+    `never reached ${id}'s declare phase (phase=${fight.state.phase}, active=${fight.state.active})`,
+  );
 }
 describe('the first narrow journey (program-level, CAP-6)', () => {
   it('runs fixture pack → validate → profiles → stepwise combat → event-with-why through the real production path', () => {
@@ -146,15 +164,30 @@ describe('combat state is plain JSON (FR-14)', () => {
     const snap = fight.serialize();
     expect(JSON.parse(JSON.stringify(snap))).toEqual(snap);
     expect(snap.combatants['wight']!.slots).toBeDefined();
-    expect(snap.rng).toEqual({ a: expect.any(Number), b: expect.any(Number), c: expect.any(Number), d: expect.any(Number) });
+    expect(snap.rng).toEqual({
+      a: expect.any(Number),
+      b: expect.any(Number),
+      c: expect.any(Number),
+      d: expect.any(Number),
+    });
   });
 
   it('a resumed fight rolls the same future as an uninterrupted one (FR-14 resume discipline)', () => {
     const runtime = new Runtime(emberMarchesPack());
-    const brynn: CombatantProfile = { ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'brynn'), actions: ['strike', 'withdraw'] };
-    const wight: CombatantProfile = { ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'wight'), actions: ['wight-claw'] };
+    const brynn: CombatantProfile = {
+      ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'brynn'),
+      actions: ['strike', 'withdraw'],
+    };
+    const wight: CombatantProfile = {
+      ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'wight'),
+      actions: ['wight-claw'],
+    };
     const make = () =>
-      startCombat(runtime, { allies: [{ id: 'brynn', profile: brynn }], enemies: [{ id: 'wight', profile: wight }], rng: new Rng(77) });
+      startCombat(runtime, {
+        allies: [{ id: 'brynn', profile: brynn }],
+        enemies: [{ id: 'wight', profile: wight }],
+        rng: new Rng(77),
+      });
     const uninterrupted = make();
     const resumable = make();
     for (let i = 0; i < 3; i += 1) {
@@ -172,7 +205,10 @@ describe('combat state is plain JSON (FR-14)', () => {
     resumed.step();
     resumed.declare('wight-claw');
     const damageA = uninterrupted.eventsSince(1).find((event) => event.type === 'damage:applied');
-    const damageB = resumed.eventsSince(1).filter((event) => event.type === 'damage:applied').pop();
+    const damageB = resumed
+      .eventsSince(1)
+      .filter((event) => event.type === 'damage:applied')
+      .pop();
     expect(damageB).toBeDefined();
     expect(damageA!.payload).toEqual(damageB!.payload);
   });
@@ -199,9 +235,19 @@ describe('declare-time gates (CA-4 at play)', () => {
 
   it('the restricts matcher blocks tagged actions through the pack index (v1.1, FR-9 spells included)', () => {
     const runtime = new Runtime(emberMarchesPack());
-    const caster: CombatantProfile = { ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'hexling'), actions: ['grave-gaze'] };
-    const victim: CombatantProfile = { ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['grave-shambles']!, 'hexling'), actions: ['withdraw'] };
-    const fight = startCombat(runtime, { allies: [{ id: 'hexling', profile: caster }], enemies: [{ id: 'dummy', profile: victim }], rng: new Rng(3) });
+    const caster: CombatantProfile = {
+      ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'hexling'),
+      actions: ['grave-gaze'],
+    };
+    const victim: CombatantProfile = {
+      ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['grave-shambles']!, 'hexling'),
+      actions: ['withdraw'],
+    };
+    const fight = startCombat(runtime, {
+      allies: [{ id: 'hexling', profile: caster }],
+      enemies: [{ id: 'dummy', profile: victim }],
+      rng: new Rng(3),
+    });
     fight.step();
     // grave-gaze applies hexbound on a failed save; hexbound restricts actions.tagged:casting.
     fight.declare('grave-gaze');
@@ -220,8 +266,19 @@ describe('declare-time gates (CA-4 at play)', () => {
 
 describe('displayRoll — the mock\u2019s roll anatomy', () => {
   it('renders the combat-loop.html roll strings verbatim', () => {
-    expect(displayRoll({ purpose: 'attack', sides: 20, values: [14], modifier: 3, total: 17, verdict: { defense: 'ac', value: 15, result: 'hit' } })).toBe('d20[14]+3=17 ≥ ac15');
-    expect(displayRoll({ purpose: 'damage', sides: 6, values: [4], modifier: 2, total: 6 })).toBe('d6[4]+2=6');
+    expect(
+      displayRoll({
+        purpose: 'attack',
+        sides: 20,
+        values: [14],
+        modifier: 3,
+        total: 17,
+        verdict: { defense: 'ac', value: 15, result: 'hit' },
+      }),
+    ).toBe('d20[14]+3=17 ≥ ac15');
+    expect(displayRoll({ purpose: 'damage', sides: 6, values: [4], modifier: 2, total: 6 })).toBe(
+      'd6[4]+2=6',
+    );
   });
 });
 
@@ -239,20 +296,38 @@ interface RuleCombatant {
   readonly initiativeBonus: number;
 }
 
-function ruleProfile(runtime: Runtime, member: RuleCombatant): { id: string; profile: CombatantProfile; balances: { pools: Record<string, number> } } {
+function ruleProfile(
+  runtime: Runtime,
+  member: RuleCombatant,
+): { id: string; profile: CombatantProfile; balances: { pools: Record<string, number> } } {
   const base = profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, member.id);
   return {
     id: member.id,
-    profile: { ...base, actions: [...member.actions], hp: member.hp ?? base.hp, initiativeBonus: member.initiativeBonus },
+    profile: {
+      ...base,
+      actions: [...member.actions],
+      hp: member.hp ?? base.hp,
+      initiativeBonus: member.initiativeBonus,
+    },
     balances: { pools: { stamina: 10 } },
   };
 }
 
-function ruleSides(runtime: Runtime, allies: readonly RuleCombatant[], enemies: readonly RuleCombatant[]): CombatRestoreRequest {
-  return { allies: allies.map((member) => ruleProfile(runtime, member)), enemies: enemies.map((member) => ruleProfile(runtime, member)) };
+function ruleSides(
+  runtime: Runtime,
+  allies: readonly RuleCombatant[],
+  enemies: readonly RuleCombatant[],
+): CombatRestoreRequest {
+  return {
+    allies: allies.map((member) => ruleProfile(runtime, member)),
+    enemies: enemies.map((member) => ruleProfile(runtime, member)),
+  };
 }
 
-function ruleFight(allies: readonly RuleCombatant[], enemies: readonly RuleCombatant[]): { runtime: Runtime; fight: Combat; events: RuntimeEvent[] } {
+function ruleFight(
+  allies: readonly RuleCombatant[],
+  enemies: readonly RuleCombatant[],
+): { runtime: Runtime; fight: Combat; events: RuntimeEvent[] } {
   const runtime = new Runtime(emberMarchesPack());
   const events: RuntimeEvent[] = [];
   runtime.events.on((event) => {
@@ -311,13 +386,19 @@ describe('the end-of-combat rule (D-26: combat.sideDefeated)', () => {
     expect(fight.step()).toEqual({ kind: 'round-completed', round: 1 });
     expect(fight.state.active).toBe('brynn');
     expect(fight.state.phase).toBe('awaiting-declare');
-    expect(events.filter((event) => event.type === 'turn:began').map((event) => event.actor)).toEqual(['brynn', 'ghoul']);
+    expect(events.filter((event) => event.type === 'turn:began').map((event) => event.actor)).toEqual([
+      'brynn',
+      'ghoul',
+    ]);
   });
 
   it('a downed combatant is offered no trigger; the same attack on a standing one is', () => {
     const attackSentry = (sentryHp: number | undefined) => {
       const setup = ruleFight(
-        [{ id: 'sentry', actions: ['parry'], hp: sentryHp, initiativeBonus: 50 }, { id: 'brynn', actions: ['surge'], initiativeBonus: 0 }],
+        [
+          { id: 'sentry', actions: ['parry'], hp: sentryHp, initiativeBonus: 50 },
+          { id: 'brynn', actions: ['surge'], initiativeBonus: 0 },
+        ],
         [{ id: 'wight', actions: ['wight-claw'], initiativeBonus: 100 }],
       );
       expect(setup.fight.state.order).toEqual(['wight', 'sentry', 'brynn']);
@@ -342,7 +423,11 @@ describe('the end-of-combat rule (D-26: combat.sideDefeated)', () => {
     const { fight } = lastSideDefeated();
     const snap = serializeCombat(fight, { pairsWith: 'party-1' });
     const fresh = new Runtime(emberMarchesPack());
-    const restored = deserializeCombat(fresh, JSON.parse(JSON.stringify(snap)), ruleSides(fresh, [BRYNN], [WIGHT_AT_1]));
+    const restored = deserializeCombat(
+      fresh,
+      JSON.parse(JSON.stringify(snap)),
+      ruleSides(fresh, [BRYNN], [WIGHT_AT_1]),
+    );
     expect(restored.state.phase).toBe('combat-over');
     expect(restored.step()).toEqual({ kind: 'combat-over' });
     expect(() => restored.declare('surge')).toThrow('combat is over');
@@ -355,7 +440,11 @@ describe('the end-of-combat rule (D-26: combat.sideDefeated)', () => {
     fight.declare('surge', { targetId: 'wight' });
     const snap = serializeCombat(fight, { pairsWith: 'party-1' });
     const fresh = new Runtime(emberMarchesPack());
-    const restored = deserializeCombat(fresh, JSON.parse(JSON.stringify(snap)), ruleSides(fresh, [BRYNN], [WIGHT_AT_1, GHOUL]));
+    const restored = deserializeCombat(
+      fresh,
+      JSON.parse(JSON.stringify(snap)),
+      ruleSides(fresh, [BRYNN], [WIGHT_AT_1, GHOUL]),
+    );
     expect(restored.state.phase).toBe('awaiting-declare');
     expect(restored.state.round).toBe(1);
     expect(restored.state.turn).toBe(0);

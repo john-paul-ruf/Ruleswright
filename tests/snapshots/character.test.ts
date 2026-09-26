@@ -5,7 +5,12 @@
 import { describe, expect, it } from 'vitest';
 import { Runtime } from '../../src/runtime/runtime';
 import { createCharacter } from '../../src/runtime/character';
-import { serializeCharacter, serializeParty, restoreCharacter, restoreParty } from '../../src/runtime/snapshots';
+import {
+  serializeCharacter,
+  serializeParty,
+  restoreCharacter,
+  restoreParty,
+} from '../../src/runtime/snapshots';
 import type { CharacterState } from '../../src/runtime/runtime';
 import { cloneRuntimePack } from '../runtime/fixtures/pack';
 import { packContentHash } from '../../src/schema/version';
@@ -16,7 +21,11 @@ import { packContentHash } from '../../src/schema/version';
  * slots at hexer level 1 (progression is pack data, FR-6).
  */
 function hexer(runtime: Runtime): CharacterState {
-  const character = createCharacter(runtime, { name: 'Vex', race: 'ashkin', classes: [{ id: 'hexer', level: 2 }] });
+  const character = createCharacter(runtime, {
+    name: 'Vex',
+    race: 'ashkin',
+    classes: [{ id: 'hexer', level: 2 }],
+  });
   character.prepare('hex-bolt', 0);
   character.spend('stamina', 3);
   character.state.spells.push('hex-bolt');
@@ -49,7 +58,14 @@ describe('character snapshots (FR-14, CAP-7)', () => {
 
   it('the classes + XP split field is lossless (FR-6/FR-14: per-class xp ⇄ classXp)', () => {
     const runtime = new Runtime(cloneRuntimePack());
-    const character = createCharacter(runtime, { name: 'Ald', race: 'hillfolk', classes: [{ id: 'warden', level: 3 }, { id: 'hexer', level: 2 }] });
+    const character = createCharacter(runtime, {
+      name: 'Ald',
+      race: 'hillfolk',
+      classes: [
+        { id: 'warden', level: 3 },
+        { id: 'hexer', level: 2 },
+      ],
+    });
     runtime.awardXp(character, 5500);
     const snap = serializeCharacter(runtime, character.state);
     // Documented v1 split: even shares (5500/2 = 2750 each); the warden's
@@ -128,7 +144,9 @@ describe('party snapshots (FR-14)', () => {
     const runtime = new Runtime(cloneRuntimePack());
     const ald = createCharacter(runtime, { name: 'Ald', race: 'hillfolk', classes: ['warden'] }).state;
     const vex = hexer(runtime);
-    const snap = JSON.parse(JSON.stringify(serializeParty(runtime, [ald, vex]))) as ReturnType<typeof serializeParty>;
+    const snap = JSON.parse(JSON.stringify(serializeParty(runtime, [ald, vex]))) as ReturnType<
+      typeof serializeParty
+    >;
     const [restoredAld, restoredVex] = restoreParty(new Runtime(cloneRuntimePack()), snap);
     expect(restoredAld).toEqual(ald);
     expect(restoredVex).toEqual(vex);
@@ -138,13 +156,21 @@ describe('party snapshots (FR-14)', () => {
 describe('restore rejects builds that no longer fit the pack (FR-5 discipline on restore)', () => {
   it('a snapshot whose classes no longer fit the pack is refused with named rules', () => {
     const sourceRuntime = new Runtime(cloneRuntimePack());
-    const snap = serializeCharacter(sourceRuntime, createCharacter(sourceRuntime, { name: 'Ald', race: 'ashkin', classes: [{ id: 'warden', level: 4 }] }).state);
+    const snap = serializeCharacter(
+      sourceRuntime,
+      createCharacter(sourceRuntime, { name: 'Ald', race: 'ashkin', classes: [{ id: 'warden', level: 4 }] })
+        .state,
+    );
     // A pack revision shortened its progression tables: the warden table now
     // reads only two levels, so the saved level-4 build is unreadable —
     // restore refuses with the shared validator's named rule, never mangles.
     const revised = cloneRuntimePack();
     const warden = revised.progression['warden']!;
-    revised.progression['warden'] = { ...warden, saves: { fortitude: [0, 0], reflex: [0, 1], will: [0, 1], toughness: [1, 1], luck: [0, 0] }, slots: { '1': [1, 2] } };
+    revised.progression['warden'] = {
+      ...warden,
+      saves: { fortitude: [0, 0], reflex: [0, 1], will: [0, 1], toughness: [1, 1], luck: [0, 0] },
+      slots: { '1': [1, 2] },
+    };
     (snap as { pack: { contentHash: string } }).pack.contentHash = packContentHash(revised);
     expect(() => restoreCharacter(new Runtime(revised), snap)).toThrow();
     try {

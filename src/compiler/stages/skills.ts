@@ -12,12 +12,24 @@ export const skillsStage: Stage = {
   run(ctx) {
     const skills = ctx.theme.content?.skills;
     if (skills === undefined) {
-      throw new GenerationError([themeCard('E-SCHEMA-01', 'content.skills', 'content.skills', 'the theme declares no skills — stage 2 needs a skill list.')]);
+      throw new GenerationError([
+        themeCard(
+          'E-SCHEMA-01',
+          'content.skills',
+          'content.skills',
+          'the theme declares no skills — stage 2 needs a skill list.',
+        ),
+      ]);
     }
     for (const [id, def] of Object.entries(skills)) {
       if (def.ability !== undefined && !ctx.theme.stats.abilities.includes(def.ability)) {
         throw new GenerationError([
-          themeCard('E-REF-01', id, `content.skills.${id}.ability`, `skill "${id}" references ability "${def.ability}", which the theme's stats do not declare.`),
+          themeCard(
+            'E-REF-01',
+            id,
+            `content.skills.${id}.ability`,
+            `skill "${id}" references ability "${def.ability}", which the theme's stats do not declare.`,
+          ),
         ]);
       }
     }

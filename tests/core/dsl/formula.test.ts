@@ -15,7 +15,14 @@ function mustParse(src: string) {
 }
 
 function request(expr: string, kind: DslCheckRequest['kind'] = 'formula'): DslCheckRequest {
-  return { expr, kind, artifactId: 'ac', jsonPath: 'formulas.ac.expr', abilities: ['vigor', 'might', 'finesse'], saves: ['reason', 'grit'] };
+  return {
+    expr,
+    kind,
+    artifactId: 'ac',
+    jsonPath: 'formulas.ac.expr',
+    abilities: ['vigor', 'might', 'finesse'],
+    saves: ['reason', 'grit'],
+  };
 }
 
 /** Die FACES (1-based) → RandomSource.int() (0-based), like dice.test.ts. */
@@ -175,7 +182,14 @@ describe('formula evaluation', () => {
 
 describe('checkFormula — the S01 seam (E-FORM-01/02/03)', () => {
   it('accepts every pinned formula shape with zero cards', () => {
-    for (const expr of ['8 + vigor', '1d8 + might', 'level * 2', '4d6kh3 + might', 'min(floor(level / 2) + might, 6)', 'level * 2 + vigor - 1']) {
+    for (const expr of [
+      '8 + vigor',
+      '1d8 + might',
+      'level * 2',
+      '4d6kh3 + might',
+      'min(floor(level / 2) + might, 6)',
+      'level * 2 + vigor - 1',
+    ]) {
       expect(checkFormula(request(expr)), expr).toEqual([]);
     }
   });
@@ -232,7 +246,14 @@ describe('checkFormula — the S01 seam (E-FORM-01/02/03)', () => {
 describe('registry + security invariants (CA-2 / NFR-Security)', () => {
   it('the registry is frozen — mutation attempts are ignored', () => {
     expect(Object.isFrozen(REGISTRY)).toBe(true);
-    expect(() => ((REGISTRY as Record<string, unknown>)['smash'] = { arity: 1, kind: 'formula', signature: ['formula'] })).toThrow();
+    expect(
+      () =>
+        ((REGISTRY as Record<string, unknown>)['smash'] = {
+          arity: 1,
+          kind: 'formula',
+          signature: ['formula'],
+        }),
+    ).toThrow();
     expect('smash' in REGISTRY).toBe(false);
     expect(Object.keys(REGISTRY).sort()).toEqual(Object.keys(REGISTRY).sort());
   });
@@ -244,7 +265,10 @@ describe('registry + security invariants (CA-2 / NFR-Security)', () => {
     const banned = /eval\(|new Function|Math\.random|import\(/;
     for (const name of files) {
       const source = readFileSync(join(dir, name), 'utf8');
-      expect(banned.test(source), `${name} must not contain eval/new Function/Math.random/dynamic import`).toBe(false);
+      expect(
+        banned.test(source),
+        `${name} must not contain eval/new Function/Math.random/dynamic import`,
+      ).toBe(false);
     }
   });
 });

@@ -24,7 +24,9 @@ const FORBIDDEN = 'generateCampaign';
 for (const name of RUNTIME_STEMS) {
   const source = readFileSync(join(DIST, name), 'utf8');
   if (source.includes(FORBIDDEN)) {
-    fail(`the string "${FORBIDDEN}" appears in ${name} — the runtime surface imports generator code (FR-22).`);
+    fail(
+      `the string "${FORBIDDEN}" appears in ${name} — the runtime surface imports generator code (FR-22).`,
+    );
   }
   console.log(`✓ ${name}: "${FORBIDDEN}" absent`);
 }

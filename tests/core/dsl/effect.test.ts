@@ -12,7 +12,14 @@ function mustParse(src: string) {
 }
 
 function request(expr: string): DslCheckRequest {
-  return { expr, kind: 'effect', artifactId: 'strike', jsonPath: 'actions.strike.effect', abilities: ['might'], saves: ['reason', 'grit', 'reflexes'] };
+  return {
+    expr,
+    kind: 'effect',
+    artifactId: 'strike',
+    jsonPath: 'actions.strike.effect',
+    abilities: ['might'],
+    saves: ['reason', 'grit', 'reflexes'],
+  };
 }
 
 /** Die FACES (1-based) → RandomSource.int() (0-based). */
@@ -39,7 +46,12 @@ function recordingApply(resolved: string[] = []) {
         return ids;
       },
       damage(target: { id: string }, roll: RollResult, type?: string) {
-        calls.push({ op: 'damage', targetId: target.id, total: roll.total, ...(type !== undefined ? { type } : {}) });
+        calls.push({
+          op: 'damage',
+          targetId: target.id,
+          total: roll.total,
+          ...(type !== undefined ? { type } : {}),
+        });
       },
       condition(target: { id: string }, conditionId: string, duration: number) {
         calls.push({ op: 'condition', targetId: target.id, conditionId, duration });
@@ -80,7 +92,13 @@ describe('executeEffect', () => {
   it('attack → hit path with structured RollResult and verdict (FR-13 raw material)', () => {
     const ast = mustParse('attack(ac, 5)');
     const { apply, calls } = recordingApply();
-    const outcomes = executeEffect(ast, { actor: null, targets: [goblin], rng: scripted([15]), apply, vars: { ac: 16 } });
+    const outcomes = executeEffect(ast, {
+      actor: null,
+      targets: [goblin],
+      rng: scripted([15]),
+      apply,
+      vars: { ac: 16 },
+    });
     expect(outcomes).toHaveLength(1);
     const attack = outcomes[0] as Extract<EffectResolution, { kind: 'attack' }>;
     expect(attack.kind).toBe('attack');
@@ -110,7 +128,13 @@ describe('executeEffect', () => {
   it('save-for-half mixed outcome across 2 targets (magic.html perTarget anatomy)', () => {
     const ast = mustParse('save(reason, 14, damage(3d6, fire), damage(half))');
     const { apply, calls } = recordingApply();
-    const outcomes = executeEffect(ast, { actor: null, targets: [shambles, brynn], rng: scripted([11, 2, 3, 4, 16, 2, 3, 4]), apply, vars: { reason: 0 } });
+    const outcomes = executeEffect(ast, {
+      actor: null,
+      targets: [shambles, brynn],
+      rng: scripted([11, 2, 3, 4, 16, 2, 3, 4]),
+      apply,
+      vars: { reason: 0 },
+    });
     expect(outcomes).toHaveLength(1);
     const save = outcomes[0] as Extract<EffectResolution, { kind: 'save' }>;
     expect(save.kind).toBe('save');
@@ -143,7 +167,13 @@ describe('executeEffect', () => {
 
   it('condition application invokes the host callback with id + duration', () => {
     const { apply, calls } = recordingApply();
-    const outcomes = executeEffect(mustParse('applyCondition(prone, 2)'), { actor: null, targets: [goblin], rng: new Rng(1), apply, vars: {} });
+    const outcomes = executeEffect(mustParse('applyCondition(prone, 2)'), {
+      actor: null,
+      targets: [goblin],
+      rng: new Rng(1),
+      apply,
+      vars: {},
+    });
     expect(calls).toEqual([{ op: 'condition', targetId: 'goblin', conditionId: 'prone', duration: 2 }]);
     const condition = outcomes[0] as Extract<EffectResolution, { kind: 'condition' }>;
     expect(condition).toEqual({ kind: 'condition', targetId: 'goblin', conditionId: 'prone', duration: 2 });
@@ -151,7 +181,13 @@ describe('executeEffect', () => {
 
   it('target(shape, effect) delegates geometry to the host and scopes the inner effect', () => {
     const { apply, calls } = recordingApply(['goblin', 'brynn']);
-    const outcomes = executeEffect(mustParse('target(burst-2, damage(1d6))'), { actor: null, targets: [], rng: scripted([6, 3]), apply, vars: {} });
+    const outcomes = executeEffect(mustParse('target(burst-2, damage(1d6))'), {
+      actor: null,
+      targets: [],
+      rng: scripted([6, 3]),
+      apply,
+      vars: {},
+    });
     expect(calls[0]).toEqual({ op: 'resolveTargets', shape: 'burst-2', count: 2 });
     expect(calls.slice(1)).toEqual([
       { op: 'damage', targetId: 'goblin', total: 6 },
@@ -169,13 +205,25 @@ describe('executeEffect', () => {
       { actor: null, targets: [goblin], rng: new Rng(1), apply, vars: {} },
     );
     const sequence = outcomes[0] as Extract<EffectResolution, { kind: 'sequence' }>;
-    expect(sequence.steps.map((step) => (step.kind === 'condition' ? step.conditionId : step.kind))).toEqual(['prone', 'hexed']);
-    expect(calls.map((call) => (call.op === 'condition' ? call.conditionId : call.op))).toEqual(['prone', 'hexed']);
+    expect(sequence.steps.map((step) => (step.kind === 'condition' ? step.conditionId : step.kind))).toEqual([
+      'prone',
+      'hexed',
+    ]);
+    expect(calls.map((call) => (call.op === 'condition' ? call.conditionId : call.op))).toEqual([
+      'prone',
+      'hexed',
+    ]);
   });
 
   it('formulas inside effects read the injected actor vars (no parser access at play time)', () => {
     const { apply } = recordingApply();
-    const outcomes = executeEffect(mustParse('applyCondition(stunned, level / 2)'), { actor: null, targets: [goblin], rng: new Rng(1), apply, vars: { level: 7 } });
+    const outcomes = executeEffect(mustParse('applyCondition(stunned, level / 2)'), {
+      actor: null,
+      targets: [goblin],
+      rng: new Rng(1),
+      apply,
+      vars: { level: 7 },
+    });
     const condition = outcomes[0] as Extract<EffectResolution, { kind: 'condition' }>;
     expect(condition.duration).toBe(3.5); // ceil/floor is the author's job; the executor evaluates honestly
   });
@@ -196,9 +244,25 @@ describe('executeEffect', () => {
 
   it('throws on unvalidated ASTs: unknown statement and missing recipes', () => {
     const bogus = { kind: 'call', text: 'smash', args: [], pos: { start: 0, length: 5 } } as never;
-    expect(() => executeEffect(bogus, { actor: null, targets: [], rng: new Rng(1), apply: recordingApply().apply, vars: {} })).toThrow(/smash/);
+    expect(() =>
+      executeEffect(bogus, {
+        actor: null,
+        targets: [],
+        rng: new Rng(1),
+        apply: recordingApply().apply,
+        vars: {},
+      }),
+    ).toThrow(/smash/);
     const handBuilt = { kind: 'call', text: 'save', args: [], pos: { start: 0, length: 4 } } as never;
-    expect(() => executeEffect(handBuilt, { actor: null, targets: [], rng: new Rng(1), apply: recordingApply().apply, vars: {} })).toThrow(/recipe/);
+    expect(() =>
+      executeEffect(handBuilt, {
+        actor: null,
+        targets: [],
+        rng: new Rng(1),
+        apply: recordingApply().apply,
+        vars: {},
+      }),
+    ).toThrow(/recipe/);
   });
 });
 

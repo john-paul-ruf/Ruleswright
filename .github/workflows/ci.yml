@@ -1,7 +1,12 @@
 # CI workflow — the committed CI-gates list (FR-22/NFR-Security/NFR-DX):
-# matrix Node 18/20/22; typecheck; lint (security rules); unit tests; build +
-# bundle isolation + security sweep; FR-12 proof trio; FR-21 theme generation +
-# validation; perf budgets as regression thresholds.
+# typecheck; unit tests; build + bundle isolation + security sweep; FR-12 proof
+# trio; FR-21 theme generation + validation; perf budgets as regression
+# thresholds; format check.
+#
+# Lint and the format check run on Node 22 only, not the matrix: ESLint 10's
+# supported Node range starts at ^20.19/^22.13, so the lint step cannot run on
+# the 18 leg. Typecheck/tests stay on 18/20/22 — the library's engines floor
+# (>=18) is untouched, and the whole suite still runs on all three Node lines.
 #
 # Determinism in v1: the WHOLE suite runs on all three Node lines below —
 # same-seed ⇒ identical results is the v1 determinism proof, and a scoped
@@ -20,7 +25,7 @@ on:
 
 jobs:
   test:
-    name: typecheck · lint · test + determinism (node ${{ matrix.node }})
+    name: typecheck · test + determinism (node ${{ matrix.node }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -37,10 +42,27 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
-      - run: pnpm lint
       - run: pnpm test
         # Whole suite on all three Node lines = the v1 determinism proof:
         # same seed ⇒ identical results across engines (FR-1).
+
+  lint:
+    name: lint · format (node 22)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+        name: ESLint flat config — hygiene everywhere; the engine security bans on src/
+      - run: pnpm format:check
+        name: Prettier — the .prettierrc is enforced, not aspirational
 
   package:
     name: build · bundle isolation · security sweep (node 22)
@@ -57,7 +79,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm check:isolation
-        name: runtime-only bundle contains no compiler strings (FR-22, packaging.html's check)
+        name: runtime-only bundle contains no compiler strings — the runtime surface must not pull in the compiler (FR-22)
       - run: pnpm check:security
         name: no eval/new Function/Math.random/Date.now in src/ + dist/ (NFR-Security belt)
       - run: pnpm exec vitest run tests/proofs/

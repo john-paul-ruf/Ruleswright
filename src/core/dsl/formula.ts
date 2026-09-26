@@ -17,7 +17,16 @@ import { parseRecipe, rollRecipe, type DiceRecipe, type RollResult } from '../di
 import type { DslCheckRequest } from '../../schema/validate';
 import type { ErrorCard } from '../../schema/error-card';
 import { lookupFunction } from './registry';
-import { dslCard, nearestName, tokenize, MAX_EXPR_LENGTH, MAX_PARSE_DEPTH, type DslParse, type Pos, type Token } from './shared';
+import {
+  dslCard,
+  nearestName,
+  tokenize,
+  MAX_EXPR_LENGTH,
+  MAX_PARSE_DEPTH,
+  type DslParse,
+  type Pos,
+  type Token,
+} from './shared';
 
 /** Scalar result of formula evaluation — a number, or a roll when the formula contains dice. */
 export type FormulaValue = number | RollResult;
@@ -125,7 +134,9 @@ class FormulaParser {
     if (token.kind === 'op' && (token.text === '+' || token.text === '-')) {
       this.advance();
       const operand = this.parseAtom();
-      return this.ok() ? { kind: 'unary', op: token.text, operand, pos: this.spanPos(token.pos, operand.pos) } : operand;
+      return this.ok()
+        ? { kind: 'unary', op: token.text, operand, pos: this.spanPos(token.pos, operand.pos) }
+        : operand;
     }
     if (token.kind === 'number') {
       this.advance();
@@ -147,7 +158,11 @@ class FormulaParser {
       this.advance();
       this.depth += 1;
       if (this.depth > MAX_PARSE_DEPTH) {
-        return this.failAt(`expression nests deeper than the documented limit (${MAX_PARSE_DEPTH})`, token.pos.start, token.pos.length);
+        return this.failAt(
+          `expression nests deeper than the documented limit (${MAX_PARSE_DEPTH})`,
+          token.pos.start,
+          token.pos.length,
+        );
       }
       const inner = this.parseExpression(0);
       if (!this.ok()) return inner;
@@ -177,7 +192,10 @@ class FormulaParser {
       kind: 'call',
       text: callee.text,
       args,
-      pos: { start: callee.pos.start, length: closing.token.pos.start + closing.token.pos.length - callee.pos.start },
+      pos: {
+        start: callee.pos.start,
+        length: closing.token.pos.start + closing.token.pos.length - callee.pos.start,
+      },
     };
   }
 
@@ -195,13 +213,25 @@ class FormulaParser {
     return true;
   }
 
-  private expect(kind: Token['kind']): { ok: true; token: Token } | { ok: false; reason: string; start: number; length: number } {
+  private expect(
+    kind: Token['kind'],
+  ): { ok: true; token: Token } | { ok: false; reason: string; start: number; length: number } {
     const token = this.peek();
     if (token === undefined) {
-      return { ok: false, reason: `"${kind}" expected but the expression ends`, start: this.src.length, length: 1 };
+      return {
+        ok: false,
+        reason: `"${kind}" expected but the expression ends`,
+        start: this.src.length,
+        length: 1,
+      };
     }
     if (token.kind !== kind) {
-      return { ok: false, reason: `"${kind}" expected, found "${token.text}"`, start: token.pos.start, length: token.pos.length };
+      return {
+        ok: false,
+        reason: `"${kind}" expected, found "${token.text}"`,
+        start: token.pos.start,
+        length: token.pos.length,
+      };
     }
     this.advance();
     return { ok: true, token };
@@ -210,7 +240,12 @@ class FormulaParser {
   expectEnd(): { ok: true } | { ok: false; reason: string; start: number; length: number } {
     const token = this.peek();
     if (token === undefined) return { ok: true };
-    return { ok: false, reason: `unexpected trailing "${token.text}"`, start: token.pos.start, length: token.pos.length };
+    return {
+      ok: false,
+      reason: `unexpected trailing "${token.text}"`,
+      start: token.pos.start,
+      length: token.pos.length,
+    };
   }
 
   private failAt(reason: string, start: number, length: number): FormulaAst {
@@ -249,13 +284,16 @@ export function evalFormula(ast: FormulaAst, ctx: FormulaContext, rng: RandomSou
       return ast.value ?? 0;
     case 'name': {
       const value = ctx[ast.text ?? ''];
-      if (value === undefined) throw new Error(`unknown name "${ast.text}" — validate the formula before evaluation (E-FORM-03)`);
+      if (value === undefined)
+        throw new Error(`unknown name "${ast.text}" — validate the formula before evaluation (E-FORM-03)`);
       return value;
     }
     case 'dice':
       return rollRecipe(ast.recipe!, rng, ctx, 'formula');
     case 'unary':
-      return ast.op === '-' ? -valueOfFormula(evalFormula(ast.operand!, ctx, rng)) : valueOfFormula(evalFormula(ast.operand!, ctx, rng));
+      return ast.op === '-'
+        ? -valueOfFormula(evalFormula(ast.operand!, ctx, rng))
+        : valueOfFormula(evalFormula(ast.operand!, ctx, rng));
     case 'binary':
       return arithmetic(ast, ctx, rng);
     case 'comparator': {
@@ -274,7 +312,9 @@ function arithmetic(ast: FormulaAst, ctx: FormulaContext, rng: RandomSource): Fo
   const right = evalFormula(ast.right!, ctx, rng);
   if (ast.op === '*' || ast.op === '/') {
     if (isRoll(left) || isRoll(right)) {
-      throw new Error('multiplication and division are defined over scalar operands only — roll first, then scale');
+      throw new Error(
+        'multiplication and division are defined over scalar operands only — roll first, then scale',
+      );
     }
     const a = valueOfFormula(left);
     const b = valueOfFormula(right);
@@ -284,7 +324,10 @@ function arithmetic(ast: FormulaAst, ctx: FormulaContext, rng: RandomSource): Fo
   const sign: 1 | -1 = ast.op === '-' ? -1 : 1;
   if (isRoll(left) && isRoll(right)) return mergeRolls(left, right, sign);
   if (isRoll(left)) return foldRoll(left, sign * valueOfFormula(right));
-  if (isRoll(right)) return sign === 1 ? foldRoll(right, valueOfFormula(left)) : foldRoll(negateRoll(right), valueOfFormula(left));
+  if (isRoll(right))
+    return sign === 1
+      ? foldRoll(right, valueOfFormula(left))
+      : foldRoll(negateRoll(right), valueOfFormula(left));
   const a = valueOfFormula(left);
   const b = valueOfFormula(right);
   return ast.op === '+' ? a + b : a - b;
@@ -293,7 +336,8 @@ function arithmetic(ast: FormulaAst, ctx: FormulaContext, rng: RandomSource): Fo
 /** Two dice clusters compose into one roll result: values concatenate, modifiers and totals add. */
 function mergeRolls(left: RollResult, right: RollResult, sign: 1 | -1): RollResult {
   const modifier = left.modifier + sign * right.modifier;
-  const values = sign === 1 ? [...left.values, ...right.values] : [...left.values, ...right.values.map((value) => -value)];
+  const values =
+    sign === 1 ? [...left.values, ...right.values] : [...left.values, ...right.values.map((value) => -value)];
   return { purpose: left.purpose, sides: left.sides, values, modifier, total: sum(values) + modifier };
 }
 
@@ -303,7 +347,12 @@ function foldRoll(roll: RollResult, delta: number): RollResult {
 
 /** Scalar-minus-dice negates the dice side: values and modifier flip, total follows. */
 function negateRoll(roll: RollResult): RollResult {
-  return { ...roll, values: roll.values.map((value) => -value), modifier: -roll.modifier, total: -roll.total };
+  return {
+    ...roll,
+    values: roll.values.map((value) => -value),
+    modifier: -roll.modifier,
+    total: -roll.total,
+  };
 }
 
 function evalCall(ast: FormulaAst, ctx: FormulaContext, rng: RandomSource): FormulaValue {
@@ -318,7 +367,9 @@ function evalCall(ast: FormulaAst, ctx: FormulaContext, rng: RandomSource): Form
     case 'ceil':
       return Math.ceil(scalars[0]!);
     default:
-      throw new Error(`function "${ast.text}" is not a formula function — validate before evaluation (E-FORM-02)`);
+      throw new Error(
+        `function "${ast.text}" is not a formula function — validate before evaluation (E-FORM-02)`,
+      );
   }
 }
 
@@ -361,7 +412,11 @@ export interface SemanticFailure {
 }
 
 /** Walk the AST; names must resolve, dice terms must be legal recipes, calls must match the context's vocabulary. */
-export function checkFormulaAst(ast: FormulaAst, ctx: FormulaCheckContext, insideValidity = false): SemanticFailure | undefined {
+export function checkFormulaAst(
+  ast: FormulaAst,
+  ctx: FormulaCheckContext,
+  insideValidity = false,
+): SemanticFailure | undefined {
   switch (ast.kind) {
     case 'dice':
       if (ast.recipeError !== undefined) {
@@ -383,14 +438,23 @@ export function checkFormulaAst(ast: FormulaAst, ctx: FormulaCheckContext, insid
       const name = ast.text ?? '';
       const spec = lookupFunction(name);
       if (spec === undefined) {
-        return { rule: 'E-FORM-02', message: `unknown function "${name}" — the function registry is closed.` };
+        return {
+          rule: 'E-FORM-02',
+          message: `unknown function "${name}" — the function registry is closed.`,
+        };
       }
       if (spec.kind === 'reserved') {
-        return { rule: 'E-FORM-02', message: `"${name}" is a reserved marker, not a function — it belongs inside damage().` };
+        return {
+          rule: 'E-FORM-02',
+          message: `"${name}" is a reserved marker, not a function — it belongs inside damage().`,
+        };
       }
       if (spec.kind === 'validity') {
         if (ctx.allow !== 'validity') {
-          return { rule: 'E-FORM-02', message: `function "${name}" is a validity function, not a formula function.` };
+          return {
+            rule: 'E-FORM-02',
+            message: `function "${name}" is a validity function, not a formula function.`,
+          };
         }
         for (const arg of ast.args ?? []) {
           const failure = checkFormulaAst(arg, ctx, true);
@@ -399,7 +463,10 @@ export function checkFormulaAst(ast: FormulaAst, ctx: FormulaCheckContext, insid
         return undefined;
       }
       if (spec.kind !== 'formula') {
-        return { rule: 'E-FORM-02', message: `function "${name}" is an effect function, not a formula function.` };
+        return {
+          rule: 'E-FORM-02',
+          message: `function "${name}" is an effect function, not a formula function.`,
+        };
       }
       const [minArgs, maxArgs] = typeof spec.arity === 'number' ? [spec.arity, spec.arity] : spec.arity;
       const count = (ast.args ?? []).length;
@@ -419,14 +486,21 @@ export function checkFormulaAst(ast: FormulaAst, ctx: FormulaCheckContext, insid
       return checkFormulaAst(ast.operand!, ctx, insideValidity);
     case 'binary':
     case 'comparator':
-      return checkFormulaAst(ast.left!, ctx, insideValidity) ?? checkFormulaAst(ast.right!, ctx, insideValidity);
+      return (
+        checkFormulaAst(ast.left!, ctx, insideValidity) ?? checkFormulaAst(ast.right!, ctx, insideValidity)
+      );
     case 'number':
       return undefined;
   }
 }
 
 function isFormulaName(name: string, ctx: FormulaCheckContext): boolean {
-  return BUILTIN_SCALARS.includes(name) || ctx.abilities.includes(name) || ctx.saves.includes(name) || (ctx.scalars ?? []).includes(name);
+  return (
+    BUILTIN_SCALARS.includes(name) ||
+    ctx.abilities.includes(name) ||
+    ctx.saves.includes(name) ||
+    (ctx.scalars ?? []).includes(name)
+  );
 }
 
 function nameCandidates(ctx: FormulaCheckContext): readonly string[] {
@@ -442,7 +516,13 @@ function nameCandidates(ctx: FormulaCheckContext): readonly string[] {
 export function checkFormula(request: DslCheckRequest): ErrorCard[] {
   const parsed = parseFormula(request.expr);
   if (!parsed.ok) {
-    return [dslCard('E-FORM-01', request, `cannot parse ${request.kind} expression at offset ${parsed.start}: ${parsed.reason}`)];
+    return [
+      dslCard(
+        'E-FORM-01',
+        request,
+        `cannot parse ${request.kind} expression at offset ${parsed.start}: ${parsed.reason}`,
+      ),
+    ];
   }
   const ctx: FormulaCheckContext =
     request.kind === 'valid'

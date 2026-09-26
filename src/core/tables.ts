@@ -71,7 +71,13 @@ export function rollTable(def: TableDef, rng: RandomSource, options: RollTableOp
   return rollAt(def, rng, 1, options.jsonPath ?? '(table)', options.resolve);
 }
 
-function rollAt(def: TableDef, rng: RandomSource, depth: number, path: string, resolve?: TableResolver): TableOutcome {
+function rollAt(
+  def: TableDef,
+  rng: RandomSource,
+  depth: number,
+  path: string,
+  resolve?: TableResolver,
+): TableOutcome {
   if (def.entries.length === 0) {
     return fail('malformed-entries', path, 'table has no entries');
   }
@@ -85,7 +91,11 @@ function rollWeighted(def: TableDef, rng: RandomSource, path: string): TableOutc
   let total = 0;
   for (const [index, entry] of def.entries.entries()) {
     if (!Number.isInteger(entry.weight) || (entry.weight ?? 0) < 1) {
-      return fail('malformed-entries', `${path}.entries[${index}]`, `weighted entries need an integer weight >= 1, got ${entry.weight}`);
+      return fail(
+        'malformed-entries',
+        `${path}.entries[${index}]`,
+        `weighted entries need an integer weight >= 1, got ${entry.weight}`,
+      );
     }
     const weight = entry.weight as number;
     weights.push(weight);
@@ -101,7 +111,11 @@ function rollRanged(def: TableDef, rng: RandomSource, path: string): TableOutcom
   for (const [index, entry] of def.entries.entries()) {
     const { min, max } = entry;
     if (!Number.isInteger(min) || !Number.isInteger(max) || (min as number) > (max as number)) {
-      return fail('malformed-entries', `${path}.entries[${index}]`, `ranged entries need integers min <= max, got ${min}..${max}`);
+      return fail(
+        'malformed-entries',
+        `${path}.entries[${index}]`,
+        `ranged entries need integers min <= max, got ${min}..${max}`,
+      );
     }
   }
   const face = rng.int(100) + 1;
@@ -113,12 +127,22 @@ function rollRanged(def: TableDef, rng: RandomSource, path: string): TableOutcom
   return fail('range-gap', path, `d100 roll ${face} falls in no declared range`);
 }
 
-function rollNested(def: TableDef, rng: RandomSource, depth: number, path: string, resolve?: TableResolver): TableOutcome {
+function rollNested(
+  def: TableDef,
+  rng: RandomSource,
+  depth: number,
+  path: string,
+  resolve?: TableResolver,
+): TableOutcome {
   const weights: number[] = [];
   let total = 0;
   for (const [index, entry] of def.entries.entries()) {
     if (entry.weight !== undefined && (!Number.isInteger(entry.weight) || entry.weight < 1)) {
-      return fail('malformed-entries', `${path}.entries[${index}]`, `nested entry weights need an integer >= 1, got ${entry.weight}`);
+      return fail(
+        'malformed-entries',
+        `${path}.entries[${index}]`,
+        `nested entry weights need an integer >= 1, got ${entry.weight}`,
+      );
     }
     const weight = entry.weight ?? 1;
     weights.push(weight);

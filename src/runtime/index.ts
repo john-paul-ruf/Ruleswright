@@ -5,13 +5,15 @@
  * triggers) and the bestiary/encounter machinery. The runtime surface never
  * imports the compiler (architecture rule; CI string-checks the bundle).
  */
-export { EventStream, type RuntimeEvent, type EventClock, type EventWhy, type EventSeed, type EventSink } from './events';
 export {
-  Runtime,
-  PackLoadError,
-  type PackIndex,
-  type CharacterCreateRequest,
-} from './runtime';
+  EventStream,
+  type RuntimeEvent,
+  type EventClock,
+  type EventWhy,
+  type EventSeed,
+  type EventSink,
+} from './events';
+export { Runtime, PackLoadError, type PackIndex, type CharacterCreateRequest } from './runtime';
 export {
   Character,
   createCharacter,

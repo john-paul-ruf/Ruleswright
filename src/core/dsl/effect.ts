@@ -24,7 +24,17 @@ import type { DslCheckRequest } from '../../schema/validate';
 import type { ErrorCard } from '../../schema/error-card';
 import { lookupFunction } from './registry';
 import { dslCard } from './shared';
-import { checkFormulaAst, evalFormula, parseFormula, valueOfFormula, type FormulaAst, type FormulaCheckContext, type FormulaContext, type FormulaNode, type FormulaValue } from './formula';
+import {
+  checkFormulaAst,
+  evalFormula,
+  parseFormula,
+  valueOfFormula,
+  type FormulaAst,
+  type FormulaCheckContext,
+  type FormulaContext,
+  type FormulaNode,
+  type FormulaValue,
+} from './formula';
 
 /** An effect node is the shared call-tree AST plus executor annotations. */
 export interface EffectNode extends FormulaNode {
@@ -115,7 +125,8 @@ export interface SequenceOutcome {
   readonly steps: readonly EffectResolution[];
 }
 
-export type EffectResolution = AttackOutcome | SaveOutcome | DamageOutcome | ConditionOutcome | TargetOutcome | SequenceOutcome;
+export type EffectResolution =
+  AttackOutcome | SaveOutcome | DamageOutcome | ConditionOutcome | TargetOutcome | SequenceOutcome;
 
 // ---------------------------------------------------------------- parsing
 
@@ -124,11 +135,18 @@ export type EffectResolution = AttackOutcome | SaveOutcome | DamageOutcome | Con
  * pure call trees); the effect constraint is structural: the root must be a
  * statement — a call. Vocabulary and signature checks belong to the checker.
  */
-export function parseEffect(src: string): { ok: true; value: EffectAst } | { ok: false; reason: string; start: number; length: number } {
+export function parseEffect(
+  src: string,
+): { ok: true; value: EffectAst } | { ok: false; reason: string; start: number; length: number } {
   const parsed = parseFormula(src);
   if (!parsed.ok) return parsed;
   if (parsed.value.kind !== 'call') {
-    return { ok: false, reason: 'effect must be a statement — a function call (attack(…), save(…), damage(…), …)', start: 0, length: src.length };
+    return {
+      ok: false,
+      reason: 'effect must be a statement — a function call (attack(…), save(…), damage(…), …)',
+      start: 0,
+      length: src.length,
+    };
   }
   return { ok: true, value: annotateRecipes(parsed.value) };
 }
@@ -172,9 +190,16 @@ export function executeEffect(ast: EffectAst, ctx: EffectContext): readonly Effe
   return execStatement(ast, ctx, ctx.targets, undefined);
 }
 
-function execStatement(node: FormulaAst, ctx: EffectContext, scope: readonly EffectTargetRef[], halveFrom: HalveFrom | undefined): readonly EffectResolution[] {
+function execStatement(
+  node: FormulaAst,
+  ctx: EffectContext,
+  scope: readonly EffectTargetRef[],
+  halveFrom: HalveFrom | undefined,
+): readonly EffectResolution[] {
   if (node.kind !== 'call') {
-    throw new Error(`effect statement must be a function call, got "${node.kind}" — validate before execution (E-FORM-02)`);
+    throw new Error(
+      `effect statement must be a function call, got "${node.kind}" — validate before execution (E-FORM-02)`,
+    );
   }
   const args = node.args ?? [];
   switch (node.text) {
@@ -195,30 +220,47 @@ function execStatement(node: FormulaAst, ctx: EffectContext, scope: readonly Eff
   }
 }
 
-function execAttack(node: FormulaAst, args: readonly FormulaAst[], ctx: EffectContext, scope: readonly EffectTargetRef[]): readonly EffectResolution[] {
+function execAttack(
+  node: FormulaAst,
+  args: readonly FormulaAst[],
+  ctx: EffectContext,
+  scope: readonly EffectTargetRef[],
+): readonly EffectResolution[] {
   const effectNode = node as EffectNode;
   if (effectNode.attackRecipe === undefined) {
-    throw new Error('attack statement is missing its prebuilt d20 recipe — parse effects through parseEffect (E-FORM-01)');
+    throw new Error(
+      'attack statement is missing its prebuilt d20 recipe — parse effects through parseEffect (E-FORM-01)',
+    );
   }
   const defense = valueOfFormula(evalFormula(args[0]!, ctx.vars, ctx.rng));
   const bonus = valueOfFormula(evalFormula(args[1]!, ctx.vars, ctx.rng));
-  const defenseName = args[0]!.kind === 'name' ? args[0]!.text ?? 'defense' : 'defense';
+  const defenseName = args[0]!.kind === 'name' ? (args[0]!.text ?? 'defense') : 'defense';
   const outcomes: AttackOutcome[] = [];
   for (const target of scope) {
     const rolled = rollRecipe(effectNode.attackRecipe, ctx.rng, {}, 'attack');
     const roll: RollResult = { ...rolled, modifier: rolled.modifier + bonus, total: rolled.total + bonus };
     const hit = roll.total >= defense;
-    const judged: RollResult = { ...roll, verdict: { defense: defenseName, value: defense, result: hit ? 'hit' : 'miss' } };
+    const judged: RollResult = {
+      ...roll,
+      verdict: { defense: defenseName, value: defense, result: hit ? 'hit' : 'miss' },
+    };
     outcomes.push({ kind: 'attack', targetId: target.id, roll: judged, hit });
   }
   return outcomes;
 }
 
-function execSave(node: FormulaAst, args: readonly FormulaAst[], ctx: EffectContext, scope: readonly EffectTargetRef[]): readonly EffectResolution[] {
+function execSave(
+  node: FormulaAst,
+  args: readonly FormulaAst[],
+  ctx: EffectContext,
+  scope: readonly EffectTargetRef[],
+): readonly EffectResolution[] {
   const effectNode = node as EffectNode;
-  const saveName = args[0]?.kind === 'name' ? args[0].text ?? '' : '';
+  const saveName = args[0]?.kind === 'name' ? (args[0].text ?? '') : '';
   if (effectNode.saveRecipe === undefined) {
-    throw new Error(`save statement is missing its prebuilt d20 recipe${effectNode.saveRecipeError === undefined ? '' : ` (${effectNode.saveRecipeError})`} — parse effects through parseEffect (E-FORM-01)`);
+    throw new Error(
+      `save statement is missing its prebuilt d20 recipe${effectNode.saveRecipeError === undefined ? '' : ` (${effectNode.saveRecipeError})`} — parse effects through parseEffect (E-FORM-01)`,
+    );
   }
   const dc = valueOfFormula(evalFormula(args[1]!, ctx.vars, ctx.rng));
   const [failEffect, passEffect] = [args[2]!, args[3]!];
@@ -226,7 +268,10 @@ function execSave(node: FormulaAst, args: readonly FormulaAst[], ctx: EffectCont
   for (const target of scope) {
     const roll = rollRecipe(effectNode.saveRecipe, ctx.rng, ctx.vars, saveName);
     const passed = roll.total >= dc;
-    const judged: RollResult = { ...roll, verdict: { defense: saveName, value: dc, result: passed ? 'pass' : 'fail' } };
+    const judged: RollResult = {
+      ...roll,
+      verdict: { defense: saveName, value: dc, result: passed ? 'pass' : 'fail' },
+    };
     const branch = passed ? passEffect : failEffect;
     const branchScope: readonly EffectTargetRef[] = [target];
     const outcomes = execStatement(branch, ctx, branchScope, passed ? halveFromFail(failEffect) : undefined);
@@ -235,27 +280,49 @@ function execSave(node: FormulaAst, args: readonly FormulaAst[], ctx: EffectCont
   return [{ kind: 'save', saveName, dc, perTarget }];
 }
 
-function execDamage(node: FormulaAst, args: readonly FormulaAst[], ctx: EffectContext, scope: readonly EffectTargetRef[], halveFrom: HalveFrom | undefined): readonly EffectResolution[] {
-  const ownType = args[1]?.kind === 'name' ? args[1].text ?? undefined : undefined;
+function execDamage(
+  node: FormulaAst,
+  args: readonly FormulaAst[],
+  ctx: EffectContext,
+  scope: readonly EffectTargetRef[],
+  halveFrom: HalveFrom | undefined,
+): readonly EffectResolution[] {
+  const ownType = args[1]?.kind === 'name' ? (args[1].text ?? undefined) : undefined;
   const half = args[0]!.kind === 'name' && args[0]!.text === 'half';
   if (half && halveFrom === undefined) {
-    throw new Error('damage(half) needs a save fail branch with a damage statement to halve — validate before execution (E-FORM-02)');
+    throw new Error(
+      'damage(half) needs a save fail branch with a damage statement to halve — validate before execution (E-FORM-02)',
+    );
   }
   const outcomes: DamageOutcome[] = [];
   for (const target of scope) {
-    const value = half ? evalFormula(halveFrom!.expr, ctx.vars, ctx.rng) : evalFormula(args[0]!, ctx.vars, ctx.rng);
+    const value = half
+      ? evalFormula(halveFrom!.expr, ctx.vars, ctx.rng)
+      : evalFormula(args[0]!, ctx.vars, ctx.rng);
     const rolled = toRoll(value, 'damage');
     const halvedTotal = Math.ceil(rolled.total / 2);
-    const roll = half ? { ...rolled, modifier: rolled.modifier + (halvedTotal - rolled.total), total: halvedTotal } : rolled;
-    const effectiveType = half ? halveFrom!.type ?? ownType : ownType;
+    const roll = half
+      ? { ...rolled, modifier: rolled.modifier + (halvedTotal - rolled.total), total: halvedTotal }
+      : rolled;
+    const effectiveType = half ? (halveFrom!.type ?? ownType) : ownType;
     ctx.apply.damage(target, roll, effectiveType);
-    outcomes.push({ kind: 'damage', targetId: target.id, roll, ...(effectiveType !== undefined ? { type: effectiveType } : {}), halved: half });
+    outcomes.push({
+      kind: 'damage',
+      targetId: target.id,
+      roll,
+      ...(effectiveType !== undefined ? { type: effectiveType } : {}),
+      halved: half,
+    });
   }
   return outcomes;
 }
 
-function execCondition(args: readonly FormulaAst[], ctx: EffectContext, scope: readonly EffectTargetRef[]): readonly EffectResolution[] {
-  const conditionId = args[0]?.kind === 'name' ? args[0].text ?? '' : '';
+function execCondition(
+  args: readonly FormulaAst[],
+  ctx: EffectContext,
+  scope: readonly EffectTargetRef[],
+): readonly EffectResolution[] {
+  const conditionId = args[0]?.kind === 'name' ? (args[0].text ?? '') : '';
   const duration = valueOfFormula(evalFormula(args[1]!, ctx.vars, ctx.rng));
   const outcomes: ConditionOutcome[] = [];
   for (const target of scope) {
@@ -265,14 +332,24 @@ function execCondition(args: readonly FormulaAst[], ctx: EffectContext, scope: r
   return outcomes;
 }
 
-function execTarget(args: readonly FormulaAst[], ctx: EffectContext, scope: readonly EffectTargetRef[], halveFrom: HalveFrom | undefined): readonly EffectResolution[] {
-  const shape = args[0]?.kind === 'name' ? args[0].text ?? '' : '';
+function execTarget(
+  args: readonly FormulaAst[],
+  ctx: EffectContext,
+  scope: readonly EffectTargetRef[],
+  halveFrom: HalveFrom | undefined,
+): readonly EffectResolution[] {
+  const shape = args[0]?.kind === 'name' ? (args[0].text ?? '') : '';
   const resolved = ctx.apply.resolveTargets(shape);
   const outcomes = execStatement(args[1]!, ctx, resolved, halveFrom);
   return [{ kind: 'target', shape, count: resolved.length, outcomes }];
 }
 
-function execSequence(args: readonly FormulaAst[], ctx: EffectContext, scope: readonly EffectTargetRef[], halveFrom: HalveFrom | undefined): readonly EffectResolution[] {
+function execSequence(
+  args: readonly FormulaAst[],
+  ctx: EffectContext,
+  scope: readonly EffectTargetRef[],
+  halveFrom: HalveFrom | undefined,
+): readonly EffectResolution[] {
   const steps: EffectResolution[] = [];
   for (const arg of args) {
     for (const outcome of execStatement(arg, ctx, scope, halveFrom)) steps.push(outcome);
@@ -289,7 +366,10 @@ function halveFromFail(node: FormulaAst): HalveFrom | undefined {
     const arg = node.args?.[0];
     if (arg === undefined || (arg.kind === 'name' && arg.text === 'half')) return undefined;
     const typeArg = node.args?.[1];
-    return { expr: arg, type: typeArg !== undefined && typeArg.kind === 'name' ? typeArg.text ?? undefined : undefined };
+    return {
+      expr: arg,
+      type: typeArg !== undefined && typeArg.kind === 'name' ? (typeArg.text ?? undefined) : undefined,
+    };
   }
   for (const arg of node.args ?? []) {
     const found = halveFromFail(arg);
@@ -328,7 +408,11 @@ export function checkEffect(request: DslCheckRequest): ErrorCard[] {
   if (parsed.value.saveRecipeError !== undefined) {
     return [dslCard('E-FORM-01', request, `invalid save statement — ${parsed.value.saveRecipeError}`)];
   }
-  const ctx: FormulaCheckContext = { abilities: request.abilities, saves: request.saves, scalars: EFFECT_SCALARS };
+  const ctx: FormulaCheckContext = {
+    abilities: request.abilities,
+    saves: request.saves,
+    scalars: EFFECT_SCALARS,
+  };
   const failure = checkEffectAst(parsed.value, ctx, false, true);
   if (failure === undefined) return [];
   return [dslCard(failure.rule, request, failure.message, failure.hint)];
@@ -336,10 +420,18 @@ export function checkEffect(request: DslCheckRequest): ErrorCard[] {
 
 type EffectFailure = { rule: 'E-FORM-01' | 'E-FORM-02' | 'E-FORM-03'; message: string; hint?: string };
 
-function checkEffectAst(node: FormulaAst, ctx: FormulaCheckContext, insideSavePass: boolean, atEffectPosition: boolean): EffectFailure | undefined {
+function checkEffectAst(
+  node: FormulaAst,
+  ctx: FormulaCheckContext,
+  insideSavePass: boolean,
+  atEffectPosition: boolean,
+): EffectFailure | undefined {
   if (node.kind !== 'call') {
     if (atEffectPosition) {
-      return { rule: 'E-FORM-02', message: 'an effect position needs a statement — a function call (attack(…), save(…), damage(…), …).' };
+      return {
+        rule: 'E-FORM-02',
+        message: 'an effect position needs a statement — a function call (attack(…), save(…), damage(…), …).',
+      };
     }
     return undefined; // scalar name leaf at a shape/type position — category checks happen at the call
   }
@@ -378,7 +470,11 @@ function checkEffectAst(node: FormulaAst, ctx: FormulaCheckContext, insideSavePa
     if (category === 'formula') {
       if (name === 'damage' && index === 0 && arg.kind === 'name' && arg.text === 'half') {
         if (!insideSavePass) {
-          return { rule: 'E-FORM-02', message: "damage(half) is only legal inside a save statement's pass branch — the marker halves the fail branch's damage." };
+          return {
+            rule: 'E-FORM-02',
+            message:
+              "damage(half) is only legal inside a save statement's pass branch — the marker halves the fail branch's damage.",
+          };
         }
         continue;
       }

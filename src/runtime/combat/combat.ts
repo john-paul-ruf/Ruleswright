@@ -99,7 +99,14 @@ export interface DeclareOptions {
 }
 
 /** Why a declare was rejected — one ErrorCard-shaped object, play-time economy family. */
-export type DeclareRejection = CostRejection | { kind: 'no-action' | 'not-your-turn' | 'no-target' | 'restricted' | 'invalid-target' | 'unknown-target'; rule: 'E-REF-01'; resource: string; message: string };
+export type DeclareRejection =
+  | CostRejection
+  | {
+      kind: 'no-action' | 'not-your-turn' | 'no-target' | 'restricted' | 'invalid-target' | 'unknown-target';
+      rule: 'E-REF-01';
+      resource: string;
+      message: string;
+    };
 
 /** What one `step()` call advanced — the stepwise boundary (FR-10). */
 export type StepOutcome =
@@ -127,15 +134,41 @@ export interface StartCombatRequest {
 export function startCombat(runtime: Runtime, request: StartCombatRequest): Combat {
   const rng = request.rng ?? new Rng(0);
   const grants = resolveSlotGrants(runtime.pack);
-  const entries: { id: string; side: Side; name: string; profile: CombatantProfile; balances: EconomyBalances; initiativeRoll: number }[] = [];
+  const entries: {
+    id: string;
+    side: Side;
+    name: string;
+    profile: CombatantProfile;
+    balances: EconomyBalances;
+    initiativeRoll: number;
+  }[] = [];
   for (const member of request.allies) {
-    entries.push({ id: member.id, side: 'allies', name: member.id, profile: member.profile, balances: member.balances ?? {}, initiativeRoll: rng.int(20) + 1 });
+    entries.push({
+      id: member.id,
+      side: 'allies',
+      name: member.id,
+      profile: member.profile,
+      balances: member.balances ?? {},
+      initiativeRoll: rng.int(20) + 1,
+    });
   }
   for (const member of request.enemies) {
-    entries.push({ id: member.id, side: 'enemies', name: member.id, profile: member.profile, balances: member.balances ?? {}, initiativeRoll: rng.int(20) + 1 });
+    entries.push({
+      id: member.id,
+      side: 'enemies',
+      name: member.id,
+      profile: member.profile,
+      balances: member.balances ?? {},
+      initiativeRoll: rng.int(20) + 1,
+    });
   }
   const order = entries
-    .map((entry) => ({ id: entry.id, total: entry.initiativeRoll + entry.profile.initiativeBonus, roll: entry.initiativeRoll, tieBreaker: entries.indexOf(entry) }))
+    .map((entry) => ({
+      id: entry.id,
+      total: entry.initiativeRoll + entry.profile.initiativeBonus,
+      roll: entry.initiativeRoll,
+      tieBreaker: entries.indexOf(entry),
+    }))
     .sort((a, b) => b.total - a.total || a.tieBreaker - b.tieBreaker)
     .map((entry) => entry.id);
 
@@ -156,14 +189,20 @@ export function startCombat(runtime: Runtime, request: StartCombatRequest): Comb
       ac: entry.profile.ac,
       initiativeBonus: entry.profile.initiativeBonus,
       actions: [...entry.profile.actions],
-      attackTable: entry.profile.attackTable ? entry.profile.attackTable.map((row) => ({ level: row.level, byDefense: { ...row.byDefense } })) : undefined,
+      attackTable: entry.profile.attackTable
+        ? entry.profile.attackTable.map((row) => ({ level: row.level, byDefense: { ...row.byDefense } }))
+        : undefined,
       attackBonus: entry.profile.attackBonus,
     };
   }
 
-  const initiativeSummary = order.map((id) => `${id} ${combatants[id]!.initiativeBonus >= 0 ? '+' : ''}${combatants[id]!.initiativeBonus}`);
-  const whyRolls = entries
-    .map((entry) => `d20[${entry.initiativeRoll}]+${entry.profile.initiativeBonus}=${entry.initiativeRoll + entry.profile.initiativeBonus} (${entry.id})`);
+  const initiativeSummary = order.map(
+    (id) => `${id} ${combatants[id]!.initiativeBonus >= 0 ? '+' : ''}${combatants[id]!.initiativeBonus}`,
+  );
+  const whyRolls = entries.map(
+    (entry) =>
+      `d20[${entry.initiativeRoll}]+${entry.profile.initiativeBonus}=${entry.initiativeRoll + entry.profile.initiativeBonus} (${entry.id})`,
+  );
 
   const fight = new Combat(runtime, {
     round: 1,
@@ -183,7 +222,9 @@ export function startCombat(runtime: Runtime, request: StartCombatRequest): Comb
 }
 
 /** Flatten nested effect resolutions (sequence/target wrappers) for the attack-event loop. */
-function flattenResolutions(outcomes: readonly import('../../core/dsl/effect').EffectResolution[]): readonly import('../../core/dsl/effect').EffectResolution[] {
+function flattenResolutions(
+  outcomes: readonly import('../../core/dsl/effect').EffectResolution[],
+): readonly import('../../core/dsl/effect').EffectResolution[] {
   const flat: import('../../core/dsl/effect').EffectResolution[] = [];
   for (const outcome of outcomes) {
     flat.push(outcome);
@@ -225,7 +266,10 @@ export class Combat {
   }
 
   get roundComplete(): boolean {
-    return this.state.phase === 'combat-over' || (this.state.turn + 1 >= this.state.order.length && this.state.phase !== 'awaiting-trigger-response');
+    return (
+      this.state.phase === 'combat-over' ||
+      (this.state.turn + 1 >= this.state.order.length && this.state.phase !== 'awaiting-trigger-response')
+    );
   }
 
   /**
@@ -246,10 +290,18 @@ export class Combat {
       this.runtime.events.emit({
         type: 'turn:began',
         actor: this.state.active,
-        payload: { turn: this.state.turn, round: this.state.round, slots: { ...this.state.combatants[this.state.active]!.slots.remaining } },
+        payload: {
+          turn: this.state.turn,
+          round: this.state.round,
+          slots: { ...this.state.combatants[this.state.active]!.slots.remaining },
+        },
         why: { rule: 'combat.turnSlots', rolls: [] },
       });
-      return { kind: 'turn-started', combatantId: this.state.active, clock: { round: this.state.round, turn: this.state.turn } };
+      return {
+        kind: 'turn-started',
+        combatantId: this.state.active,
+        clock: { round: this.state.round, turn: this.state.turn },
+      };
     }
     if (this.state.phase === 'resolved' || this.state.phase === 'awaiting-trigger-response') {
       return this.endTurn();
@@ -273,10 +325,24 @@ export class Combat {
     const pack = this.runtime.pack;
     const def = pack.actions[actionId];
     if (def === undefined) {
-      return [this.rejectionEvent(actorId, { kind: 'no-action', rule: 'E-REF-01', resource: actionId, message: `action "${actionId}" is not declared in the pack.` })];
+      return [
+        this.rejectionEvent(actorId, {
+          kind: 'no-action',
+          rule: 'E-REF-01',
+          resource: actionId,
+          message: `action "${actionId}" is not declared in the pack.`,
+        }),
+      ];
     }
     if (!actor.actions.includes(actionId)) {
-      return [this.rejectionEvent(actorId, { kind: 'no-action', rule: 'E-REF-01', resource: actionId, message: `combatant "${actorId}" does not have action "${actionId}".` })];
+      return [
+        this.rejectionEvent(actorId, {
+          kind: 'no-action',
+          rule: 'E-REF-01',
+          resource: actionId,
+          message: `combatant "${actorId}" does not have action "${actionId}".`,
+        }),
+      ];
     }
     const restriction = this.restrictionRejection(actor, def);
     if (restriction !== undefined) {
@@ -330,8 +396,6 @@ export class Combat {
     return this.runtime.events.sinceRound(round);
   }
 
-
-
   private setClock(): void {
     this.runtime.events.setClock({ round: this.state.round, turn: this.state.turn });
   }
@@ -367,21 +431,45 @@ export class Combat {
     return undefined;
   }
 
-  private resolveTarget(actor: CombatantState, targetId: string | undefined): { combatant: CombatantState } | { rejection: DeclareRejection } {
+  private resolveTarget(
+    actor: CombatantState,
+    targetId: string | undefined,
+  ): { combatant: CombatantState } | { rejection: DeclareRejection } {
     const opponents = this.state.order.filter((id) => this.state.combatants[id]!.side !== actor.side);
     if (opponents.length === 0) {
       return { combatant: actor };
     }
     const chosen = targetId ?? (opponents.length === 1 ? opponents[0]! : undefined);
     if (chosen === undefined) {
-      return { rejection: { kind: 'no-target', rule: 'E-REF-01', resource: '', message: 'action needs a target — several opponents remain and none was declared.' } };
+      return {
+        rejection: {
+          kind: 'no-target',
+          rule: 'E-REF-01',
+          resource: '',
+          message: 'action needs a target — several opponents remain and none was declared.',
+        },
+      };
     }
     const target = this.state.combatants[chosen];
     if (target === undefined) {
-      return { rejection: { kind: 'unknown-target', rule: 'E-REF-01', resource: chosen, message: `target "${chosen}" is not in this fight.` } };
+      return {
+        rejection: {
+          kind: 'unknown-target',
+          rule: 'E-REF-01',
+          resource: chosen,
+          message: `target "${chosen}" is not in this fight.`,
+        },
+      };
     }
     if (target.side === actor.side) {
-      return { rejection: { kind: 'invalid-target', rule: 'E-REF-01', resource: chosen, message: `target "${chosen}" is not an opponent.` } };
+      return {
+        rejection: {
+          kind: 'invalid-target',
+          rule: 'E-REF-01',
+          resource: chosen,
+          message: `target "${chosen}" is not an opponent.`,
+        },
+      };
     }
     return { combatant: target };
   }
@@ -400,7 +488,12 @@ export class Combat {
     }
   }
 
-  private resolve(actor: CombatantState, actionId: string, def: ActionDef, target: CombatantState): readonly RuntimeEvent[] {
+  private resolve(
+    actor: CombatantState,
+    actionId: string,
+    def: ActionDef,
+    target: CombatantState,
+  ): readonly RuntimeEvent[] {
     const emitted: RuntimeEvent[] = [];
     const sink = (event: RuntimeEvent) => {
       emitted.push(event);
@@ -429,9 +522,19 @@ export class Combat {
             actor: actor.id,
             target: request.targetId,
             payload: isDamage
-              ? { amount: request.amount, type: request.damageType, hp: hpBefore === undefined ? undefined : `${hpBefore}→${this.state.combatants[target.id]!.hp.current}` }
+              ? {
+                  amount: request.amount,
+                  type: request.damageType,
+                  hp:
+                    hpBefore === undefined
+                      ? undefined
+                      : `${hpBefore}→${this.state.combatants[target.id]!.hp.current}`,
+                }
               : { conditionId: request.conditionId, duration: request.duration },
-            why: { rule: `${this.ruleBaseOf(actionId)}`, rolls: request.rolls.map((roll) => displayRoll(roll)) },
+            why: {
+              rule: `${this.ruleBaseOf(actionId)}`,
+              rolls: request.rolls.map((roll) => displayRoll(roll)),
+            },
           });
           mutations.pop();
           void event;
@@ -442,13 +545,15 @@ export class Combat {
       for (const outcome of flattenResolutions(outcomes)) {
         if (outcome.kind === 'attack') {
           attackLanded = outcome.hit;
-          emitted.push(this.runtime.events.emit({
-            type: 'attack:rolled',
-            actor: actor.id,
-            target: outcome.targetId,
-            payload: { actionId, verdict: outcome.roll.verdict, total: outcome.roll.total },
-            why: { rule: `${this.ruleBaseOf(actionId)}.attackBonus`, rolls: [displayRoll(outcome.roll)] },
-          }));
+          emitted.push(
+            this.runtime.events.emit({
+              type: 'attack:rolled',
+              actor: actor.id,
+              target: outcome.targetId,
+              payload: { actionId, verdict: outcome.roll.verdict, total: outcome.roll.total },
+              why: { rule: `${this.ruleBaseOf(actionId)}.attackBonus`, rolls: [displayRoll(outcome.roll)] },
+            }),
+          );
         }
       }
     } finally {
@@ -529,7 +634,9 @@ export class Combat {
   private boundActionOf(actionId: string, def: ActionDef): BoundAction {
     const ast = this.runtime.index.actionEffects[actionId];
     if (ast === undefined) {
-      throw new Error(`action "${actionId}" has no parse-once AST — Runtime load compiles every action (CA-2)`);
+      throw new Error(
+        `action "${actionId}" has no parse-once AST — Runtime load compiles every action (CA-2)`,
+      );
     }
     return { id: actionId, def, ast };
   }
@@ -558,7 +665,10 @@ export class Combat {
       target.hp.current -= request.amount;
     } else if (request.kind === 'condition' && request.conditionId !== undefined) {
       const def = this.runtime.pack.content.conditions?.[request.conditionId];
-      target.conditions.push({ conditionId: request.conditionId, duration: request.duration ?? def?.duration ?? 1 });
+      target.conditions.push({
+        conditionId: request.conditionId,
+        duration: request.duration ?? def?.duration ?? 1,
+      });
     }
   }
 
@@ -579,24 +689,44 @@ export class Combat {
   private endTurn(): StepOutcome {
     const actorId = this.state.active;
     this.setClock();
-    this.runtime.events.emit({ type: 'turn:ended', actor: actorId, payload: { turn: this.state.turn, round: this.state.round }, why: { rule: 'combat.endTurn', rolls: [] } });
+    this.runtime.events.emit({
+      type: 'turn:ended',
+      actor: actorId,
+      payload: { turn: this.state.turn, round: this.state.round },
+      why: { rule: 'combat.endTurn', rolls: [] },
+    });
     return this.advanceFrom(this.state.turn + 1, actorId);
   }
 
   /** Hand the turn to the first standing combatant at or after `turn`; past the order's end, the round completes. */
   private advanceFrom(turn: number, previousId: string): StepOutcome {
-    const standing = (from: number) => this.state.order.findIndex((id, index) => index >= from && !isDowned(this.state.combatants[id]!));
+    const standing = (from: number) =>
+      this.state.order.findIndex((id, index) => index >= from && !isDowned(this.state.combatants[id]!));
     const nextTurn = standing(turn);
     if (nextTurn === -1) {
-      this.runtime.events.emit({ type: 'round:completed', payload: { round: this.state.round }, why: { rule: 'combat.roundComplete', rolls: [] } });
+      this.runtime.events.emit({
+        type: 'round:completed',
+        payload: { round: this.state.round },
+        why: { rule: 'combat.roundComplete', rolls: [] },
+      });
       const first = Math.max(standing(0), 0);
-      this.state = { ...this.state, round: this.state.round + 1, turn: first, active: this.state.order[first]!, phase: 'awaiting-declare' };
+      this.state = {
+        ...this.state,
+        round: this.state.round + 1,
+        turn: first,
+        active: this.state.order[first]!,
+        phase: 'awaiting-declare',
+      };
       return { kind: 'round-completed', round: this.state.round - 1 };
     }
-    this.state = { ...this.state, turn: nextTurn, active: this.state.order[nextTurn]!, phase: 'awaiting-declare' };
+    this.state = {
+      ...this.state,
+      turn: nextTurn,
+      active: this.state.order[nextTurn]!,
+      phase: 'awaiting-declare',
+    };
     return { kind: 'turn-ended', combatantId: previousId };
   }
-
 }
 
 /** A combatant at hp ≤ 0 is down: it takes no turns and is offered no triggers. */
@@ -616,7 +746,8 @@ export function defeatedSide(combatants: Readonly<Record<string, CombatantState>
 /** Structured roll → the mock's display string (`d20[14]+3=17 ≥ ac15`, `d6[4]+2=6`). */
 export function displayRoll(roll: import('../../core/dice').RollResult): string {
   const dicePart = `d${roll.sides}[${roll.values.join(',')}]`;
-  const modifierPart = roll.modifier === 0 ? '' : roll.modifier > 0 ? `+${roll.modifier}` : `${roll.modifier}`;
+  const modifierPart =
+    roll.modifier === 0 ? '' : roll.modifier > 0 ? `+${roll.modifier}` : `${roll.modifier}`;
   const base = `${dicePart}${modifierPart}=${roll.total}`;
   const verdict = roll.verdict;
   if (verdict === undefined) return base;

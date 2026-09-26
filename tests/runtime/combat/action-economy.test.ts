@@ -28,7 +28,9 @@ import {
 /** A fixture pack must be valid through the real validator before the combat machinery may see it. */
 function validPack(pack: Pack): Pack {
   const errors = validatePack(pack, packDslChecker);
-  expect(errors, errors.map((card) => `${card.rule} @ ${card.jsonPath}: ${card.message}`).join('\n')).toEqual([]);
+  expect(errors, errors.map((card) => `${card.rule} @ ${card.jsonPath}: ${card.message}`).join('\n')).toEqual(
+    [],
+  );
   expect(checkSchemaVersion(pack, { min: 1, max: 1 })).toEqual([]);
   expect(checkPackDsl(pack)).toEqual([]);
   return pack;
@@ -163,7 +165,11 @@ describe('resolution primitive (FR-3): descending-AC tables are pack data', () =
     expect(wight.hp).toBe(12);
     expect(wight.ac).toBe(9);
     // Ascending companion: ac = 10 + level → 12 at level 2; the wight's ascending attackBonus "level".
-    const ascending = profileFromStatblock(emberMarchesAscendingPack(), emberMarchesAscendingPack().bestiary['barrow-wight']!, 'barrow-wight');
+    const ascending = profileFromStatblock(
+      emberMarchesAscendingPack(),
+      emberMarchesAscendingPack().bestiary['barrow-wight']!,
+      'barrow-wight',
+    );
     expect(ascending.ac).toBe(12);
     expect(ascending.attackBonus).toBe(2);
     const shambles = profileFromStatblock(pack, pack.bestiary['grave-shambles']!, 'grave-shambles');
@@ -185,7 +191,8 @@ describe('fixture pack identity (FR-17/FR-23 seams)', () => {
     const reordered = { ...pack, stats: pack.stats, economy: pack.economy };
     // Rebuild with the top-level keys inserted in reverse order.
     const reversed: Record<string, unknown> = {};
-    for (const key of Object.keys(pack).reverse()) reversed[key] = (pack as unknown as Record<string, unknown>)[key];
+    for (const key of Object.keys(pack).reverse())
+      reversed[key] = (pack as unknown as Record<string, unknown>)[key];
     expect(packContentHash(reordered)).toBe(packContentHash(pack));
     expect(packContentHash(reversed as unknown as Pack)).toBe(packContentHash(pack));
     expect(packContentHash(emberMarchesNoEconomyPack())).not.toBe(packContentHash(pack));

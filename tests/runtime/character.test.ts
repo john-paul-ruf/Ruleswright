@@ -14,7 +14,14 @@ describe('createCharacter (FR-5)', () => {
     const runtime = new Runtime(cloneRuntimePack());
     const character = runtime.createCharacter({ name: 'Brynn', race: 'hillfolk', classes: ['warden'] });
     const state = character.state;
-    expect(state.abilities).toEqual({ might: 10, grace: 10, vigor: 10, reason: 10, insight: 10, presence: 10 });
+    expect(state.abilities).toEqual({
+      might: 10,
+      grace: 10,
+      vigor: 10,
+      reason: 10,
+      insight: 10,
+      presence: 10,
+    });
     expect(state.hp.current).toBe(20); // formulas.hp: 10 + vigor
     expect(state.level).toBe(1);
     expect(state.xp).toBe(0);
@@ -27,7 +34,11 @@ describe('createCharacter (FR-5)', () => {
     const runtime = new Runtime(cloneRuntimePack());
     const seen: RuntimeEvent[] = [];
     runtime.events.on((event) => seen.push(event));
-    const character = runtime.createCharacter({ name: 'Brynn', race: 'ashkin', classes: [{ id: 'warden', level: 4 }] });
+    const character = runtime.createCharacter({
+      name: 'Brynn',
+      race: 'ashkin',
+      classes: [{ id: 'warden', level: 4 }],
+    });
     expect(seen.length).toBe(1);
     expect(seen[0]!.type).toBe('character:created');
     expect(seen[0]!.actor).toBe(character.state.id);
@@ -35,7 +46,7 @@ describe('createCharacter (FR-5)', () => {
     expect(JSON.parse(JSON.stringify(character.state))).toEqual(character.state);
     expect(character.state.level).toBe(4);
     expect(character.state.saves.toughness).toBe(2); // warden level-4 column
- expect(character.state.slots).toEqual({ '1': [null, null, null] }); // [1,2,2,3] at level 4
+    expect(character.state.slots).toEqual({ '1': [null, null, null] }); // [1,2,2,3] at level 4
   });
 });
 
@@ -64,7 +75,11 @@ describe('illegal builds are rejected with named rules (FR-5/FR-6)', () => {
   it('rejects unknown class, unknown race, duplicate class, and invalid level — all at once', () => {
     const runtime = new Runtime(cloneRuntimePack());
     try {
-      runtime.createCharacter({ name: 'X', race: 'no-such-race', classes: ['no-such-class', 'warden', 'warden'] });
+      runtime.createCharacter({
+        name: 'X',
+        race: 'no-such-race',
+        classes: ['no-such-class', 'warden', 'warden'],
+      });
       expect.unreachable();
     } catch (error) {
       expect(error).toBeInstanceOf(CharacterBuildError);
@@ -78,19 +93,27 @@ describe('illegal builds are rejected with named rules (FR-5/FR-6)', () => {
 
   it('rejects a level the progression tables cannot read (missing-progression)', () => {
     const runtime = new Runtime(cloneRuntimePack());
-    expect(() => runtime.createCharacter({ name: 'X', race: 'ashkin', classes: [{ id: 'warden', level: 5 }] })).toThrow(/cover 4 level/);
+    expect(() =>
+      runtime.createCharacter({ name: 'X', race: 'ashkin', classes: [{ id: 'warden', level: 5 }] }),
+    ).toThrow(/cover 4 level/);
   });
 
   it('rejects a non-integer or below-one level (invalid-level)', () => {
     const runtime = new Runtime(cloneRuntimePack());
-    expect(() => runtime.createCharacter({ name: 'X', race: 'ashkin', classes: [{ id: 'warden', level: 0 }] })).toThrow(/integer level >= 1/);
+    expect(() =>
+      runtime.createCharacter({ name: 'X', race: 'ashkin', classes: [{ id: 'warden', level: 0 }] }),
+    ).toThrow(/integer level >= 1/);
   });
 });
 
 describe('derived() — CA-6 reserved formulas only', () => {
   it('resolves hp, ac, and attackBonus through pack formulas, never hardcoded math', () => {
     const runtime = new Runtime(cloneRuntimePack());
-    const hexer = runtime.createCharacter({ name: 'Vex', race: 'ashkin', classes: [{ id: 'hexer', level: 2 }] });
+    const hexer = runtime.createCharacter({
+      name: 'Vex',
+      race: 'ashkin',
+      classes: [{ id: 'hexer', level: 2 }],
+    });
     const derived = hexer.derived();
     expect(derived.hp).toBe(20); // 10 + vigor(10)
     expect(derived.ac).toBe(20); // 10 + grace(10)

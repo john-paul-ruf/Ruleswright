@@ -1,11 +1,26 @@
 import { describe, expect, it } from 'vitest';
 import { clonePack, errorsFor, firstRule, nestedChain, stubDslChecker, VALID_PACK } from './fixtures';
-import { deferredDslChecker, MAX_TABLE_DEPTH, validatePack, type DslChecker } from '../../src/schema/validate';
+import {
+  deferredDslChecker,
+  MAX_TABLE_DEPTH,
+  validatePack,
+  type DslChecker,
+} from '../../src/schema/validate';
 import type { Pack } from '../../src/schema/pack';
 
 /** Accepts only expressions that mention "might" — used to prove the checker is invoked with the right context. */
 const pickyChecker: DslChecker = (request) =>
-  request.expr.includes('might') ? [] : [{ severity: 'error', artifactId: request.artifactId, jsonPath: request.jsonPath, rule: 'E-FORM-01', message: 'picky' }];
+  request.expr.includes('might')
+    ? []
+    : [
+        {
+          severity: 'error',
+          artifactId: request.artifactId,
+          jsonPath: request.jsonPath,
+          rule: 'E-FORM-01',
+          message: 'picky',
+        },
+      ];
 
 describe('structural pass', () => {
   it('a valid minimal pack produces zero cards (FR-2)', () => {
@@ -30,22 +45,35 @@ describe('structural pass', () => {
 
   it('unknown nested fields are rejected (E-SCHEMA-02)', () => {
     const cards = errorsFor((pack) => ((pack.actions.strike as unknown as Record<string, unknown>).oops = 1));
-    expect(cards.some((card) => card.rule === 'E-SCHEMA-02' && card.jsonPath === 'actions.strike.oops')).toBe(true);
+    expect(cards.some((card) => card.rule === 'E-SCHEMA-02' && card.jsonPath === 'actions.strike.oops')).toBe(
+      true,
+    );
   });
 
   it('bad map keys violate the id grammar', () => {
-    const cards = errorsFor((pack) => ((pack as unknown as Record<string, unknown>).actions = { 'BigStrike!': { cost: { vancian: 1 }, effect: 'x' } }));
+    const cards = errorsFor(
+      (pack) =>
+        ((pack as unknown as Record<string, unknown>).actions = {
+          'BigStrike!': { cost: { vancian: 1 }, effect: 'x' },
+        }),
+    );
     expect(cards.some((card) => card.jsonPath.startsWith('actions.BigStrike!'))).toBe(true);
   });
 
   it('an id field repeated inside a def that mismatches the map key is E-SCHEMA-02 (map-as-namespace)', () => {
-    const cards = errorsFor((pack) => ((pack.actions.strike as unknown as Record<string, unknown>).id = 'other'));
+    const cards = errorsFor(
+      (pack) => ((pack.actions.strike as unknown as Record<string, unknown>).id = 'other'),
+    );
     expect(firstRule(cards, 'E-SCHEMA-02')?.jsonPath).toBe('actions.strike.id');
   });
 
   it('cost must declare at least one of slots/points/vancian', () => {
-    const cards = errorsFor((pack) => (pack.actions.strike as unknown as Record<string, unknown>).cost = undefined);
-    expect(cards.some((card) => card.jsonPath === 'actions.strike.cost' && card.message.includes('at least one'))).toBe(true);
+    const cards = errorsFor(
+      (pack) => ((pack.actions.strike as unknown as Record<string, unknown>).cost = undefined),
+    );
+    expect(
+      cards.some((card) => card.jsonPath === 'actions.strike.cost' && card.message.includes('at least one')),
+    ).toBe(true);
   });
 
   it('burst radius is required iff shape is burst', () => {
@@ -60,7 +88,9 @@ describe('structural pass', () => {
       if (targeting === undefined) throw new Error('fixture missing targeting');
       (targeting as unknown as { shape: string }).shape = 'single';
     });
-    expect(stray.some((card) => card.rule === 'E-SCHEMA-02' && card.jsonPath.endsWith('targeting.radius'))).toBe(true);
+    expect(
+      stray.some((card) => card.rule === 'E-SCHEMA-02' && card.jsonPath.endsWith('targeting.radius')),
+    ).toBe(true);
   });
 
   it('both attack conventions on one class violates the XOR rule', () => {
@@ -84,7 +114,9 @@ describe('structural pass', () => {
 
 describe('semantic pass — one purpose-built fixture per rule id', () => {
   it('E-DUP-01: an id reused across sections is a pack-wide duplicate', () => {
-    const cards = errorsFor((pack) => ((pack.content.items as unknown as Record<string, unknown>).strike = { name: 'Strike' }));
+    const cards = errorsFor(
+      (pack) => ((pack.content.items as unknown as Record<string, unknown>).strike = { name: 'Strike' }),
+    );
     const card = firstRule(cards, 'E-DUP-01');
     expect(card?.artifactId).toBe('strike');
     expect(card?.message).toContain('also defined at');
@@ -138,7 +170,9 @@ describe('semantic pass — one purpose-built fixture per rule id', () => {
   it('v1.2 class actions are optional: absent or resolving lists produce no card', () => {
     expect(VALID_PACK.content.classes?.hexer?.actions).toBeUndefined();
     expect(errorsFor(() => undefined)).toEqual([]);
-    expect(errorsFor((pack) => (pack.content.classes!.warden!.actions = ['strike', 'step-aside']))).toEqual([]);
+    expect(errorsFor((pack) => (pack.content.classes!.warden!.actions = ['strike', 'step-aside']))).toEqual(
+      [],
+    );
     expect(errorsFor((pack) => (pack.content.classes!.warden!.actions = []))).toEqual([]);
   });
 
@@ -187,7 +221,9 @@ describe('semantic pass — one purpose-built fixture per rule id', () => {
       delete pack.formulas.hp;
       delete pack.formulas.ac;
     });
-    expect(bothGone.filter((c) => c.rule === 'E-REF-01' && (c.artifactId === 'hp' || c.artifactId === 'ac'))).toHaveLength(2);
+    expect(
+      bothGone.filter((c) => c.rule === 'E-REF-01' && (c.artifactId === 'hp' || c.artifactId === 'ac')),
+    ).toHaveLength(2);
   });
 
   it('E-REF-01 (v1.1): restricts patterns must reference a declared action/spell tag', () => {
@@ -207,7 +243,9 @@ describe('semantic pass — one purpose-built fixture per rule id', () => {
       if (sapped === undefined) throw new Error('fixture missing sapped');
       (sapped as unknown as { restricts: string[] }).restricts = ['actions.tagged:casting'];
     });
-    expect(cards.filter((c) => c.rule === 'E-REF-01' && c.jsonPath.startsWith('content.conditions.sapped'))).toHaveLength(0);
+    expect(
+      cards.filter((c) => c.rule === 'E-REF-01' && c.jsonPath.startsWith('content.conditions.sapped')),
+    ).toHaveLength(0);
   });
 
   it('E-REF-02: race caps name declared classes (mock gallery card)', () => {
@@ -240,7 +278,13 @@ describe('semantic pass — one purpose-built fixture per rule id', () => {
       if (spell === undefined) throw new Error('fixture missing grave-light');
       (spell as unknown as Record<string, unknown>).effect = 42;
     }, stubDslChecker);
-    expect(cards.some((card) => card.jsonPath === 'content.spells.grave-light.effect' && card.message.includes('non-empty DSL string'))).toBe(true);
+    expect(
+      cards.some(
+        (card) =>
+          card.jsonPath === 'content.spells.grave-light.effect' &&
+          card.message.includes('non-empty DSL string'),
+      ),
+    ).toBe(true);
   });
 
   it('E-FORM-01: a throwing checker is contained as a card, not a crash (never throws, FR-2)', () => {
@@ -248,7 +292,9 @@ describe('semantic pass — one purpose-built fixture per rule id', () => {
       throw new Error('boom');
     };
     const cards = errorsFor(() => undefined, explode);
-    expect(cards.some((card) => card.rule === 'E-FORM-01' && card.message.includes('dsl checker failed'))).toBe(true);
+    expect(
+      cards.some((card) => card.rule === 'E-FORM-01' && card.message.includes('dsl checker failed')),
+    ).toBe(true);
   });
 
   it('E-FORM-02/-03 ids reach the validator through the checker seam (S03 contract)', () => {
@@ -256,8 +302,20 @@ describe('semantic pass — one purpose-built fixture per rule id', () => {
       request.expr !== 'smite(everything)'
         ? []
         : [
-            { severity: 'error', artifactId: request.artifactId, jsonPath: request.jsonPath, rule: 'E-FORM-02', message: 'unknown function' },
-            { severity: 'error', artifactId: request.artifactId, jsonPath: request.jsonPath, rule: 'E-FORM-03', message: 'did you mean …' },
+            {
+              severity: 'error',
+              artifactId: request.artifactId,
+              jsonPath: request.jsonPath,
+              rule: 'E-FORM-02',
+              message: 'unknown function',
+            },
+            {
+              severity: 'error',
+              artifactId: request.artifactId,
+              jsonPath: request.jsonPath,
+              rule: 'E-FORM-03',
+              message: 'did you mean …',
+            },
           ];
     const cards = errorsFor((pack) => {
       const strike = pack.actions.strike;
@@ -350,7 +408,12 @@ describe('semantic pass — one purpose-built fixture per rule id', () => {
 
   it('picky checker: expressions are routed with their kind and pack vocabulary', () => {
     const cards = errorsFor(() => undefined, pickyChecker);
-    const nonFormulaFields = cards.filter((card) => card.jsonPath.endsWith('.effect') || card.jsonPath.endsWith('.passive') || card.jsonPath.includes('attackBonus'));
+    const nonFormulaFields = cards.filter(
+      (card) =>
+        card.jsonPath.endsWith('.effect') ||
+        card.jsonPath.endsWith('.passive') ||
+        card.jsonPath.includes('attackBonus'),
+    );
     expect(nonFormulaFields.length).toBeGreaterThan(0);
     expect(firstRule(cards, 'E-FORM-01')?.artifactId).toBeDefined();
   });

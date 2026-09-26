@@ -6,7 +6,14 @@
 import { describe, expect, it } from 'vitest';
 import { Runtime } from '../../src/runtime/runtime';
 import { RuntimeRuleError } from '../../src/runtime/errors';
-import { poolVocabulary, knownSpells, spendPool, prepareSpell, castSpell, rest } from '../../src/runtime/pools';
+import {
+  poolVocabulary,
+  knownSpells,
+  spendPool,
+  prepareSpell,
+  castSpell,
+  rest,
+} from '../../src/runtime/pools';
 import { cloneRuntimePack } from './fixtures/pack';
 
 describe('pool vocabulary (CA-4 — from the pack, never hardcoded)', () => {
@@ -42,14 +49,20 @@ describe('pool vocabulary (CA-4 — from the pack, never hardcoded)', () => {
   it('rejects a pool outside the pack vocabulary', () => {
     const runtime = new Runtime(cloneRuntimePack());
     const character = runtime.createCharacter({ name: 'Vex', race: 'ashkin', classes: ['hexer'] });
-    expect(() => spendPool(runtime, character.state, 'mana', 1)).toThrow(/not part of this character's pack vocabulary/);
+    expect(() => spendPool(runtime, character.state, 'mana', 1)).toThrow(
+      /not part of this character's pack vocabulary/,
+    );
   });
 });
 
 describe('vancian bindings (FR-8 end-to-end)', () => {
   it('prepare → bind → cast consumes the bound slot; empty slot cannot cast', () => {
     const runtime = new Runtime(cloneRuntimePack());
-    const hexer = runtime.createCharacter({ name: 'Vex', race: 'ashkin', classes: [{ id: 'hexer', level: 2 }] });
+    const hexer = runtime.createCharacter({
+      name: 'Vex',
+      race: 'ashkin',
+      classes: [{ id: 'hexer', level: 2 }],
+    });
     const state = hexer.state;
     expect(knownSpells(runtime, state)).toEqual(['hex-bolt', 'grave-light']); // both hexer-list, pack order
 
@@ -81,7 +94,11 @@ describe('vancian bindings (FR-8 end-to-end)', () => {
 
   it('cast consumes the slot bound to THAT spell — a mismatch is rejected', () => {
     const runtime = new Runtime(cloneRuntimePack());
-    const hexer = runtime.createCharacter({ name: 'Vex', race: 'ashkin', classes: [{ id: 'hexer', level: 3 }] });
+    const hexer = runtime.createCharacter({
+      name: 'Vex',
+      race: 'ashkin',
+      classes: [{ id: 'hexer', level: 3 }],
+    });
     const state = hexer.state;
     prepareSpell(runtime, state, 'grave-light', 0);
     expect(() => castSpell(runtime, state, 'hex-bolt', 0)).toThrow(/holds "grave-light", not "hex-bolt"/);
@@ -90,7 +107,11 @@ describe('vancian bindings (FR-8 end-to-end)', () => {
 
   it('rest is the host-emitted event: slots clear and pools refill to caps (FR-8)', () => {
     const runtime = new Runtime(cloneRuntimePack());
-    const hexer = runtime.createCharacter({ name: 'Vex', race: 'ashkin', classes: [{ id: 'hexer', level: 3 }] });
+    const hexer = runtime.createCharacter({
+      name: 'Vex',
+      race: 'ashkin',
+      classes: [{ id: 'hexer', level: 3 }],
+    });
     const state = hexer.state;
     spendPool(runtime, state, 'stamina', 5);
     prepareSpell(runtime, state, 'grave-light');

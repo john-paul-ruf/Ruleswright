@@ -13,12 +13,24 @@ export const featsStage: Stage = {
   run(ctx) {
     const feats = ctx.theme.content?.feats;
     if (feats === undefined) {
-      throw new GenerationError([themeCard('E-SCHEMA-01', 'content.feats', 'content.feats', 'the theme declares no feats — stage 3 needs a feat list.')]);
+      throw new GenerationError([
+        themeCard(
+          'E-SCHEMA-01',
+          'content.feats',
+          'content.feats',
+          'the theme declares no feats — stage 3 needs a feat list.',
+        ),
+      ]);
     }
     const reactive = Object.values(feats).filter((def) => def.trigger?.on !== undefined);
     if (reactive.length === 0) {
       throw new GenerationError([
-        themeCard('E-SCHEMA-01', 'content.feats', 'content.feats', 'the theme declares no reactive feat — the coverage floor ships ≥ 1 reactive feat (FR-12 proof 2, FR-21).'),
+        themeCard(
+          'E-SCHEMA-01',
+          'content.feats',
+          'content.feats',
+          'the theme declares no reactive feat — the coverage floor ships ≥ 1 reactive feat (FR-12 proof 2, FR-21).',
+        ),
       ]);
     }
     const content = (ctx.pack['content'] ?? {}) as NonNullable<Pack['content']>;

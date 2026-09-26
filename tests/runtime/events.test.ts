@@ -64,7 +64,10 @@ describe('EventStream (CA-3 envelope + emitter)', () => {
     });
     expect(Object.keys(event).sort()).toEqual(['actor', 'at', 'payload', 'target', 'type', 'why']);
     expect(event.at).toEqual({ round: 1, turn: 3 });
-    expect(event.why).toEqual({ rule: 'bestiary.barrow-wight.claw', rolls: ['d20[14]+3=17 ≥ ac15', 'd6[4]+2=6'] });
+    expect(event.why).toEqual({
+      rule: 'bestiary.barrow-wight.claw',
+      rolls: ['d20[14]+3=17 ≥ ac15', 'd6[4]+2=6'],
+    });
   });
 
   it('delivers to a subscriber and stops after off', () => {
@@ -106,7 +109,14 @@ describe('createCharacter (FR-5, shared-file window event)', () => {
     const character = runtime.createCharacter({ name: 'Brynn', race: 'hillfolk', classes: ['warden'] });
     const state = character.state;
     expect(state.id).toBe('char-1');
-    expect(state.abilities).toEqual({ might: 10, grace: 10, vigor: 10, reason: 10, insight: 10, presence: 10 });
+    expect(state.abilities).toEqual({
+      might: 10,
+      grace: 10,
+      vigor: 10,
+      reason: 10,
+      insight: 10,
+      presence: 10,
+    });
     expect(state.hp.current).toBe(20); // formulas.hp: 10 + vigor
     expect(state.level).toBe(1);
     expect(state.conditions).toEqual([]);

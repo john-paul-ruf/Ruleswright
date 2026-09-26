@@ -88,7 +88,11 @@ export interface CostClaim {
  * Pure read — spend applies the same check to the live ledger (with the
  * exhausted-slot case discriminated there).
  */
-export function checkCost(cost: ActionCost, grants: SlotGrants, balances: EconomyBalances): CostRejection | undefined {
+export function checkCost(
+  cost: ActionCost,
+  grants: SlotGrants,
+  balances: EconomyBalances,
+): CostRejection | undefined {
   for (const [name, amount] of Object.entries(cost.slots ?? {})) {
     const granted = grants.slots[name];
     if (granted === undefined) {

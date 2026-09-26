@@ -48,13 +48,27 @@ function fixturePack(): Pack {
   return structuredClone(emberMarchesPack());
 }
 
-function runFight(pack: Pack, seed: string, allyActions: string[]): { fight: Combat; events: RuntimeEvent[] } {
+function runFight(
+  pack: Pack,
+  seed: string,
+  allyActions: string[],
+): { fight: Combat; events: RuntimeEvent[] } {
   const runtime = new Runtime(pack);
   const seen: RuntimeEvent[] = [];
   runtime.events.on((event) => seen.push(event));
-  const brynn: CombatantProfile = { ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'brynn'), actions: allyActions };
-  const wight: CombatantProfile = { ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'wight'), actions: ['wight-claw'] };
-  const fight = startCombat(runtime, { allies: [{ id: 'brynn', profile: brynn }], enemies: [{ id: 'wight', profile: wight }], rng: new Rng(seed) });
+  const brynn: CombatantProfile = {
+    ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'brynn'),
+    actions: allyActions,
+  };
+  const wight: CombatantProfile = {
+    ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'wight'),
+    actions: ['wight-claw'],
+  };
+  const fight = startCombat(runtime, {
+    allies: [{ id: 'brynn', profile: brynn }],
+    enemies: [{ id: 'wight', profile: wight }],
+    rng: new Rng(seed),
+  });
   return { fight, events: seen };
 }
 
@@ -68,14 +82,21 @@ function stepToDeclare(fight: Combat, id: string, skipWith = 'withdraw'): void {
     const outcome: StepOutcome = fight.step();
     if (outcome.kind === 'combat-over') throw new Error('combat ended before the awaited turn');
   }
-  throw new Error(`never reached ${id}'s declare phase (phase=${fight.state.phase}, active=${fight.state.active})`);
+  throw new Error(
+    `never reached ${id}'s declare phase (phase=${fight.state.phase}, active=${fight.state.active})`,
+  );
 }
 
 describe('FR-12 trio — rules are data (zero engine diffs)', () => {
   it('proof 1: a new action + a new condition change combat behavior — pack data only', () => {
     // DATA delta: a new condition that blocks main-slot actions, and an action carrying it.
     const pack = fixturePack();
-    (pack.content.conditions ??= {})['frostbitten'] = { name: 'Frostbitten', duration: 2, stacking: 'refresh', restricts: ['actions.tagged:main'] };
+    (pack.content.conditions ??= {})['frostbitten'] = {
+      name: 'Frostbitten',
+      duration: 2,
+      stacking: 'refresh',
+      restricts: ['actions.tagged:main'],
+    };
     pack.actions['crushing-blow'] = {
       cost: { slots: { main: 1 } },
       effect: 'sequence(attack(ac, might), damage(2d6, bludgeon), applyCondition(frostbitten, 2))',
@@ -149,7 +170,11 @@ describe('FR-12 trio — rules are data (zero engine diffs)', () => {
     expect(validatePack(structuredClone(pack), packDslChecker)).toEqual([]);
 
     const runtime = new Runtime(pack);
-    const hexer = runtime.createCharacter({ name: 'Vex', race: 'ashling', classes: [{ id: 'hexer', level: 1 }] });
+    const hexer = runtime.createCharacter({
+      name: 'Vex',
+      race: 'ashling',
+      classes: [{ id: 'hexer', level: 1 }],
+    });
     const state = hexer.state;
     // The new spell is KNOWN purely from pack data (the unchanged gating machinery).
     expect(knownSpells(runtime, state)).toContain('wither-light');
@@ -164,7 +189,11 @@ describe('FR-12 trio — rules are data (zero engine diffs)', () => {
     // prepareSpell throws (RuntimeRuleError unknown-spell), the durable state
     // is untouched.
     const baseRuntime = new Runtime(fixturePack());
-    const baseChar = baseRuntime.createCharacter({ name: 'Plain', race: 'ashling', classes: [{ id: 'hexer', level: 1 }] });
+    const baseChar = baseRuntime.createCharacter({
+      name: 'Plain',
+      race: 'ashling',
+      classes: [{ id: 'hexer', level: 1 }],
+    });
     expect(knownSpells(baseRuntime, baseChar.state)).not.toContain('wither-light');
     expect(() => prepareSpell(baseRuntime, baseChar.state, 'wither-light')).toThrow();
   });

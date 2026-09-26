@@ -38,7 +38,12 @@ import type { RuntimeEvent } from './events';
  * declared tags. A pattern whose `<tag>` is not in `declaredTags` matches
  * nothing — a condition cannot block what the pack never declared.
  */
-export function matchesRestriction(pattern: string, kind: 'action' | 'spell', tags: readonly string[], declaredTags: ReadonlySet<string>): boolean {
+export function matchesRestriction(
+  pattern: string,
+  kind: 'action' | 'spell',
+  tags: readonly string[],
+  declaredTags: ReadonlySet<string>,
+): boolean {
   const prefix = kind === 'action' ? 'actions.tagged:' : 'spells.tagged:';
   if (!pattern.startsWith(prefix)) return false;
   const tag = pattern.slice(prefix.length);
@@ -69,10 +74,21 @@ export function isLivePattern(runtime: Runtime, pattern: string): boolean {
 }
 
 /** FR-7 — apply a pack-declared condition: duration seeds from the pack, stacking per policy. Emits `condition:applied`. */
-export function applyCondition(runtime: Runtime, character: CharacterState, conditionId: string): RuntimeEvent {
+export function applyCondition(
+  runtime: Runtime,
+  character: CharacterState,
+  conditionId: string,
+): RuntimeEvent {
   const def = runtime.pack.content.conditions?.[conditionId];
   if (def === undefined) {
-    throw new RuntimeRuleError([ruleCard('unknown-condition', conditionId, 'conditions', `unknown condition "${conditionId}" — not declared in content.conditions.`)]);
+    throw new RuntimeRuleError([
+      ruleCard(
+        'unknown-condition',
+        conditionId,
+        'conditions',
+        `unknown condition "${conditionId}" — not declared in content.conditions.`,
+      ),
+    ]);
   }
   const existing = character.conditions.filter((active) => active.conditionId === conditionId);
   if (existing.length > 0) {
@@ -95,18 +111,34 @@ export function applyCondition(runtime: Runtime, character: CharacterState, cond
     type: 'condition:applied',
     actor: character.id,
     target: character.id,
-    payload: { conditionId, duration: def.duration, stacking: def.stacking, active: character.conditions.filter((active) => active.conditionId === conditionId).length },
+    payload: {
+      conditionId,
+      duration: def.duration,
+      stacking: def.stacking,
+      active: character.conditions.filter((active) => active.conditionId === conditionId).length,
+    },
     why: { rule: `content.conditions.${conditionId}`, rolls: [] },
   });
 }
 
 /** FR-7 — remove every active instance of a condition. Emits `condition:removed`. */
-export function removeCondition(runtime: Runtime, character: CharacterState, conditionId: string): RuntimeEvent {
+export function removeCondition(
+  runtime: Runtime,
+  character: CharacterState,
+  conditionId: string,
+): RuntimeEvent {
   const before = character.conditions.length;
   character.conditions = character.conditions.filter((active) => active.conditionId !== conditionId);
   const removed = before - character.conditions.length;
   if (removed === 0) {
-    throw new RuntimeRuleError([ruleCard('condition-not-active', conditionId, 'conditions', `"${conditionId}" is not active on ${character.id} — nothing to remove.`)]);
+    throw new RuntimeRuleError([
+      ruleCard(
+        'condition-not-active',
+        conditionId,
+        'conditions',
+        `"${conditionId}" is not active on ${character.id} — nothing to remove.`,
+      ),
+    ]);
   }
   return runtime.events.emit({
     type: 'condition:removed',
@@ -151,8 +183,16 @@ export function tickConditions(runtime: Runtime, character: CharacterState): rea
  * pattern blocks. `kind` + artifact id resolve the artifact's declared tags
  * from the pack.
  */
-export function isRestricted(runtime: Runtime, character: CharacterState, kind: 'action' | 'spell', artifactId: string): boolean {
-  const tags = kind === 'action' ? (runtime.pack.actions[artifactId]?.tags ?? []) : (runtime.pack.content.spells?.[artifactId]?.tags ?? []);
+export function isRestricted(
+  runtime: Runtime,
+  character: CharacterState,
+  kind: 'action' | 'spell',
+  artifactId: string,
+): boolean {
+  const tags =
+    kind === 'action'
+      ? (runtime.pack.actions[artifactId]?.tags ?? [])
+      : (runtime.pack.content.spells?.[artifactId]?.tags ?? []);
   const declared = declaredTags(runtime);
   for (const active of character.conditions) {
     for (const pattern of runtime.pack.content.conditions?.[active.conditionId]?.restricts ?? []) {
@@ -163,8 +203,13 @@ export function isRestricted(runtime: Runtime, character: CharacterState, kind: 
 }
 
 /** The ids of actions/spells currently blocked for this character (declare-time + UI convenience). */
-export function restrictedIds(runtime: Runtime, character: CharacterState, kind: 'action' | 'spell'): readonly string[] {
-  const ids = kind === 'action' ? Object.keys(runtime.pack.actions) : Object.keys(runtime.pack.content.spells ?? {});
+export function restrictedIds(
+  runtime: Runtime,
+  character: CharacterState,
+  kind: 'action' | 'spell',
+): readonly string[] {
+  const ids =
+    kind === 'action' ? Object.keys(runtime.pack.actions) : Object.keys(runtime.pack.content.spells ?? {});
   return ids.filter((id) => isRestricted(runtime, character, kind, id));
 }
 
@@ -174,10 +219,16 @@ export function restrictedIds(runtime: Runtime, character: CharacterState, kind:
  * (`tables.<id>`, weighted entries whose values are condition ids). Removal
  * clears every instance of every condition the theme table granted.
  */
-export function applyTheme(runtime: Runtime, character: CharacterState, themeId: string): readonly RuntimeEvent[] {
+export function applyTheme(
+  runtime: Runtime,
+  character: CharacterState,
+  themeId: string,
+): readonly RuntimeEvent[] {
   const table = runtime.pack.tables[themeId];
   if (table === undefined) {
-    throw new RuntimeRuleError([ruleCard('unknown-theme', themeId, 'tables', `unknown theme "${themeId}" — not declared in tables.`)]);
+    throw new RuntimeRuleError([
+      ruleCard('unknown-theme', themeId, 'tables', `unknown theme "${themeId}" — not declared in tables.`),
+    ]);
   }
   const events: RuntimeEvent[] = [];
   for (const entry of table.entries) {
@@ -187,22 +238,36 @@ export function applyTheme(runtime: Runtime, character: CharacterState, themeId:
   }
   if (events.length === 0) {
     throw new RuntimeRuleError([
-      ruleCard('theme-grants-nothing', themeId, `tables.${themeId}`, `theme table "${themeId}" grants no declared conditions — themes apply conditions (FR-7).`),
+      ruleCard(
+        'theme-grants-nothing',
+        themeId,
+        `tables.${themeId}`,
+        `theme table "${themeId}" grants no declared conditions — themes apply conditions (FR-7).`,
+      ),
     ]);
   }
   return events;
 }
 
 /** FR-7 — remove every condition a theme application granted (api-map: char.removeTheme(id)). */
-export function removeTheme(runtime: Runtime, character: CharacterState, themeId: string): readonly RuntimeEvent[] {
+export function removeTheme(
+  runtime: Runtime,
+  character: CharacterState,
+  themeId: string,
+): readonly RuntimeEvent[] {
   const table = runtime.pack.tables[themeId];
   if (table === undefined) {
-    throw new RuntimeRuleError([ruleCard('unknown-theme', themeId, 'tables', `unknown theme "${themeId}" — not declared in tables.`)]);
+    throw new RuntimeRuleError([
+      ruleCard('unknown-theme', themeId, 'tables', `unknown theme "${themeId}" — not declared in tables.`),
+    ]);
   }
   const events: RuntimeEvent[] = [];
   for (const entry of table.entries) {
     const conditionId = entry.value;
-    if (typeof conditionId === 'string' && character.conditions.some((active) => active.conditionId === conditionId)) {
+    if (
+      typeof conditionId === 'string' &&
+      character.conditions.some((active) => active.conditionId === conditionId)
+    ) {
       events.push(removeCondition(runtime, character, conditionId));
     }
   }

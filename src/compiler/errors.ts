@@ -12,14 +12,22 @@ export class GenerationError extends Error {
   readonly errors: readonly ErrorCard[];
 
   constructor(errors: readonly ErrorCard[]) {
-    super(`campaign generation failed with ${errors.length} error card(s) — first: ${errors[0]?.rule} ${errors[0]?.message}`);
+    super(
+      `campaign generation failed with ${errors.length} error card(s) — first: ${errors[0]?.rule} ${errors[0]?.message}`,
+    );
     this.name = 'GenerationError';
     this.errors = errors;
   }
 }
 
 /** A card located inside the theme template (theme-relative jsonPath, artifact = the theme). */
-export function themeCard(rule: RuleId, artifactId: string, jsonPath: string, message: string, hint?: string): ErrorCard {
+export function themeCard(
+  rule: RuleId,
+  artifactId: string,
+  jsonPath: string,
+  message: string,
+  hint?: string,
+): ErrorCard {
   return makeErrorCard(rule, artifactId, jsonPath, message, hint);
 }
 

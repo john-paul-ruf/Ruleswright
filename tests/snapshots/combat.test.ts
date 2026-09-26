@@ -5,7 +5,12 @@
 import { describe, expect, it } from 'vitest';
 import { Runtime } from '../../src/runtime/runtime';
 import { createCharacter } from '../../src/runtime/character';
-import { serializeCombat, deserializeCombat, serializeCharacter, serializeParty } from '../../src/runtime/snapshots';
+import {
+  serializeCombat,
+  deserializeCombat,
+  serializeCharacter,
+  serializeParty,
+} from '../../src/runtime/snapshots';
 import type { CombatRestoreRequest, CombatSnapshot } from '../../src/runtime/snapshots';
 import { profileFromStatblock, type CombatantProfile } from '../../src/runtime/combat/resolve';
 import { startCombat, type Combat } from '../../src/runtime/combat/combat';
@@ -23,9 +28,19 @@ function journeyFight(seed: string): { runtime: Runtime; fight: Combat; events: 
   runtime.events.on((event) => {
     seen.push(event);
   });
-  const brynn: CombatantProfile = { ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'brynn'), actions: ['strike', 'withdraw'] };
-  const wight: CombatantProfile = { ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'wight'), actions: ['wight-claw', 'parry'] };
-  const fight = startCombat(runtime, { allies: [{ id: 'brynn', profile: brynn }], enemies: [{ id: 'wight', profile: wight }], rng: new Rng(seed) });
+  const brynn: CombatantProfile = {
+    ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'brynn'),
+    actions: ['strike', 'withdraw'],
+  };
+  const wight: CombatantProfile = {
+    ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'wight'),
+    actions: ['wight-claw', 'parry'],
+  };
+  const fight = startCombat(runtime, {
+    allies: [{ id: 'brynn', profile: brynn }],
+    enemies: [{ id: 'wight', profile: wight }],
+    rng: new Rng(seed),
+  });
   return { runtime, fight, events: seen };
 }
 
@@ -38,13 +53,21 @@ function stepToDeclare(fight: Combat, id: string): void {
     }
     if (fight.step().kind === 'combat-over') throw new Error('combat ended before the awaited turn');
   }
-  throw new Error(`never reached ${id}'s declare phase (phase=${fight.state.phase}, active=${fight.state.active})`);
+  throw new Error(
+    `never reached ${id}'s declare phase (phase=${fight.state.phase}, active=${fight.state.active})`,
+  );
 }
 
 /** A restore request mirroring the journey fight's sides. */
 function journeyRestore(runtime: Runtime): CombatRestoreRequest {
-  const brynn: CombatantProfile = { ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'brynn'), actions: ['strike', 'withdraw'] };
-  const wight: CombatantProfile = { ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'wight'), actions: ['wight-claw', 'parry'] };
+  const brynn: CombatantProfile = {
+    ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'brynn'),
+    actions: ['strike', 'withdraw'],
+  };
+  const wight: CombatantProfile = {
+    ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'wight'),
+    actions: ['wight-claw', 'parry'],
+  };
   return { allies: [{ id: 'brynn', profile: brynn }], enemies: [{ id: 'wight', profile: wight }] };
 }
 
@@ -52,7 +75,17 @@ describe('combat snapshots (FR-14, CAP-7)', () => {
   it('the envelope carries exactly the contract fields — no extras, no omissions', () => {
     const { fight } = journeyFight('env');
     const snap = serializeCombat(fight, { pairsWith: 'party-1' });
-    expect(Object.keys(snap).sort()).toEqual(['combatants', 'kind', 'order', 'pack', 'pairsWith', 'rng', 'round', 'snapshotVersion', 'turn']);
+    expect(Object.keys(snap).sort()).toEqual([
+      'combatants',
+      'kind',
+      'order',
+      'pack',
+      'pairsWith',
+      'rng',
+      'round',
+      'snapshotVersion',
+      'turn',
+    ]);
     expect(snap.kind).toBe('combat');
     expect(snap.snapshotVersion).toBe(1);
     expect(snap.pairsWith).toBe('party-1');
@@ -101,9 +134,27 @@ describe('the FR-14 resume proof (RNG state is the whole trick)', () => {
     resumableRuntime.events.on((event) => {
       resumableSeen.push(event);
     });
-    const resumableProfileBrynn: CombatantProfile = { ...profileFromStatblock(resumableRuntime.pack, resumableRuntime.pack.bestiary['barrow-wight']!, 'brynn'), actions: ['strike', 'withdraw'] };
-    const resumableProfileWight: CombatantProfile = { ...profileFromStatblock(resumableRuntime.pack, resumableRuntime.pack.bestiary['barrow-wight']!, 'wight'), actions: ['wight-claw', 'parry'] };
-    const resumable = startCombat(resumableRuntime, { allies: [{ id: 'brynn', profile: resumableProfileBrynn }], enemies: [{ id: 'wight', profile: resumableProfileWight }], rng: new Rng(seed) });
+    const resumableProfileBrynn: CombatantProfile = {
+      ...profileFromStatblock(
+        resumableRuntime.pack,
+        resumableRuntime.pack.bestiary['barrow-wight']!,
+        'brynn',
+      ),
+      actions: ['strike', 'withdraw'],
+    };
+    const resumableProfileWight: CombatantProfile = {
+      ...profileFromStatblock(
+        resumableRuntime.pack,
+        resumableRuntime.pack.bestiary['barrow-wight']!,
+        'wight',
+      ),
+      actions: ['wight-claw', 'parry'],
+    };
+    const resumable = startCombat(resumableRuntime, {
+      allies: [{ id: 'brynn', profile: resumableProfileBrynn }],
+      enemies: [{ id: 'wight', profile: resumableProfileWight }],
+      rng: new Rng(seed),
+    });
 
     // Run N steps in lockstep, then freeze the resumable fight mid-fight.
     for (let i = 0; i < 3; i += 1) {
@@ -117,7 +168,11 @@ describe('the FR-14 resume proof (RNG state is the whole trick)', () => {
     freshRuntime.events.on((event) => {
       freshSeen.push(event);
     });
-    const restored = deserializeCombat(freshRuntime, JSON.parse(JSON.stringify(snap)), journeyRestore(freshRuntime));
+    const restored = deserializeCombat(
+      freshRuntime,
+      JSON.parse(JSON.stringify(snap)),
+      journeyRestore(freshRuntime),
+    );
 
     // Drive both fights to wight's declare and fire the claw.
     stepToDeclare(uninterrupted, 'wight');
@@ -132,7 +187,9 @@ describe('the FR-14 resume proof (RNG state is the whole trick)', () => {
     expect(resumedDamage).toBeDefined();
     expect(resumedDamage!.payload).toEqual(uninterruptedDamage!.payload);
     // The resumed fight's hp reflects the identical roll too.
-    expect(restored.state.combatants['brynn']!.hp.current).toBe(uninterrupted.state.combatants['brynn']!.hp.current);
+    expect(restored.state.combatants['brynn']!.hp.current).toBe(
+      uninterrupted.state.combatants['brynn']!.hp.current,
+    );
   });
 });
 
@@ -140,7 +197,10 @@ describe('combat restore refusal paths (CA-1: loud refusal, no mutation)', () =>
   it('a tampered contentHash refuses with E-SNAP-01 and the fresh runtime stays untouched', () => {
     const { fight } = journeyFight('refusal');
     const snap = serializeCombat(fight, { pairsWith: 'party-1' });
-    const tampered = { ...snap, pack: { ...snap.pack, contentHash: '9a02b1c4' } } as unknown as CombatSnapshot;
+    const tampered = {
+      ...snap,
+      pack: { ...snap.pack, contentHash: '9a02b1c4' },
+    } as unknown as CombatSnapshot;
     const freshRuntime = new Runtime(emberMarchesPack());
     expect(() => deserializeCombat(freshRuntime, tampered, journeyRestore(freshRuntime))).toThrow();
     try {
@@ -191,9 +251,17 @@ describe('combat restore refusal paths (CA-1: loud refusal, no mutation)', () =>
     const freshRuntime = new Runtime(emberMarchesPack());
     // Restore names only one side of the two-combatant fight.
     const partial = journeyRestore(freshRuntime);
-    expect(() => deserializeCombat(freshRuntime, JSON.parse(JSON.stringify(snap)), { allies: partial.allies, enemies: [] })).toThrow();
+    expect(() =>
+      deserializeCombat(freshRuntime, JSON.parse(JSON.stringify(snap)), {
+        allies: partial.allies,
+        enemies: [],
+      }),
+    ).toThrow();
     try {
-      deserializeCombat(freshRuntime, JSON.parse(JSON.stringify(snap)), { allies: partial.allies, enemies: [] });
+      deserializeCombat(freshRuntime, JSON.parse(JSON.stringify(snap)), {
+        allies: partial.allies,
+        enemies: [],
+      });
     } catch (error) {
       expect(String(error)).toMatch(/E-SNAP-01/);
       expect(String(error)).toMatch(/restore request/);

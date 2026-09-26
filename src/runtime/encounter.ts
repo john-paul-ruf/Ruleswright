@@ -80,7 +80,9 @@ export function assembleEncounter(runtime: Runtime, request: AssembleEncounterRe
     bodies += 1;
   }
 
-  const groups: AssembledGroup[] = [...counts.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([id, count]) => ({ id, count }));
+  const groups: AssembledGroup[] = [...counts.entries()]
+    .sort(([a], [b]) => (a < b ? -1 : 1))
+    .map(([id, count]) => ({ id, count }));
   const threat = request.budget - remaining;
   return { groups, threat, budget: request.budget, seedUsed: key, heuristic: 'threat-weighted-uniform' };
 }
@@ -96,4 +98,3 @@ export function spawnEncounter(runtime: Runtime, encounter: Encounter): readonly
   }
   return combatants;
 }
-

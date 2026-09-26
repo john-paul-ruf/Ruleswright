@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { packDslChecker } from '../../../src/core/dsl/checker';
-import { EFFECT_VOCABULARY, FORMULA_VOCABULARY, REGISTRY, VALIDITY_VOCABULARY } from '../../../src/core/dsl/registry';
+import {
+  EFFECT_VOCABULARY,
+  FORMULA_VOCABULARY,
+  REGISTRY,
+  VALIDITY_VOCABULARY,
+} from '../../../src/core/dsl/registry';
 import { validatePack } from '../../../src/schema/validate';
 
 describe('registry freeze (CA-2: extension is a schema event, never a code change)', () => {

@@ -41,7 +41,10 @@ export function eventMatches(pattern: string, event: RuntimeEvent, reactorId: st
 }
 
 /** Reactive actions one combatant holds, from the pack's action defs. */
-export function reactiveActionsFor(runtime: Runtime, combatant: CombatantState): readonly { actionId: string; def: ActionDef; pattern: string }[] {
+export function reactiveActionsFor(
+  runtime: Runtime,
+  combatant: CombatantState,
+): readonly { actionId: string; def: ActionDef; pattern: string }[] {
   const held: { actionId: string; def: ActionDef; pattern: string }[] = [];
   for (const actionId of combatant.actions) {
     const def = runtime.pack.actions[actionId];
@@ -56,7 +59,11 @@ export function reactiveActionsFor(runtime: Runtime, combatant: CombatantState):
  * is the whole mechanism (triggers.html: "the engine offers; the host decides
  * pacing").
  */
-export function offersForEvent(runtime: Runtime, combatants: Readonly<Record<string, CombatantState>>, event: RuntimeEvent): readonly PendingTrigger[] {
+export function offersForEvent(
+  runtime: Runtime,
+  combatants: Readonly<Record<string, CombatantState>>,
+  event: RuntimeEvent,
+): readonly PendingTrigger[] {
   const offers: PendingTrigger[] = [];
   for (const combatant of Object.values(combatants)) {
     for (const reactive of reactiveActionsFor(runtime, combatant)) {
@@ -94,6 +101,10 @@ export function emitDeclined(runtime: Runtime, offer: PendingTrigger): void {
 }
 
 /** The reactive executor's entry: resolve a taken trigger through the same pipeline as a declare (FR-4). */
-export function resolveTriggered(fight: Combat, offer: PendingTrigger, targetId: string | undefined): readonly RuntimeEvent[] {
+export function resolveTriggered(
+  fight: Combat,
+  offer: PendingTrigger,
+  targetId: string | undefined,
+): readonly RuntimeEvent[] {
   return fight.declareReactive(offer, targetId);
 }

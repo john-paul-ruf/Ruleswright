@@ -33,7 +33,10 @@ export function listThemeKnobs(theme: ThemeTemplate): readonly KnobDeclWithId[] 
  * Validate caller knob values against the theme's declarations, fill defaults,
  * and return the resolved map (the provenance record's `knobs` value, verbatim).
  */
-export function resolveKnobs(theme: ThemeTemplate, caller?: Readonly<Record<string, unknown>>): Record<string, string | number> {
+export function resolveKnobs(
+  theme: ThemeTemplate,
+  caller?: Readonly<Record<string, unknown>>,
+): Record<string, string | number> {
   const declared = listThemeKnobs(theme);
   const rejections: ErrorCard[] = [];
   const resolved: Record<string, string | number> = {};
@@ -54,7 +57,10 @@ export function resolveKnobs(theme: ThemeTemplate, caller?: Readonly<Record<stri
   }
   for (const key of callerKeys) {
     if (!declared.some((decl) => decl.id === key)) {
-      const near = nearestDecl(key, declared.map((decl) => decl.id));
+      const near = nearestDecl(
+        key,
+        declared.map((decl) => decl.id),
+      );
       rejections.push(
         knobCard({
           rule: 'unknown-knob',
@@ -81,19 +87,37 @@ function validateValue(decl: KnobDeclWithId, value: unknown): KnobRejection | un
     return undefined;
   }
   if (typeof value !== 'number' || !Number.isInteger(value)) {
-    return { rule: 'bad-knob-value', knob: decl.id, message: `knob "${decl.id}" is a range knob and needs an integer, got ${JSON.stringify(value) ?? String(value)}.` };
+    return {
+      rule: 'bad-knob-value',
+      knob: decl.id,
+      message: `knob "${decl.id}" is a range knob and needs an integer, got ${JSON.stringify(value) ?? String(value)}.`,
+    };
   }
   if (decl.min !== undefined && value < decl.min) {
-    return { rule: 'bad-knob-value', knob: decl.id, message: `knob "${decl.id}" must be >= ${decl.min}, got ${value}.` };
+    return {
+      rule: 'bad-knob-value',
+      knob: decl.id,
+      message: `knob "${decl.id}" must be >= ${decl.min}, got ${value}.`,
+    };
   }
   if (decl.max !== undefined && value > decl.max) {
-    return { rule: 'bad-knob-value', knob: decl.id, message: `knob "${decl.id}" must be <= ${decl.max}, got ${value}.` };
+    return {
+      rule: 'bad-knob-value',
+      knob: decl.id,
+      message: `knob "${decl.id}" must be <= ${decl.max}, got ${value}.`,
+    };
   }
   return undefined;
 }
 
 function knobCard(rejection: KnobRejection): ErrorCard {
-  return themeCard('E-SCHEMA-01', rejection.knob, `knobs.${rejection.knob}`, rejection.message, rejection.hint);
+  return themeCard(
+    'E-SCHEMA-01',
+    rejection.knob,
+    `knobs.${rejection.knob}`,
+    rejection.message,
+    rejection.hint,
+  );
 }
 
 function nearestDecl(target: string, candidates: readonly string[]): string | undefined {

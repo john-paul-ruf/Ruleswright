@@ -16,15 +16,34 @@ export const classesStage: Stage = {
     const classes = ctx.theme.content?.classes;
     const progression = ctx.theme.progression;
     if (classes === undefined) {
-      throw new GenerationError([themeCard('E-SCHEMA-01', 'content.classes', 'content.classes', 'the theme declares no classes — stage 4 needs a class table.')]);
+      throw new GenerationError([
+        themeCard(
+          'E-SCHEMA-01',
+          'content.classes',
+          'content.classes',
+          'the theme declares no classes — stage 4 needs a class table.',
+        ),
+      ]);
     }
     if (progression === undefined) {
-      throw new GenerationError([themeCard('E-REF-03', 'progression', 'progression', 'the theme declares classes but no progression tables.')]);
+      throw new GenerationError([
+        themeCard(
+          'E-REF-03',
+          'progression',
+          'progression',
+          'the theme declares classes but no progression tables.',
+        ),
+      ]);
     }
     for (const classId of Object.keys(classes)) {
       if (progression[classId] === undefined) {
         throw new GenerationError([
-          themeCard('E-REF-03', classId, `progression.${classId}`, `class "${classId}" is declared but has no progression entry — progression is required for every declared class.`),
+          themeCard(
+            'E-REF-03',
+            classId,
+            `progression.${classId}`,
+            `class "${classId}" is declared but has no progression entry — progression is required for every declared class.`,
+          ),
         ]);
       }
     }

@@ -14,7 +14,9 @@ import { profileFromStatblock, type CombatantProfile } from './combat/resolve';
 export function spawnMonster(runtime: Runtime, id: string, instanceId = id): CombatantProfile {
   const block = runtime.pack.bestiary[id];
   if (block === undefined) {
-    throw new Error(`bestiary has no statblock "${id}" — FR-16 spawns only declared monsters (E-REF-01 territory).`);
+    throw new Error(
+      `bestiary has no statblock "${id}" — FR-16 spawns only declared monsters (E-REF-01 territory).`,
+    );
   }
   return profileFromStatblock(runtime.pack, block, instanceId);
 }

@@ -32,7 +32,11 @@ describe('awardXp — the host awards, the engine reports (FR-6, FR-13)', () => 
 
   it('caps class level at the race cap (demihuman caps are pack data)', () => {
     const runtime = new Runtime(cloneRuntimePack());
-    const character = runtime.createCharacter({ name: 'Old', race: 'hillfolk', classes: [{ id: 'hexer', level: 2 }] });
+    const character = runtime.createCharacter({
+      name: 'Old',
+      race: 'hillfolk',
+      classes: [{ id: 'hexer', level: 2 }],
+    });
     runtime.awardXp(character, 2000);
     expect(character.state.classes[0]!.level).toBe(2); // capped at hillfolk.hexer cap (2)
     expect(character.state.xp).toBe(2000); // XP accumulates even when capped
@@ -50,8 +54,16 @@ describe('awardXp — the host awards, the engine reports (FR-6, FR-13)', () => 
 describe('levelSet — direct path validates identically to the XP path (FR-6)', () => {
   it('a level-4 direct set and a level-4 earned set produce identical progression state', () => {
     const runtime = new Runtime(cloneRuntimePack());
-    const direct = runtime.createCharacter({ name: 'Direct', race: 'ashkin', classes: [{ id: 'warden', level: 4 }] });
-    const earned = runtime.createCharacter({ name: 'Earned', race: 'ashkin', classes: [{ id: 'warden', level: 1 }] });
+    const direct = runtime.createCharacter({
+      name: 'Direct',
+      race: 'ashkin',
+      classes: [{ id: 'warden', level: 4 }],
+    });
+    const earned = runtime.createCharacter({
+      name: 'Earned',
+      race: 'ashkin',
+      classes: [{ id: 'warden', level: 1 }],
+    });
     runtime.awardXp(earned, 3000); // fallback curve: level 4
 
     const a = direct.state;
@@ -64,7 +76,14 @@ describe('levelSet — direct path validates identically to the XP path (FR-6)',
 
   it('emits level:reached only for classes whose level changed', () => {
     const runtime = new Runtime(cloneRuntimePack());
-    const character = runtime.createCharacter({ name: 'Brynn', race: 'ashkin', classes: [{ id: 'warden', level: 1 }, { id: 'hexer', level: 2 }] });
+    const character = runtime.createCharacter({
+      name: 'Brynn',
+      race: 'ashkin',
+      classes: [
+        { id: 'warden', level: 1 },
+        { id: 'hexer', level: 2 },
+      ],
+    });
     const events = runtime.levelSet(character, [
       { id: 'warden', level: 2 },
       { id: 'hexer', level: 2 },

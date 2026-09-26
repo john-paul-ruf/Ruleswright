@@ -12,7 +12,15 @@ export const statsStage: Stage = {
   name: 'stats',
   run(ctx) {
     if (ctx.theme.stats === undefined) {
-      throw new GenerationError([{ severity: 'error', artifactId: 'stats', jsonPath: 'stats', rule: 'E-SCHEMA-01', message: 'the theme declares no stats section — stage 1 needs abilities and saves.' }]);
+      throw new GenerationError([
+        {
+          severity: 'error',
+          artifactId: 'stats',
+          jsonPath: 'stats',
+          rule: 'E-SCHEMA-01',
+          message: 'the theme declares no stats section — stage 1 needs abilities and saves.',
+        },
+      ]);
     }
     const stats = structuredClone(ctx.theme.stats) as PackStats;
     ctx.own = stats;

@@ -44,7 +44,8 @@ describe('v1.2 — every bundled class declares combat actions (UI B-1, D-23)', 
       expect(classes.length).toBeGreaterThan(0);
       for (const [classId, def] of classes) {
         expect(def.actions?.length ?? 0, classId).toBeGreaterThanOrEqual(1);
-        for (const actionId of def.actions ?? []) expect(rt.pack.actions[actionId], `${classId} → ${actionId}`).toBeDefined();
+        for (const actionId of def.actions ?? [])
+          expect(rt.pack.actions[actionId], `${classId} → ${actionId}`).toBeDefined();
       }
     });
 
@@ -108,7 +109,9 @@ describe('FR-21 floor — the shared bullets, enumerated against both packs', ()
       const ranged = Object.values(actions).filter((action) => action.effect.includes('attack(ac, 0)'));
       expect(melee.length).toBeGreaterThanOrEqual(1);
       expect(ranged.length).toBeGreaterThanOrEqual(1);
-      const bursts = Object.values(pack.content.spells ?? {}).filter((spell) => spell.targeting?.shape === 'burst');
+      const bursts = Object.values(pack.content.spells ?? {}).filter(
+        (spell) => spell.targeting?.shape === 'burst',
+      );
       expect(bursts.length).toBeGreaterThanOrEqual(1);
     });
 
@@ -139,10 +142,12 @@ describe('FR-21 floor — the shared bullets, enumerated against both packs', ()
         expect(packSlots).toEqual(theme.economy.turnSlots);
         // every cost.slots key resolves to the declared economy (E-ECON-01 held)
         for (const action of Object.values(pack.actions)) {
-          for (const slotName of Object.keys(action.cost.slots ?? {})) expect(theme.economy.turnSlots[slotName]).toBeDefined();
+          for (const slotName of Object.keys(action.cost.slots ?? {}))
+            expect(theme.economy.turnSlots[slotName]).toBeDefined();
         }
         for (const spell of Object.values(pack.content.spells ?? {})) {
-          for (const slotName of Object.keys(spell.cost.slots ?? {})) expect(theme.economy.turnSlots[slotName]).toBeDefined();
+          for (const slotName of Object.keys(spell.cost.slots ?? {}))
+            expect(theme.economy.turnSlots[slotName]).toBeDefined();
         }
       } else {
         // the zombie theme omits economy deliberately: the default-grant branch
@@ -185,7 +190,9 @@ describe('FR-21 floor — the shared bullets, enumerated against both packs', ()
     it(`${name}: reactive feat + reactive action ride the trigger patterns S05 proved`, () => {
       const reactiveAction = Object.values(pack.actions).find((action) => action.trigger?.on !== undefined);
       expect(reactiveAction?.trigger?.on).toMatch(/attack:rolled/);
-      const reactiveFeat = Object.values(pack.content.feats ?? {}).find((feat) => feat.trigger?.on !== undefined);
+      const reactiveFeat = Object.values(pack.content.feats ?? {}).find(
+        (feat) => feat.trigger?.on !== undefined,
+      );
       expect(reactiveFeat?.trigger?.on).toMatch(/condition:applied/);
     });
   }
@@ -208,7 +215,9 @@ describe('FR-21 showcase split — dark-fantasy = vancian showcase', () => {
     const warden = DARK_FANTASY.progression!['warden']!;
     expect(warden.slots!['1']?.length).toBe(10);
     expect(warden.slots!['3']?.length).toBe(10);
-    const vancianSpells = Object.values(DARK_FANTASY.content?.spells ?? {}).filter((spell) => spell.cost.vancian !== undefined);
+    const vancianSpells = Object.values(DARK_FANTASY.content?.spells ?? {}).filter(
+      (spell) => spell.cost.vancian !== undefined,
+    );
     expect(vancianSpells.length).toBeGreaterThanOrEqual(20);
   });
 
@@ -225,7 +234,9 @@ describe('FR-21 showcase split — dark-fantasy = vancian showcase', () => {
 
   it('v1.1 economy natively: main/move/reaction grants + casting tags', () => {
     expect(DARK_FANTASY.economy?.turnSlots).toEqual({ main: 1, move: 1, reaction: 1 });
-    const casting = Object.values(DARK_FANTASY.content?.spells ?? {}).every((spell) => (spell.tags ?? []).includes('casting'));
+    const casting = Object.values(DARK_FANTASY.content?.spells ?? {}).every((spell) =>
+      (spell.tags ?? []).includes('casting'),
+    );
     expect(casting).toBe(true);
   });
 
@@ -246,7 +257,9 @@ describe('FR-21 showcase split — zombie-urban = drain/table showcase', () => {
     expect(ZOMBIE_URBAN.progression?.medic?.slots).toBeUndefined();
     const rituals = Object.values(ZOMBIE_URBAN.content?.spells ?? {});
     expect(rituals.length).toBeLessThanOrEqual(6); // small ritual/psychic list at most
-    const poolCosts = Object.values(ZOMBIE_URBAN.actions!).filter((action) => action.cost.points !== undefined);
+    const poolCosts = Object.values(ZOMBIE_URBAN.actions!).filter(
+      (action) => action.cost.points !== undefined,
+    );
     expect(poolCosts.length).toBeGreaterThanOrEqual(2);
   });
 
@@ -268,19 +281,42 @@ describe('FR-21 showcase split — zombie-urban = drain/table showcase', () => {
 
   it('the adrenaline pool capacity is a pack formula (E-ECON-01 pool resolution)', () => {
     expect(ZOMBIE_URBAN.formulas?.adrenaline).toEqual({ expr: '8 + vigor' });
-    const surge = Object.values(ZOMBIE_URBAN.actions ?? {}).find((action) => action.cost.points?.pool === 'adrenaline');
+    const surge = Object.values(ZOMBIE_URBAN.actions ?? {}).find(
+      (action) => action.cost.points?.pool === 'adrenaline',
+    );
     expect(surge).toBeDefined();
   });
 });
 
 describe('coined-name lint (Q7/Q8) \u2014 pack content greps clean of SRD-adjacent terms', () => {
   const SRD_ADJACENT = [
-    'strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma',
-    'fortitude save', 'reflex save', 'will save',
-    'fireball', 'magic missile', 'lightning bolt', 'cure light', 'raise dead',
-    'kobold', 'beholder', 'mind flayer', 'lich',
-    'd20 system', 'dungeons', 'dragons', 'pathfinder', 'saving throw',
-    'hit dice', 'armor class', 'spells per day', 'spell slots',
+    'strength',
+    'dexterity',
+    'constitution',
+    'intelligence',
+    'wisdom',
+    'charisma',
+    'fortitude save',
+    'reflex save',
+    'will save',
+    'fireball',
+    'magic missile',
+    'lightning bolt',
+    'cure light',
+    'raise dead',
+    'kobold',
+    'beholder',
+    'mind flayer',
+    'lich',
+    'd20 system',
+    'dungeons',
+    'dragons',
+    'pathfinder',
+    'saving throw',
+    'hit dice',
+    'armor class',
+    'spells per day',
+    'spell slots',
   ];
 
   it('both theme data files are clean of the SRD-adjacent list', () => {
@@ -373,16 +409,23 @@ describe('FR-18 — knob declarations are machine-readable and feed the pack', (
     const sparse = structuredClone(DARK_FANTASY);
     const dense = structuredClone(DARK_FANTASY);
     // the spell-density knob's declared effect: which level bands carry full lists
-    sparse.content!.spells = Object.fromEntries(Object.entries(sparse.content!.spells ?? {}).filter(([, spell]) => spell.magic.level <= 1));
+    sparse.content!.spells = Object.fromEntries(
+      Object.entries(sparse.content!.spells ?? {}).filter(([, spell]) => spell.magic.level <= 1),
+    );
     const sparsePack = runPipeline(sparse, SEED);
     const densePack = runPipeline(dense, SEED);
-    expect(Object.keys(sparsePack.content.spells ?? {}).length).toBeLessThan(Object.keys(densePack.content.spells ?? {}).length);
+    expect(Object.keys(sparsePack.content.spells ?? {}).length).toBeLessThan(
+      Object.keys(densePack.content.spells ?? {}).length,
+    );
     expect(packContentHash(sparsePack)).not.toBe(packContentHash(densePack));
   });
 
   it('a knob feeds an hp-formula token (token substitution reaches the pack)', () => {
     const theme = structuredClone(DARK_FANTASY);
-    theme.knobs = { ...theme.knobs, 'hp-base': { type: 'range', min: 2, max: 12, default: 6, desc: 'HP base' } };
+    theme.knobs = {
+      ...theme.knobs,
+      'hp-base': { type: 'range', min: 2, max: 12, default: 6, desc: 'HP base' },
+    };
     theme.formulas = { ...theme.formulas, hp: { expr: '#knob/hp-base + level + vigor * 2' } as never };
     const pack = runPipeline(theme, SEED);
     expect(pack.formulas['hp']!['expr']).toBe('6 + level + vigor * 2');

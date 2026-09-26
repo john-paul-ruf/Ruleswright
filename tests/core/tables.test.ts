@@ -48,10 +48,7 @@ describe('seeded determinism (FR-15 / CAP-3)', () => {
   it('same seed ⇒ identical sequences for every table kind', () => {
     const nested: TableDef = {
       kind: 'nested',
-      entries: [
-        { value: 'loot', weight: 1 },
-        { value: 'weather' },
-      ],
+      entries: [{ value: 'loot', weight: 1 }, { value: 'weather' }],
     };
     const resolve = (ref: unknown): TableDef | undefined =>
       ref === 'loot' ? LOOT : ref === 'weather' ? WEATHER : undefined;
@@ -138,9 +135,15 @@ describe('weighted tables', () => {
 describe('ranged tables (d100, dice.html: percentile is the table roll)', () => {
   it('rolls one d100 face; inclusive edges match', () => {
     expect(mustSelect(rollTable(WEATHER, scriptedBounds([0]), { jsonPath: 'tables.weather' }))).toBe('clear');
-    expect(mustSelect(rollTable(WEATHER, scriptedBounds([49]), { jsonPath: 'tables.weather' }))).toBe('clear');
-    expect(mustSelect(rollTable(WEATHER, scriptedBounds([50]), { jsonPath: 'tables.weather' }))).toBe('storm');
-    expect(mustSelect(rollTable(WEATHER, scriptedBounds([99]), { jsonPath: 'tables.weather' }))).toBe('storm');
+    expect(mustSelect(rollTable(WEATHER, scriptedBounds([49]), { jsonPath: 'tables.weather' }))).toBe(
+      'clear',
+    );
+    expect(mustSelect(rollTable(WEATHER, scriptedBounds([50]), { jsonPath: 'tables.weather' }))).toBe(
+      'storm',
+    );
+    expect(mustSelect(rollTable(WEATHER, scriptedBounds([99]), { jsonPath: 'tables.weather' }))).toBe(
+      'storm',
+    );
   });
 
   it('first matching range wins on overlapping ranges', () => {
@@ -169,7 +172,12 @@ describe('ranged tables (d100, dice.html: percentile is the table roll)', () => 
   });
 
   it('rejects inverted, missing, or non-integer ranges', () => {
-    for (const entry of [{ min: 60, max: 10, value: 'x' }, { min: 1, value: 'x' }, { min: 1.5, max: 2, value: 'x' }, { max: 9, value: 'x' }]) {
+    for (const entry of [
+      { min: 60, max: 10, value: 'x' },
+      { min: 1, value: 'x' },
+      { min: 1.5, max: 2, value: 'x' },
+      { max: 9, value: 'x' },
+    ]) {
       const bad: TableDef = { kind: 'ranged', entries: [entry] };
       const failure = mustFail(rollTable(bad, new Rng(1), { jsonPath: 'tables.bad' }));
       expect(failure.reason).toBe('malformed-entries');
@@ -190,8 +198,10 @@ describe('nested tables (depth-bounded, E-TBL-01 contract)', () => {
     return tables;
   }
 
-  const resolverFor = (tables: Record<string, TableDef>) => (ref: unknown): TableDef | undefined =>
-    typeof ref === 'string' ? tables[ref] : undefined;
+  const resolverFor =
+    (tables: Record<string, TableDef>) =>
+    (ref: unknown): TableDef | undefined =>
+      typeof ref === 'string' ? tables[ref] : undefined;
 
   it('resolves references through the chain; mixed kinds compose mid-chain', () => {
     const tables = chain(8); // t0..t6 nested hops + t7 weighted terminal = 8 tables (root + 7 refs)
@@ -232,7 +242,7 @@ describe('nested tables (depth-bounded, E-TBL-01 contract)', () => {
       const bad: TableDef = { kind: 'nested', entries: [{ weight, value: 'x' }] };
       const failure = mustFail(rollTable(bad, new Rng(1), { jsonPath: 'tables.bad' }));
       expect(failure.reason).toBe('malformed-entries');
-expect(failure.jsonPath).toBe('tables.bad.entries[0]');
+      expect(failure.jsonPath).toBe('tables.bad.entries[0]');
     }
   });
 
@@ -248,8 +258,12 @@ expect(failure.jsonPath).toBe('tables.bad.entries[0]');
       'rare-branch': { kind: 'weighted', entries: [{ weight: 1, value: 'rare-end' }] },
       'common-branch': { kind: 'weighted', entries: [{ weight: 1, value: 'common-end' }] },
     };
-    expect(mustSelect(rollTable(weighted, scriptedBounds([0]), { resolve: resolverFor(tables) }))).toBe('rare-end');
-    expect(mustSelect(rollTable(weighted, scriptedBounds([50]), { resolve: resolverFor(tables) }))).toBe('common-end');
+    expect(mustSelect(rollTable(weighted, scriptedBounds([0]), { resolve: resolverFor(tables) }))).toBe(
+      'rare-end',
+    );
+    expect(mustSelect(rollTable(weighted, scriptedBounds([50]), { resolve: resolverFor(tables) }))).toBe(
+      'common-end',
+    );
   });
 });
 

@@ -80,10 +80,16 @@ export function parseRecipe(source: string): RecipeParse {
     const dice = DICE_PATTERN.exec(body);
     if (dice !== null) {
       if (sign === -1) {
-        return { ok: false, reason: `negative dice term "${body}" — subtract constants or variables, not dice` };
+        return {
+          ok: false,
+          reason: `negative dice term "${body}" — subtract constants or variables, not dice`,
+        };
       }
       if (die !== undefined) {
-        return { ok: false, reason: `two dice terms ("${die.count}d${die.sides}", "${body}") — one recipe rolls one die cluster; compose multi-dice in formulas` };
+        return {
+          ok: false,
+          reason: `two dice terms ("${die.count}d${die.sides}", "${body}") — one recipe rolls one die cluster; compose multi-dice in formulas`,
+        };
       }
       const count = dice[1] === undefined || dice[1] === '' ? 1 : Number(dice[1]);
       const sides = Number(dice[2]);
@@ -154,6 +160,8 @@ export function rollRecipe(
 function keptValues(raw: number[], keep: Keep): number[] {
   const ranked = raw.map((value, index) => ({ value, index }));
   ranked.sort((x, y) => (keep.mode === 'kh' ? y.value - x.value : x.value - y.value) || x.index - y.index);
-  const keptIndices = new Set(ranked.slice(0, Math.min(keep.count, ranked.length)).map((entry) => entry.index));
+  const keptIndices = new Set(
+    ranked.slice(0, Math.min(keep.count, ranked.length)).map((entry) => entry.index),
+  );
   return raw.filter((_, index) => keptIndices.has(index));
 }

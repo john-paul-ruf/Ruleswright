@@ -18,7 +18,10 @@ function generate(theme: ThemeTemplate, seed: number | string = 42) {
   return runPipeline(theme, seed);
 }
 
-function without(theme: ThemeTemplate, section: 'economy' | 'actions' | 'formulas' | 'content' | 'progression' | 'bestiary' | 'tables' | 'stats'): ThemeTemplate {
+function without(
+  theme: ThemeTemplate,
+  section: 'economy' | 'actions' | 'formulas' | 'content' | 'progression' | 'bestiary' | 'tables' | 'stats',
+): ThemeTemplate {
   const rest = { ...theme } as Record<string, unknown>;
   delete rest[section];
   return rest as unknown as ThemeTemplate;
@@ -127,7 +130,12 @@ describe('stage 5 · magic', () => {
       ...theme.content!,
       spells: {
         ...theme.content!.spells,
-        'drain-blast': { name: 'Drain Blast', magic: { level: 1, lists: ['hexer'] }, cost: { points: { pool: 'ghost-pool', amount: 2 } }, effect: 'damage(1d6)' },
+        'drain-blast': {
+          name: 'Drain Blast',
+          magic: { level: 1, lists: ['hexer'] },
+          cost: { points: { pool: 'ghost-pool', amount: 2 } },
+          effect: 'damage(1d6)',
+        },
       },
     };
     try {
@@ -147,7 +155,12 @@ describe('stage 5 · magic', () => {
       ...theme.content!,
       spells: {
         ...theme.content!.spells,
-        'orphan-rite': { name: 'Orphan Rite', magic: { level: 1, lists: ['no-such-class'] }, cost: { vancian: 1 }, effect: 'damage(1d6)' },
+        'orphan-rite': {
+          name: 'Orphan Rite',
+          magic: { level: 1, lists: ['no-such-class'] },
+          cost: { vancian: 1 },
+          effect: 'damage(1d6)',
+        },
       },
     };
     try {
@@ -174,7 +187,12 @@ describe('stage 6 · bestiary', () => {
     const theme = microTheme();
     theme.bestiary = {
       ...theme.bestiary,
-      'phantom-clawer': { name: 'Phantom Clawer', threat: 1, actions: ['no-such-action'], attackTable: 'warden' },
+      'phantom-clawer': {
+        name: 'Phantom Clawer',
+        threat: 1,
+        actions: ['no-such-action'],
+        attackTable: 'warden',
+      },
     };
     try {
       generate(theme);
@@ -242,7 +260,16 @@ describe('knob tokens feed generation (FR-18: knob values reach the pack)', () =
 describe('stage composition order (sections build up across the pipeline)', () => {
   it('the full pack holds all eight required sections + the v1.1 optional economy', () => {
     const pack = generate(microTheme());
-    for (const section of ['manifest', 'stats', 'actions', 'formulas', 'content', 'progression', 'bestiary', 'tables'] as const) {
+    for (const section of [
+      'manifest',
+      'stats',
+      'actions',
+      'formulas',
+      'content',
+      'progression',
+      'bestiary',
+      'tables',
+    ] as const) {
       expect(pack[section], section).toBeDefined();
     }
     expect(pack.economy).toBeDefined();
@@ -266,7 +293,11 @@ describe('stage composition order (sections build up across the pipeline)', () =
         ctx.own = undefined;
       },
     };
-    const withProbe = runPipeline(microTheme(), 42, [...defaultStages().slice(0, 2), probe, ...defaultStages().slice(2)]);
+    const withProbe = runPipeline(microTheme(), 42, [
+      ...defaultStages().slice(0, 2),
+      probe,
+      ...defaultStages().slice(2),
+    ]);
     const baseline = runPipeline(microTheme(), 42);
     expect(packContentHash(withProbe)).toBe(packContentHash(baseline));
   });
