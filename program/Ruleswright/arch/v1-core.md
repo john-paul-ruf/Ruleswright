@@ -75,3 +75,26 @@ Consumer edges honored: S03 `executeEffect` ctx contract; S04 envelope (events.t
 - Combat restore: envelope carries no side/profile fields — `deserializeCombat(runtime, snapshot, restore: CombatRestoreRequest)` takes the sides/profiles explicitly (host re-states what startCombat took); balances ride the paired party snapshot (pairsWith, FR-14).
 - M05 `src/index.ts` created: dumb `export *` from './schema' | './runtime' | './compiler' (compiler entry existed at ck3 — S07 landed it first); no logic, no cross-surface barrel.
 - Runtime imports: {schema, core, combat/*} only — no compiler import; realized edges unchanged.
+
+<!-- v1-core SESSION-07 -->
+## M04 — Compiler + themes (SESSION-07, ck1–4 + 2 corrections, 116fc7e/01af260/786923b/1676c42/5d30d2f/3faf836)
+
+New module `src/compiler/` — imports only `../schema` + `../core` (no runtime import; grep-asserted in tests). Zero I/O.
+
+- `stage.ts` — `Stage = { name, run(ctx) }`; `GenerationContext = { theme, knobs, seed, stream, pack, own }` (stage sees only resolved knobs, its seed-salted stream, the document under construction; purity asserted by key-spy test).
+- `rng-stream.ts` — `stageRng(seed, stageName)` → S02 Rng over `"${seed}:${stageName}"`; per-stage streams independent (reordering stages cannot shift another stage's draws — proven by content-hash invariance under an interleaved probe stage).
+- `knobs.ts` (FR-18) — knobs as theme-declared object map (mock wins); `listThemeKnobs(theme)` → machine-readable `KnobDeclWithId[]`; `resolveKnobs` validates caller values (unknown → did-you-mean; out-of-range → typed rejection), fills defaults, returns provenance knobs verbatim; `#knob/<id>` tokens substitute into stage inputs.
+- `theme.ts` — `ThemeTemplate`: partial pack keyed like pack sections; base+patches (FR-20); readme carries documented example override.
+- `pipeline.ts` — `STAGE_ORDER = [stats, skills, feats, classes, magic, bestiary, tables]`; stage 8 = `schema.validatePack` + S03 `packDslChecker` (CA-1 dogfood gate, NOT a replaceable Stage); manifest first (provenance exactly {theme, seed, knobs}); undeclared knob token → located E-SCHEMA-01 before stages run; any card aggregates into `GenerationError` (failed campaigns never return partial packs).
+- `stages/*.ts` — stats/skills/feats (≥1 reactive enforced)/classes (progression per class, E-REF-03 located)/magic (spells + declared economy + pool capacity formulas, E-ECON-01 located)/bestiary (statblocks + content.races + content.conditions; refs E-REF-01/-02 located)/tables (every table ROLLED through S02 rollTable — malformed/gapped/unresolvable → located E-TBL-01; Custom Rule 3 held).
+- `compose.ts` (FR-20) — `composeTheme(derived, base)`: add/remove/merge at '/'-joined pointer paths; add-on-existing rejected; remove-of-missing rejected; deep-merge objects, replace scalars/arrays, create missing containers; later wins; base read-only hash-proven; exercised by tests though shipped themes stand alone (D1).
+- `errors.ts` — `GenerationError` carrying ErrorCards; theme-relative jsonPath; mirrors PackLoadError discipline.
+- `generate.ts` — `generateCampaign({theme, seed, knobs?})` → Pack, synchronous.
+- `theme-loader.ts` + `themes.d.ts` — DARK_FANTASY/ZOMBIE_URBAN data imports (ambient declarations pending resolveJsonModule owner correction).
+- `index.ts` — surface: generateCampaign, listThemeKnobs, runPipeline/defaultStages/STAGE_ORDER, stageRng, composeTheme, types, GenerationError. Landed at ck1 (S06's root entry included it).
+- `themes/dark-fantasy.json` — vancian showcase to the FR-21 floor (3 classes incl. Warden descending-AC table + Hexer ascending + Crypt Warden multi-class hybrid; 4 races with demihuman caps; five named saves vigor/grace/tenacity/reason/presence; 33 coined spells L1–3; main/move/reaction economy + casting tags natively; reactive parry/ward-glint + second-gust feat; 10 conditions incl. sapped/rooted restricts; 4 statblocks; 7 tables incl. ranged xp L1–10).
+- `themes/zombie-urban.json` — drain/table showcase (3 survivor classes; adrenaline/stamina drain pools; 4 ritual spells, NO vancian; 7 skills; 8 conditions; 4 statblocks; 8 tables incl. ranged bite-turns infection; **deliberately omits `economy`** — pack side of S05's default-grant branch).
+
+CA-5 producer proof landed: byte-identity (equal hash + equal bytes), different-seed divergence, in-process AND across fresh module loads; no ambient values (provenance exactly {theme, seed, knobs}).
+FR-21 conformance test (S08's proof-4 input): `tests/compiler/coverage-floor.test.ts` (50 tests, every floor bullet + showcase split + coined-name lint + knob feeding).
+Envelope-premise correction: themes carry NO spatial section — pack.schema.json root is closed (E-SCHEMA-02 on extra sections), S05's fixtures attach spatial post-validation via test helper; optional spatial layer stays host-side (FR-11); spatial schema section = DB schema event if wanted.
