@@ -206,7 +206,7 @@ describe('semantic pass — one purpose-built fixture per rule id', () => {
     const explode: DslChecker = () => {
       throw new Error('boom');
     };
-    const cards = errorsFor((pack) => undefined, explode);
+    const cards = errorsFor(() => undefined, explode);
     expect(cards.some((card) => card.rule === 'E-FORM-01' && card.message.includes('dsl checker failed'))).toBe(true);
   });
 
@@ -297,18 +297,18 @@ describe('semantic pass — one purpose-built fixture per rule id', () => {
   });
 
   it('the checker receives abilities/saves vocabulary and expression kind', () => {
-    let seen: string[] = [];
+    const seen: string[] = [];
     const checker: DslChecker = (request) => {
       seen.push(`${request.kind}:${request.abilities.join(',')}:${request.saves.includes('luck')}`);
       return [];
     };
-    errorsFor((pack) => undefined, checker);
+    errorsFor(() => undefined, checker);
     expect(seen.some((entry) => entry.startsWith('formula:'))).toBe(true);
     expect(seen.some((entry) => entry.startsWith('effect:'))).toBe(true);
   });
 
   it('picky checker: expressions are routed with their kind and pack vocabulary', () => {
-    const cards = errorsFor((pack) => undefined, pickyChecker);
+    const cards = errorsFor(() => undefined, pickyChecker);
     const nonFormulaFields = cards.filter((card) => card.jsonPath.endsWith('.effect') || card.jsonPath.endsWith('.passive') || card.jsonPath.includes('attackBonus'));
     expect(nonFormulaFields.length).toBeGreaterThan(0);
     expect(firstRule(cards, 'E-FORM-01')?.artifactId).toBeDefined();
