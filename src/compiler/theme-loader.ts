@@ -2,9 +2,7 @@
  * Theme loading (FR-17): the sample themes are data files under
  * `src/compiler/themes/` (database.md Seed Data — "JSON, not code"), imported
  * statically and typed as ThemeTemplate. Import of a .json module requires the
- * TS `resolveJsonModule` compiler option; the ambient declaration file in this
- * directory (themes.d.ts) provides the module types without widening the
- * repo's tsconfig (which is outside this lease).
+ * TS `resolveJsonModule` compiler option, enabled in the repo tsconfig.
  */
 import type { ThemeTemplate } from './theme';
 import darkFantasyThemeJson from './themes/dark-fantasy.json';
