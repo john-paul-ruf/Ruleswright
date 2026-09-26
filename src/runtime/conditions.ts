@@ -79,7 +79,7 @@ export function applyCondition(runtime: Runtime, character: CharacterState, cond
     switch (def.stacking) {
       case 'refresh': {
         const active = existing[0]!;
-        (active as { duration: number }).duration = def.duration;
+        active.duration = def.duration;
         break;
       }
       case 'stack':
@@ -124,12 +124,12 @@ export function removeCondition(runtime: Runtime, character: CharacterState, con
  */
 export function tickConditions(runtime: Runtime, character: CharacterState): readonly RuntimeEvent[] {
   const expired: string[] = [];
-  const kept: typeof character.conditions = [];
+  const kept: CharacterState['conditions'] = [];
   for (const active of character.conditions) {
     const remaining = (active as { duration: number }).duration - 1;
     if (remaining <= 0) expired.push(active.conditionId);
     else {
-      (active as { duration: number }).duration = remaining;
+      active.duration = remaining;
       kept.push(active);
     }
   }

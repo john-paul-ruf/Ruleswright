@@ -20,8 +20,8 @@ import { validateBuild, buildCharacter, CharacterBuildError } from './progressio
 /** FR-7 — one active condition on a character: plain data, duration in rounds. */
 export interface ActiveCondition {
   readonly conditionId: string;
-  /** Rounds remaining; the pack's duration is the initial value. */
-  readonly duration: number;
+  /** Rounds remaining; the pack's duration is the initial value; tick/refresh mutate it in place. */
+  duration: number;
 }
 
 /** One concurrent class with its own level (FR-6 multi-class). */
