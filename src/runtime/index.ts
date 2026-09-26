@@ -1,7 +1,7 @@
 /**
  * M03 runtime surface — the character-side lifecycle facade. Combat
  * (`combat/**`, `encounter.ts`, `bestiary.ts`) lands in S05 under the same
- * module; progression/pools/conditions join this barrel at their checkpoints.
+ * module. This barrel is deliberately open for S05's additions.
  */
 export { EventStream, type RuntimeEvent, type EventClock, type EventWhy, type EventSeed, type EventSink } from './events';
 export {
@@ -9,6 +9,29 @@ export {
   PackLoadError,
   type PackIndex,
   type CharacterCreateRequest,
+} from './runtime';
+export {
+  Character,
+  createCharacter,
+  reserveValue,
+  formulaValue,
   type CharacterState,
   type ActiveCondition,
-} from './runtime';
+  type ClassEntry,
+  type DerivedStats,
+} from './character';
+export { CharacterBuildError, validateBuild, levelForXp, xpSplit, levelSet, awardXp } from './progression';
+export { spendPool, prepareSpell, castSpell, knownSpells, poolVocabulary, initPools, rest } from './pools';
+export {
+  matchesRestriction,
+  declaredTags,
+  isLivePattern,
+  applyCondition,
+  removeCondition,
+  tickConditions,
+  isRestricted,
+  restrictedIds,
+  applyTheme,
+  removeTheme,
+} from './conditions';
+export { RuntimeRuleError, ruleCard } from './errors';
