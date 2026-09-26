@@ -2,7 +2,8 @@
  * The validator's shared context: one `Ctx` threaded through every pass,
  * carrying the error buffer, the pass-1 id namespaces, and the wired DSL
  * checker (CA-2). Nothing here validates on its own — this is the plumbing
- * every section module shares.
+ * every section module shares. The sole construction site is `validatePack`
+ * (index.ts) — keep that literal in sync with this interface.
  */
 import type { ErrorCard } from '../error-card';
 import type { DslChecker } from './dsl';
@@ -26,24 +27,4 @@ export interface Ctx {
   /** Set only when the optional economy section is present and readable (v1.1: cost slot keys must resolve to these). */
   economySlotNames: Set<string> | null;
   dslChecker: DslChecker;
-}
-
-export function newCtx(dslChecker: DslChecker): Ctx {
-  return {
-    errors: [],
-    emitted: new Set(),
-    knownIds: new Map(),
-    abilityIds: new Set(),
-    saveIds: new Set(),
-    actionIds: new Set(),
-    formulaIds: new Set(),
-    classIds: new Set(),
-    tableIds: new Set(),
-    progressionIds: new Set(),
-    declaredTags: new Set(),
-    tagsTrusted: true,
-    tablesDoc: {},
-    economySlotNames: null,
-    dslChecker,
-  };
 }

@@ -133,6 +133,7 @@ pnpm lint             # ESLint, including the engine hygiene rules (no Math.rand
 pnpm format           # Prettier --write over the whole repo (.prettierrc)
 pnpm format:check     # Prettier --check; CI enforces it
 pnpm test             # Vitest (node environment)
+pnpm test --coverage  # Vitest + v8 coverage (summary at the end of the run)
 pnpm build            # tsup — dual ESM/CJS + dts, per-entry
 pnpm check:isolation  # the runtime-only bundle contains no compiler strings (FR-22)
 pnpm check:security   # no eval/new Function/Math.random/Date.now in src/ + dist/
