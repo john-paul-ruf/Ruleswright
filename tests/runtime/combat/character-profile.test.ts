@@ -10,10 +10,14 @@ import {
   Runtime,
   RuntimeRuleError,
   attackBonusAgainst,
+  bestiaryIds,
   knownSpells,
   profileFromCharacter,
   profileFromStatblock,
+  spawnMonster,
+  startCombat,
   type Character,
+  type RuntimeEvent,
 } from '../../../src/runtime';
 import type { Pack } from '../../../src/schema/pack';
 
@@ -67,6 +71,62 @@ describe('CA-08 — every bundled class at level 1 maps through the production p
     character.state.hp.current -= 5;
     expect(profileFromCharacter(rt, character).profile.hp).toBe(character.derived().hp - 5);
   });
+});
+
+/**
+ * The engine-side acceptance script: the hero (a level-1 character) against
+ * the first bestiary entry, driven only by step/declare/respond — every turn
+ * declares the first action the engine accepts, every trigger offer is
+ * declined — for at most 500 steps.
+ */
+function fightScript(themeId: string, race: string, classId: string) {
+  const rt = new Runtime(packFor(themeId));
+  const events: RuntimeEvent[] = [];
+  rt.events.on((event) => {
+    events.push(event);
+  });
+  const character = hero(rt, race, [{ id: classId, level: 1 }]);
+  const fight = startCombat(rt, {
+    allies: [{ id: 'hero', ...profileFromCharacter(rt, character) }],
+    enemies: [{ id: 'foe', profile: spawnMonster(rt, bestiaryIds(rt)[0]!, 'foe') }],
+  });
+  const resolved: Record<string, number> = { hero: 0, foe: 0 };
+  let steps = 0;
+  while (fight.state.phase !== 'combat-over' && steps < 500) {
+    for (const offer of [...fight.pendingTriggers]) fight.respond(offer.triggerId, 'decline');
+    const outcome = fight.step();
+    steps += 1;
+    if (outcome.kind !== 'turn-started') continue;
+    const active = fight.state.combatants[fight.state.active]!;
+    for (const actionId of active.actions) {
+      fight.declare(actionId);
+      if (fight.state.phase !== 'awaiting-declare') {
+        resolved[active.id] = (resolved[active.id] ?? 0) + 1;
+        break;
+      }
+    }
+  }
+  return { fight, events, steps, resolved };
+}
+
+describe('CA-08 / CAP-09 engine acceptance — every level-1 class fights through declare/step/respond', () => {
+  for (const { themeId, race } of THEMES) {
+    const classIds = Object.keys(new Runtime(packFor(themeId)).pack.content.classes ?? {});
+    for (const classId of classIds) {
+      it(`${themeId}·42 · ${classId}: legal declares every turn, bounded, deterministic`, () => {
+        const first = fightScript(themeId, race, classId);
+        expect(first.steps).toBeLessThanOrEqual(500);
+        expect(first.resolved['hero']).toBeGreaterThan(0);
+        expect(first.events.some((event) => event.type === 'action:resolved' && event.actor === 'hero')).toBe(true);
+        expect(first.events.some((event) => event.type === 'declare:rejected' && event.actor === 'hero')).toBe(false);
+        const second = fightScript(themeId, race, classId);
+        expect(JSON.stringify(second.events)).toBe(JSON.stringify(first.events));
+        expect(second.fight.serialize()).toEqual(first.fight.serialize());
+      });
+    }
+  }
+
+  it.todo('each fight reaches phase combat-over within 500 steps — blocked: the combat engine has no transition into combat-over (SESSION-E1 handoff)');
 });
 
 describe('CA-08 — attack conventions', () => {

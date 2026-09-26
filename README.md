@@ -71,20 +71,21 @@ emits a provenanced event (`why.rule` names the pack artifact, `why.rolls` quote
 the dice), and triggers ride the event substrate.
 
 ```ts
-import { startCombat, spawnMonster } from "ruleswright/runtime";
+import { startCombat, spawnMonster, profileFromCharacter } from "ruleswright/runtime";
 
 const events = [];
 rt.events.on((event) => events.push(event));
 
+// Brynn herself fights: her profile + pool/slot balances, actions from her class.
 const fight = startCombat(rt, {
-  allies: [{ id: "brynn", profile: { ...spawnMonster(rt, "barrow-wight", "brynn"), actions: ["strike", "withdraw"] } }],
-  enemies: [{ id: "wight", profile: { ...spawnMonster(rt, "barrow-wight", "wight"), actions: ["cut-down", "withdraw"] } }],
+  allies: [{ id: "brynn", ...profileFromCharacter(rt, brynn) }],
+  enemies: [{ id: "wight", profile: spawnMonster(rt, "barrow-wight", "wight") }],
 });
 
 while (!fight.roundComplete) {
   if (fight.state.phase === "awaiting-declare") {
     const active = fight.state.combatants[fight.state.active]!;
-    fight.declare(active.actions.includes("cut-down") ? "cut-down" : "strike");
+    fight.declare(active.actions[0]!);
   }
   fight.step(); // begin → declare → resolve → end
 }
@@ -93,12 +94,20 @@ const attack = rt.events.sinceRound(1).find((event) => event.type === "attack:ro
 console.log(attack.why.rolls[0], attack.why.rule);
 ```
 
-Expected output (seed 42, this fixture fight — the attack misses on the first
-round; the damage event still carries its provenance):
+Expected output (seed 42 — the wight wins initiative and its first attack misses
+Brynn's own pack-derived ac 12; the damage event still carries its provenance):
 
 ```
-d20[9]=9 < ac11 actions.cut-down.attackBonus
+d20[9]=9 < ac12 actions.cut-down.attackBonus
 ```
+
+- `profileFromCharacter(rt, character, id?)` returns `{ profile, balances }`: current
+  hp, `derived()` ac/attack bonus, the pack's `initiative` formula, the union of the
+  character's class `actions` (pack v1.2), and its pool points + bound spell slots.
+  A class with no `actions` cannot fight (`no-combat-actions`).
+- v1 limits: active conditions are not carried into the fight; a multiclass character
+  on the attack-table convention uses the row of its highest-level table class, at
+  that class's level, re-keyed to the character's total level.
 
 - The engine performed **no I/O** anywhere above — `serialize()` hands you JSON;
   your app owns storage (FR-14).
