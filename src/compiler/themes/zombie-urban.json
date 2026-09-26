@@ -1,0 +1,244 @@
+{
+  "id": "zombie-urban",
+  "title": "The Quarantine Mile",
+  "readme": "Zombie-urban drain-pool & table showcase (FR-21). Deliberately omits the optional economy section: the engine's documented default grants 1 of each slot name seen in action costs (main, move, reaction) — S05's both-branches proof from the pack side. Knobs: threat (wandering table weight), infectionRate (district loot/infection table weighting 1-5, default 2), scavenging (supplies table density 1-5, default 3), adrenalineMode (drain-pool flavor: adrenaline vs stamina naming). Example override (FR-19): { \"overrides\": [ { \"target\": \"grave-shambler\", \"patch\": { \"threat\": 2 } } ] } — same-seed regeneration reproduces the pack, so the edit anchors.",
+  "knobs": {
+    "threat": { "type": "enum", "values": ["low", "medium", "high"], "default": "medium", "desc": "Wandering-threat weight: low thins the district, high stacks the hordes." },
+    "infection-rate": { "type": "range", "min": 1, "max": 5, "default": 2, "desc": "Infection-table weighting: how often bites turn." },
+    "scavenging": { "type": "range", "min": 1, "max": 5, "default": 3, "desc": "Supplies-table density: how much the blocks still yield." },
+    "adrenaline-mode": { "type": "enum", "values": ["adrenaline", "stamina"], "default": "adrenaline", "desc": "The survivor pool's flavor name (same engine, drain both ways)." }
+  },
+  "stats": {
+    "abilities": ["might", "grace", "vigor", "reason", "insight", "presence"],
+    "saves": ["vigor", "grace", "tenacity", "reason", "presence"]
+  },
+  "actions": {
+    "baton-blow": { "cost": { "slots": { "main": 1 } }, "valid": "hasTarget(adjacent)", "effect": "sequence(attack(ac, might), damage(1d6 + might, bludgeon))", "tags": ["main"] },
+    "shambler-claw": { "cost": { "slots": { "main": 1 } }, "effect": "sequence(attack(ac, 0), damage(1d6, grave-touch))", "tags": ["main"] },
+    "slab-swipe": { "cost": { "slots": { "main": 1 } }, "effect": "sequence(attack(ac, 0), damage(1d8, bludgeon))", "tags": ["main"] },
+    "pistol-shot": { "cost": { "slots": { "main": 1 }, "points": { "pool": "adrenaline", "amount": 1 } }, "effect": "sequence(attack(ac, 0), damage(2d6, pierce))", "tags": ["main"] },
+    "crossbow-bolt": { "cost": { "slots": { "main": 1 } }, "effect": "sequence(attack(ac, 0), damage(1d8, pierce))", "tags": ["main"] },
+    "fall-back": { "cost": { "slots": { "move": 1 } }, "effect": "applyCondition(braced, 2)", "tags": ["move"] },
+    "barricade": { "cost": { "slots": { "move": 1 }, "points": { "pool": "adrenaline", "amount": 2 } }, "effect": "applyCondition(fortified, 3)", "tags": ["move"] },
+    "dodge-roll": { "cost": { "slots": { "reaction": 1 } }, "trigger": { "on": "attack:rolled[target=self]" }, "effect": "applyCondition(braced, 1)", "tags": ["reaction"] },
+    "wrench-parry": { "cost": { "slots": { "reaction": 1 } }, "trigger": { "on": "attack:rolled[target=self]" }, "effect": "sequence(attack(ac, grace), damage(1d4, bludgeon))", "tags": ["reaction"] },
+    "adrenal-spike": { "cost": { "points": { "pool": "adrenaline", "amount": 3 } }, "effect": "applyCondition(spiked, 3)", "tags": ["free"] },
+    "infection-word": { "cost": { "slots": { "main": 1 } }, "effect": "save(vigor, 12, applyCondition(sapped, 3), damage(half))", "tags": ["casting"] },
+    "rot-speech": { "cost": { "slots": { "main": 1 } }, "effect": "save(presence, 11, applyCondition(hexbound, 2), applyCondition(hexbound, 1))", "tags": ["casting"] }
+  },
+  "formulas": {
+    "hp": { "expr": "6 + level + vigor * 2" },
+    "ac": { "expr": "11 - floor(level / 3)" },
+    "initiative": { "expr": "d20 + grace" },
+    "adrenaline": { "expr": "8 + vigor" },
+    "stamina": { "expr": "8 + vigor" }
+  },
+  "content": {
+    "classes": {
+      "scavenger": { "name": "Scavenger", "spellLists": [], "features": [{ "level": 1, "ref": "scavengers-instinct" }, { "level": 4, "ref": "block-runner" }] },
+      "fixer": { "name": "Fixer", "spellLists": [], "features": [{ "level": 1, "ref": "milers-read" }] },
+      "medic": { "name": "Medic", "spellLists": [], "features": [{ "level": 2, "ref": "field-surgery" }] }
+    },
+    "races": {
+      "mile-born": { "name": "Mile-born", "caps": { "scavenger": 10, "fixer": 8, "medic": 6 }, "size": "medium" },
+      "highrises": { "name": "Highrises", "caps": { "scavenger": 8, "fixer": 10, "medic": 4 }, "size": "medium" },
+      "blockless": { "name": "Blockless", "caps": { "fixer": 5 }, "size": "small" }
+    },
+    "skills": {
+      "scavenging": { "name": "Scavenging", "ability": "insight" },
+      "fortification": { "name": "Fortification", "ability": "reason" },
+      "streetwise": { "name": "Streetwise", "ability": "presence" },
+      "sprints": { "name": "Sprints", "ability": "grace" },
+      "triage": { "name": "Triage", "ability": "insight" },
+      "loft-climbing": { "name": "Loft Climbing", "ability": "grace" },
+      "radio-work": { "name": "Radio Work", "ability": "reason" }
+    },
+    "feats": {
+      "scrap-flechette": { "name": "Scrap Flechette", "passive": "1" },
+      "cold-brew": { "name": "Cold Brew", "passive": "1" },
+      "second-gust": { "name": "Second Gust", "trigger": { "on": "condition:applied[self]" }, "effect": "applyCondition(braced, 2)" },
+      "last-legs": { "name": "Last Legs", "trigger": { "on": "condition:applied[self]" }, "effect": "applyCondition(spiked, 2)" }
+    },
+    "spells": {
+      "bind-the-bite": { "name": "Bind the Bite", "magic": { "level": 1, "lists": ["medic"] }, "cost": { "points": { "pool": "adrenaline", "amount": 4 } }, "effect": "damage(1d8 - vigor, mending)", "tags": ["casting"] },
+      "clean-sear": { "name": "Clean Sear", "magic": { "level": 1, "lists": ["medic"] }, "cost": { "points": { "pool": "adrenaline", "amount": 2 } }, "effect": "damage(1d6, sear)", "tags": ["casting"] },
+      "quietsong": { "name": "Quietsong", "magic": { "level": 1, "lists": ["fixer"] }, "cost": { "points": { "pool": "stamina", "amount": 3 } }, "targeting": { "shape": "burst", "radius": 2 }, "effect": "target(burst-2, save(presence, 11, applyCondition(dazzled, 2), damage(half)))", "tags": ["casting"] },
+      "rot-read": { "name": "Rot Read", "magic": { "level": 1, "lists": ["fixer"] }, "cost": { "points": { "pool": "stamina", "amount": 2 } }, "effect": "applyCondition(hexsight, 5)", "tags": ["casting"] }
+    },
+    "conditions": {
+      "sapped": { "name": "Sapped", "duration": 3, "stacking": "refresh", "restricts": ["actions.tagged:main"] },
+      "hexbound": { "name": "Hexbound", "duration": 2, "stacking": "stack", "restricts": ["spells.tagged:casting"] },
+      "braced": { "name": "Braced", "duration": 2, "stacking": "refresh" },
+      "fortified": { "name": "Fortified", "duration": 3, "stacking": "refresh" },
+      "rooted": { "name": "Rooted", "duration": 3, "stacking": "refresh", "restricts": ["actions.tagged:move"] },
+      "dazzled": { "name": "Dazzled", "duration": 2, "stacking": "ignore" },
+      "spiked": { "name": "Spiked", "duration": 3, "stacking": "refresh" },
+      "hexsight": { "name": "Hexsight", "duration": 5, "stacking": "ignore" }
+    },
+    "items": {
+      "fire-axe": { "name": "Fire Axe", "kind": "weapon" },
+      "riot-plate": { "name": "Riot Plate", "kind": "armor" },
+      "med-kit": { "name": "Med Kit", "kind": "consumable" },
+      "water-filter": { "name": "Water Filter", "kind": "gear" },
+      "radio-set": { "name": "Radio Set", "kind": "gear" },
+      "flare-strings": { "name": "Flare Strings", "kind": "gear" }
+    }
+  },
+  "progression": {
+    "scavenger": {
+      "hd": "d10",
+      "attackTable": [
+        { "level": 1, "byDefense": { "2": 19, "3": 18, "4": 17, "5": 16, "6": 15, "7": 14, "8": 13, "9": 12, "10": 11 } },
+        { "level": 2, "byDefense": { "2": 19, "3": 18, "4": 17, "5": 16, "6": 15, "7": 14, "8": 13, "9": 12, "10": 11 } },
+        { "level": 3, "byDefense": { "2": 18, "3": 17, "4": 16, "5": 15, "6": 14, "7": 13, "8": 12, "9": 11, "10": 10 } },
+        { "level": 4, "byDefense": { "2": 18, "3": 17, "4": 16, "5": 15, "6": 14, "7": 13, "8": 12, "9": 11, "10": 10 } },
+        { "level": 5, "byDefense": { "2": 17, "3": 16, "4": 15, "5": 14, "6": 13, "7": 12, "8": 11, "9": 10, "10": 9 } },
+        { "level": 6, "byDefense": { "2": 17, "3": 16, "4": 15, "5": 14, "6": 13, "7": 12, "8": 11, "9": 10, "10": 9 } },
+        { "level": 7, "byDefense": { "2": 16, "3": 15, "4": 14, "5": 13, "6": 12, "7": 11, "8": 10, "9": 9, "10": 8 } },
+        { "level": 8, "byDefense": { "2": 16, "3": 15, "4": 14, "5": 13, "6": 12, "7": 11, "8": 10, "9": 9, "10": 8 } },
+        { "level": 9, "byDefense": { "2": 15, "3": 14, "4": 13, "5": 12, "6": 11, "7": 10, "8": 9, "9": 8, "10": 7 } },
+        { "level": 10, "byDefense": { "2": 15, "3": 14, "4": 13, "5": 12, "6": 11, "7": 10, "8": 9, "9": 8, "10": 7 } }
+      ],
+      "saves": {
+        "vigor": [0, 0, 1, 1, 1, 2, 2, 2, 3, 3],
+        "tenacity": [0, 1, 1, 1, 2, 2, 2, 3, 3, 3],
+        "presence": [0, 0, 1, 1, 1, 1, 2, 2, 2, 2]
+      }
+    },
+    "fixer": {
+      "hd": "d8",
+      "attackBonus": "floor(level / 2) + grace",
+      "saves": {
+        "grace": [1, 2, 2, 3, 3, 3, 4, 4, 4, 5],
+        "reason": [0, 0, 1, 1, 1, 2, 2, 2, 2, 3],
+        "presence": [2, 2, 3, 3, 4, 4, 4, 5, 5, 5]
+      }
+    },
+    "medic": {
+      "hd": "d6",
+      "attackBonus": "floor(level / 3) + insight",
+      "saves": {
+        "reason": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4],
+        "vigor": [0, 0, 1, 1, 1, 1, 2, 2, 2, 2],
+        "presence": [0, 1, 1, 1, 2, 2, 2, 2, 3, 3]
+      }
+    }
+  },
+  "bestiary": {
+    "grave-shambler": {
+      "name": "Grave Shambler",
+      "threat": 1.5,
+      "level": 1,
+      "hd": "d8",
+      "abilityOverrides": { "might": 3, "vigor": 2, "grace": 1 },
+      "saveOverrides": { "vigor": 2, "tenacity": 1 },
+      "attackTable": "scavenger",
+      "actions": ["shambler-claw"]
+    },
+    "slab-brute": {
+      "name": "Slab Brute",
+      "threat": 3,
+      "level": 3,
+      "hd": "d10",
+      "abilityOverrides": { "might": 4, "vigor": 3, "grace": 0, "reason": 0, "insight": 0, "presence": 1 },
+      "saveOverrides": { "vigor": 3, "tenacity": 2, "reason": 0, "presence": 1 },
+      "attackTable": "scavenger",
+      "actions": ["slab-swipe", "infection-word"]
+    },
+    "cistern-crawler": {
+      "name": "Cistern Crawler",
+      "threat": 1,
+      "level": 1,
+      "hd": "d6",
+      "abilityOverrides": { "grace": 3, "might": 1 },
+      "attackTable": "scavenger",
+      "actions": ["shambler-claw"]
+    },
+    "mile-tyrant": {
+      "name": "Mile Tyrant",
+      "threat": 6,
+      "level": 6,
+      "hd": "d12",
+      "abilityOverrides": { "might": 5, "vigor": 4, "grace": 2, "reason": 1, "insight": 2, "presence": 3 },
+      "saveOverrides": { "vigor": 4, "tenacity": 3, "reason": 2, "presence": 3 },
+      "attackTable": "scavenger",
+      "actions": ["slab-swipe", "infection-word", "rot-speech"]
+    }
+  },
+  "tables": {
+    "district-wanderers": {
+      "kind": "weighted",
+      "entries": [
+        { "weight": 4, "value": "bestiary.grave-shambler" },
+        { "weight": 3, "value": "bestiary.cistern-crawler" },
+        { "weight": 2, "value": "bestiary.slab-brute" },
+        { "weight": 1, "value": "bestiary.mile-tyrant" }
+      ]
+    },
+    "district-scavenge": {
+      "kind": "nested",
+      "entries": [
+        { "weight": 3, "value": "street-remnants" },
+        { "weight": 2, "value": "apartment-caches" },
+        { "weight": 1, "value": "nothing" }
+      ]
+    },
+    "street-remnants": {
+      "kind": "weighted",
+      "entries": [
+        { "weight": 3, "value": "flare-strings" },
+        { "weight": 2, "value": "med-kit" },
+        { "weight": 1, "value": "water-filter" }
+      ]
+    },
+    "apartment-caches": {
+      "kind": "weighted",
+      "entries": [
+        { "weight": 2, "value": "radio-set" },
+        { "weight": 1, "value": "fire-axe" },
+        { "weight": 1, "value": "riot-plate" }
+      ]
+    },
+    "bite-turns": {
+      "kind": "ranged",
+      "entries": [
+        { "min": 1, "max": 60, "value": "the wound binds clean" },
+        { "min": 61, "max": 85, "value": "fever for a day" },
+        { "min": 86, "max": 100, "value": "applyCondition(sapped, 3)" }
+      ]
+    },
+    "district-mood": {
+      "kind": "ranged",
+      "entries": [
+        { "min": 1, "max": 25, "value": "a dead radio hisses static" },
+        { "min": 26, "max": 50, "value": "smoke hangs over the next block" },
+        { "min": 51, "max": 75, "value": "someone saps the water pressure" },
+        { "min": 76, "max": 100, "value": "a horde's harmony carries, distant and wrong" }
+      ]
+    },
+    "weather": {
+      "kind": "ranged",
+      "entries": [
+        { "min": 1, "max": 30, "value": "acid drizzle" },
+        { "min": 31, "max": 55, "value": "low smog" },
+        { "min": 56, "max": 80, "value": "still heat" },
+        { "min": 81, "max": 100, "value": "rain, finally" }
+      ]
+    },
+    "xp": {
+      "kind": "ranged",
+      "entries": [
+        { "min": 0, "max": 999, "value": 1 },
+        { "min": 1000, "max": 2999, "value": 2 },
+        { "min": 3000, "max": 5999, "value": 3 },
+        { "min": 6000, "max": 9999, "value": 4 },
+        { "min": 10000, "max": 14999, "value": 5 },
+        { "min": 15000, "max": 20999, "value": 6 },
+        { "min": 21000, "max": 27999, "value": 7 },
+        { "min": 28000, "max": 35999, "value": 8 },
+        { "min": 36000, "max": 44999, "value": 9 },
+        { "min": 45000, "max": 999999, "value": 10 }
+      ]
+    }
+  }
+}

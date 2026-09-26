@@ -12,7 +12,8 @@
  * The pipeline shell builds the manifest first (identity + provenance exactly
  * `{theme, seed, knobs}` — FR-18/CA-5, no other keys), resolves knob tokens in
  * the theme's stage inputs (`#knob/<id>` → the resolved value — knob values
- * feed generation, FR-18), then runs the stages.
+ * feed generation, FR-18), seeds the formulas map (CA-6 identity is
+ * pack-level), then runs the stages.
  */
 import type { Pack, PackProvenance } from '../schema/pack';
 import type { ErrorCard } from '../schema/error-card';
@@ -44,25 +45,22 @@ const STAGE_INPUT_SECTIONS: readonly string[] = ['stats', 'economy', 'actions', 
 
 /**
  * Resolve `#knob/<id>` tokens across the theme's stage inputs against the
- * resolved knob map. A token naming an undeclared knob is a located rejection
- * (the theme's data defect, caught before stages run).
+ * resolved knob map. Every occurrence inside a string value is substituted
+ * (whole-value tokens and tokens spliced into expressions alike). A token
+ * naming an undeclared knob is a located rejection — the theme's data defect,
+ * caught before stages run.
  */
 function resolveKnobTokens(theme: ThemeTemplate, knobs: Readonly<Record<string, string | number>>): Record<string, unknown> {
   const resolved: Record<string, unknown> = {};
   for (const section of STAGE_INPUT_SECTIONS) {
     const value = (theme as unknown as Record<string, unknown>)[section];
-    resolved[section] = value === undefined ? undefined : substituteTokens(value, knobs, `${section}`, theme.id);
+    resolved[section] = value === undefined ? undefined : substituteTokens(value, knobs, section, theme.id);
   }
   return resolved;
 }
 
 const KNOB_TOKEN = /#knob\/([a-z][a-z0-9-]*)/g;
 
-/**
- * Substitute every `#knob/<id>` occurrence inside a string value (whole-value
- * tokens and tokens spliced into expressions alike); non-string scalars pass
- * through. An undeclared knob is a located rejection before stages run.
- */
 function substituteTokens(value: unknown, knobs: Readonly<Record<string, string | number>>, path: string, themeId: string): unknown {
   if (typeof value === 'string') {
     return value.replace(KNOB_TOKEN, (token: string, id: string) => {
@@ -97,6 +95,13 @@ export function runPipeline(theme: ThemeTemplate, seed: number | string, stages:
   const provenance: PackProvenance = { theme: theme.id, seed, knobs };
   const manifest = { id: theme.id, schemaVersion: 1, title: theme.title, provenance };
   const pack: Record<string, unknown> = { manifest };
+  // Reserved formulas are pack-level identity (CA-6): seed the map from the
+  // token-resolved view before the stages run so every stage sees hp/ac.
+  if (themeView.formulas !== undefined) {
+    const formulas: Record<string, unknown> = {};
+    for (const [id, def] of Object.entries(themeView.formulas)) formulas[id] = structuredClone(def);
+    pack['formulas'] = formulas;
+  }
 
   for (const stage of stages) {
     const ctx: GenerationContext = {

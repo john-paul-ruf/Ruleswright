@@ -46,6 +46,8 @@ export interface ThemeTemplate {
   patches?: readonly ThemePatch[];
   /** Knob declarations keyed by knob id (FR-18; the mock's knobs block). */
   knobs?: Readonly<Record<string, KnobDecl>>;
+  /** The theme's authoring notes: the documented example override (FR-19 anchor) lives here. */
+  readme?: string;
   /** Stage inputs, section-keyed like the pack (stats/actions/economy?/formulas/content/progression/bestiary/tables). */
   stats: PackStats;
   economy?: PackEconomy;
