@@ -15,3 +15,14 @@ export {
   type RollVerdict,
   type VarTerm,
 } from './dice';
+export {
+  MAX_TABLE_DEPTH,
+  rollTable,
+  type RollTableOptions,
+  type TableDef,
+  type TableEntry,
+  type TableFailure,
+  type TableFailureReason,
+  type TableOutcome,
+  type TableResolver,
+} from './tables';
