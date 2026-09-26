@@ -104,13 +104,14 @@ describe('createCharacter (FR-5, shared-file window event)', () => {
   it('creates plain-JSON state with pack-defaulted abilities and reserved-formula hp', () => {
     const runtime = new Runtime(cloneRuntimePack());
     const character = runtime.createCharacter({ name: 'Brynn', race: 'hillfolk', classes: ['warden'] });
-    expect(character.id).toBe('char-1');
-    expect(character.abilities).toEqual({ might: 10, grace: 10, vigor: 10, reason: 10, insight: 10, presence: 10 });
-    expect(character.hp.current).toBe(20); // formulas.hp: 10 + vigor
-    expect(character.level).toBe(1);
-    expect(character.conditions).toEqual([]);
+    const state = character.state;
+    expect(state.id).toBe('char-1');
+    expect(state.abilities).toEqual({ might: 10, grace: 10, vigor: 10, reason: 10, insight: 10, presence: 10 });
+    expect(state.hp.current).toBe(20); // formulas.hp: 10 + vigor
+    expect(state.level).toBe(1);
+    expect(state.conditions).toEqual([]);
     // Plain-JSON guarantee: round-trips through JSON without loss (FR-14).
-    expect(JSON.parse(JSON.stringify(character))).toEqual(character);
+    expect(JSON.parse(JSON.stringify(state))).toEqual(state);
   });
 
   it('emits character:created with provenance naming the pack artifact (FR-13)', () => {

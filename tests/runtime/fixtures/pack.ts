@@ -48,7 +48,7 @@ export const RUNTIME_PACK: Pack = {
       hexer: { name: 'Hexer', spellLists: ['hexer'] },
     },
     races: {
-      hillfolk: { name: 'Hillfolk', caps: { warden: 8, hexer: 6 }, size: 'medium' },
+      hillfolk: { name: 'Hillfolk', caps: { warden: 3, hexer: 2 }, size: 'medium' },
       ashkin: { name: 'Ashkin' },
     },
     skills: {

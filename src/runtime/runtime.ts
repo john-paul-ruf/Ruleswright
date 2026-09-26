@@ -20,9 +20,9 @@ import { packDslChecker } from '../core/dsl/checker';
 import { parseEffect, type EffectAst } from '../core/dsl/effect';
 import { parseFormula, type FormulaAst } from '../core/dsl/formula';
 import type { ErrorCard } from '../schema/error-card';
-import type { Rng } from '../core/rng';
-import { EventStream } from './events';
-import { createCharacter, type ActiveCondition, type CharacterState } from './character';
+import { EventStream, type RuntimeEvent } from './events';
+import { createCharacter, Character, type ActiveCondition, type CharacterState, type ClassEntry } from './character';
+import { levelSet, awardXp } from './progression';
 
 /** The load-time artifact index: everything a character-side lookup needs, keyed by id. */
 export interface PackIndex {
@@ -34,6 +34,8 @@ export interface PackIndex {
   readonly spellEffects: Readonly<Record<string, EffectAst>>;
   /** Parse-once formula ASTs — the whole `formulas` map, reserved ids included. */
   readonly formulaAsts: Readonly<Record<string, FormulaAst>>;
+  /** Parse-once per-class attackBonus formulas (FR-3; table-convention classes have none). */
+  readonly attackBonusAsts: Readonly<Record<string, FormulaAst>>;
 }
 
 /** Aggregate load failure (FR-2): `errors` is the complete ErrorCard[] from the validator. */
@@ -47,13 +49,13 @@ export class PackLoadError extends Error {
   }
 }
 
-/** FR-5 — character creation request: direct level-set; the XP path lives in progression.ts. */
+/** FR-5 — character creation request: `classes` accepts kebab ids or {id, level} entries (FR-6 multi-class). */
 export interface CharacterCreateRequest {
   readonly name: string;
   readonly race: string;
-  readonly classes: readonly string[];
+  readonly classes: readonly (string | ClassEntry)[];
+  /** Default level for id-only class entries; explicit entries carry their own. */
   readonly level?: number;
-  readonly rng?: Rng;
 }
 
 /**
@@ -99,6 +101,7 @@ export class Runtime {
       actionEffects: compileEffects(loaded.actions, (action) => action.effect),
       spellEffects: compileEffects(loaded.content.spells ?? {}, (spell) => spell.effect),
       formulaAsts: compileFormulas(loaded.formulas),
+      attackBonusAsts: compileFormulas(classAttackBonusDefs(loaded)),
     };
   }
 
@@ -107,12 +110,22 @@ export class Runtime {
    * `stats.abilities`, illegal builds rejected with named rules (FR-6).
    * Emits `character:created` (CA-3 named non-combat event, shared-file window).
    */
-  createCharacter(request: CharacterCreateRequest): CharacterState {
+  createCharacter(request: CharacterCreateRequest): Character {
     return createCharacter(this, request);
+  }
+
+  /** FR-6 — direct level-set on an existing character (same validator as the XP path). */
+  levelSet(character: Character, entries: readonly ClassEntry[]): readonly RuntimeEvent[] {
+    return levelSet(this, character.state, entries);
+  }
+
+  /** FR-6 — the host awards; the engine reports. Emits `xp:awarded` (+ `level:reached`). */
+  awardXp(character: Character, amount: number): readonly RuntimeEvent[] {
+    return awardXp(this, character.state, amount);
   }
 }
 
-export type { ActiveCondition, CharacterState };
+export type { ActiveCondition, CharacterState, ClassEntry };
 
 /** Parse-once effect compilation (CA-2) — a validator pass should never fail here. */
 function compileEffects<T extends { readonly effect: string }>(defs: Readonly<Record<string, T>>, effectOf: (def: T) => string): Record<string, EffectAst> {
@@ -125,6 +138,14 @@ function compileEffects<T extends { readonly effect: string }>(defs: Readonly<Re
     compiled[id] = parsed.value;
   }
   return compiled;
+}
+
+function classAttackBonusDefs(pack: Pack): Record<string, { expr: string }> {
+  const defs: Record<string, { expr: string }> = {};
+  for (const [id, table] of Object.entries(pack.progression)) {
+    if (table.attackBonus !== undefined) defs[id] = { expr: table.attackBonus };
+  }
+  return defs;
 }
 
 function compileFormulas(formulas: Readonly<Record<string, { expr: string }>>): Record<string, FormulaAst> {
