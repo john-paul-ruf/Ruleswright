@@ -75,7 +75,7 @@ describe('FR-12 trio — rules are data (zero engine diffs)', () => {
   it('proof 1: a new action + a new condition change combat behavior — pack data only', () => {
     // DATA delta: a new condition that blocks main-slot actions, and an action carrying it.
     const pack = fixturePack();
-    pack.content.conditions['frostbitten'] = { name: 'Frostbitten', duration: 2, stacking: 'refresh', restricts: ['actions.tagged:main'] };
+    (pack.content.conditions ??= {})['frostbitten'] = { name: 'Frostbitten', duration: 2, stacking: 'refresh', restricts: ['actions.tagged:main'] };
     pack.actions['crushing-blow'] = {
       cost: { slots: { main: 1 } },
       effect: 'sequence(attack(ac, might), damage(2d6, bludgeon), applyCondition(frostbitten, 2))',
@@ -139,7 +139,7 @@ describe('FR-12 trio — rules are data (zero engine diffs)', () => {
   it('proof 3: a new spell is memorized → bound → cast — pack data only', () => {
     // DATA delta: one new spell on the hexer list.
     const pack = fixturePack();
-    pack.content.spells['wither-light'] = {
+    (pack.content.spells ??= {})['wither-light'] = {
       name: 'Wither Light',
       magic: { level: 1, lists: ['hexer'] },
       cost: { vancian: 1 },

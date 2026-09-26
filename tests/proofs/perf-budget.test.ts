@@ -46,7 +46,7 @@ describe('perf budgets (CI-generous local bounds)', () => {
     const combatants: { id: string; profile: CombatantProfile }[] = [];
     for (let i = 0; i < 5; i += 1) {
       combatants.push({ id: `ally-${i}`, profile: { ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, `ally-${i}`), actions: ['strike', 'withdraw'] } });
-      combatants.push({ id: `foe-${i}`, profile: { ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, `foe-${i}`), actions: ['wight-claw', 'withdraw'] } });
+      combatants.push({ id: `foe-${i}`, profile: spawnMonster(runtime, 'barrow-wight', `foe-${i}`) });
     }
     const fight = startCombat(runtime, {
       allies: combatants.filter((entry) => entry.id.startsWith('ally-')),
