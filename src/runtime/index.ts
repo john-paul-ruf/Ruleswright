@@ -35,3 +35,21 @@ export {
   removeTheme,
 } from './conditions';
 export { RuntimeRuleError, ruleCard } from './errors';
+export {
+  serializeCharacter,
+  serializeParty,
+  serializeCombat,
+  restoreCharacter,
+  restoreParty,
+  deserializeCombat,
+  type CharacterSnapshot,
+  type PartySnapshot,
+  type CombatSnapshot,
+  type SnapshotPackIdentity,
+  type SnapshotCharacterState,
+  type SnapshotClassEntry,
+  type SnapshotActiveCondition,
+  type SnapshotInventoryEntry,
+  type SnapshotCombatant,
+  type CombatRestoreRequest,
+} from './snapshots';
