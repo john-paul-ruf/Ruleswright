@@ -26,3 +26,16 @@ M01 Key Files update: add `overrides.ts` (7 files: pack, artifacts, error-card, 
 - `src/core/index.ts` — NEW internal barrel (not in architecture.md's core file list): groups the three modules' exports for runtime/compiler imports; no cross-surface re-exports; core still imports nothing internal.
 
 Root manifests landed (package.json/tsconfig/vitest/eslint/prettier/pnpm-lock); zero runtime deps; lint bans `Math.random`/`Date.now`/`eval`/`new Function`/dynamic imports + `ImportExpression` under `src/**` (proven to fire via red/green check).
+
+<!-- v1-core SESSION-03 -->
+## M02 — DSL compiler (SESSION-03 via RECOVERY-03, ck1–3 + correction, 4e188fa/dff30e6/7eff106/168d71a)
+
+New module `src/core/dsl/` — imports only `../rng`, `../dice`, type-only `../../schema/{validate,error-card}` (sibling-leaf rules held).
+
+- `checker.ts` — `packDslChecker: DslChecker`: pass as S01's `validatePack(json, dslChecker)` 2nd param; replaces `deferredDslChecker`. Dispatch by `DslCheckRequest.kind` (`effect` → effect grammar; `formula|valid|passive|attackBonus` → formula). E-FORM-01 parse errors carry 0-based char offset in message; E-FORM-02 closed-registry miss (unknown fn, wrong vocabulary, bad arity, misplaced `half`); E-FORM-03 unknown name + `did you mean` via S01 nearestIds (no distance cutoff).
+- `formula.ts` — `parseFormula` (parse-once), `evalFormula(ast, ctx, rng)` (eval-many; `FormulaValue = number | RollResult`), `checkFormula(request): ErrorCard[]`, `checkFormulaAst` (S05/S07 reuse), `FormulaNode`/`FormulaAst`, `BUILTIN_SCALARS = ['level']`.
+- `effect.ts` — `parseEffect(src)` (root must be a statement call); `executeEffect(ast, ctx): readonly EffectResolution[]` pure interpreter; ctx `{actor, targets, rng, apply: EffectApply, vars}`; `EffectApply = {resolveTargets, damage, condition}` is S05's mutation seam; outcome union embeds verdict-attached RollResults (FR-13 raw material); `EFFECT_SCALARS = ['level','hp','ac','initiative']` (CA-6); save-for-half per magic.html: `damage(half)` re-rolls fail branch's first damage expr, total = ceil(half), inherits type.
+- `registry.ts` — frozen 12-entry registry (attack, save, damage, applyCondition, target, sequence, hasTarget, min, max, floor, ceil, half); extension = schema event (CA-2); exact-membership freeze test.
+- `shared.ts` — one lexer both grammars; `MAX_PARSE_DEPTH = 24`, `MAX_EXPR_LENGTH = 512`; `nearestName`; `dslCard` (literal ErrorCard construction).
+
+Grammar decisions: kebab ids swallow `-` inside names (`level-1` reads as a name → E-FORM-03; digit-leading terms keep classic subtraction); parser grammar-pure (unknown fn parses; E-FORM-02 is the checker's call); one dice lexeme = one S02 recipe = one die cluster, multi-dice compose via +/-; effect-embedded formulas resolve names against abilities+saves+EFFECT_SCALARS only (no pack-formula refs at play time); no eval/new Function/Math.random (grepped + tested); all randomness injected.
