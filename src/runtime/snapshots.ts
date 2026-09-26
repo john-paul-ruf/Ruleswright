@@ -162,7 +162,7 @@ function envelopeRefusals(kind: 'character' | 'party' | 'combat', snapshot: unkn
       ),
     );
   }
-  const identity = isRecord(snapshot) ? snapshot['pack'] : undefined;
+  const identity = snapshot['pack'];
   if (!isRecord(identity)) {
     cards.push(
       makeErrorCard(
