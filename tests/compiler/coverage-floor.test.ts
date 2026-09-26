@@ -301,6 +301,16 @@ describe('CA-5 producer — determinism contract (the byte-identity proof)', () 
     expect(packContentHash(a)).not.toBe(packContentHash(b));
   });
 
+  it('determinism across fresh module loads: two distinct module instances ⇒ identical bytes (CA-5 deep-check)', async () => {
+    const first = await import('../../src/compiler/pipeline');
+    const second = await import('../../src/compiler/pipeline?fresh-load');
+    expect(first).not.toBe(second);
+    const a = first.runPipeline(DARK_FANTASY, SEED);
+    const b = second.runPipeline(DARK_FANTASY, SEED);
+    expect(packContentHash(a)).toBe(packContentHash(b));
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+  });
+
   it('zombie-urban: same determinism contract holds', () => {
     const a = runPipeline(ZOMBIE_URBAN, SEED);
     const b = runPipeline(ZOMBIE_URBAN, SEED);
