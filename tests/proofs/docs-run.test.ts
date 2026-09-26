@@ -1,13 +1,23 @@
 /**
- * NFR-DX made mechanical: the README's quickstart code is executed VERBATIM and
- * its expected output asserted. If the README's examples cannot run, this test
- * fails — the docs are broken (quickstart.html is the bar).
+ * NFR-DX made mechanical, two independent passes:
  *
- * The README's fenced ```ts blocks are extracted, joined the way a copy-paste
- * reader would (one module), and executed against the real surface modules
- * (the README's `import` lines resolve to the same exports a consumer gets;
- * the test strips them in the evaluated form and binds the names as function
- * parameters, plus strips the TS-only non-null assertions tsc would strip).
+ * 1. EXECUTION — the README's quickstart code runs VERBATIM and its expected
+ *    output is asserted. If the README's examples cannot run, this test fails —
+ *    the docs are broken (quickstart.html is the bar).
+ *
+ * 2. TYPECHECK — the same fenced ```ts blocks compile under the consumer's
+ *    strict tsc (strict + noUncheckedIndexedAccess, mirroring tsconfig.json).
+ *    Executing stripped JS proves the code runs; only a typecheck proves it
+ *    compiles — "copy-paste runnable" means both. A README line that fails
+ *    strict tsc (e.g. TS18048 on a possibly-undefined `.find()` result) fails
+ *    here even though the executed form runs.
+ *
+ * The README's fenced ```ts blocks are extracted and joined the way a
+ * copy-paste reader would (one module). The execution pass strips the import
+ * lines (binding the names as function parameters) and the TS-only non-null
+ * assertions; the typecheck pass keeps both and maps the package specifiers to
+ * the real source entries — a consumer's `ruleswright/*` resolves through the
+ * package exports to the same compiled source.
  * Expected outputs are asserted from the README's own output blocks:
  *   01 → a validated pack (manifest.id = dark-fantasy, 3 classes, 33 spells)
  *   02 → derived() = { hp: 27, ac: 12, saves: all-zero at level 1 }
@@ -18,6 +28,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 import { generateCampaign, loadTheme } from '../../src/compiler';
 import { Runtime, startCombat, spawnMonster, profileFromCharacter } from '../../src/runtime';
 
@@ -28,8 +39,82 @@ const readme = readFileSync(readmePath, 'utf8');
 const blocks = [...readme.matchAll(/```ts\n([\s\S]*?)```/g)].map((match) => match[1]!);
 expect(blocks.length, 'README quickstart must carry three ```ts blocks').toBe(3);
 
-/** The README's TS-only tokens (a real consumer's tsc strips these; the test does the same). */
+/** The README's TS-only tokens (a real consumer's tsc strips these; the execution pass does the same). */
 const stripped = blocks.join('\n').split(']!').join(']');
+
+// ------------------------------------------------------------- typecheck pass
+
+/** Repository root (this file is tests/proofs/docs-run.test.ts). */
+const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
+
+/** The README's package specifiers → the same modules a consumer's install resolves (source form). */
+const SURFACE_MODULES: Readonly<Record<string, string>> = {
+  ruleswright: `${REPO_ROOT}src/index.ts`,
+  'ruleswright/schema': `${REPO_ROOT}src/schema/index.ts`,
+  'ruleswright/runtime': `${REPO_ROOT}src/runtime/index.ts`,
+  'ruleswright/compiler': `${REPO_ROOT}src/compiler/index.ts`,
+};
+
+/** The virtual in-memory module the joined blocks are typechecked as. */
+const DOC_FILE = 'ruleswright-quickstart.doc.ts';
+
+/** The consumer's strictness — tsconfig.json's flags, nothing looser. */
+const DOC_OPTIONS: ts.CompilerOptions = {
+  strict: true,
+  noUncheckedIndexedAccess: true,
+  noFallthroughCasesInSwitch: true,
+  noImplicitOverride: true,
+  target: ts.ScriptTarget.ES2020,
+  lib: ['es2020'],
+  module: ts.ModuleKind.ESNext,
+  moduleResolution: ts.ModuleResolutionKind.Bundler,
+  esModuleInterop: true,
+  resolveJsonModule: true,
+  isolatedModules: true,
+  skipLibCheck: true,
+  noEmit: true,
+};
+
+/**
+ * Typecheck the joined blocks without writing to disk: an in-memory SourceFile
+ * behind a delegating compiler host whose resolveModuleNames maps the README's
+ * package specifiers to the real source entries. Returns "line:col message
+ * (tsNNNN)" strings — empty means the docs compile under strict tsc.
+ */
+function typecheckQuickstart(source: string): readonly string[] {
+  const host = ts.createCompilerHost(DOC_OPTIONS);
+  const sourceFile = ts.createSourceFile(DOC_FILE, source, ts.ScriptTarget.ES2020, true);
+  const docHost: ts.CompilerHost = {
+    ...host,
+    // The newer resolveModuleNameLiterals API would bypass resolveModuleNames;
+    // clearing it routes the README's package specifiers through the map below.
+    resolveModuleNameLiterals: undefined,
+    getSourceFile(fileName, languageVersionOrOptions, onError, shouldCreateNewSourceFile) {
+      return fileName === DOC_FILE ? sourceFile : host.getSourceFile(fileName, languageVersionOrOptions, onError, shouldCreateNewSourceFile);
+    },
+    fileExists(fileName) {
+      return fileName === DOC_FILE || host.fileExists!(fileName);
+    },
+    readFile(fileName) {
+      return fileName === DOC_FILE ? source : host.readFile!(fileName);
+    },
+    resolveModuleNames(moduleNames, containingFile) {
+      return moduleNames.map((name) => {
+        const surface = SURFACE_MODULES[name];
+        if (surface !== undefined) return { resolvedFileName: surface, extension: '.ts' as const, isExternalLibraryImport: false };
+        return ts.resolveModuleName(name, containingFile, DOC_OPTIONS, host).resolvedModule;
+      });
+    },
+  };
+  const program = ts.createProgram([DOC_FILE], DOC_OPTIONS, docHost);
+  return ts
+    .getPreEmitDiagnostics(program)
+    .filter((diagnostic) => diagnostic.file?.fileName === DOC_FILE)
+    .map((diagnostic) => {
+      const { line, character } = diagnostic.file!.getLineAndCharacterOfPosition(diagnostic.start ?? 0);
+      return `${line + 1}:${character + 1} ${ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n')} (ts${diagnostic.code})`;
+    });
+}
 
 describe('README quickstart runs verbatim (NFR-DX)', () => {
   it('generates → character → combat round, with the README’s expected outputs', () => {
@@ -87,4 +172,9 @@ describe('README quickstart runs verbatim (NFR-DX)', () => {
     expect(readme).toContain('actions.cut-down.attackBonus');
     expect(readme).toContain('no I/O');
   });
+
+  it('the README’s fenced ```ts blocks compile under the consumer’s strict tsc (NFR-DX)', () => {
+    const problems = typecheckQuickstart(blocks.join('\n'));
+    expect(problems, 'README quickstart must compile under strict tsc — code that runs but does not compile is half copy-paste-runnable').toEqual([]);
+  }, 60_000);
 });

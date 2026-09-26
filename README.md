@@ -8,7 +8,7 @@ No magic subsystem, no hardcoded action slots, no second table engine — packs 
 specifics, the engine interprets them.
 
 - Zero runtime dependencies. Engine performs no I/O — hosts own storage, pacing, and UI.
-- Deterministic to the byte: same theme + seed + knobs ⇒ byte-identical packs; same seed +
+- Determinism to the byte: same theme + seed + knobs ⇒ byte-identical packs; same seed +
   same call sequence ⇒ identical rolls on Node, browsers, and Electron.
 - Three surfaces: `ruleswright/runtime` (dice, characters, combat, snapshots, events),
   `ruleswright/schema` (the pack format, validator, version contract), and
@@ -17,13 +17,12 @@ specifics, the engine interprets them.
 ## Quickstart
 
 Every line below is copy-paste runnable and every step shows its expected output
-(NFR-DX; executed by `tests/proofs/docs-run.test.ts`).
+(NFR-DX; executed AND typechecked by `tests/proofs/docs-run.test.ts`).
 
 ### 01 — Generate a campaign
 
 ```ts
-import { generateCampaign } from "ruleswright/compiler";
-import { loadTheme } from "ruleswright/compiler";
+import { generateCampaign, loadTheme } from "ruleswright/compiler";
 
 // Theme + seed + knobs → complete pack. Fully offline.
 const pack = generateCampaign({
@@ -91,6 +90,7 @@ while (!fight.roundComplete) {
 }
 
 const attack = rt.events.sinceRound(1).find((event) => event.type === "attack:rolled");
+if (attack === undefined) throw new Error("no attack:rolled event was emitted — a fight where nobody attacks is a bug, not a quickstart state");
 console.log(attack.why.rolls[0], attack.why.rule);
 ```
 
