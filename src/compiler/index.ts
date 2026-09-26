@@ -10,3 +10,4 @@ export { stageRng } from './rng-stream';
 export type { ThemeTemplate, KnobDecl, ThemePatch } from './theme';
 export { GenerationError } from './errors';
 export { composeTheme, readPatch } from './compose';
+export { loadTheme, DARK_FANTASY, ZOMBIE_URBAN } from './theme-loader';
