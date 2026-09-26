@@ -35,9 +35,9 @@
   },
   "content": {
     "classes": {
-      "scavenger": { "name": "Scavenger", "spellLists": [], "features": [{ "level": 1, "ref": "scavengers-instinct" }, { "level": 4, "ref": "block-runner" }] },
-      "fixer": { "name": "Fixer", "spellLists": [], "features": [{ "level": 1, "ref": "milers-read" }] },
-      "medic": { "name": "Medic", "spellLists": [], "features": [{ "level": 2, "ref": "field-surgery" }] }
+      "scavenger": { "name": "Scavenger", "spellLists": [], "features": [{ "level": 1, "ref": "scavengers-instinct" }, { "level": 4, "ref": "block-runner" }], "actions": ["baton-blow", "crossbow-bolt", "fall-back", "dodge-roll"] },
+      "fixer": { "name": "Fixer", "spellLists": [], "features": [{ "level": 1, "ref": "milers-read" }], "actions": ["baton-blow", "pistol-shot", "barricade", "wrench-parry", "adrenal-spike"] },
+      "medic": { "name": "Medic", "spellLists": [], "features": [{ "level": 2, "ref": "field-surgery" }], "actions": ["baton-blow", "fall-back", "dodge-roll"] }
     },
     "races": {
       "mile-born": { "name": "Mile-born", "caps": { "scavenger": 10, "fixer": 8, "medic": 6 }, "size": "medium" },

@@ -35,9 +35,9 @@
   },
   "content": {
     "classes": {
-      "warden": { "name": "Warden", "spellLists": ["warden"], "armorCasting": ["mail"], "features": [{ "level": 1, "ref": "oath-of-the-warden" }, { "level": 3, "ref": "wardens-glyph" }] },
-      "hexer": { "name": "Hexer", "spellLists": ["hexer"], "armorCasting": ["leather"], "features": [{ "level": 1, "ref": "hexers-eye" }] },
-      "crypt-warden": { "name": "Crypt Warden", "spellLists": ["warden", "hexer"], "features": [{ "level": 2, "ref": "wardens-glyph" }] }
+      "warden": { "name": "Warden", "spellLists": ["warden"], "armorCasting": ["mail"], "features": [{ "level": 1, "ref": "oath-of-the-warden" }, { "level": 3, "ref": "wardens-glyph" }], "actions": ["strike", "cut-down", "withdraw", "brace", "parry"] },
+      "hexer": { "name": "Hexer", "spellLists": ["hexer"], "armorCasting": ["leather"], "features": [{ "level": 1, "ref": "hexers-eye" }], "actions": ["hurl", "long-shot", "withdraw", "ward-glint", "ember-surge"] },
+      "crypt-warden": { "name": "Crypt Warden", "spellLists": ["warden", "hexer"], "features": [{ "level": 2, "ref": "wardens-glyph" }], "actions": ["strike", "long-shot", "withdraw", "brace", "ward-glint"] }
     },
     "races": {
       "hillfolk": { "name": "Hillfolk", "caps": { "warden": 10, "hexer": 6, "crypt-warden": 4 }, "size": "medium" },

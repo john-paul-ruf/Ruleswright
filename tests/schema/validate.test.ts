@@ -101,6 +101,47 @@ describe('semantic pass — one purpose-built fixture per rule id', () => {
     expect(card?.hint).toContain('did you mean');
   });
 
+  it('E-REF-01 (v1.2): class action ids must resolve, with a nearest-id hint', () => {
+    const cards = errorsFor((pack) => {
+      pack.content.classes!.warden!.actions = ['strike', 'nope'];
+    });
+    const refs = cards.filter((card) => card.rule === 'E-REF-01');
+    expect(refs).toHaveLength(1);
+    expect(refs[0]).toMatchObject({ artifactId: 'warden', jsonPath: 'content.classes.warden.actions[1]' });
+    expect(refs[0]?.hint).toContain('did you mean');
+  });
+
+  it('E-SCHEMA-01 (v1.2): class actions are unique (uniqueItems)', () => {
+    const cards = errorsFor((pack) => {
+      pack.content.classes!.warden!.actions = ['strike', 'strike'];
+    });
+    expect(cards).toHaveLength(1);
+    expect(cards[0]).toMatchObject({ rule: 'E-SCHEMA-01', jsonPath: 'content.classes.warden.actions[1]' });
+    expect(cards[0]?.message).toContain('uniqueItems');
+  });
+
+  it('E-SCHEMA-01 (v1.2): class actions must be an array of kebab ids', () => {
+    const notArray = errorsFor((pack) => {
+      (pack.content.classes!.warden! as unknown as Record<string, unknown>).actions = 'strike';
+    });
+    expect(notArray).toHaveLength(1);
+    expect(notArray[0]).toMatchObject({ rule: 'E-SCHEMA-01', jsonPath: 'content.classes.warden.actions' });
+    const badId = errorsFor((pack) => {
+      (pack.content.classes!.warden! as unknown as Record<string, unknown>).actions = ['Strike!', 7];
+    });
+    expect(badId.map((card) => [card.rule, card.jsonPath])).toEqual([
+      ['E-SCHEMA-01', 'content.classes.warden.actions[0]'],
+      ['E-SCHEMA-01', 'content.classes.warden.actions[1]'],
+    ]);
+  });
+
+  it('v1.2 class actions are optional: absent or resolving lists produce no card', () => {
+    expect(VALID_PACK.content.classes?.hexer?.actions).toBeUndefined();
+    expect(errorsFor(() => undefined)).toEqual([]);
+    expect(errorsFor((pack) => (pack.content.classes!.warden!.actions = ['strike', 'step-aside']))).toEqual([]);
+    expect(errorsFor((pack) => (pack.content.classes!.warden!.actions = []))).toEqual([]);
+  });
+
   it('E-REF-01: skill ability names must resolve', () => {
     const cards = errorsFor((pack) => {
       const climb = pack.content.skills?.climb;

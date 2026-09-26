@@ -14,6 +14,8 @@ import { validatePack } from '../../src/schema/validate';
 import { packDslChecker } from '../../src/core/dsl/checker';
 import { packContentHash } from '../../src/schema/version';
 import type { Pack } from '../../src/schema/pack';
+import { generateCampaign, loadTheme } from '../../src/compiler';
+import { Runtime } from '../../src/runtime';
 
 const SEED = 42;
 
@@ -29,6 +31,28 @@ describe('FR-17/CA-1 — both themes generate and validate clean (the dogfood pr
       expect(cards.map((card) => `${card.rule} @ ${card.jsonPath}: ${card.message}`)).toEqual([]);
       expect(pack.manifest.id).toBe(name);
       expect(pack.manifest.schemaVersion).toBe(1);
+    });
+  }
+});
+
+describe('v1.2 — every bundled class declares combat actions (UI B-1, D-23)', () => {
+  for (const themeId of ['dark-fantasy', 'zombie-urban'] as const) {
+    it(`${themeId}: the generated pack loads in the Runtime and every class grants 1+ declared action`, () => {
+      const pack = generateCampaign({ theme: loadTheme(themeId), seed: SEED });
+      const rt = new Runtime(pack);
+      const classes = Object.entries(rt.pack.content.classes ?? {});
+      expect(classes.length).toBeGreaterThan(0);
+      for (const [classId, def] of classes) {
+        expect(def.actions?.length ?? 0, classId).toBeGreaterThanOrEqual(1);
+        for (const actionId of def.actions ?? []) expect(rt.pack.actions[actionId], `${classId} → ${actionId}`).toBeDefined();
+      }
+    });
+
+    it(`${themeId}: same theme + seed twice ⇒ byte-identical pack with class actions`, () => {
+      const a = generateCampaign({ theme: loadTheme(themeId), seed: SEED });
+      const b = generateCampaign({ theme: loadTheme(themeId), seed: SEED });
+      expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+      expect(packContentHash(a)).toBe(packContentHash(b));
     });
   }
 });

@@ -76,6 +76,13 @@ export interface ClassDef {
   /** Armor types in which this class may cast — pack data (FR-9). */
   armorCasting?: string[];
   features?: ClassFeature[];
+  /**
+   * v1.2 — action ids a character of this class may declare in combat (FR-16
+   * parity with statblock actions). Unique; each must be a key of the pack's
+   * `actions` map (E-REF-01). No level gating: every listed action is
+   * available from class level 1.
+   */
+  actions?: KebabId[];
 }
 
 /** $defs/content/properties/races/additionalProperties */

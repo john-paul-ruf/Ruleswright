@@ -679,7 +679,7 @@ function checkClasses(ctx: Ctx, value: unknown): void {
       continue;
     }
     reqFields(ctx, def, ['name'], id, basePath);
-    forbidUnknown(ctx, def, ['name', 'spellLists', 'armorCasting', 'features'], id, basePath);
+    forbidUnknown(ctx, def, ['name', 'spellLists', 'armorCasting', 'features', 'actions'], id, basePath);
     checkStringField(ctx, def, 'name', id, basePath, 1);
     checkStringArray(ctx, def['spellLists'], id, `${basePath}.spellLists`);
     checkStringArray(ctx, def['armorCasting'], id, `${basePath}.armorCasting`);
@@ -705,6 +705,42 @@ function checkClasses(ctx: Ctx, value: unknown): void {
           }
         }
       }
+    }
+    checkClassActions(ctx, def['actions'], id, `${basePath}.actions`);
+  }
+}
+
+/** v1.2 — optional class action list: unique kebab ids, each resolving in the pack's actions map, like statblock actions (FR-16). */
+function checkClassActions(ctx: Ctx, value: unknown, classId: string, basePath: string): void {
+  if (value === undefined) return;
+  if (!Array.isArray(value)) {
+    add(ctx, makeErrorCard('E-SCHEMA-01', classId, basePath, `${basePath} must be an array of unique action ids.`));
+    return;
+  }
+  const seen = new Set<string>();
+  for (const [index, actionId] of value.entries()) {
+    const entryPath = `${basePath}[${index}]`;
+    if (typeof actionId !== 'string' || !ID_PATTERN.test(actionId)) {
+      add(ctx, makeErrorCard('E-SCHEMA-01', classId, entryPath, `${entryPath} must match ^[a-z][a-z0-9-]*$.`));
+      continue;
+    }
+    if (seen.has(actionId)) {
+      add(ctx, makeErrorCard('E-SCHEMA-01', classId, entryPath, `${basePath} entries must be unique (uniqueItems) — "${actionId}" repeats.`));
+      continue;
+    }
+    seen.add(actionId);
+    if (ctx.actionIds !== null && !ctx.actionIds.has(actionId)) {
+      const near = nearestId(actionId, ctx.actionIds);
+      add(
+        ctx,
+        makeErrorCard(
+          'E-REF-01',
+          classId,
+          entryPath,
+          `class "${classId}" grants action "${actionId}", which is not declared in actions — characters ride the same action machinery as statblocks (FR-16).`,
+          near === undefined ? `declared actions: ${[...ctx.actionIds].sort().join(', ') || '(none)'}` : `did you mean "${near}"?`,
+        ),
+      );
     }
   }
 }
