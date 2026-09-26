@@ -1,9 +1,10 @@
 /**
  * Stage 6 · bestiary (generation-pipeline.html: "statblocks, threats"):
- * contributes `bestiary` — statblocks built from the same character machinery
- * (FR-16): ability/save overrides, a referenced progression attack table, and
- * action ids declared in `actions`. The stage validates references against the
- * theme's sections so defects locate here, before stage 8.
+ * contributes `bestiary` + `content.races` + `content.conditions` — statblocks
+ * built from the same character machinery (FR-16): ability/save overrides, a
+ * referenced progression attack table, action ids declared in `actions`, and
+ * the race/condition content the floor ships. The stage validates references
+ * against the theme's sections so defects locate here, before stage 8.
  */
 import type { Stage } from '../stage';
 import type { Pack } from '../../schema/pack';
@@ -13,6 +14,8 @@ export const bestiaryStage: Stage = {
   name: 'bestiary',
   run(ctx) {
     const blocks = ctx.theme.bestiary;
+    const races = ctx.theme.content?.races;
+    const conditions = ctx.theme.content?.conditions;
     if (blocks === undefined) {
       throw new GenerationError([themeCard('E-SCHEMA-01', 'bestiary', 'bestiary', 'the theme declares no bestiary — stage 6 needs statblocks.')]);
     }
@@ -30,7 +33,20 @@ export const bestiaryStage: Stage = {
         }
       }
     }
+    const content = (ctx.pack['content'] ?? {}) as NonNullable<Pack['content']>;
+    if (races !== undefined) {
+      for (const [id, race] of Object.entries(races)) {
+        for (const classId of Object.keys(race.caps ?? {})) {
+          if (ctx.theme.content?.classes?.[classId] === undefined) {
+            throw new GenerationError([themeCard('E-REF-02', id, `content.races.${id}.caps.${classId}`, `race "${id}" declares a level cap for class "${classId}", which the theme does not declare.`)]);
+          }
+        }
+      }
+      content['races'] = structuredClone(races) as NonNullable<Pack['content']>['races'];
+    }
+    if (conditions !== undefined) content['conditions'] = structuredClone(conditions) as NonNullable<Pack['content']>['conditions'];
+    if (Object.keys(content).length > 0) ctx.pack['content'] = content;
     ctx.pack['bestiary'] = structuredClone(blocks) as Pack['bestiary'];
-    ctx.own = ctx.pack['bestiary'];
+    ctx.own = { bestiary: ctx.pack['bestiary'], races: content['races'], conditions: content['conditions'] };
   },
 };
