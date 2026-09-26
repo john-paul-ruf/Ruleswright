@@ -147,7 +147,8 @@
               "name": { "type": "string" },
               "spellLists": { "type": "array", "items": { "type": "string" } },
               "armorCasting": { "type": "array", "items": { "type": "string" }, "description": "Armor types in which this class may cast — pack data (FR-9)" },
-              "features": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["level", "ref"], "properties": { "level": { "type": "integer", "minimum": 1 }, "ref": { "type": "string" } } } }
+              "features": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["level", "ref"], "properties": { "level": { "type": "integer", "minimum": 1 }, "ref": { "type": "string" } } } },
+              "actions": { "type": "array", "items": { "$ref": "#/$defs/idPattern" }, "uniqueItems": true, "description": "v1.2 — action ids a character of this class may declare in combat (FR-16 parity with statblock actions); each must be a key of the pack's actions map (E-REF-01)" }
             }
           }
         },
