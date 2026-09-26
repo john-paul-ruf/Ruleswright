@@ -98,3 +98,6 @@ New module `src/compiler/` — imports only `../schema` + `../core` (no runtime 
 CA-5 producer proof landed: byte-identity (equal hash + equal bytes), different-seed divergence, in-process AND across fresh module loads; no ambient values (provenance exactly {theme, seed, knobs}).
 FR-21 conformance test (S08's proof-4 input): `tests/compiler/coverage-floor.test.ts` (50 tests, every floor bullet + showcase split + coined-name lint + knob feeding).
 Envelope-premise correction: themes carry NO spatial section — pack.schema.json root is closed (E-SCHEMA-02 on extra sections), S05's fixtures attach spatial post-validation via test helper; optional spatial layer stays host-side (FR-11); spatial schema section = DB schema event if wanted.
+
+<!-- v1-core OWNER-04-TSCONFIG -->
+OWNER-04-TSCONFIG (owner correction, 77b4108): theme JSON module types now come from real-file resolution via tsconfig `resolveJsonModule`; ambient shim `src/compiler/themes.d.ts` deleted (cast retained in theme-loader.ts); `tests/compiler/fresh-load.d.ts` retained — it types the vite `?fresh-load` query specifier (not a file), and its consumer `tests/compiler/coverage-floor.test.ts` was outside the correction write set.
