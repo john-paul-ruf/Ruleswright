@@ -102,7 +102,7 @@ describe('character snapshots (FR-14, CAP-7)', () => {
     pack2.manifest.title = 'A Different Vale';
     const hashB = serializeCharacter(new Runtime(pack2), state).pack.contentHash;
     const pack3 = cloneRuntimePack();
-    pack3.actions['strike'].tags = ['strike', 'main'];
+    pack3.actions['strike']!.tags = ['strike', 'main'];
     const hashC = serializeCharacter(new Runtime(pack3), state).pack.contentHash;
     expect(hashA).not.toBe(hashB);
     expect(hashA).not.toBe(hashC);
@@ -119,7 +119,7 @@ describe('party snapshots (FR-14)', () => {
     expect(snap.snapshotVersion).toBe(1);
     expect(Object.keys(snap).sort()).toEqual(['kind', 'members', 'pack', 'snapshotVersion']);
     expect(snap.members).toHaveLength(2);
-    expect(snap.members[0]!.name).toBe('Ald');
+    expect(snap.members[0]?.name).toBe('Ald');
     expect(snap.members[1]!.pools['stamina']).toBe(vex.pools['stamina']);
     expect(snap.pack.id).toBe('test-vale');
   });

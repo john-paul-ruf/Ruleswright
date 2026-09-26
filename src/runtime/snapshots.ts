@@ -162,7 +162,7 @@ function envelopeRefusals(kind: 'character' | 'party' | 'combat', snapshot: unkn
       ),
     );
   }
-  const identity = snapshot['pack'];
+  const identity = isRecord(snapshot) ? snapshot['pack'] : undefined;
   if (!isRecord(identity)) {
     cards.push(
       makeErrorCard(
@@ -220,8 +220,8 @@ function envelopeRefusals(kind: 'character' | 'party' | 'combat', snapshot: unkn
   return cards;
 }
 
-function declaredIdentityId(snapshot: Record<string, unknown>): string | undefined {
-  const identity = snapshot['pack'];
+function declaredIdentityId(snapshot: unknown): string | undefined {
+  const identity = isRecord(snapshot) ? snapshot['pack'] : undefined;
   return isRecord(identity) && typeof identity['id'] === 'string' ? identity['id'] : undefined;
 }
 
@@ -377,10 +377,10 @@ export function serializeCombat(fight: Combat, options: { readonly pairsWith: st
 export function deserializeCombat(runtime: Runtime, snapshot: unknown, restore: CombatRestoreRequest): Combat {
   const cards = envelopeRefusals('combat', snapshot, runtime.pack);
   if (isRecord(snapshot) && cards.length === 0) {
-    cards.push(...combatRestoreRefusals(runtime, snapshot as CombatSnapshot, restore));
+    cards.push(...combatRestoreRefusals(runtime, snapshot as unknown as CombatSnapshot, restore));
   }
   if (cards.length > 0) throw new RuntimeRuleError(cards);
-  validateRngWords(snapshot as Record<string, unknown>);
+  validateRngWords(snapshot);
   const saved = snapshot as CombatSnapshot;
   const frozen = new Map(saved.combatants.map((combatant) => [combatant.id, combatant]));
   const sides = [...restore.allies.map((entry) => ({ ...entry, side: 'allies' as const })), ...restore.enemies.map((entry) => ({ ...entry, side: 'enemies' as const }))];
@@ -472,12 +472,12 @@ function combatRestoreRefusals(runtime: Runtime, saved: CombatSnapshot, restore:
   return cards;
 }
 
-function validateRngWords(snapshot: Record<string, unknown>): void {
-  const rng = snapshot['rng'];
+function validateRngWords(snapshot: unknown): void {
+  const rng = isRecord(snapshot) ? snapshot['rng'] : undefined;
   if (!isRecord(rng)) return; // the gate's pack/identity cards already fired
   for (const word of ['a', 'b', 'c', 'd'] as const) {
-    const value = rng[word];
-    if (!Number.isInteger(value) || value < 0 || value > UINT32_MAX_WORD) {
+    const value = (rng as Record<string, unknown>)[word];
+    if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > UINT32_MAX_WORD) {
       throw new RuntimeRuleError([makeErrorCard('E-SNAP-01', declaredIdentityId(snapshot) ?? '(snapshot)', `rng.${word}`, `rng word ${word} must be a uint32, got ${display(value)} - refusing a mangled dice stream (FR-1/FR-14).`)]);
     }
   }

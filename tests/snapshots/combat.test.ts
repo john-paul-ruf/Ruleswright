@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { Runtime } from '../../src/runtime/runtime';
 import { createCharacter } from '../../src/runtime/character';
 import { serializeCombat, deserializeCombat, serializeCharacter, serializeParty } from '../../src/runtime/snapshots';
-import type { CombatRestoreRequest } from '../../src/runtime/snapshots';
+import type { CombatRestoreRequest, CombatSnapshot } from '../../src/runtime/snapshots';
 import { profileFromStatblock, type CombatantProfile } from '../../src/runtime/combat/resolve';
 import { startCombat, type Combat } from '../../src/runtime/combat/combat';
 import type { RuntimeEvent } from '../../src/runtime/events';
@@ -140,8 +140,7 @@ describe('combat restore refusal paths (CA-1: loud refusal, no mutation)', () =>
   it('a tampered contentHash refuses with E-SNAP-01 and the fresh runtime stays untouched', () => {
     const { fight } = journeyFight('refusal');
     const snap = serializeCombat(fight, { pairsWith: 'party-1' });
-    const tampered = JSON.parse(JSON.stringify(snap)) as typeof snap;
-    tampered.pack.contentHash = '9a02b1c4';
+    const tampered = { ...snap, pack: { ...snap.pack, contentHash: '9a02b1c4' } } as unknown as CombatSnapshot;
     const freshRuntime = new Runtime(emberMarchesPack());
     expect(() => deserializeCombat(freshRuntime, tampered, journeyRestore(freshRuntime))).toThrow();
     try {
