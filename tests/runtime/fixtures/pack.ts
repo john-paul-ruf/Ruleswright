@@ -60,6 +60,13 @@ export const RUNTIME_PACK: Pack = {
       'vengeful-strike': { name: 'Vengeful Strike', trigger: { on: 'damaged' }, effect: 'damage(1d4)' },
     },
     spells: {
+      'hex-bolt': {
+        name: 'Hex Bolt',
+        magic: { level: 1, lists: ['hexer'] },
+        cost: { points: { pool: 'stamina', amount: 3 } },
+        effect: 'damage(1d6 + insight)',
+        tags: ['casting'],
+      },
       'grave-light': {
         name: 'Grave Light',
         magic: { level: 1, lists: ['hexer'] },
@@ -71,6 +78,7 @@ export const RUNTIME_PACK: Pack = {
     },
     conditions: {
       sapped: { name: 'Sapped', duration: 3, stacking: 'refresh', restricts: ['actions.tagged:main'] },
+      hexbound: { name: 'Hexbound', duration: 2, stacking: 'stack', restricts: ['spells.tagged:casting'] },
       dazzed: { name: 'Dazzed', duration: 2, stacking: 'ignore' },
     },
     items: {
@@ -107,6 +115,13 @@ export const RUNTIME_PACK: Pack = {
     },
   },
   tables: {
+    'wandering-dread': {
+      kind: 'weighted',
+      entries: [
+        { weight: 1, value: 'sapped' },
+        { weight: 1, value: 'dazzed' },
+      ],
+    },
     'district-scavenge': {
       kind: 'weighted',
       entries: [

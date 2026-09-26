@@ -26,6 +26,7 @@ import type { ClassEntry } from './character';
 import type { CharacterState, Runtime } from './runtime';
 import type { RuntimeEvent } from './events';
 import { reserveValue } from './character';
+import { initPools } from './pools';
 import { Rng } from '../core/rng';
 
 /** Aggregate illegal-build rejection — carries the full ErrorCard list (all-at-once discipline). */
@@ -119,7 +120,7 @@ export function buildCharacter(runtime: Runtime, request: { readonly name: strin
     classXp,
     abilities,
     saves: derived.saves,
-    pools: {},
+    pools: initPools(runtime, abilities, level),
     slots: derived.slots,
     conditions: [],
     spells: [],

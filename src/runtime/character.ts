@@ -7,11 +7,14 @@
  * Derived stats resolve exclusively through the pack's reserved formula ids
  * (`hp`/`ac`, CA-6) — never hardcoded math. Build validation and the
  * progression paths live in progression.ts (both entry points run the same
- * validator); pools/slots vocabulary and conditions in pools.ts/conditions.ts.
+ * validator); pools/slots vocabulary in pools.ts, conditions in conditions.ts.
  */
 import { evalFormula, valueOfFormula } from '../core/dsl/formula';
 import { Rng } from '../core/rng';
 import type { CharacterCreateRequest, Runtime } from './runtime';
+import { spendPool as spendPoolFn, prepareSpell as prepareSpellFn, castSpell as castSpellFn, rest as restFn } from './pools';
+import { applyCondition as applyConditionFn, removeCondition as removeConditionFn, tickConditions, applyTheme as applyThemeFn, removeTheme as removeThemeFn } from './conditions';
+import type { RuntimeEvent } from './events';
 import { validateBuild, buildCharacter, CharacterBuildError } from './progression';
 
 /** FR-7 — one active condition on a character: plain data, duration in rounds. */
@@ -71,7 +74,52 @@ export class Character {
     readonly state: CharacterState,
   ) {}
 
-  /** FR-3 — derived stats strictly through the pack's reserved formulas (CA-6). */
+  /** CA-4 — spend points from a pack-declared pool (pools.ts). */
+  spend(pool: string, amount: number): void {
+    spendPoolFn(this.runtime, this.state, pool, amount);
+  }
+
+  /** FR-9 — memorize a known spell into an empty slot (pools.ts). */
+  prepare(spellId: string, slotIndex?: number): void {
+    prepareSpellFn(this.runtime, this.state, spellId, slotIndex);
+  }
+
+  /** FR-8 — cast consumes a bound slot of the matching level (pools.ts). */
+  cast(spellId: string, slotIndex?: number): void {
+    castSpellFn(this.runtime, this.state, spellId, slotIndex);
+  }
+
+  /** FR-7 — apply a pack-declared condition (conditions.ts). */
+  applyCondition(conditionId: string): void {
+    applyConditionFn(this.runtime, this.state, conditionId);
+  }
+
+  /** FR-7 — remove an active condition (conditions.ts). */
+  removeCondition(conditionId: string): void {
+    removeConditionFn(this.runtime, this.state, conditionId);
+  }
+
+  /** FR-7 — thematic condition application via a pack theme table (conditions.ts). */
+  applyTheme(themeId: string): void {
+    applyThemeFn(this.runtime, this.state, themeId);
+  }
+
+  /** FR-7 — remove a theme's conditions (conditions.ts). */
+  removeTheme(themeId: string): void {
+    removeThemeFn(this.runtime, this.state, themeId);
+  }
+
+  /** FR-8 — the host's rest event (pools.ts). */
+  rest(): void {
+    restFn(this.runtime, this.state);
+  }
+
+  /** FR-7 — one round tick of condition durations (conditions.ts). */
+  tick(): readonly RuntimeEvent[] {
+    return tickConditions(this.runtime, this.state);
+  }
+
+    /** FR-3 — derived stats strictly through the pack's reserved formulas (CA-6). */
   derived(rng: Rng = new Rng(0)): DerivedStats {
     const abilities = this.state.abilities;
     const hp = reserveValue(this.runtime, 'hp', abilities, this.state.level, rng);
@@ -111,14 +159,23 @@ export function createCharacter(runtime: Runtime, request: CharacterCreateReques
 }
 
 /**
+ * Evaluate ANY declared pack formula by id against the character's scalars
+ * (abilities + level) — the shared engine for the reserved ids (CA-6) and
+ * pool capacities (CA-4). Formula presence is a load-time guarantee.
+ */
+export function formulaValue(runtime: Runtime, formulaId: string, abilities: Readonly<Record<string, number>>, level: number, rng: Rng): number {
+  const ast = runtime.index.formulaAsts[formulaId];
+  if (ast === undefined) {
+    throw new Error(`formula "${formulaId}" missing at play time — Runtime load should have rejected the pack (E-REF-01)`);
+  }
+  return valueOfFormula(evalFormula(ast, { ...abilities, level }, rng));
+}
+
+/**
  * CA-6 — the only door to a derived stat: resolve the pack's reserved formula
  * id against the character's scalars (abilities + level). The load-time
  * recheck in Runtime guarantees the id exists.
  */
 export function reserveValue(runtime: Runtime, reservedId: 'hp' | 'ac', abilities: Readonly<Record<string, number>>, level: number, rng: Rng): number {
-  const ast = runtime.index.formulaAsts[reservedId];
-  if (ast === undefined) {
-    throw new Error(`reserved formula "${reservedId}" missing at play time — Runtime load should have rejected the pack (E-REF-01)`);
-  }
-  return valueOfFormula(evalFormula(ast, { ...abilities, level }, rng));
+  return formulaValue(runtime, reservedId, abilities, level, rng);
 }
