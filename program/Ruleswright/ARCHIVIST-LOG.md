@@ -151,3 +151,194 @@ report-correction owner item (not a code cleanup).
 - Gates re-run by this pass (observation, not inherited claim): typecheck 0 · lint 0 ·
   `pnpm test` 387/387 (29 files) · `pnpm build` 0 (24 files) · check:isolation 0 ·
   check:security 0 · loadTheme present in fresh `dist/compiler.{d.ts,js}`.
+
+---
+
+## 2025-09-27 — final pass, cycle `grid-combat` (feature commits `ba0b66e` → tree HEAD `c2a8fff`)
+
+**Mode:** final, after the grid-combat Final Report (`c2a8fff`). **Scope note — this pass is a
+double synthesis:** the loot-inventory cycle's final Archivist pass aborted on provider capacity
+(two attempts, zero writes — recorded in that cycle's Final Report's Archivist's Note), so its
+integrated arch fragments and its named record-debt (the un-synthesized **v1-shell** cycle,
+`770950f`–`72346a5`) were still unabsorbed. This pass synthesized all three cycles' fragments
+plus the new grid-combat deltas in one motion, and absorbed the v1-shell record-debt.
+
+### Reconciled
+
+- **`arch/v1-core.md` rewritten across four feature cycles** (v1-core, v1-shell, loot-inventory,
+  grid-combat) into one module-ordered realized-state record at tree HEAD `c2a8fff`. The
+  Orchestrator-integrated feature-qualified fragments (`<!-- loot-inventory SESSION-01 -->` …
+  `<!-- grid-combat SESSION-05 -->`) were collapsed into the M01–M05 sections and the surfaces
+  map; the v1-shell cycle (schema v1.2 class actions, `character-profile.ts`, the validate/
+  split, `combat.sideDefeated`, docs/CI honesty, ESLint 10/Prettier packaging, coverage tooling)
+  received its first record — it previously existed only as git commits, which is what the loot
+  pass's aborted note flagged. Grid deltas folded in: `Pack.spatial`/`SpatialDef`/`checkSpatial`
+  (M01), `evalValidity` (M02), the adapter/positions/gates/shape-resolver/snapshot-position IO
+  (M03), `ThemeTemplate.spatial` + pass-through + three spatial theme declarations (M04), the
+  grid journey (M05). Superseded premises updated in place: D13 (`pendingId`) and D17 (themes
+  carry no spatial) are marked superseded by v1.3's additive events rather than deleted.
+- **Module registry reconciled in `PROGRAM-CONFIG.MD`** to `c2a8fff`: M01 key files re-keyed to
+  the `validate/` tree and `SpatialDef`; M02 gains `evalValidity`; M03 gains
+  `character-profile.ts` + `inventory.ts` + the spatial integration; M04 gains the spatial
+  pass-through and the three-name theme registry. Edges re-derived mechanically from value
+  imports of every non-test file at `c2a8fff` (type-only excluded; `export … from` as runtime
+  imports). M02→M01 remains **type-only** — re-verified.
+- **Record correction resolved against git (Principle 2), not recency:** the standing record
+  claimed a second M03 value-import pair `combat/triggers.ts → combat.ts`. `git show 6afbe31`
+  (the file's creation commit) shows those imports were `import type` from day one, and the only
+  later commit touching the file (`41a967b`) is format-only whitespace — the edge is and was
+  type-only. The record now says so. The `character.ts ⇄ progression.ts` cycle is real
+  (`reserveValue` vs `validateBuild/buildCharacter` value imports) and stays recorded.
+- **Conventions/Verification/Custom Rules updated (Archivist-owned sections only)** — see the
+  crossed-threshold section below. Verification Commands' lease-scoped-gate line corrected:
+  `npx vitest run` fails in this environment (DD14e); `pnpm exec vitest run <path>` is the
+  working form (loot's `node_modules/.bin/vitest run <path>` noted as the equivalent). Stack row
+  updated to ESLint 10 flat config; CI row updated (lint on Node 22; format:check).
+- **Verified-by-execution (fresh runs by this pass):** `pnpm typecheck` 0 · `pnpm lint` 0 ·
+  `pnpm test` **564/564 across 35 files** · `pnpm build` 0 (**24 dist files**) ·
+  `check:isolation` 0 · `check:security` 0 · `pnpm format:check` 0 ·
+  `pnpm exec vitest run tests/proofs/` **28/28 across 5 files**. Every Final-Report headline
+  matches; no count discrepancies this cycle.
+- **Verified-by-source (spot-checks at `c2a8fff`):** `RULE_IDS` = 15 ids with `'E-SPAT-01'`
+  last in the frozen tuple (`error-card.ts`); `pack.schema.json` `$defs/spatial` matches
+  `mocks/spatial.html`'s pack.json block field-for-field (model const grid, `reach.default`
+  integer ≥1, overrides as direct siblings of `default`, shapes ⊆ {single,burst}); all three
+  theme JSONs declare spatial with the recorded reach keys (barrow-wight:2 / slab-brute:2 /
+  hollow-wight:2); `tests/proofs/grid-journey.test.ts` exists and ran 11/11; README's **Grid
+  combat** section present with exactly **4 ```ts blocks** (docs-run pin intact), a ```json
+  spatial snippet, and the journey cited; README/journey/contract byte-untouched since
+  `f178c0a` (`git diff f178c0a..HEAD` empty on those paths). DD14a/lease-violation record
+  consistent across STATE.md (session row + DD14a + S03 receive record) and FINAL-REPORT
+  §Lease violations: one ratified, self-reported, never amended.
+- **Adoption check (per contract, before carrying rows forward):** `git log` on
+  `program-agents/**` since the prior pass (`7dcff85`) is **empty** — no commits touch the role
+  docs; `git ls-files program-agents` is empty (the directory is gitignored, so adoption can
+  only be observed in working-tree content, never via commit history). Current-content checks
+  for every open row's substance: current CODER.md Checkpoint 0 reads "one bounded sweep of the
+  affected capability" with consolidated single-return gap reporting (row b32fc8d0's *spirit*
+  partially addressed by the sweep-bounding language, but no explicit per-checkpoint read-scope
+  bound exists — **kept open**); ORCHESTRATOR.md has a two-consecutive-failure Recovery/Replan
+  ladder and fallback language (row f57dbe4d's guardrail substance is partially present as
+  failure-ladder discipline but no tool-input-fabrication-specific guardrail or argv-shape
+  documentation exists — **kept open**); no barrel/surface-completeness lease language in
+  PLANNER.md (row b85c8f3e **kept open**); no `git rm`/deletion-handling tooling note (row
+  3658f327 **kept open**); no argv-shape runtime-contract note (row c1ed872b **kept open**).
+  No row is marked adopted; none is asserted unadopted without the file check.
+
+### Crossed thresholds — promoted to PROGRAM-CONFIG conventions (Principle 4)
+
+- **Pin-lease ownership** — *promoted this pass.* Evidence axis: **two program cycles with three
+  in-cycle instances** (loot F-2: docs-run's README block-count pin unowned through the 3→4
+  re-key; grid F-G2: registry.test.ts's 14→15 RULE_IDS pin unowned; grid F-G3: docs-run's
+  block-03 pin colliding with S05's README edit). Both axes short of the bar individually, but
+  the envelope asks this pass to weigh the known recurrence candidates honestly: the pattern
+  spans two cycles, three instances, both caught only by preflight reviews, and a third
+  occurrence is structurally likely (every future feature moves a pinned count). Promoted as a
+  Planner-decomposition convention: pins that other suites in the same feature can break must
+  name their re-key owner and checkpoint in the plan.
+- **Factual-premise verification at planning time** — *promoted this pass.* Evidence: **two
+  cycles, four in-cycle instances** (loot F-1 mock-vs-prompt reach anatomy, F-3 `microTheme`
+  premise, F-4 stale cross-ref; grid F-G1 `reach.keys` anatomy contradiction — the same
+  mock-vs-prompt class twice). Four instances of one defect class across two cycles; promoted
+  alongside the pin-lease rule since both fire at planning time and both were caught only by
+  the preflight pass.
+- **Whole-repo fast gates at role-scoped receives** — *promoted this pass.* Evidence axis:
+  **three distinct program cycles** — v1-core OWNER-01-LINT (`c5fbb94`, lint errors left in
+  tests by an earlier land), loot-inventory FORMAT-RECONCILE (`8b802b7`, 6 files unformatted at
+  close), grid-combat S01 (`0ab3622`, committed contract unformatted). Three cycles, one
+  instance each — the cycle axis crossed cleanly.
+
+### Not promoted (carried below, counts rising)
+
+- **Provider-capacity/stream aborts killing subagents with zero commits; tree-resume recovery**
+  (loot preflight attempt-1 + S01 attempt-1; grid had none) — 2 cycles.
+- **Bare `npx` misresolution; `pnpm exec vitest run <path>` as the working gate form** (loot
+  workers; grid DD14e) — 2 cycles, now partially mitigated by the Verification Commands
+  correction above; kept as a row until the form is unremarkable in practice.
+- **Final-pass provider aborts leave the next cycle a double synthesis** (loot final pass ×2
+  attempts, zero writes; this pass absorbed the debt) — 2 cycles, 2 instances; the cost is real
+  but no framework change is proposed yet (retry policy is Orchestrator-owned per its contract).
+
+### Proposed for the framework (Principle 3 — carried forward, no threshold)
+
+- **CODER.md should bound checkpoint-0 read scope for large sessions** (scope reads per
+  checkpoint, not per session). v1-core: S03+S04 attempt-1 empty-final crashes (2 instances).
+  Grid-combat: **0 instances** — the 5-checkpoint S03 read checkpoint-scoped and never stalled,
+  and the Final Report credits the promoted reading discipline. **cycles: 2 · in-cycle
+  instances: 2 (v1-core) + 0 (grid)** — not yet adopted (current CODER.md checkpoint-0 text
+  checked this pass).
+- **Orchestrator-side guardrail for subagent tool-input fabrication; document the `run` argv
+  shape** (stop the ladder after 2 consecutive failures; `{"cmd":"sh","args":["-c", …]}` form).
+  v1-core: 8 instances. Grid-combat: **0 instances** — every dispatch succeeded first time.
+  **cycles: 2 · in-cycle instances: 8 (v1-core) + 0 (grid)** — not yet adopted (ORCHESTRATOR.md
+  checked this pass; the two-consecutive-failure ladder exists, the fabrication-specific
+  guardrail and argv documentation do not).
+- **PLANNER.md: name the barrel/surface-completion checkpoint in the last session's lease.**
+  v1-core: 2 instances (OWNER-08-BARREL; D20). Loot-inventory: **0 instances** — D20's lesson
+  was held (S02 added `WYLDWOOD` + the third `loadTheme` case in the same lease). Grid-combat:
+  **1 instance** — S03's one-line `packSpatialModel` barrel export landed outside its lease and
+  was ratified (DD14a): the adapter edge's surface export had no owning checkpoint, which is
+  exactly the lesson's shape. **cycles: 2 · in-cycle instances: 3** (9afa86c, D20, 0a911b2).
+- **`commit_pathspec`-style single-command commits fail on deleted files** — no recurrence
+  observed; carried at **cycles: 1 · instances: 1**.
+
+### Standing recommendations
+
+| id | pattern | cycles | in-cycle instances | first seen | status |
+|----|---------|-------:|-------------------:|------------|--------|
+| b32fc8d0c8c92d52 | Large single-session builds exhaust context on exhaustive checkpoint-0 read sweeps (empty-final crash; recovery = checkpoint-scoped reading) | 2 | 2 | v1-core | open |
+| f57dbe4d010638fe | Subagent model fabricates tool inputs (invented paths, invented project state, fabricated git output) under long-recovery prompts | 2 | 8 | v1-core | open |
+| b85c8f3e113a6764 | Public surface/barrel completeness gaps discovered at integration (lease gaps across wave-spanning modules) | 2 | 3 | v1-core | open |
+| c1ed872bea557b96 | run tool drops/misroutes argv; workers pass whole command lines as single argv entries | 2 | 3 | v1-core | open |
+| 3658f327cc9cff2f | commit_pathspec-style single-command commits fail on deleted files | 1 | 1 | v1-core | open |
+| 1cc46f93038f1d9a | Cross-suite pinning tests (docs-run block-count pin, registry-count pin) land without a named owner in the plan | 2 | 3 | loot-inventory | **promoted** (PROGRAM-CONFIG Conventions, 2025-09-27) |
+| 576a281656f83b23 | Envelope factual premises (mock-vs-prompt anatomy, cross-suite counts) reach sessions unverified; mechanical premise verification at planning time is the fix | 2 | 4 | loot-inventory | **promoted** (PROGRAM-CONFIG Conventions, 2025-09-27) |
+| 854ceecd39d4b0d3 | Whole-repo fast gates (typecheck/lint/format:check) go red at role-scoped receives; cleared by format-only owner corrections | 3 | 3 | v1-core | **promoted** (PROGRAM-CONFIG Conventions, 2025-09-27) |
+| 17f4803c1b08da77 | Provider stream aborts / capacity failures kill subagents mid-session with zero commits; recovery resumes from the preserved tree | 2 | 4 | loot-inventory | open |
+| 6f6b491bdbe37bf0 | Bare npx misresolves in this runtime; the working gate forms are pnpm exec vitest run <path> and node_modules/.bin/vitest | 2 | 3 | loot-inventory | open |
+| 1d910de11732c6c4 | Final Archivist pass aborts on provider capacity leave the next cycle's pass a double synthesis (prior cycle's integrated fragments + record-debt) | 2 | 2 | loot-inventory | open |
+
+*(Rows 1–5 carried forward from the v1-core entry with ids verbatim; rows 6–11 minted this pass
+per the stable-ID contract (`sha256(firstSeen + '\n' + normalize(pattern)).slice(0,16)`). Rows
+6–8 are marked promoted at this pass; their convention text lives in PROGRAM-CONFIG Conventions.
+The v1-core promotion ("decompose integration sessions") is not a row — it was acted on at its
+own pass. Grid-combat's Final Report Granularity feedback (planned-debt payoffs ordered strictly
+before the gate that collects them; the round-window harness note recorded as DD17e) is recorded
+there and does not yet meet any threshold.)*
+
+### Cleanup ledger (carried forward; no separate CLEANUP-LEDGER.md file yet — maintained here)
+
+| id | candidate | evidence | confidence | blast radius | proposed check | cluster | status |
+|----|-----------|----------|------------|--------------|----------------|---------|--------|
+| C1 | `matchesRestriction`/`isLivePattern`/`declaredTags` (`src/runtime/conditions.ts`) have no non-test consumer; combat.ts implements its own actions-only inline matcher | re-verified at `c2a8fff`: src refs = conditions.ts + index.ts re-export only | medium | src/runtime surface (2 exported symbols) | grep after removing the re-export; conditions.test.ts pins them — decide surface-first | restricts-matcher | **tracking** |
+| C2 | `MAX_TABLE_DEPTH = 8` duplicated in `src/core/tables.ts` and `src/schema/validate/helpers.ts` | re-verified at `c2a8fff` (the validate/ split moved the second definition into helpers.ts); engine-side ratification recorded in database.md v1.2 prose; both constants test-pinned | medium | cross-module constant | single-source (core) + re-export from schema | depth-constant | **tracking** |
+| C3 | `readPatch` exported from the compiler surface but consumed only by tests | re-verified at `c2a8fff`: src refs = compose.ts + index.ts only | low | compiler surface | decide public-surface intent (FR-20 host-side composition may be the consumer story) | compiler-surface | **tracking** |
+| C4 | `EventSeed`/`EventSink` exported from the runtime surface, no external consumer found | re-verified at `c2a8fff`: events.ts + index.ts only | low | runtime surface | same surface-first decision | runtime-surface | **tracking** |
+| C5 | Final Report's test-file count said 28; vitest reported 29 | **retired:** corrected at v1-core close (commit `0290d47`, "Archivist count correction (29 collected test files)") | high | report accuracy only | — | report-accuracy | **retired** |
+| C6 | `parsePackEffects` (`src/runtime/combat/resolve.ts`) has zero consumers (src and tests) — the spell-AST producer with no reader, made concrete by grid-combat's spells-not-combat-declarable finding | grep at `c2a8fff`: definition only; `declare()` resolves actions only from `pack.actions` (DD17) | high | M03 internal (not on the runtime barrel) | candidate for deletion **only if** the "spells as combat actions" engine-design event is rejected; otherwise it is that bridge's first input | spell-asts | **tracking** (resumption condition: the engine design event's outcome) |
+| C7 | `WYLDWOOD` exported from the compiler surface, no consumer outside theme-loader/index | grep at `c2a8fff` | low | compiler surface | same surface-first decision as C3/C4 (the consumer story is the `loadTheme` registry) | compiler-surface | **tracking** |
+
+**No cleanup brief emitted this pass:** no cluster reaches a brief threshold (≥5 related medium,
+≥3 related high, or one high-confidence destructive with automatable verification). C6 is
+high-confidence but its disposition is blocked on a recorded engine design event, not on
+evidence — deleting it now would preempt a documented future decision. The surface-intent
+cluster (C3/C4/C7) is three related low-confidence findings — below the medium bar.
+
+### Verification of this pass
+
+- Every realized-state claim traces to git (`git log`/`git show`/`git diff f178c0a..HEAD`),
+  STATE.md, the Final Reports, or a mechanical grep/read of `src/**` at tree HEAD `c2a8fff`.
+- Nothing in the rewritten `arch/v1-core.md` contradicts STATE.md or the Final Reports; the one
+  contradiction found (the triggers→combat "value-import cycle" claim) was resolved against the
+  file's creation commit and is recorded above and in arch.
+- `PLANNER.md`, `CODER.md`, `UI-CODER.md`, `ORCHESTRATOR.md`: byte-identical to how this pass
+  found them (no writes by Archivist; `git log` on the path is empty since the prior pass — the
+  directory is gitignored, so content was also checked directly for adoption substance).
+- Gates re-run by this pass (observation, not inherited claim): typecheck 0 · lint 0 ·
+  `pnpm test` **564/564 (35 files)** · `pnpm build` 0 (24 files) · check:isolation 0 ·
+  check:security 0 · format:check 0 · `pnpm exec vitest run tests/proofs/` 28/28.
+- One in-pass anomaly, disclosed: this Archivist's own first PROGRAM-CONFIG.MD write attempt
+  produced corrupted content (garbled table cells, duplicated bullets) — the same failure class
+  S02 recorded in grid-combat. Caught by the post-write re-read discipline; the file was
+  rewritten cleanly and verified by re-read before this log entry. No corrupted byte was
+  committed.

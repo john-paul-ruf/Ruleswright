@@ -1,516 +1,508 @@
 # Ruleswright — Architecture Record (v1-core)
 
-> **Realized state as of tree HEAD `73a8105`** (plan HEAD `53c7c91`), synthesized by Archivist
-> (final pass, 2025-09-25) from the seven Orchestrator-integrated session deltas, STATE.md's
-> Design Decisions D7–D21, and mechanical import derivation over `src/**`.
-> Verified by this pass: `pnpm typecheck` 0 / `pnpm lint` 0 / `pnpm test` 387/387 (29 files) /
-> `pnpm build` 24 dist files / `check:isolation` / `check:security` — re-run on a fresh build.
-> Verified-by-source and verified-by-execution are distinguished below.
+> **Realized state as of tree HEAD `c2a8fff`** (grid-combat close, 2025-09-27), synthesized by
+> Archivist (final pass) across **four feature cycles**: v1-core (S01–S08, plan HEAD `53c7c91`),
+> **v1-shell** (commits `770950f`–`72346a5` — schema v1.2, class combat actions, the validate/
+> directory split, `character-profile.ts`, `combat.sideDefeated`, docs/CI honesty, packaging,
+> coverage tooling — first reconciled into this record here; its synthesis was the loot-inventory
+> pass's unfinished record-debt), **loot-inventory** (S01–S03, tree HEAD `8b802b7`), and
+> **grid-combat** (S01–S05 + replan + two owner corrections). The v1-core/loot/grid delta
+> fragments below were Orchestrator-integrated mid-run; this pass collapsed them into one
+> module-ordered description. Verified by this pass on a fresh run: `pnpm typecheck` 0 ·
+> `pnpm lint` 0 · `pnpm test` **564/564 across 35 files** · `pnpm build` 0 (24 dist files) ·
+> `check:isolation` 0 · `check:security` 0 · `pnpm format:check` 0 ·
+> `pnpm exec vitest run tests/proofs/` **28/28 across 5 files**. Verified-by-source and
+> verified-by-execution are distinguished below.
 >
-> *(The two S03/S04 attempt-1 crashes, the 5-failure S08 dispatch cluster, the two owner
-> corrections, and the one Orchestrator fallback execution are process history, not architecture;
-> they live in the Final Report's Orchestration section and ARCHIVIST-LOG.md, not here.)*
+> *(Process history — crashes, recoveries, dispatch failures, owner-correction mechanics — lives
+> in each cycle's Final Report and ARCHIVIST-LOG.md, not here.)*
 
-<!-- Realized-state summary (Archivist synthesis, final pass) -->
+<!-- Realized-state summary (Archivist synthesis, grid-combat final pass) -->
 
 ## Module map (as realized)
 
 | ID | Module | Path | Imports (derived mechanically from value imports, incl. `export … from`, excluding `import type`) | Key files |
 |----|--------|------|------------------------------------------------|-----------|
-| M01 | Schema surface | `src/schema/` (7 .ts) | nothing internal | `pack.ts`, `artifacts.ts`, `error-card.ts`, `validate.ts`, `version.ts`, `overrides.ts`, `index.ts` |
-| M02 | Core mechanics | `src/core/` (8 .ts incl. dsl/) | M01 — **type-only** (DslCheckRequest/ErrorCard); no runtime value dependency | `rng.ts`, `dice.ts`, `tables.ts`, `index.ts`, `dsl/{shared,registry,formula,effect,checker}.ts` |
-| M03 | Runtime | `src/runtime/` (17 .ts incl. combat/) | M01, M02 (value); never M04 | `runtime.ts`, `events.ts`, `character.ts`, `progression.ts`, `pools.ts`, `conditions.ts`, `errors.ts`, `snapshots.ts`, `bestiary.ts`, `encounter.ts`, `index.ts`, `combat/{combat,resolve,action-economy,spatial,triggers}.ts` |
-| M04 | Compiler | `src/compiler/` (16 .ts + 7 stages/ + 2 themes/) | M01, M02 (value); never M03 | `generate.ts`, `pipeline.ts`, `stage.ts`, `rng-stream.ts`, `knobs.ts`, `theme.ts`, `theme-loader.ts`, `compose.ts`, `errors.ts`, `index.ts`, `stages/{stats,skills,feats,classes,magic,bestiary,tables}.ts`, `themes/{dark-fantasy,zombie-urban}.json` |
+| M01 | Schema surface | `src/schema/` | nothing internal | `pack.ts`, `artifacts.ts`, `error-card.ts`, `version.ts`, `overrides.ts`, `validate/{collect,context,dsl,helpers,index}.ts`, `validate/sections/{actions,bestiary,content,cross,economy,progression,root,tables}.ts`, `index.ts` (+ DB-owned `contracts/**`) |
+| M02 | Core mechanics | `src/core/` (9 .ts incl. dsl/) | M01 — **type-only** (`DslCheckRequest`/`ErrorCard` in `checker.ts`, `shared.ts`, `dsl/formula.ts`, `dsl/effect.ts`); no runtime value dependency | `rng.ts`, `dice.ts`, `tables.ts`, `index.ts`, `dsl/{shared,registry,formula,effect,checker}.ts` |
+| M03 | Runtime | `src/runtime/` (18 .ts incl. combat/) | M01, M02 (value); never M04 | `runtime.ts`, `events.ts`, `character.ts`, `character-profile.ts`, `progression.ts`, `pools.ts`, `inventory.ts`, `conditions.ts`, `errors.ts`, `snapshots.ts`, `bestiary.ts`, `encounter.ts`, `index.ts`, `combat/{combat,resolve,action-economy,spatial,triggers}.ts` |
+| M04 | Compiler | `src/compiler/` (17 .ts incl. 7 stages/ + 3 themes/) | M01, M02 (value: `validatePack`, `packDslChecker`, `Rng`, `makeErrorCard`); never M03 | `generate.ts`, `pipeline.ts`, `stage.ts`, `rng-stream.ts`, `knobs.ts`, `theme.ts`, `theme-loader.ts`, `compose.ts`, `errors.ts`, `index.ts`, `stages/{stats,skills,feats,classes,magic,bestiary,tables}.ts`, `themes/{dark-fantasy,zombie-urban,wyldwood}.json` |
 | M05 | Root entry | `src/index.ts` | M01, M03, M04 (dumb `export *` re-export only) | `index.ts` |
 
 **Realized dependency flow:** `schema` ⊥ `core` (siblings, import nothing internal — the only
-declared M02→M01 edge is type-only); `runtime → {schema, core}`; `compiler → {schema, core}`;
-stage 8 IS `schema.validatePack` (dogfood, no runtime import); no cycles inside any module except
-the two intra-M03 pairs noted below. Guards held: no `compiler` reference in `src/runtime` except
-the CI-checked bundle rule comment; no `runtime` import in `src/compiler` (grep-asserted in tests).
-The runtime-only bundle is **proven** free of `generateCampaign` by `scripts/check-runtime-isolation.mjs`
+declared M02→M01 edges are type-only); `runtime → {schema, core}`; `compiler → {schema, core}`;
+stage 8 IS `schema.validatePack` (dogfood, no runtime import); no cross-module cycles. Intra-M03
+value-import pairs (inside one module, tolerated by lazy use): `character.ts ⇄ progression.ts`
+(`reserveValue` vs `validateBuild/buildCharacter`), `character.ts → inventory.ts` (facade
+delegates), `snapshots.ts → {character, progression}` (`reserveValue`, `buildCharacter`,
+`validateBuild`, `Combat`-side `defeatedSide` from `combat/combat.ts`), and
+`combat/combat.ts → combat/triggers.ts` (value). **Record correction (this pass):** the prior
+synthesis listed `combat/triggers.ts → combat.ts` as a second value-import cycle; git shows
+`triggers.ts`'s `Combat`/`CombatantState`/`PendingTrigger` imports were `import type` at creation
+(`6afbe31`) and remain so — the edge is type-only. `character ⇄ progression` is real.
+Guards held at `c2a8fff`: no `compiler` reference in `src/runtime` except the CI-checked bundle
+rule comment; no `runtime` import in `src/compiler` (grep-asserted in tests). The runtime-only
+bundle is **proven** free of `generateCampaign` by `scripts/check-runtime-isolation.mjs`
 (passed by this pass on a fresh build; also wired into CI's `package` job).
 
 ## Surfaces (what a consumer actually gets — derived, not claimed)
 
-- `ruleswright/schema` — the full M01 re-export: pack/artifact types, `validatePack(json, dslChecker?)`,
+- `ruleswright/schema` — the full M01 re-export: pack/artifact types (incl. `Pack.spatial?`,
+  `SpatialDef`, `SpatialReach` — v1.3), `validatePack(json, dslChecker?)`,
   `DslChecker`/`DslCheckRequest`/`deferredDslChecker`, `checkSchemaVersion`, `packContentHash`,
-  `MAX_TABLE_DEPTH`, `nearestIds`, overrides API, `ErrorCard`/`makeErrorCard`/`RULE_IDS`.
-- `ruleswright/compiler` — `generateCampaign`, `loadTheme`, `DARK_FANTASY`, `ZOMBIE_URBAN`,
-  `listThemeKnobs`, `resolveKnobs`, `composeTheme`/`readPatch`, `runPipeline`/`defaultStages`/`STAGE_ORDER`,
-  `stageRng`, `GenerationError`, types. `loadTheme`/`DARK_FANTASY`/`ZOMBIE_URBAN` landed at S08 ck3 (D20)
-  for the docs proof (FR-17's one-call entry).
-- `ruleswright/runtime` — lifecycle (Runtime/Character + progression/pools/conditions), combat engine
-  (startCombat/Combat + resolve/action-economy/spatial/triggers), bestiary/encounter, snapshots,
-  EventStream, `RuntimeRuleError`/`ruleCard`, restricts matcher helpers (`matchesRestriction`,
-  `declaredTags`, `isLivePattern`), `PackLoadError`. **M03 barrel completed at S08** (D19, 9afa86c):
-  combat/bestiary/encounter/profile/spatial/triggers exports — a plan-level lease gap (S04's barrel
-  predated S05; no session owned barrel completion), mechanically closed.
+  `MAX_TABLE_DEPTH`, `nearestIds`, overrides API, `ErrorCard`/`makeErrorCard`/`RULE_IDS`
+  (15 ids, `E-SPAT-01` last). The public validator surface is unchanged by the `validate/`
+  directory split (`validate/index.ts` re-exports `MAX_TABLE_DEPTH`/`nearestIds` from
+  `helpers.ts`).
+- `ruleswright/compiler` — `generateCampaign`, `loadTheme` (`dark-fantasy`, `zombie-urban`,
+  `wyldwood` — the three-name registry), `DARK_FANTASY`, `ZOMBIE_URBAN`, `WYLDWOOD`,
+  `listThemeKnobs`, `resolveKnobs`, `composeTheme`/`readPatch`, `runPipeline`/`defaultStages`/
+  `STAGE_ORDER`, `stageRng`, `GenerationError`, types. `ThemeTemplate` carries `spatial?`
+  (grid-combat) so generated packs declare the grid model.
+- `ruleswright/runtime` — lifecycle (Runtime/Character + progression/pools/inventory/conditions —
+  `grantItem`/`dropItem`/`countItem`/`rollLoot`/`grantLoot` + facade `grant/drop/count/loot`),
+  combat engine (startCombat/Combat + resolve/action-economy/spatial/triggers, host-declared
+  `positions`, the reach + validity gates, `packSpatialModel`), character combat profiles
+  (`profileFromCharacter`), bestiary/encounter, snapshots, EventStream,
+  `RuntimeRuleError`/`ruleCard`, restricts matcher helpers (`matchesRestriction`,
+  `declaredTags`, `isLivePattern`), `PackLoadError`. **M03 barrel completed at v1-core S08**
+  (D19, 9afa86c) and extended additively by every later feature (inventory verbs, spatial
+  exports, `packSpatialModel` — the grid S03 one-line barrel export was outside that session's
+  lease and was ratified, see the grid section).
 - Root `ruleswright` — dumb `export *` from the three subpaths (M05).
 
 **Dice/Rng seam (recorded drift, not a defect):** injectability is proven at `startCombat(rng?)` /
 `assembleEncounter(rng?)` (`RandomSource`), and the fight's own stream is snapshot-resumable via
-`CombatState.rng` (S06's resume test). `Rng`/`RollResult` are **not** exported from
-`ruleswright/runtime` (dist/runtime.d.ts has none); `specs/architecture.md` had pinned "core exports
-never re-exported at a surface root except `Rng`/`RollResult` types through runtime". A consumer
-injecting a custom source still passes any `{ int(maxExclusive) }`; constructing an `Rng` requires
-importing `ruleswright` (root). Recorded for the next Author/DB re-entry or v1.1 surface decision.
+`CombatState.rng`. `Rng`/`RollResult` are **not** exported from `ruleswright/runtime`;
+constructing an `Rng` requires importing `ruleswright` (root) or `ruleswright/core`'s barrel via
+src. Recorded for the next Author/DB re-entry or v1.1 surface decision.
 
-## Cross-cutting decisions (accepted this cycle)
+## Cross-cutting decisions (accepted across the four cycles)
 
-- **D9** `src/core/index.ts` internal barrel; **D11** `src/runtime/errors.ts` + `RuntimeRuleError`
-  (runtime rule ids are engine-named strings — `unknown-race`, `no-slot`, `unknown-spell`, … —
-  distinct from the DB E-* registry); **D10** DSL grammar decisions (kebab name-swallowing,
-  grammar-pure parser, 12-entry frozen registry, save-for-half ceil+inheritance); **D16/D19**
-  M03 barrel completion (S06's one-block + S08's mechanical completion); **D20** compiler surface
-  gains `loadTheme`/`DARK_FANTASY`/`ZOMBIE_URBAN`; **D21** README quickstart's exact shape,
-  executed verbatim by `tests/proofs/docs-run.test.ts`; **D17** themes carry NO spatial section
-  (closed pack root; E-SCHEMA-02 on extra sections); **D18** `resolveJsonModule: true`,
-  `themes.d.ts` deleted, `fresh-load.d.ts` retained; **D13** spatial rejections carry typed
-  `pendingId` (E-SPAT-01 deliberately NOT in the frozen registry); **D8** `MAX_TABLE_DEPTH = 8`
-  pending DB ratification.
-- **One table engine:** the compiler's tables stage rolls every pack table through S02's
-  `rollTable` — no second engine. `MAX_TABLE_DEPTH = 8` is defined in both `src/core/tables.ts`
-  and `src/schema/validate.ts` (S02/S01 matched; a same-value duplication pending the DB
-  ratification and a single-source cleanup in v1.1).
+v1-core (D9–D21): **D9** `src/core/index.ts` internal barrel; **D11** `src/runtime/errors.ts` +
+`RuntimeRuleError` (engine-named rule ids distinct from the DB E-* registry); **D10** DSL grammar
+(kebab name-swallowing, grammar-pure parser, 12-entry frozen registry, save-for-half
+ceil+inheritance); **D16/D19** M03 barrel completion (S06's one-block + S08's mechanical
+completion); **D20** compiler surface gains `loadTheme`/`DARK_FANTASY`/`ZOMBIE_URBAN`; **D21**
+README quickstart's exact shape, executed by `tests/proofs/docs-run.test.ts`; **D13** spatial
+rejections carried typed `pendingId` *(superseded: grid-combat v1.3 registered `E-SPAT-01` and
+S03 switched `pendingId` → `rule: 'E-SPAT-01'` with zero remnants)*; **D17** themes carry NO
+spatial section *(premise overturned by grid-combat: pack.schema.json v1.3 admits an optional
+top-level `spatial`, and all three bundled themes declare it)*; **D18** `resolveJsonModule:
+true`, `themes.d.ts` deleted; **D8** `MAX_TABLE_DEPTH = 8` pending DB ratification
+*(superseded: database.md v1.2 records the ratification — see below)*.
+
+v1-shell: **class combat actions** (`content.classes.<id>.actions`, schema v1.2 — a class with
+actions can fight); **`profileFromCharacter(rt, character, id?)` → `{profile, balances}`** (CA-08
+— a character enters its own fights; union of class actions, pool points, bound slots; classless
+→ `no-combat-actions`); **`combat.sideDefeated` end-of-combat rule** (D-26: after any resolution,
+a fully-downed side ends the fight — `phase: 'combat-over'`, one `combat:ended` event naming
+`{winner, defeated}`, downed combatants skip turns and receive no trigger offers, a terminal
+snapshot restores as `combat-over`); **validate/ split** (2319-line `validate.ts` → per-pass
+directory; zero API change); **honest docs/CI** (browser matrix leg documented as a v1.1
+follow-up, DOCS-CI-01..03, DOCS-TSC-01); **packaging hygiene** (MIT LICENSE, ESLint 10 flat
+config — lint needs Node ≥ 20.19, CI lint on Node 22 — Prettier enforcement repo-wide);
+**coverage tooling** (`pnpm test --coverage`; the dead `newCtx` helper removed with the split).
+
+loot-inventory (D1–D10, selected): inventory as `{id, qty}` **stacks** (contract-verbatim, no
+instances); **loot is a runtime verb over the one table engine**, not DSL registry growth; the
+**CA-02 value convention** (string ⇒ `content.items[id]` qty 1; `{id, qty}` ⇒ stack; anything
+else ⇒ flavor, skipped; nothing grantable ⇒ `loot-grants-nothing` with no state change);
+restore does **not** cross-validate item ids (verbatim state restoration, mutation-time
+validation); stage-7 integrity scoped to `-loot` tables (objects with undeclared ids +
+missed `tables.`-prefixed refs → E-REF-01; every other string is flavor); **wyldwood** as the
+third format proof (fey/wilderness, charm/ward loot economy, point-pool spells, no vancian);
+engine changes land atomically at S01 ck1 (required `inventory` field + snapshot fidelity).
+
+grid-combat (DD1–DD17e, selected; full record in STATE.md): **DD1** no movement verb in v1 —
+movement = serialize → `deserializeCombat` with updated positions (FR-10 between-steps), the
+documented v1 answer, README-documented; an approved `move()` is an api-map product decision.
+**DD2** burst center = the declared target's position; bursts hit both sides (mock-verbatim).
+**DD4** reach override keys are free-form labels; lookup `reach[profile.id] ?? reach.default`
+(resolved by combatant *instance* id). **DD6** structural/semantic split: missing/mistyped
+spatial fields → E-SCHEMA-01; declared-but-unshippable geometry (model ≠ grid as const, shapes
+outside {single,burst}) → E-SPAT-01. **DD7** `E-SPAT-01` registered additively (v1.3 minor);
+`SpatialRejection.pendingId` → `rule: 'E-SPAT-01'` in the same session that owns the file.
+**DD8** the legacy `RUNTIME_PACK` fixture stays theater-of-mind (the 503-test parity baseline);
+the spatial variant lives in `tests/runtime/fixtures/packs.ts` (`withSpatial`). **DD9** snapshot
+contract unchanged — `snapshots.schema.json` already carried `combatants[].position?` (v1.0).
+**DD14** declare gate order is **validity → spatial → cost** (so the out-of-reach
+`hasTarget(adjacent)` rejection stays observable; recorded in the source comment); CA-G5's
+play-time card is `kind: 'valid'`, `rule: 'E-REF-01'`; `packSpatialModel` takes the structural
+`{spatial?: SpatialDef}` input; **DD14e** `npx vitest run` fails in this runtime —
+`pnpm exec vitest run <path>` is the working narrow form (now a program convention). **DD14a**
+S03's one-line `packSpatialModel` barrel export in `src/runtime/index.ts` was outside the lease
+and **ratified** (narrowest change satisfying the approved checkpoint; D16 precedent); recorded,
+never amended. **DD15** token discipline: `substituteTokens` stringifies knob values, so the only
+stage-8-valid token placement inside spatial is a shape-valued knob spliced into `shapes`; reach
+values stay plain integers. **DD16** the positionless `fightScript` adjacency fallback (the
+distance-3 shape was empirically proved a permanent stalemate — the engine ships no movement
+mechanic, so a gap can never close); skip actions must be **reach-neutral** in spatial packs.
+**DD17** combat `declare()` resolves actions **only** from `pack.actions` — generated packs'
+`content.spells` are not combat-declarable (no `bindSpell` symbol exists; the binding surface is
+`prepareSpell`); the journey proves bursts through pack data added at test setup (FR-12
+rules-are-data discipline, zero engine diffs); a "spells as combat actions" bridge is an engine
+design event (Author/DB re-entry class) for a future program; `declare()` returns
+`events.sinceRound(round)` (the round's window — resumed-leg assertions need a fresh sink).
 
 ## Session-realized sections
 
-*(Each section below is the session delta as integrated by Orchestrator, lightly reconciled by
-Archivist: stale claims resolved against derived imports; commit ids preserved.)*
+*(Each section is the session delta as integrated by Orchestrator, reconciled by Archivist:
+stale claims resolved against derived imports and git; commit ids preserved.)*
 
-### M01 — Schema surface (SESSION-01, 43065f5/27d25e6/d3cbd51)
+### M01 — Schema surface (v1-core S01, 43065f5/27d25e6/d3cbd51; split in v1-shell; spatial in grid-combat S01/S02)
 
 `src/schema/overrides.ts` — `applyOverrides(pack, doc): { pack, errors }` (FR-19 deep-merge per
 dotted-path key, array order, unknown target → E-OVR-01 with nearest-id hints; does NOT validate —
 callers revalidate per database.md merge discipline). `OverrideDocument` mirrors override.schema.json.
-Imports `nearestIds` from `./validate` (internal M01 edge).
 
-`validate.ts` public API: `validatePack(json, dslChecker?)` — second param is the CA-2 consumer seam
-(default `deferredDslChecker`, fail-closed: one deferred E-FORM-01 per DSL string until S03's
-`packDslChecker` is wired — verified at source); `DslCheckRequest {expr; kind; artifactId; jsonPath;
-abilities; saves}`; `MAX_TABLE_DEPTH = 8`; `nearestIds`. `version.ts`: `checkSchemaVersion` (E-SCHEMA-01),
+Public API: `validatePack(json, dslChecker?)` — second param is the CA-2 consumer seam (default
+`deferredDslChecker`, fail-closed: one deferred E-FORM-01 per DSL string until `packDslChecker`
+is wired); `DslCheckRequest {expr; kind; artifactId; jsonPath; abilities; saves}`;
+`MAX_TABLE_DEPTH = 8`; `nearestIds`. `version.ts`: `checkSchemaVersion` (E-SCHEMA-01),
 `packContentHash` (canonical sorted-key JSON + FNV-1a → 8 hex, zero deps). `src/schema/index.ts`
-re-exports all six implementation files. M01 imports nothing internal.
+re-exports every implementation file. M01 imports nothing internal.
 
-### M02 — Repo spine + core mechanics (SESSION-02, 35aa73f/0f8a1ab/55918ef)
+v1-shell split `validate.ts` (2319 lines) into `validate/{collect,context,dsl,helpers,index}.ts`
++ `validate/sections/{actions,bestiary,content,cross,economy,progression,root,tables}.ts` — one
+module per pass/section; zero consumer or API change (the dead `newCtx` helper was removed with
+it). `MAX_TABLE_DEPTH` now lives in `validate/helpers.ts` (exported through `validate/index.ts`)
+with the same value 8 as `core/tables.ts`.
 
-- `src/core/rng.ts` — `Rng` (sfc32, cyrb128 string/number seed), `RandomSource` (minimal injectable
-  entropy: `int(maxExclusive)`), `RngState` (`{a,b,c,d}` uint32 — exactly snapshots.schema.json
-  `rngState`; setState rejects extra keys).
+grid-combat S01 (DB author re-entry, the only session leased on `contracts/**`/`specs/**`):
+`pack.schema.json` v1.3 gains the optional top-level `spatial` property (after `economy`, mock
+order) + `$defs/spatial` mock-verbatim — `{model: 'grid'}` const, `reach` required `default`
+integer ≥1 with per-id overrides as **direct siblings of `default`** (free-form labels, no
+idPattern; dotted artifact paths are a documented v2 seam), optional unique `shapes` ⊆
+{single, burst} (verified field-for-field against `mocks/spatial.html` this pass at
+`86f605e`/`0ab3622`; the property is additive, `schemaVersion` stays 1, top-level `required`
+unchanged). `database.md` v1.3 registered `E-SPAT-01` + the Version Registry row.
+
+grid-combat S02: `Pack.spatial?: SpatialDef` + `SpatialReach`/`SpatialDef` exports in
+`src/schema/pack.ts` (mirror of the committed `$defs/spatial`); `RuleId` union and frozen
+`RULE_IDS` 14 → 15 with `'E-SPAT-01'` last (additive minor); `checkSpatial` in
+`validate/sections/root.ts` (structural → E-SCHEMA-01, unshippable geometry → E-SPAT-01;
+reach-level unknown keys validated as overrides, section-level unknown keys → E-SCHEMA-02),
+dispatched in `validate/index.ts` after `checkEconomy`; `checkRootSections`' closed-top-level
+loop admits `spatial` (without the exemption every spatial pack double-fails E-SCHEMA-02).
+
+### M02 — Repo spine + core mechanics (v1-core S02, 35aa73f/0f8a1ab/55918ef)
+
+- `src/core/rng.ts` — `Rng` (sfc32, cyrb128 string/number seed), `RandomSource` (minimal
+  injectable entropy: `int(maxExclusive)`), `RngState` (`{a,b,c,d}` uint32 — exactly
+  snapshots.schema.json `rngState`; setState rejects extra keys).
 - `src/core/dice.ts` — `parseRecipe` (pure, load-time; dice.html vocabulary), `rollRecipe` →
-  `RollResult` (CA-2 shape; invariant `total === sum(values) + modifier`; verdicts caller-attached).
+  `RollResult` (CA-2 shape; invariant `total === sum(values) + modifier`; verdicts
+  caller-attached).
 - `src/core/tables.ts` — `rollTable(def, rng, {resolve?, jsonPath?})` → `TableOutcome`;
   `TableDef`/`TableEntry` mirror `$defs/tableDef` (sibling-declared, no internal import);
   `MAX_TABLE_DEPTH = 8`; failures `malformed-entries`/`range-gap`/`depth-exceeded` → E-TBL-01,
   `unresolvable-ref` → E-REF-01.
-- `src/core/index.ts` — internal barrel for runtime/compiler imports; core still imports nothing internal.
-- Root manifests (package.json/tsconfig/vitest/eslint/prettier/pnpm-lock); zero runtime deps; lint bans
-  `Math.random`/`Date.now`/`eval`/`new Function`/dynamic imports + `ImportExpression` under `src/**`.
+- `src/core/index.ts` — internal barrel for runtime/compiler imports.
+- Root manifests; zero runtime deps; lint bans `Math.random`/`Date.now`/`eval`/`new Function`/
+  dynamic imports + `ImportExpression` under `src/**` (carried verbatim into ESLint 10 flat
+  config in v1-shell).
 
-### M02 — DSL compiler (SESSION-03 via RECOVERY-03, 4e188fa/dff30e6/7eff106/168d71a)
+### M02 — DSL compiler (v1-core S03 via RECOVERY-03, 4e188fa/dff30e6/7eff106/168d71a; validity gate in grid-combat S03)
 
 Module `src/core/dsl/` — value imports only `../rng`, `../dice`; schema imports are type-only
 (`DslCheckRequest`, `ErrorCard`) — sibling-leaf rules held in the M02→M01 direction.
 
-- `checker.ts` — `packDslChecker: DslChecker` (S01's seam; dispatch by request kind); E-FORM-01 parse
-  errors carry 0-based char offset; E-FORM-02 closed-registry miss; E-FORM-03 unknown name + did-you-mean
-  via S01 `nearestIds`.
+- `checker.ts` — `packDslChecker: DslChecker` (S01's seam; dispatch by request kind); E-FORM-01
+  parse errors carry 0-based char offset; E-FORM-02 closed-registry miss; E-FORM-03 unknown name
+  + did-you-mean via S01 `nearestIds`.
 - `formula.ts` — `parseFormula` (parse-once), `evalFormula` (eval-many; `FormulaValue = number |
-  RollResult`), `checkFormula`, `checkFormulaAst` (S05/S07 reuse), `BUILTIN_SCALARS = ['level']`.
-- `effect.ts` — `parseEffect` (root must be a statement call); `executeEffect(ast, ctx)` pure
-  interpreter; ctx `{actor, targets, rng, apply: EffectApply, vars}`; `EffectApply =
-  {resolveTargets, damage, condition}` is S05's mutation seam; save-for-half: `damage(half)` re-rolls
-  the fail branch's first damage expr, total = ceil(half), inherits type.
-- `registry.ts` — frozen 12-entry registry; extension = schema event (CA-2); exact-membership freeze test.
-- `shared.ts` — one lexer both grammars; `MAX_PARSE_DEPTH = 24`, `MAX_EXPR_LENGTH = 512`; `nearestName`;
-  `dslCard` (literal ErrorCard construction).
+  RollResult`), `checkFormula`, `checkFormulaAst`, `BUILTIN_SCALARS = ['level']`. grid-combat S03
+  added **`evalValidity(ast, ctx, hasTarget)`** — validity-AST evaluation with the injected
+  geometry callback (core stays runtime-ignorant); comparators/scalars delegate to `evalFormula`
+  over the zero-RNG stream.
+- `effect.ts` — `parseEffect`; `executeEffect(ast, ctx)` pure interpreter; ctx
+  `{actor, targets, rng, apply: EffectApply, vars}`; `EffectApply = {resolveTargets, damage,
+  condition}` is the mutation seam; save-for-half: `damage(half)` re-rolls the fail branch's
+  first damage expr, total = ceil(half), inherits type. (Known gap: per-target save *branches*
+  are executor-native; save *modifiers* are not — recorded residual debt.)
+- `registry.ts` — frozen 12-entry registry; extension = schema event (CA-2); exact-membership
+  freeze test.
+- `shared.ts` — one lexer both grammars; `MAX_PARSE_DEPTH = 24`, `MAX_EXPR_LENGTH = 512`;
+  `nearestName`; `dslCard`.
 
-Grammar decisions: kebab ids swallow `-` inside names; parser grammar-pure (E-FORM-02 is the
-checker's call); one dice lexeme = one die cluster, multi-dice compose via +/-; effect-embedded
-formulas resolve names against abilities+saves+`EFFECT_SCALARS` only (no pack-formula refs at play
-time); no eval/new Function/Math.random (lint + grep-tested); all randomness injected.
-
-### M03 — Runtime I: character side (SESSION-04 via RECOVERY-04, 23f9918/4ead08b/db7eebb/b961053/d0240e6)
+### M03 — Runtime I: character side (v1-core S04 via RECOVERY-04, 23f9918/4ead08b/db7eebb/b961053/d0240e6; profileFromCharacter + sideDefeated in v1-shell; inventory in loot S01)
 
 - `src/runtime/errors.ts` — `RuntimeRuleError extends Error` carrying `readonly errors: readonly
-  ErrorCard[]`; load failures remain PackLoadError (FR-2); `ruleCard(rule, artifactId, jsonPath,
-  message, hint?)`. Runtime rule ids are engine-named strings (unknown-race … theme-grants-nothing) —
-  distinct from the DB E-* registry.
-- `Runtime(pack)` — validates with S03's real checker, fails closed on reserved hp/ac formulas
-  (CA-6 recheck), indexes artifacts, compiles effect/formula/attackBonus ASTs once (CA-2). Facade:
-  createCharacter, levelSet, awardXp.
+  ErrorCard[]`; load failures remain PackLoadError (FR-2); `ruleCard(...)`. Runtime rule ids are
+  engine-named strings — distinct from the DB E-* registry.
+- `Runtime(pack)` — validates with the real checker, fails closed on reserved hp/ac formulas
+  (CA-6), indexes artifacts, compiles effect/formula/attackBonus ASTs once (CA-2). grid-combat
+  S03 added `PackIndex.validAsts` (parse-once `valid` ASTs, skip-undefined) and
+  `Runtime.spatial: SpatialGeometry` built once at load (`spatialFromPack(pack)`).
 - `Character` facade: state, derived(rng?), spend, prepare, cast, applyCondition, removeCondition,
-  applyTheme, removeTheme, rest, tick.
-- `events.ts` (CA-3 producer): `RuntimeEvent = {type, at, actor?, target?, payload, why:{rule, rolls}}`;
+  applyTheme, removeTheme, rest, tick — plus loot S01's `grant(itemId, qty?)`, `drop`,
+  `count`, `loot(tableId, opts?)` one-to-one delegates over `src/runtime/inventory.ts`.
+- `events.ts` (CA-3): `RuntimeEvent = {type, at, actor?, target?, payload, why:{rule, rolls}}`;
   `EventStream` emit/on/off/sinceRound/setClock (host-owned clock); named non-combat events
   (character:created, xp:awarded, level:reached, condition:applied/removed, pool:drained,
-  spell:prepared/cast, rest:completed). Envelope-shape equality asserted in tests/runtime/events.test.ts.
-- `CharacterState`: plain JSON incl. per-class `classXp`; `slots` values `(string|null)[]` keyed by
-  string level.
-- Progression: shared build validator for level-set and XP paths; race caps; pack `tables.xp`
-  thresholds or documented 1000/level fallback; even XP split w/ remainder to first class; best-of
-  saves; additive slots; tableLevelCeiling clamp. Mock-wins where schema permits; the mock's race
-  `allowed`/`multiMax` is absent from the closed v1 RaceDef — not implemented (DB schema event if wanted).
+  spell:prepared/cast, rest:completed — loot S01 added character-side `item:granted`,
+  `item:dropped`, `loot:rolled`; the envelope itself unchanged).
+- `CharacterState`: plain JSON incl. per-class `classXp`; `slots` `(string|null)[]`; loot S01
+  added `inventory: InventoryEntry[]` (`{id, qty}`, qty ≥ 1), initialized `[]`.
+- Progression: shared build validator; race caps; `tables.xp` or documented fallback; even XP
+  split; best-of saves; additive slots; tableLevelCeiling clamp.
 - Restricts matcher: `matchesRestriction(pattern, kind, tags, declaredTags)` — exact
-  `actions.tagged:<tag>` / `spells.tagged:<tag>` prefix, tag must be pack-declared;
-  `isLivePattern(runtime, pattern)`; `declaredTags(runtime)`.
-  **Reconciled (this pass):** S05's combat declares do NOT call these helpers — `combat.ts`'s
-  `restrictionRejection` re-consults the pack index inline, handling only the `actions.tagged:`
-  family at declare-time (the engine never re-derives tag existence — E-REF-01 rejections; the
-  validator enforced restricts integrity at load). S04's helpers remain the character-side surface
-  (tests only). `matchesRestriction`/`isLivePattern` currently have no non-test consumer.
-- Dependency direction: runtime → {schema, core} only; intra-runtime edges: runtime.ts →
-  {events, character, progression}; character.ts ⇄ progression.ts (value import cycle — see note
-  below); pools/conditions → {errors} + core; no compiler import.
+  `actions.tagged:`/`spells.tagged:` prefix, tag must be pack-declared; `isLivePattern(runtime,
+  pattern)`; `declaredTags(runtime)`. **Reconciled:** S05's combat declares do NOT call these
+  helpers — `combat.ts`'s `restrictionRejection` re-consults the pack index inline
+  (actions-only at declare-time; the validator enforced restricts integrity at load). The
+  helpers remain character-side surface with no non-test consumer (cleanup-tracked).
+- Dependency direction: runtime → {schema, core} only; no compiler import.
 
-### M03 — Combat engine (SESSION-05, 6efaa16/c7a2d44/6afbe31/4be9e6c)
+v1-shell added `src/runtime/character-profile.ts` (CA-08): `profileFromCharacter(rt, character,
+id?)` → `{profile, balances}` — current hp, `derived()` ac/attack bonus, the pack's `initiative`
+formula, the union of the character's class `actions` (pack v1.2 `content.classes.<id>.actions`),
+pool points + bound spell slots; a class with no actions cannot fight (`no-combat-actions`).
+`combat.sideDefeated` (D-26): `defeatedSide(combatants)` is consulted after every resolution in
+`combat.ts`; a fully-downed side ends the fight — `phase: 'combat-over'`, one `combat:ended`
+event naming `{winner, defeated}`, downed combatants skip turns and get no trigger offers, and a
+terminal snapshot restores as `combat-over` (snapshots.ts reads the same `defeatedSide`).
 
-- `combat/action-economy.ts` (CA-4 producer) — `resolveSlotGrants(pack)` (v1.1: declared
-  `economy.turnSlots` authority; absent → documented default 1-of-each-cost-slot-name); `checkCost`
-  (E-ECON-01-shaped declare-time rejections; points; vancian bound slots); per-turn `SlotLedger`
-  transients (`freshLedger/replenish/spend/refund`; never character state).
-- `combat/resolve.ts` (FR-3) — `parsePackEffects`/`checkPackDsl` (parse-once + load-time check via
-  S03 `packDslChecker`); `profileFromStatblock` — the one combatant constructor for characters and
-  monsters; `attackBonusAgainst` (`byDefense[String(v)]` literal lookup — engine never interprets the
-  convention); `attackRoll` (`d20 + attackBonus ≥ defenseTarget`, verdict-attached RollResult);
-  `executeAgainst` (S03 executor seam, per-target vars, ordered roll history for `why.rolls`).
+### M03 — Combat engine (v1-core S05, 6efaa16/c7a2d44/6afbe31/4be9e6c; spatial integration in grid-combat S03)
+
+- `combat/action-economy.ts` (CA-4) — `resolveSlotGrants(pack)` (declared `economy.turnSlots`
+  authority; absent → documented default 1-of-each-cost-slot-name); `checkCost`; per-turn
+  `SlotLedger` transients (`freshLedger/replenish/spend/refund`; never character state).
+- `combat/resolve.ts` (FR-3) — `parsePackEffects`/`checkPackDsl` (parse-once + load-time check);
+  `profileFromStatblock` — the one combatant constructor for characters and monsters;
+  `attackBonusAgainst` (`byDefense[String(v)]` literal lookup); `attackRoll` (verdict-attached);
+  `executeAgainst` (per-target vars, ordered roll history for `why.rolls`). grid-combat S03
+  added the optional 6th param `resolveShapeTargets?: (shape) => readonly string[]` — the CA-G4
+  edge replacing the bound-target `resolveTargets` stub; combat injects it per execution.
 - `combat/combat.ts` (FR-10/13) — `startCombat(runtime, {allies, enemies, rng?})`; `Combat`
-  `step()/declare()/respond()/serialize()/eventsSince()/roundComplete`; initiative from reserved
-  `initiative` formula or d20 fallback (CA-6); events emitted as CA-3 rows only (envelope untouched):
-  combat:start, turn:began/ended, round:completed, attack:rolled, damage:applied, condition:applied,
-  action:resolved, declare:rejected, trigger:fired, trigger:declined; `displayRoll` = combat-loop.html
-  roll anatomy. Declare gates ordered: no-action → not-yours → restricts → target → cost → spend.
+  `step()/declare()/respond()/serialize()/eventsSince()/roundComplete`; initiative from the
+  reserved formula or d20 fallback (CA-6); events emitted as CA-3 rows only; `displayRoll` =
+  combat-loop.html roll anatomy. Declare gates ordered: no-action → not-yours → restricts →
+  target → cost → spend. grid-combat S03 integrated the spatial layer: `StartCombatRequest
+  .positions?: Readonly<Record<string, Position>>`, `CombatantState.position?` (plain JSON,
+  emitted only when set), the **reach gate** (`checkReach` wired at declare and
+  `resolveReactive`, rejections exactly `kind: 'spatial'`, `rule: 'E-SPAT-01'`), the declare-time
+  **validity gate** (`evalValidity` over `Runtime.index.validAsts`, rejections `kind: 'valid'`,
+  `rule: 'E-REF-01'`), gate order validity → spatial → cost (source comment), **fail-closed
+  `startCombat`** (one E-SPAT-01 card per missing combatant on a spatial pack, aggregate, nothing
+  built), and `restore` refusals (E-SPAT-01, artifactId `(snapshot)`, jsonPath
+  `restore.<id>.position`, all cards before any rebuild). `combat.sideDefeated` ends fights.
 - `combat/spatial.ts` (FR-11) — `theaterOfMind` no-op; `gridGeometry` (Chebyshev, reach, burst);
-  `checkReach` → typed `SpatialRejection` carrying `pendingId: 'E-SPAT-01 (unregistered — DB decision
-  pending)'` (registry frozen additive — no unregistered id in code).
-- `combat/triggers.ts` (FR-4/13, FR-12 proof-2 shape) — pattern grammar `<type>`, `[target=self]`,
-  `[actor=self]`; `offersForEvent`/`respond`; taken triggers ride the same resolution pipeline as declares.
-- `bestiary.ts` — `spawnMonster`/`bestiaryIds` via the same `profileFromStatblock` (no second
-  combatant path). `encounter.ts` (FR-16) — `assembleEncounter` heuristic `threat-weighted-uniform`
-  (documented, deterministic per seed, bypassable); `spawnEncounter`.
-- Test fixtures: `emberMarchesPack()` (declared economy + tags, descending-AC + ascending
-  conventions, vancian + pool costs, reactive action, restricts), `emberMarchesNoEconomyPack()`
-  (default-grant branch), `emberMarchesAscendingPack()`, spatial seam helpers.
-- First narrow journey landed at ck2: fixture pack → validatePack(+packDslChecker) → Runtime →
-  stepwise combat → damage:applied with `why:{rule,rolls}` and mock-verbatim display strings.
+  grid-combat S03 reshaped the pack edge: `spatialFromPack` reads the v1.3 contract shape
+  (`{model:'grid', reach:{default, <label>:n}, shapes?}`) into the internal `SpatialModel`
+  `{defaultReach, reachOverrides}` (internal signature unchanged; only the pack-reading edge
+  adapts, CA-G1); new export `packSpatialModel(pack: { spatial?: SpatialDef }): SpatialModel |
+  undefined` — the typed adapter combat consumes (`undefined` = theater of mind; accepted as a
+  structural input, since a nominal `Pack` signature would reject `spatialFromPack`'s input);
+  `SpatialRejection.pendingId` → `rule: 'E-SPAT-01'` (registered id, CA-G2; zero remnants).
+  One shape resolver (`resolveShape`) with three consumers: the executor's
+  `EffectApply.resolveTargets`, `hasTarget(…)` validity evaluation, `target()`; bursts are
+  side-blind around the declared target; theater-of-mind answers every shape with the bound
+  targets and never rejects.
+- `combat/triggers.ts` (FR-4/13) — pattern grammar `<type>`, `[target=self]`, `[actor=self]`;
+  `offersForEvent`/`respond`; taken triggers ride the same pipeline as declares. **Edge note
+  (corrected this pass):** `triggers.ts → combat.ts` is type-only, not a value-import cycle.
+- `bestiary.ts` — `spawnMonster`/`bestiaryIds` via the same `profileFromStatblock`. `encounter.ts`
+  (FR-16) — `assembleEncounter` heuristic `threat-weighted-uniform`; `spawnEncounter`.
+- First narrow journey (v1-core S05 ck2): fixture pack → validatePack(+packDslChecker) → Runtime
+  → stepwise combat → damage:applied with `why:{rule,rolls}` — superseded as the integration
+  proof by the loot and grid journeys below (all still green).
 
-### M03/M05 — Snapshots + root surface (SESSION-06, f1af841/9e18ee2/daac7b7/a6d89ff/bb01e92)
+### M03 — Inventory (loot-inventory S01, 24b37c1/db531d5)
 
-- New module `src/runtime/snapshots.ts` (M03): FR-14 serializers `serializeCharacter/
-  serializeParty/serializeCombat` + loud-refusal loaders `restoreCharacter/restoreParty/
-  deserializeCombat`; types incl. `CombatRestoreRequest`. Exported through `src/runtime/index.ts`
-  (one added export block — D16).
-- Envelopes are snapshots.schema.json verbatim (`additionalProperties: false` — state only, no
-  timestamps/environment); field mapping: classXp→classes[].xp, spells→knownSpells, conditions
-  {id, remaining}, bindings slots, pools, inventory [].
-- Load discipline (CA-1 consumer): identity gate BEFORE any application — kind + pack.id +
-  pack.schemaVersion + pack.contentHash → E-SNAP-01 on mismatch; snapshotVersion ≠ 1 → E-SNAP-02;
-  aggregated via RuntimeRuleError; no state mutated on refusal. Restore is the third build path
-  (validateBuild runs there; restoreParty validates every member before minting ids).
-- Combat restore: envelope carries no side/profile fields — `deserializeCombat(runtime, snapshot,
-  restore: CombatRestoreRequest)` takes the sides/profiles explicitly; balances ride the paired
-  party snapshot (`pairsWith`, FR-14).
-- M05 `src/index.ts`: dumb `export *` from './schema' | './runtime' | './compiler'; no logic, no
-  cross-surface barrel. Runtime imports: {schema, core, combat/*} only.
+`src/runtime/inventory.ts` — CAP-01/CA-02 producer. Verbs `grantItem`, `dropItem`, `countItem`,
+`rollLoot`, `grantLoot`, type `LootOptions` (barrel re-export landed in the same lease). Verb
+discipline mirrors `pools.ts` (named `ruleCard` rejections → mutate `state.inventory` in place →
+one provenanced event); loot shape mirrors `conditions.ts` (`unknown-table`,
+`loot-grants-nothing`). Rolls through the one core table engine (`rollTable`, Custom Rule 3) with
+`grantLoot`'s normalized dual-space nested resolver (bare-id theme-space refs +
+`tables.`-prefixed pack-space refs). Failed roll outcomes (`TableOutcome.ok === false`) map to
+named rejections: `unresolvable-ref` verbatim; `range-gap`/`depth-exceeded`/`malformed-entries`
+→ `table-roll-failed` naming the core reason. No ambient entropy: `opts.rng` wins, else
+`new Rng(opts.seed ?? tableId)`. Snapshots: `serializeCharacterState`/`restoreCharacterState`
+carry `state.inventory` verbatim (fresh copies both ways; no pack cross-validation on the load
+path — CA-01). Realized edges: `runtime/index.ts → ./inventory` (barrel),
+`character.ts → ./inventory` (facade value import); `inventory.ts → ./character` is **type-only**
+— excluded from realized edges.
 
-### M04 — Compiler + themes (SESSION-07, 116fc7e/01af260/786923b/1676c42/5d30d2f/3faf836)
+### M03/M05 — Snapshots + root surface (v1-core S06, f1af841/9e18ee2/daac7b7/a6d89ff/bb01e92; positions in grid-combat S03; sideDefeated in v1-shell)
 
-Module `src/compiler/` — imports only `../schema` + `../core` (no runtime import; grep-asserted in
-tests). Zero I/O.
+- `src/runtime/snapshots.ts` (M03): FR-14 serializers `serializeCharacter/serializeParty/
+  serializeCombat` + loud-refusal loaders `restoreCharacter/restoreParty/deserializeCombat`;
+  types incl. `CombatRestoreRequest`. grid-combat S03: `SnapshotCombatant.position?: Position`
+  (precise `{x,y}`, emitted only when set, never null); `CombatRestoreRequest.positions?`;
+  restore rebuilds gates against restored positions and refuses positionless combatants on a
+  spatial pack. v1-shell: terminal snapshots restore as `combat-over`.
+- Envelopes are snapshots.schema.json verbatim (`additionalProperties: false`); field mapping:
+  classXp→classes[].xp, spells→knownSpells, conditions {id, remaining}, bindings slots, pools,
+  inventory []. Load discipline (CA-1): identity gate BEFORE any application (kind + pack.id +
+  schemaVersion + contentHash → E-SNAP-01; snapshotVersion ≠ 1 → E-SNAP-02); no state mutated on
+  refusal. Combat restore takes the sides/profiles explicitly (`CombatRestoreRequest`).
+- M05 `src/index.ts`: dumb `export *` from './schema' | './runtime' | './compiler'.
 
-- `stage.ts` — `Stage = {name, run(ctx)}`; `GenerationContext = {theme, knobs, seed, stream, pack,
-  own}` (stage sees only resolved knobs, its seed-salted stream, the document under construction;
-  purity asserted by key-spy test).
-- `rng-stream.ts` — `stageRng(seed, stageName)` → S02 Rng over `"${seed}:${stageName}"`; per-stage
-  streams independent (content-hash invariance under an interleaved probe stage).
-- `knobs.ts` (FR-18) — knobs as theme-declared object map; `listThemeKnobs(theme)` →
-  `KnobDeclWithId[]`; `resolveKnobs` validates caller values (unknown → did-you-mean; out-of-range →
-  typed rejection), fills defaults, returns provenance knobs verbatim; `#knob/<id>` tokens substitute
-  into stage inputs.
-- `theme.ts` — `ThemeTemplate`: partial pack keyed like pack sections; base+patches (FR-20); readme
-  carries a documented example override.
-- `pipeline.ts` — `STAGE_ORDER = [stats, skills, feats, classes, magic, bestiary, tables]`; stage 8 =
-  `schema.validatePack` + S03 `packDslChecker` (CA-1 dogfood gate, NOT a replaceable Stage); manifest
-  first (provenance exactly {theme, seed, knobs}); undeclared knob token → located E-SCHEMA-01 before
-  stages run; any card aggregates into `GenerationError` (failed campaigns never return partial packs).
-- `stages/*.ts` — stats/skills/feats (≥1 reactive enforced)/classes (progression per class, E-REF-03
-  located)/magic (spells + declared economy + pool capacity formulas, E-ECON-01 located)/bestiary
-  (statblocks + content.races + content.conditions; refs E-REF-01/-02 located — stage-6 correction
-  3faf836 landed the race/condition floor content)/tables (every table ROLLED through S02 `rollTable`
-  — Custom Rule 3 held).
-- `compose.ts` (FR-20) — `composeTheme(derived, base)`: add/remove/merge at '/'-joined pointer paths;
-  add-on-existing and remove-of-missing rejected; deep-merge objects, replace scalars/arrays; later
-  wins; base read-only hash-proven; shipped themes stand alone (D1) but composition is built + tested.
-- `errors.ts` — `GenerationError` carrying ErrorCards; theme-relative jsonPath; mirrors PackLoadError
-  discipline. `generate.ts` — `generateCampaign({theme, seed, knobs?})` → Pack, synchronous.
-- `theme-loader.ts` + theme JSON data imports (typed via `resolveJsonModule` after D18);
-  `index.ts` surface as listed above (loadTheme/DARK_FANTASY/ZOMBIE_URBAN added at S08 ck3 — D20).
-- `themes/dark-fantasy.json` — vancian showcase to the FR-21 floor (3 classes incl. Warden
-  descending-AC table + Hexer ascending + Crypt Warden multi-class hybrid; 4 races with demihuman
-  caps; five named saves vigor/grace/tenacity/reason/presence; 33 coined spells L1–3;
-  main/move/reaction economy; reactive parry/ward-glint + second-gust feat; 10 conditions incl.
-  sapped/rooted restricts; 4 statblocks; 7 tables incl. ranged xp L1–10).
-- `themes/zombie-urban.json` — drain/table showcase (3 survivor classes; adrenaline/stamina drain
-  pools; 4 ritual spells, NO vancian; 7 skills; 8 conditions; 4 statblocks; 8 tables incl. ranged
-  bite-turns infection; deliberately omits `economy` — the pack side of S05's default-grant branch).
-- CA-5 producer proof landed: byte-identity (equal hash + equal bytes), different-seed divergence,
-  in-process AND across fresh module loads; no ambient values (provenance exactly {theme, seed, knobs}).
-- FR-21 conformance test (S08's proof-4 input): `tests/compiler/coverage-floor.test.ts` (50 tests,
-  every floor bullet + showcase split + coined-name lint + knob feeding).
-- Envelope-premise correction (D17): themes carry NO spatial section — pack.schema.json root is
-  closed (E-SCHEMA-02 on extra sections); S05's fixtures attach spatial post-validation via test
-  helper; the optional spatial layer stays host-side (FR-11); spatial schema section = DB schema
-  event if wanted.
+### M04 — Compiler + themes (v1-core S07, 116fc7e/01af260/786923b/1676c42/5d30d2f/3faf836; items+wyldwood in loot S02; spatial pass-through in grid-combat S04)
 
-### M05 — Packaging, CI, proofs, docs (SESSION-08, ck1–3 via Orchestrator fallback, 02752a9/8f67611/9afa86c/32c7ade/d5bacba)
+Module `src/compiler/` — imports only `../schema` + `../core` (no runtime import). Zero I/O.
 
-*(New section — this synthesis, from STATE/Final Report/S08 lease + mechanical source reads.)*
+- `stage.ts` — `Stage = {name, run(ctx)}`; `GenerationContext` purity asserted by key-spy test.
+- `rng-stream.ts` — `stageRng(seed, stageName)`; per-stage streams independent (content-hash
+  invariance under an interleaved probe stage).
+- `knobs.ts` (FR-18) — knobs as theme-declared object map; `listThemeKnobs`; `resolveKnobs`
+  validates caller values; `#knob/<id>` tokens substitute into stage inputs (grid-combat S04
+  note: tokens stringify values — see DD15).
+- `theme.ts` — `ThemeTemplate`: partial pack keyed like pack sections; base+patches (FR-20).
+  grid-combat S04: `ThemeTemplate.spatial?: SpatialDef` (the same type the pack carries —
+  imported from `../schema/pack`, no theme-side renaming; after `economy?`).
+- `pipeline.ts` — `STAGE_ORDER = [stats, skills, feats, classes, magic, bestiary, tables]`;
+  stage 8 = `schema.validatePack` + `packDslChecker` (CA-1 dogfood gate, NOT a replaceable
+  Stage); manifest first (provenance exactly {theme, seed, knobs}); undeclared knob token →
+  located E-SCHEMA-01; any card aggregates into `GenerationError`. grid-combat S04:
+  `STAGE_INPUT_SECTIONS` gains `'spatial'` after `'economy'` (knob tokens resolve inside a
+  theme's spatial declaration); pass-through after the manifest/formulas seeding
+  (`structuredClone(themeView.spatial)` — the theme object is never mutated; absent = no key,
+  theater of mind).
+- `stages/*.ts` — stats/skills/feats (≥1 reactive enforced)/classes (progression per class;
+  loot-era note: v1.2 class actions ride `content.classes`)/magic/bestiary/tables (every table
+  ROLLED through S02 `rollTable` — Custom Rule 3). loot-inventory S02: stage 7 additionally
+  contributes `content.items` (guarded like races/conditions; a theme with no items contributes
+  nothing) and rejects CA-02-checkable reference defects in `-loot` tables with E-REF-01 theme
+  cards (per-table **before** the roll, so the located card wins over the engine's coarser
+  E-TBL-01).
+- `compose.ts` (FR-20) — `composeTheme(derived, base)`; add/remove/merge at '/'-joined pointers;
+  later wins; base read-only hash-proven. `errors.ts` — `GenerationError` carrying ErrorCards,
+  theme-relative jsonPath. `generate.ts` — `generateCampaign({theme, seed, knobs?})`,
+  synchronous.
+- `theme-loader.ts` + theme JSON data imports (typed via `resolveJsonModule`); `index.ts` surface
+  as listed above (`loadTheme`/`DARK_FANTASY`/`ZOMBIE_URBAN` at v1-core S08 ck3 — D20; `WYLDWOOD`
+  + the third `loadTheme` case at loot S02).
+- Themes (three): `dark-fantasy.json` (vancian showcase to the FR-21 floor; Warden descending-AC
+  table + Hexer ascending + Crypt Warden multi-class; five named saves; 33 coined spells L1–3;
+  main/move/reaction economy; reactive parry/ward-glint; 10 conditions incl. sapped/rooted
+  restricts; 4 statblocks; 7 tables incl. ranged xp), `zombie-urban.json` (drain/table showcase;
+  adrenaline/stamina drain pools; 4 ritual spells, NO vancian; deliberately omits `economy` —
+  the default-grant branch), `wyldwood.json` (loot showcase; charm/ward economy; point-pool
+  spells, no vancian; 8 tables incl. the `-loot` chain). All three declare `spatial`
+  (grid-combat S04): dark-fantasy `reach: {default: 1, 'barrow-wight': 2}`, zombie-urban
+  `{default: 1, 'slab-brute': 2}`, wyldwood `{default: 1, 'hollow-wight': 2}` — each override
+  key names a bestiary id that theme declares; `shapes: ['single', 'burst']` by all three.
+  Byte-identity proofs (CA-5): equal hash + equal bytes, different-seed divergence, in-process
+  AND across fresh module loads; no ambient values.
+- FR-21 conformance: `tests/compiler/coverage-floor.test.ts` (78/78 at close — the FR-17/CA-1
+  generate→validatePack dogfood path sees the spatial section on all three packs and produces
+  zero cards; CAP-G6's evidence).
+
+### M05 — Packaging, CI, proofs, docs (v1-core S08, 02752a9/8f67611/9afa86c/32c7ade/d5bacba; v1-shell packaging/docs/CI/coverage; loot S03; grid S05)
 
 - Build: `tsup.config.ts` — four per-entry builds (index/schema/runtime/compiler), dual ESM/CJS +
-  rolled dts, target es2020, tree-shake-friendly; `package.json` exports map covers
-  `.` / `./runtime` / `./schema` / `./compiler` (verified: all subpaths resolve from dist).
-- `scripts/check-runtime-isolation.mjs` — the runtime-only bundle is a proof, not a promise: greps
-  `dist/runtime.{js,cjs}` for `generateCampaign` and asserts dual ESM/CJS + dts (packaging.html's
-  check; CI `package` job wires it). `scripts/check-security-lint.mjs` — eval/new Function/
-  Math.random/Date.now sweep over src/ + dist/ (belt to ESLint's suspenders).
-- `tests/proofs/rules-are-data.test.ts` (CA-8, FR-12 trio): proof 1 — new action + condition with
-  restricts changes declare/resolution/restriction behavior through the unchanged machinery
-  (declare-rejection = typed event); proof 2 — pack-declared parry trigger fires → respond(take) →
-  same pipeline → reaction slot consumed; proof 3 — new spell prepare→bind→cast, unknown-spell throw
-  on the unmutated fixture. Baseline counterfactuals; zero engine diffs (each proof names the engine
-  files it does not modify); trio typecheck guards added at 32c7ade.
-- `tests/proofs/perf-budget.test.ts` — CI-generous budgets (generate < 2s actual ~6ms; 10-combatant
-  round < 500ms CI-bound (real ~50ms); snapshot round-trip < 50ms).
-- `tests/proofs/docs-run.test.ts` (NFR-DX made mechanical): executes the README's three fenced ts (TypeScript) code blocks verbatim (import-stripped, assertion-preserving evaluation) and asserts the README's
-  own output lines: manifest dark-fantasy/3 classes/33 spells; derived() hp 27/ac 12;
-  `d20[9]=9 < ac11`; `why.rule = actions.cut-down.attackBonus`. README quickstart rewritten to
-  shipped reality (3 copy-paste steps with expected outputs — D21).
+  rolled dts, target es2020; `package.json` exports map covers `.` / `./runtime` / `./schema` /
+  `./compiler` (all subpaths resolve from dist; verified fresh this pass — 24 dist files).
+- `scripts/check-runtime-isolation.mjs` — the runtime-only bundle is a proof, not a promise
+  (greps `dist/runtime.{js,cjs}` for `generateCampaign`; asserts dual ESM/CJS + dts; CI `package`
+  job wires it). `scripts/check-security-lint.mjs` — eval/new Function/Math.random/Date.now
+  sweep over src/ + dist/.
+- v1-shell packaging pass: MIT LICENSE (in `files`), ESLint 8.57 → 10.11 flat config (security
+  bans carried verbatim; lint needs Node ≥ 20.19 — CI lint on a dedicated Node 22 job while
+  typecheck/tests keep the 18/20/22 matrix), Prettier enforcement (`format`/`format:check` in CI).
+- Proof tests under `tests/proofs/`: `rules-are-data.test.ts` (CA-8, FR-12 trio with baseline
+  counterfactuals, zero engine diffs, trio typecheck guards), `perf-budget.test.ts` (CI-generous
+  budgets; grid-combat S05 added the 10-combatant spatial round-loop budget < 500 ms),
+  `loot-journey.test.ts` (loot S03: the built-dist journey — generate wyldwood → validatePack
+  re-entry → Runtime → grantLoot twice (stacked) → serialize → restore lossless on a fresh
+  Runtime; also proves the two real dist forms of the stage-8 DSL gate), `grid-journey.test.ts`
+  (grid S05: the FR-11 journey, below), `docs-run.test.ts` (NFR-DX made mechanical: executes the
+  README's fenced ```ts blocks verbatim AND typechecks them under strict tsc; asserts the
+  README's own output lines and the block-count pin).
 - `.github/workflows/ci.yml` — matrix Node 18/20/22 × typecheck/lint/test + determinism suites;
-  package job (build + isolation + security + proofs); themes job (coverage floor). The
-  browser-mode determinism step is documented as a v1.1 follow-up (D4 realized honestly); the CI
-  step fails loudly if a browser config appears and is skipped. First real CI run pending (runs on
-  next push).
-- Compiler surface gained `loadTheme`/`DARK_FANTASY`/`ZOMBIE_URBAN` (D20) for the docs proof.
-- Full gates at close (S08 + re-verified by this Archivist pass): typecheck 0; lint 0;
-  `pnpm test` 387/387 (28 files — the Final Report's count; vitest reports 29 files: the suite-wide
-  total includes one additional collected file); build 0 (24 dist files); isolation 0; security 0;
-  built-package journey smoke green (generate → load → combat surface functions from
-  `dist/runtime.js`).
+  package job (build + isolation + security + proofs); themes job (coverage floor); lint + format
+  checks on every push. The browser-mode determinism leg is documented as a v1.1 follow-up (honest
+  CI, DOCS-CI-01..03).
+- The first narrow **grid journey** (grid-combat S05, `tests/proofs/grid-journey.test.ts`,
+  11 tests): generate (dark-fantasy, seed 42) → `new Runtime` (stage-8 load gate) → host
+  positions → adjacency reject (serialize-identical no-change) → restore-close distance (the v1
+  movement seam) → burst multi-target with mixed per-target save branches (out-of-radius
+  untouched) → validity in/out pair → mid-fight snapshot → JSON → restore with gates
+  re-enforced → 10-combatant spatial perf budget → seeded two-run determinism (byte-equal) →
+  wyldwood theater-parity capstone. No mocked boundary anywhere. The burst rides as **pack data
+  added at test setup** (data-only action, generated spell's verbatim cost + effect — FR-12
+  rules-are-data; zero engine diffs) because `declare()` resolves actions only from
+  `pack.actions`: generated packs' `content.spells` are not combat-declarable (CA-G4
+  consumer-shape amendment need recorded — a "spells as combat actions" bridge is an engine
+  design event, not a test defect).
+- README: quickstart blocks 01–04 (generate / character / one combat round / loot) — block 03
+  passes host-declared `positions` (grid S05; `d20[9]=9 < ac12` unchanged — positions consume no
+  RNG, proved by run); block 04 loot (observed `[{ id: 'grave-ward', qty: 1 }]`). A **Grid
+  combat** section documents the FR-11 opt-in (```json spatial snippet, Chebyshev mechanics,
+  E-SPAT-01, burst semantics, vancian vs pool casting, the no-move-verb/FR-10 restore seam, the
+  journey cited for NFR-DX). v1-shell documented `pnpm test --coverage` and the honest CI claims.
+- Full gates at grid close (S05 + re-verified fresh by this pass): typecheck 0; lint 0;
+  `pnpm test` **564/564 across 35 files**; build 0 (24 dist files); isolation 0; security 0;
+  format:check 0; proofs 28/28.
 
-### OWNER-04-TSCONFIG (owner correction, 77b4108)
+### OWNER corrections (v1-core: OWNER-01-LINT c5fbb94, OWNER-04-TSCONFIG 77b4108, OWNER-08-BARREL 9afa86c + 32c7ade; loot: FORMAT-RECONCILE 8b802b7; grid: OWNER-CP-POSITIONS 2f3b1d3)
 
-Theme JSON module types now come from real-file resolution via tsconfig `resolveJsonModule`;
-ambient shim `src/compiler/themes.d.ts` deleted (cast retained in theme-loader.ts);
-`tests/compiler/fresh-load.d.ts` retained — it types the vite `?fresh-load` query specifier (not a
-file), and its consumer `tests/compiler/coverage-floor.test.ts` was outside the correction write set.
-
-<!-- loot-inventory SESSION-01 -->
-
-# SESSION-01 arch delta — loot-inventory (runtime inventory core)
-
-## M03 (runtime) — new module file: `src/runtime/inventory.ts`
-
-- CAP-01/CA-02 producer. Public surface: `grantItem`, `dropItem`, `countItem`,
-  `rollLoot`, `grantLoot`, `type LootOptions` (exported via the runtime barrel).
-- Verb discipline mirrors `pools.ts` (validate with named `ruleCard` rejections
-  → mutate `state.inventory` in place → emit one provenanced event); loot shape
-  mirrors `conditions.ts` (`applyTheme`/`unknown-theme` → `unknown-table`,
-  `theme-grants-nothing` → `loot-grants-nothing`).
-- Loot rolls through the one core table engine (`rollTable`, Custom Rule 3) with
-  grantLoot's normalized dual-space nested resolver (bare-id theme-space refs +
-  `tables.`-prefixed pack-space refs). Failed roll outcomes (`TableOutcome.ok ===
-  false`) map to named runtime rejections: `unresolvable-ref` verbatim;
-  `range-gap` / `depth-exceeded` / `malformed-entries` → `table-roll-failed`
-  naming the core reason. No ambient entropy: `opts.rng` wins, else
-  `new Rng(opts.seed ?? tableId)`.
-
-## Public API added (M03)
-
-- `CharacterState.inventory: InventoryEntry[]` (new `InventoryEntry {id, qty}` in
-  `character.ts`); `buildCharacter` initializes `inventory: []`.
-- `Character` facade methods: `grant(itemId, qty?)`, `drop(itemId, qty?)`,
-  `count(itemId)`, `loot(tableId, opts?)` — one-to-one delegates.
-- Snapshots: `serializeCharacterState` emits `state.inventory` verbatim (fresh
-  copies), `restoreCharacterState` restores it (fresh entry copies; no
-  pack cross-validation on the load path) — CA-01.
-- New event types (character-side, round 0): `item:granted`, `item:dropped`,
-  `loot:rolled` — payload/why anatomy per the session prompt; the `EventStream`
-  envelope itself is unchanged.
-
-## Realized import edges (value imports, type-only excluded)
-
-- `runtime/index.ts → ./inventory` (barrel re-export; OWNER-08-BARREL closed at landing).
-- `character.ts → ./inventory` (facade delegates) — new intra-module value-import
-  pair in M03 (alongside the existing `character ⇄ progression` and
-  `combat/triggers → combat` pairs).
-- `inventory.ts → ./character` is **type-only** — excluded from realized edges;
-  no third value-import cycle was added (the M03 pair count stays as documented).
-- Module-registry delta: M03 key files gain `inventory.ts`.
-
-*(Integrated by Orchestrator at receive of SESSION-01 attempt 2 / RECOVERY-01, commits 24b37c1 + db531d5; synthesis is the Archivist final pass.)*
-
-<!-- loot-inventory SESSION-02 -->
-
-## M04 compiler — public surface delta (loot-inventory SESSION-02)
-
-- `src/compiler/theme-loader.ts`: new exported const `WYLDWOOD` (the `src/compiler/themes/wyldwood.json`
-  theme, typed `ThemeTemplate`); `loadTheme` gains the `case 'wyldwood'` (registry is now three names:
-  `dark-fantasy`, `zombie-urban`, `wyldwood`; unknown names keep the existing FR-17 error shape).
-- `src/compiler/index.ts`: `WYLDWOOD` re-exported beside `DARK_FANTASY`/`ZOMBIE_URBAN` (surface
-  completeness in the same lease, the D20 lesson).
-- New theme artifact `src/compiler/themes/wyldwood.json` — third FR-21 proof (fey/wilderness,
-  charm/ward loot economy, point-pool spells, no vancian slots). Data only; no new theme-template
-  field (items ride `content.items` per the theme-shape authority).
-- Stage 7 (`src/compiler/stages/tables.ts`) additionally contributes `content.items` (guarded like
-  races/conditions — optional; a theme with no items contributes nothing) and rejects
-  CA-02-checkable reference defects in `-loot`-suffixed tables with E-REF-01 theme cards
-  (objects with undeclared item ids + missed `tables.`-prefixed nested refs; every other string in a
-  `-loot` table is CA-02 flavor, never an error — REPLAN-LOOT-01). No registry growth, no schema
-  change, no new event type.
-
-*(Integrated by Orchestrator at receive of SESSION-02 (commits 753ced1 + fc60edc + c7b43a0); synthesis is the Archivist final pass.)*
-
-<!-- grid-combat SESSION-02 -->
-
-## M01 schema surface — public API delta (grid-combat SESSION-02, ad3dc5d/98e463e/555db03)
-
-Public API additions to M01 (`src/schema/`); no existing symbol renamed, re-typed, or removed:
-
-- `src/schema/pack.ts`: new exports `SpatialReach`, `SpatialDef` (mirror of `pack.schema.json` `$defs/spatial`, v1.3); `Pack` gains optional `spatial?: SpatialDef` (after `economy?`, contract order).
-- `src/schema/error-card.ts`: `RuleId` union and frozen `RULE_IDS` registry extend 14 → 15; new id `'E-SPAT-01'` (last position, additive minor per database.md v1.3).
-- `src/schema/validate/sections/root.ts`: new exported section check `checkSpatial(ctx, value)` — structural violations → E-SCHEMA-01, declared-but-unshippable geometry (model ≠ 'grid', shapes outside {single, burst}) → E-SPAT-01; wired in `validatePack` (`src/schema/validate/index.ts`) as `checkSpatial(ctx, json['spatial'])` after `checkEconomy`; `checkRootSections`' closed-top-level key set now admits `spatial` alongside `economy`.
-
-Consumers: S03 (`spatialFromPack` adapter, `SpatialRejection.rule = 'E-SPAT-01'`) and S04 (generated packs may declare `spatial` without stage-8 rejections) import from the M01 surface; nothing else may redefine these symbols.
-
-*(Integrated by Orchestrator at receive of grid-combat SESSION-02 (commits ad3dc5d + 98e463e + 555db03); synthesis is the Archivist final pass.)*
-
-<!-- grid-combat SESSION-03 -->
-
-## M02/M03 runtime spatial integration — public API delta (grid-combat SESSION-03, 0a911b2/be9cda9/8f3959e/606c817/38c017e)
-
-Module registry deltas (M02, M03):
-
-- M03 `src/runtime/combat/spatial.ts`: `spatialFromPack(pack: { spatial?: SpatialDef }): SpatialGeometry`
-  now reads the v1.3 pack contract shape (`Pack.spatial`: `{model:'grid', reach:{default, <id>:n}, shapes?}`);
-  new export `packSpatialModel(pack: { spatial?: SpatialDef }): SpatialModel | undefined` — the typed
-  adapter edge combat consumes (`undefined` = theater of mind). The internal `SpatialModel`
-  `{defaultReach, reachOverrides}` signature is unchanged; only the pack-reading edge adapts (CA-G1).
-  `SpatialRejection.pendingId` → `rule: 'E-SPAT-01'` (registered id, CA-G2). Note: the pack
-  declaration uses the *structural* input `{ spatial?: SpatialDef }` (accepted by `Pack`
-  structurally), not the nominal `Pack` type.
-- M03 `src/runtime/combat/combat.ts` (public surface): `StartCombatRequest.positions?:
-  Readonly<Record<string, Position>>`; `CombatantState.position?: Position`; `DeclareRejection`
-  gains members `kind: 'spatial'` (`SpatialRejection`) and `kind: 'valid'`
-  (`rule: 'E-REF-01'`). `startCombat` fails closed (RuntimeRuleError, E-SPAT-01 card per missing
-  combatant) when a spatial pack's fight is declared without full positions. The declare-time
-  validity gate (reads `Runtime.index.validAsts`) runs BEFORE the spatial reach gate (both before
-  cost spend) — gate order recorded in the source comment.
-- M03 `src/runtime/combat/resolve.ts`: `executeAgainst` gains optional 6th param
-  `resolveShapeTargets?: (shape: string) => readonly string[]` — the CA-G4 edge replacing the
-  bound-target `resolveTargets` stub; combat injects it per execution.
-- M03 `src/runtime/runtime.ts` (public surface): `Runtime.spatial: SpatialGeometry` built once at
-  load (`spatialFromPack(pack)`); `PackIndex.validAsts: Readonly<Record<string, FormulaAst>>`
-  compiled parse-once from `pack.actions[*].valid` (skip-undefined), honoring CA-2.
-- M03 `src/runtime/snapshots.ts` (public surface): `SnapshotCombatant.position?: Position`
-  (precise `{x,y}`, emitted only when set, never null); `CombatRestoreRequest.positions?`;
-  spatial restore refuses positionless combatants (E-SPAT-01, artifactId `(snapshot)`, jsonPath
-  `restore.<id>.position`, all cards before rebuild) — CA-G3.
-- M02 `src/core/dsl/formula.ts`: new export `evalValidity(ast, ctx, hasTarget)` — validity-AST
-  evaluation with the injected geometry callback (core stays runtime-ignorant); comparators/scalars
-  delegate to `evalFormula` over the zero-RNG stream.
-- M03 `src/runtime/index.ts`: `packSpatialModel` added to the runtime surface barrel.
-
-Test/fixture surface: `tests/runtime/fixtures/packs.ts` — `SpatialPack` re-keyed to
-`{ spatial?: SpatialDef }` (v1.3), `withSpatial(pack, spatial: SpatialDef)`, new
-`emberMarchesSpatialPack()` (default 1, `barrow-wight` override 2, shapes single+burst), plus
-fixture actions `ember-bloom-rite` (burst-2 save spell-as-action), `seize-opening`
-(`valid: hasTarget(adjacent)`), `veterans-censure` (`valid: level >= 3`).
-
-*(Integrated by Orchestrator at receive of grid-combat SESSION-03 (commits 0a911b2 + be9cda9 + 8f3959e + 606c817 + 38c017e); synthesis is the Archivist final pass.)*
-
-<!-- grid-combat SESSION-04 -->
-
-## M04 compiler — public surface delta (grid-combat SESSION-04, f77bb5d/6675af7/bf30863)
-
-- `src/compiler/theme.ts`: `ThemeTemplate` gains `spatial?: SpatialDef` (the same type the pack
-  carries — imported from `../schema/pack`, no theme-side renaming; after `economy?`, contract
-  order). CA-G1 recheck at ck0: the committed `$defs/spatial` == `SpatialDef` field-for-field — no delta.
-- `src/compiler/pipeline.ts`: `STAGE_INPUT_SECTIONS` gains `'spatial'` after `'economy'` (knob
-  tokens now resolve inside a theme's spatial declaration); pass-through after the manifest/formulas
-  seeding (`structuredClone(themeView.spatial)` — the theme object is never mutated by generation;
-  absent = no key, theater of mind).
-- All three bundled themes declare `spatial` (identical shape): dark-fantasy
-  `reach: {default: 1, 'barrow-wight': 2}`, zombie-urban `reach: {default: 1, 'slab-brute': 2}`,
-  wyldwood `reach: {default: 1, 'hollow-wight': 2}` — each override key names a bestiary id that
-  theme declares; `shapes: ['single', 'burst']` by all three (the v1 set).
-- Token discipline (found by S04's own first token test): `substituteTokens` stringifies knob values,
-  so the only stage-8-valid token placement inside a spatial declaration is a shape-valued knob
-  spliced into `shapes`; reach values stay plain integers.
-- Stage-8 dogfood proof: the FR-17/CA-1 generate→`validatePack` path sees the spatial section on all
-  three packs and produces zero cards (coverage-floor 78/78 — CAP-G6's evidence).
-
-*(Integrated by Orchestrator at receive of grid-combat SESSION-04 (commits f77bb5d + 6675af7 + bf30863); synthesis is the Archivist final pass.)*
-
-<!-- grid-combat SESSION-05 -->
-
-## Grid journey proof + README (grid-combat SESSION-05, 1cb3e70/efdd69c/d3db8ea/f178c0a)
-
-- CAP-G7 proven end-to-end on the real generated dark-fantasy pack (seed 42): generate → `new Runtime`
-  (stage-8 load gate) → host positions → spatial/E-SPAT-01 reject → restore-close distance → burst
-  with per-target saves (mixed branches) → validity gate → snapshot round-trip → theater parity on
-  wyldwood-42. No mocked boundary anywhere; two-run determinism byte-equal. `tests/proofs/grid-journey.test.ts`
-  (11 tests) — the feature's integration proof; also ci.yml's `tests/proofs/` job input.
-- The burst shape rides the journey as **pack data added at test setup** (a data-only action carrying
-  the generated spell's verbatim cost + effect on the caster's action list — FR-12 rules-are-data
-  discipline, zero engine diffs): combat `declare()` resolves actions only from `pack.actions` (no
-  spell path; `parsePackEffects`' spell ASTs have zero consumers), so generated packs'
-  `content.spells` are not combat-declarable. Recorded as the feature's CA-G4 consumer-shape
-  amendment need — a "spells as combat actions" bridge is an engine design event (Author/DB re-entry
-  class), not a test defect.
-- README: quickstart block 03 now passes host-declared positions (the docs-run planned-debt payoff;
-  `d20[9]=9 < ac12` unchanged — positions consume no RNG, proved by run); a **Grid combat** section
-  documents the FR-11 opt-in (```json spatial snippet, mechanics, E-SPAT-01, burst semantics,
-  vancian vs pool casting, the no-move-verb/FR-10 restore seam, the journey cited for NFR-DX).
-- Baseline after S05: **564/564 across 35 files**; all seven package gates green (typecheck, lint,
-  test, build, isolation, security, format).
-
-*(Integrated by Orchestrator at receive of grid-combat SESSION-05 (commits 1cb3e70 + efdd69c + d3db8ea + f178c0a); synthesis is the Archivist final pass.)*
+- OWNER-04-TSCONFIG: theme JSON module types via real-file resolution (`resolveJsonModule`);
+  `themes.d.ts` deleted; `tests/compiler/fresh-load.d.ts` retained (types the vite `?fresh-load`
+  query specifier, not a file).
+- OWNER-08-BARREL: the M03 barrel lacked S05's combat exports (a plan-level lease gap; S04's
+  barrel predated S05) — mechanically completed; the trio typecheck guards landed with it.
+- FORMAT-RECONCILE (loot): S01/S02 lands left 6 files unformatted; S03 self-quarantined its own
+  `pnpm format` and restored the outside-lease files byte-identically; the owner pass reconciled
+  them format-only.
+- OWNER-CP-POSITIONS (grid): S04's spatial themes + S03's fail-closed `startCombat` made the
+  CA-08 positionless `fightScript` throw (6 tests red outside S03's lease). Mechanical fix:
+  `positions: {hero: {x:0,y:0}, foe: {x:1,y:0}}` (the pre-authorized adjacency fallback — the
+  distance-3 shape was empirically proved a **permanent stalemate**: no movement mechanic exists,
+  so a gap can never close). All 20 assertions preserved byte-identical; 20/20 green. All
+  assertions preserved; planning lesson recorded (DD16).
 
 ## Recorded drift & intra-module notes (for the next cycle)
 
-- **M03 internal cycles (value imports):** `character.ts ⇄ progression.ts` (progression imports
-  `reserveValue` from character; character imports `validateBuild/buildCharacter` from progression)
-  and `combat/triggers.ts → combat.ts` (value). The cycle exists in code; TypeScript's runtime
-  module evaluation tolerates these shapes because the imported symbols are used lazily (function
-  bodies, not module-init time). Recorded as observed, not as an architecture violation — M03 is
-  one module; the constraint the architecture cares about is the cross-module flow, which holds.
-- **Restricts matcher duplication:** S04's `matchesRestriction`/`isLivePattern` (full pattern
-  grammar, both families) vs S05's inline `restrictionRejection` (actions-only re-consult). The
-  two coexist; the helpers have no non-test consumer. Candidate for the next feature cycle's
-  cleanup program (single shared matcher or explicit surface rationale).
-- **`MAX_TABLE_DEPTH` duplication:** same value 8 in `core/tables.ts` and `schema/validate.ts`
-  (S02/S01 independently chose 8; DB ratification pending). Single-source in v1.1.
-- **E-SPAT-01 unregistered:** typed `pendingId` carried verbatim in `src/runtime/combat/spatial.ts`;
-  registry frozen additive; DB decision pending. *(grid-combat update: RESOLVED — `E-SPAT-01` is
-  registered in database.md v1.3 and `RULE_IDS` (S01 `0120359` + S02 `98e463e`); S03 switched
-  `pendingId` → `rule: 'E-SPAT-01'` with zero remnants (`0a911b2`).)*
-- **Dice/Rng on the runtime surface:** not exported (see Surfaces above) — the approved surface
-  spec said types should ride runtime; the README's "dice" bullet is satisfied by the engine's
-  injectable seam + snapshots, not by exported dice symbols. Next surface revision decides.
+- **Intra-M03 value-import pairs:** `character.ts ⇄ progression.ts`, `character.ts →
+  inventory.ts`, `snapshots.ts → {character, progression, combat/combat, combat/resolve,
+  combat/spatial, combat/action-economy}`, `combat/combat.ts → combat/triggers.ts`. The cycle
+  exists in code; TypeScript tolerates it because the imported symbols are used lazily. Recorded
+  as observed, not as an architecture violation — the cross-module flow is what the architecture
+  cares about, and it holds. *(Corrected this pass: the prior record's second cycle
+  `combat/triggers.ts → combat.ts` was type-only from creation.)*
+- **Restricts matcher duplication:** S04's `matchesRestriction`/`isLivePattern`/`declaredTags`
+  (full pattern grammar, both families) vs combat's inline `restrictionRejection`
+  (actions-only re-consult). The helpers have no non-test consumer (grep at `c2a8fff`:
+  definition + barrel re-export only). Cleanup-tracked.
+- **`parsePackEffects` has no consumers:** grep at `c2a8fff` — defined in
+  `combat/resolve.ts`, zero src or test references. The grid journey's burst finding made the
+  gap concrete: combat `declare()` resolves actions only from `pack.actions`, so the parsed
+  spell ASTs have no reader. Either the future "spells as combat actions" bridge consumes it or
+  it is dead code pending that decision. Cleanup-tracked alongside the restricts matcher.
+- **`MAX_TABLE_DEPTH = 8` duplication:** `core/tables.ts` and `validate/helpers.ts` both define
+  8. database.md v1.2/v1.3 prose records the engine-side ratification ("bounded at load;
+  deeper → E-TBL-01") and both constants are test-pinned; a single-source re-export (core owns
+  the value, schema re-exports) remains the v1.1 cleanup candidate.
+- **`WYLDWOOD` surface export:** defined + re-exported (`theme-loader.ts`, `compiler/index.ts`),
+  no other src/test reference — the consumer story is the `loadTheme` registry (hosts load by
+  name). Same class as the existing `readPatch`/`EventSeed`/`EventSink` surface-intent
+  candidates. Cleanup-tracked.
 - **Declare gate order (grid-combat, S03):** validity gate → spatial reach gate → cost (validity
-  before spatial so the out-of-reach `hasTarget(adjacent)` rejection stays observable); recorded in
-  the source comment; both orders keep the ck2 contract green.
-- **Spells are not combat-declarable (grid-combat, S05 finding):** `declare()` resolves actions only
-  from `pack.actions`; `parsePackEffects`' spell ASTs have zero consumers. Generated packs ship
-  burst shapes only as `content.spells`. The "spells as combat actions" bridge is an engine design
-  event (Author/DB re-entry class) — the journey proves bursts through pack data at test setup in
-  the meantime.
+  before spatial so the out-of-reach `hasTarget(adjacent)` rejection stays observable); recorded
+  in the source comment.
+- **Spells are not combat-declarable (grid-combat, S05 finding):** `declare()` resolves actions
+  only from `pack.actions`; `parsePackEffects`' spell ASTs have zero consumers. Generated packs
+  ship burst shapes only as `content.spells`. The "spells as combat actions" bridge is an engine
+  design event (Author/DB re-entry class) — the journey proves bursts through pack data at test
+  setup in the meantime.
+- **Dice/Rng on the runtime surface:** not exported (see Surfaces above) — the README's "dice"
+  bullet is satisfied by the engine's injectable seam + snapshots, not by exported dice symbols.
+  Next surface revision decides.
+- **E-SPAT-01:** RESOLVED (was: unregistered typed `pendingId`) — registered in database.md v1.3
+  and `RULE_IDS` (15 ids), `pendingId` → `rule: 'E-SPAT-01'` switched with zero remnants.
+- **Movement verb:** still the feature's one open product question for the human (DD1); the
+  serialize → restore-with-updated-positions seam is the documented v1 answer and is
+  README-documented.
+- **v1.1 follow-ups carried across cycles:** browser-mode Vitest config (CI's browser leg);
+  byte-level snapshot conformance; `pnpm approve-builds` advisory for esbuild/tsup (CI's job on
+  first run); first real CI run on next push.
 
-<!-- Historical delta sections (pre-synthesis, kept verbatim below this line for provenance) -->
-
----
-
-*(Session deltas S01–S07 and the OWNER-04 note were integrated by Orchestrator during the run; the
-sections above carry their content reconciled. The original delta-section markers are preserved in
-git history at `573b075` and earlier.)*
+<!-- Historical delta sections (pre-synthesis, kept in git history for provenance; the
+Orchestrator-integrated markers — `<!-- loot-inventory SESSION-01 -->` through
+`<!-- grid-combat SESSION-05 -->` — were collapsed into the module-ordered sections above at
+this pass; original text recoverable at `b671a37`.) -->
