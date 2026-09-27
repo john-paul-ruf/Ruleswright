@@ -105,6 +105,34 @@ Brynn's own pack-derived ac 12; the damage event still carries its provenance):
 d20[9]=9 < ac12 actions.cut-down.attackBonus
 ```
 
+### 04 — Roll loot into the inventory
+
+Characters hold pack-declared items as `{ id, qty }` stacks. `grantLoot` rolls a
+pack table through the one table engine and maps what it lands into the
+character's inventory; every step emits its provenanced event.
+
+```ts
+import { grantLoot } from 'ruleswright/runtime';
+
+// Roll a loot table through the pack's own tables, into the character's inventory.
+grantLoot(rt, brynn.state, 'barrow-loot', { seed: 42 });
+console.log(brynn.state.inventory);
+```
+
+Expected output (seed 42 — `barrow-loot` recurses into the pack's own
+`common-relics`/`warded-gear` tables and lands a real item; a seed whose roll
+lands the table's flavor branches grants nothing and rejects loudly instead of
+inventing loot):
+
+```
+[{ id: 'grave-ward', qty: 1 }]
+```
+
+Items are `{ id, qty }` stacks keyed by id: the same table rolled again with the
+same seed stacks (qty 2); ids must resolve in the pack's `content.items` at
+grant time — unknown ids are named rejections, never silent. Loot rolls are
+deterministic per seed, like everything else (FR-1).
+
 - `profileFromCharacter(rt, character, id?)` returns `{ profile, balances }`: current
   hp, `derived()` ac/attack bonus, the pack's `initiative` formula, the union of the
   character's class `actions` (pack v1.2), and its pool points + bound spell slots.

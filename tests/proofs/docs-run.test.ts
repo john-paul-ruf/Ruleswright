@@ -30,20 +30,23 @@
  *   03 → the character fights as herself (profileFromCharacter): an attack event
  *        whose why.rolls[0] matches the README's d20[9]=9 < ac12 — ac 12 is
  *        Brynn's own derived ac from step 02
+ *   04 → grantLoot('barrow-loot', seed 42) lands a real item through the
+ *        generated pack's own tables (CA-02 through dark-fantasy): Brynn's
+ *        inventory is the stack the README quotes — observed on this run
  */
 import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { generateCampaign, loadTheme } from '../../src/compiler';
-import { Runtime, startCombat, spawnMonster, profileFromCharacter } from '../../src/runtime';
+import { Runtime, startCombat, spawnMonster, profileFromCharacter, grantLoot } from '../../src/runtime';
 
 const readmePath = fileURLToPath(new URL('../../README.md', import.meta.url));
 const readme = readFileSync(readmePath, 'utf8');
 
 /** The quickstart's ```ts blocks, in order. */
 const blocks = [...readme.matchAll(/```ts\n([\s\S]*?)```/g)].map((match) => match[1]!);
-expect(blocks.length, 'README quickstart must carry three ```ts blocks').toBe(3);
+expect(blocks.length, 'README quickstart must carry four ```ts blocks').toBe(4);
 
 /** The README's TS-only tokens (a real consumer's tsc strips these; the execution pass does the same). */
 const stripped = blocks.join('\n').split(']!').join(']');
@@ -126,7 +129,7 @@ function typecheckQuickstart(source: string): readonly string[] {
 }
 
 describe('README quickstart runs verbatim (NFR-DX)', () => {
-  it('generates → character → combat round, with the README’s expected outputs', () => {
+  it('generates → character → combat round → loot, with the README’s expected outputs', () => {
     // The README's identifiers resolve against the real surface modules (the
     // package install's exports) — the same names a consumer gets.
     const logs: unknown[][] = [];
@@ -140,6 +143,7 @@ describe('README quickstart runs verbatim (NFR-DX)', () => {
         'startCombat',
         'spawnMonster',
         'profileFromCharacter',
+        'grantLoot',
         `"use strict";\n${stripped
           .replace(/import[^;\n]+;/g, '')
           .split('await ')
@@ -152,6 +156,7 @@ describe('README quickstart runs verbatim (NFR-DX)', () => {
         startCombat,
         spawnMonster,
         profileFromCharacter,
+        grantLoot,
       ) as {
         pack: {
           manifest: { id: string; schemaVersion: number };
@@ -159,7 +164,7 @@ describe('README quickstart runs verbatim (NFR-DX)', () => {
         };
         rt: unknown;
         brynn: {
-          state: { id: string; race: string };
+          state: { id: string; race: string; inventory: { id: string; qty: number }[] };
           derived: () => { hp: number; ac: number; saves: Record<string, number> };
         };
         fight: {
@@ -194,7 +199,12 @@ describe('README quickstart runs verbatim (NFR-DX)', () => {
       expect(attack!.target).toBe('brynn');
       expect(attack!.why.rolls[0]).toBe('d20[9]=9 < ac12');
       expect(attack!.why.rule).toBe('actions.cut-down.attackBonus');
-      expect(logs.length).toBeGreaterThanOrEqual(2); // brynn.derived() + the attack line
+
+      // 04 — loot: the grantLoot call ran through the generated pack's own
+      // tables and left Brynn holding the stack the README quotes (the
+      // recorded seed-42 barrow-loot roll; CA-02 through dark-fantasy data).
+      expect(brynn.state.inventory).toEqual([{ id: 'grave-ward', qty: 1 }]);
+      expect(logs.length).toBeGreaterThanOrEqual(3); // brynn.derived() + the attack line + the inventory line
     } finally {
       log.mockRestore();
     }
@@ -207,6 +217,10 @@ describe('README quickstart runs verbatim (NFR-DX)', () => {
     expect(readme).toContain('profileFromCharacter(rt, brynn)');
     expect(readme).toContain('actions.cut-down.attackBonus');
     expect(readme).toContain('no I/O');
+    // 04 — the loot section names its own table + seed (the same honesty the
+    // combat block carries for its roll).
+    expect(readme).toContain("'barrow-loot'");
+    expect(readme).toContain('seed: 42');
     // CI-claim honesty (NFR-DX): the README must never promise a CI run CI
     // does not perform. The browser determinism leg is a tracked v1.1
     // follow-up — ci.yml runs the Node matrix only, and says so.
