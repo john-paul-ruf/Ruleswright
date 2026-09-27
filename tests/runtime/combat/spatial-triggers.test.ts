@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../../../src/core/rng';
-import { emberMarchesPack, withSpatial, type SpatialPack } from '../fixtures/packs';
+import { emberMarchesPack, emberMarchesSpatialPack, withSpatial, type SpatialPack } from '../fixtures/packs';
 import { Runtime } from '../../../src/runtime/runtime';
 import { profileFromStatblock, type CombatantProfile } from '../../../src/runtime/combat/resolve';
 import {
@@ -128,6 +128,21 @@ describe('spatial layer (FR-11)', () => {
     // The geometry API takes no size argument — structurally incapable of special-casing it.
     const geometry = gridGeometry({ defaultReach: 1 });
     expect(geometry.canReach({ x: 0, y: 0 }, { x: 1, y: 0 }, 1)).toBe(true);
+  });
+});
+
+describe('the spatial fixture pack (checkpoint-5 acceptance)', () => {
+  it('emberMarchesSpatialPack loads through the public surface; runtime.spatial is enabled once', () => {
+    const runtime = new Runtime(emberMarchesSpatialPack());
+    expect(runtime.pack.spatial).toEqual({
+      model: 'grid',
+      reach: { default: 1, 'barrow-wight': 2 },
+      shapes: ['single', 'burst'],
+    });
+    expect(runtime.spatial.enabled).toBe(true);
+    expect(runtime.spatial.canReach({ x: 0, y: 0 }, { x: 2, y: 0 }, 2)).toBe(true);
+    // The same pack minus its spatial section stays theater-of-mind.
+    expect(new Runtime(emberMarchesPack()).spatial.enabled).toBe(false);
   });
 });
 

@@ -42,7 +42,7 @@ import {
   type Side,
 } from './resolve';
 import { checkReach, type Position, type SpatialRejection } from './spatial';
-import { evalValidity, type FormulaAst } from '../../core/dsl/formula';
+import { evalValidity } from '../../core/dsl/formula';
 import { RuntimeRuleError, ruleCard } from '../errors';
 
 /** One combatant's live combat state — plain JSON, snapshot-ready (FR-14). */

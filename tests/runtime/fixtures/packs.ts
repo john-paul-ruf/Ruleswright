@@ -220,6 +220,17 @@ export function emberMarchesPack(): Pack {
   };
 }
 
+/** The spatial variant of the fixture (Design Decision 8): the v1.3 declaration
+ * shape — default reach 1, the barrow-wight frame reaching 2 as an inline
+ * sibling override (no keys sub-object, spatial.html verbatim). */
+export function emberMarchesSpatialPack(): Pack {
+  return withSpatial(emberMarchesPack(), {
+    model: 'grid',
+    reach: { default: 1, 'barrow-wight': 2 },
+    shapes: ['single', 'burst'],
+  });
+}
+
 /**
  * The default-grant branch: same pack minus the optional `economy` section.
  * The engine default grants 1 of each slot name appearing in any action or

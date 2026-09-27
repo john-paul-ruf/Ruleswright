@@ -29,7 +29,7 @@ import {
 } from '../../../src/runtime/combat/combat';
 import type { Position } from '../../../src/runtime/combat/spatial';
 import type { RuntimeEvent } from '../../../src/runtime/events';
-import { Rng, type RandomSource } from '../../../src/core/rng';
+import { Rng } from '../../../src/core/rng';
 
 /**
  * A scripted dice stream: the queue holds INTENDED die faces (1..sides);
