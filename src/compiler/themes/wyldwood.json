@@ -1,0 +1,1224 @@
+{
+  "id": "wyldwood",
+  "title": "The Wyldwood Verge",
+  "readme": "Wyldwood fey/wilderness showcase (FR-21): the format's third proof, a charm/ward loot economy with hedge-magic spell lists and no vancian slots — spells ride point pools (motes) only. Knobs: threat (bestiary budget weight), briarDensity (briar-band table weighting 1-5, default 2), hedgeMagic (hedge-mage list size 1-5, default 3), wardDepth (ward-table depth: light = flatter loot, deep = the full chain). Example override (FR-19): { \"overrides\": [ { \"target\": \"thorn-wolf\", \"patch\": { \"threat\": 2 } } ] } — patches the wolf's budget weight; same-seed regeneration reproduces the pack, so the edit anchors.",
+  "knobs": {
+    "threat": {
+      "type": "enum",
+      "values": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "default": "medium",
+      "desc": "Bestiary threat budget: low thins the briar paths, high stacks the glades."
+    },
+    "briar-density": {
+      "type": "range",
+      "min": 1,
+      "max": 5,
+      "default": 2,
+      "desc": "Briar-band table weighting: how thick the thorns run between clearings."
+    },
+    "hedge-magic": {
+      "type": "range",
+      "min": 1,
+      "max": 5,
+      "default": 3,
+      "desc": "Hedge-mage list size: how many charms the lists carry."
+    },
+    "ward-depth": {
+      "type": "enum",
+      "values": [
+        "light",
+        "deep"
+      ],
+      "default": "deep",
+      "desc": "Ward-table depth: light keeps the hedge-ward table shallow, deep stacks the chain."
+    },
+    "mote-base": {
+      "type": "range",
+      "min": 2,
+      "max": 12,
+      "default": 6,
+      "desc": "Base mote capacity before the insight term (the pool formula’s knob)."
+    }
+  },
+  "stats": {
+    "abilities": [
+      "might",
+      "grace",
+      "vigor",
+      "reason",
+      "insight",
+      "presence"
+    ],
+    "saves": [
+      "vigor",
+      "grace",
+      "tenacity",
+      "reason",
+      "presence"
+    ]
+  },
+  "economy": {
+    "turnSlots": {
+      "main": 1,
+      "move": 1,
+      "reaction": 1
+    }
+  },
+  "actions": {
+    "strike": {
+      "cost": {
+        "slots": {
+          "main": 1
+        }
+      },
+      "valid": "hasTarget(adjacent)",
+      "effect": "sequence(attack(ac, might), damage(1d8 + might, sharp))",
+      "tags": [
+        "main"
+      ]
+    },
+    "thorn-lash": {
+      "cost": {
+        "slots": {
+          "main": 1
+        },
+        "points": {
+          "pool": "motes",
+          "amount": 1
+        }
+      },
+      "valid": "hasTarget(adjacent)",
+      "effect": "sequence(attack(ac, grace), damage(1d6 + grace, pierce), applyCondition(sapped, 1))",
+      "tags": [
+        "main"
+      ]
+    },
+    "bow-volley": {
+      "cost": {
+        "slots": {
+          "main": 1
+        }
+      },
+      "effect": "sequence(attack(ac, 0), damage(1d8, pierce))",
+      "tags": [
+        "main"
+      ]
+    },
+    "glade-spear": {
+      "cost": {
+        "slots": {
+          "main": 1
+        }
+      },
+      "effect": "sequence(attack(ac, 0), damage(2d6, pierce))",
+      "tags": [
+        "main"
+      ]
+    },
+    "fall-back": {
+      "cost": {
+        "slots": {
+          "move": 1
+        }
+      },
+      "effect": "applyCondition(braced, 2)",
+      "tags": [
+        "move"
+      ]
+    },
+    "circle-path": {
+      "cost": {
+        "slots": {
+          "move": 1
+        }
+      },
+      "effect": "applyCondition(warded, 1)",
+      "tags": [
+        "move"
+      ]
+    },
+    "ward-step": {
+      "cost": {
+        "slots": {
+          "reaction": 1
+        }
+      },
+      "trigger": {
+        "on": "attack:rolled[target=self]"
+      },
+      "effect": "applyCondition(warded, 2)",
+      "tags": [
+        "reaction"
+      ]
+    },
+    "root-snare": {
+      "cost": {
+        "slots": {
+          "reaction": 1
+        }
+      },
+      "trigger": {
+        "on": "attack:rolled[target=self]"
+      },
+      "effect": "sequence(attack(ac, grace), damage(1d4, bludgeon), applyCondition(rooted, 1))",
+      "tags": [
+        "reaction"
+      ]
+    },
+    "charm-word": {
+      "cost": {
+        "points": {
+          "pool": "motes",
+          "amount": 2
+        }
+      },
+      "effect": "save(presence, 11, applyCondition(beguiled, 2), applyCondition(beguiled, 1))",
+      "tags": [
+        "casting"
+      ]
+    },
+    "briar-crown": {
+      "cost": {
+        "points": {
+          "pool": "motes",
+          "amount": 3
+        }
+      },
+      "effect": "save(tenacity, 12, applyCondition(hexbound, 2), applyCondition(hexbound, 1))",
+      "tags": [
+        "casting"
+      ]
+    },
+    "gloam-light": {
+      "cost": {
+        "points": {
+          "pool": "motes",
+          "amount": 1
+        }
+      },
+      "effect": "applyCondition(dazzled, 2)",
+      "tags": [
+        "casting"
+      ]
+    },
+    "wyrd-gaze": {
+      "cost": {
+        "slots": {
+          "main": 1
+        }
+      },
+      "effect": "save(reason, 12, applyCondition(hexsight, 3), damage(half))",
+      "tags": [
+        "casting"
+      ]
+    }
+  },
+  "formulas": {
+    "hp": {
+      "expr": "6 + level + vigor * 2"
+    },
+    "ac": {
+      "expr": "12 - floor(level / 3)"
+    },
+    "initiative": {
+      "expr": "d20 + grace"
+    },
+    "motes": {
+      "expr": "#knob/mote-base + insight"
+    }
+  },
+  "content": {
+    "classes": {
+      "warden": {
+        "name": "Warden",
+        "spellLists": [
+          "warden"
+        ],
+        "armorCasting": [
+          "leather"
+        ],
+        "features": [
+          {
+            "level": 1,
+            "ref": "oath-of-the-verge"
+          },
+          {
+            "level": 5,
+            "ref": "verges-glyph"
+          }
+        ],
+        "actions": [
+          "strike",
+          "thorn-lash",
+          "fall-back",
+          "circle-path",
+          "ward-step"
+        ]
+      },
+      "hexer": {
+        "name": "Hexer",
+        "spellLists": [
+          "hexer"
+        ],
+        "features": [
+          {
+            "level": 1,
+            "ref": "hexers-eye"
+          }
+        ],
+        "actions": [
+          "bow-volley",
+          "glade-spear",
+          "circle-path",
+          "root-snare",
+          "charm-word"
+        ]
+      },
+      "hedge-mage": {
+        "name": "Hedge Mage",
+        "spellLists": [
+          "hedge"
+        ],
+        "features": [
+          {
+            "level": 2,
+            "ref": "hedges-eye"
+          }
+        ],
+        "actions": [
+          "thorn-lash",
+          "gloam-light",
+          "fall-back",
+          "ward-step",
+          "wyrd-gaze"
+        ]
+      }
+    },
+    "races": {
+      "verge-born": {
+        "name": "Verge-born",
+        "caps": {
+          "warden": 10,
+          "hexer": 8,
+          "hedge-mage": 6
+        },
+        "size": "medium"
+      },
+      "thicket-folk": {
+        "name": "Thicket Folk",
+        "caps": {
+          "warden": 8,
+          "hexer": 10,
+          "hedge-mage": 4
+        },
+        "size": "medium"
+      },
+      "dwindle": {
+        "name": "Dwindle",
+        "caps": {
+          "warden": 6,
+          "hexer": 10,
+          "hedge-mage": 5
+        },
+        "size": "small"
+      },
+      "hollow-kin": {
+        "name": "Hollow Kin"
+      }
+    },
+    "skills": {
+      "forage": {
+        "name": "Forage",
+        "ability": "insight"
+      },
+      "pathfinding": {
+        "name": "Pathfinding",
+        "ability": "reason"
+      },
+      "briar-craft": {
+        "name": "Briar Craft",
+        "ability": "grace"
+      },
+      "hedge-lore": {
+        "name": "Hedge Lore",
+        "ability": "insight"
+      },
+      "gloam-sight": {
+        "name": "Gloam Sight",
+        "ability": "presence"
+      },
+      "beast-ward": {
+        "name": "Beast Ward",
+        "ability": "presence"
+      },
+      "vigil": {
+        "name": "Vigil",
+        "ability": "insight"
+      }
+    },
+    "feats": {
+      "ironhide": {
+        "name": "Ironhide",
+        "passive": "1"
+      },
+      "woodwise": {
+        "name": "Woodwise",
+        "passive": "1"
+      },
+      "second-gust": {
+        "name": "Second Gust",
+        "trigger": {
+          "on": "condition:applied[self]"
+        },
+        "effect": "applyCondition(braced, 2)"
+      },
+      "gloam-step": {
+        "name": "Gloam Step",
+        "trigger": {
+          "on": "condition:applied[self]"
+        },
+        "effect": "applyCondition(warded, 1)"
+      }
+    },
+    "spells": {
+      "ward-sigil": {
+        "name": "Ward Sigil",
+        "magic": {
+          "level": 1,
+          "lists": [
+            "warden"
+          ]
+        },
+        "cost": {
+          "points": {
+            "pool": "motes",
+            "amount": 2
+          }
+        },
+        "effect": "applyCondition(warded, 3)",
+        "tags": [
+          "casting"
+        ]
+      },
+      "bind-wound": {
+        "name": "Bind Wound",
+        "magic": {
+          "level": 1,
+          "lists": [
+            "warden"
+          ]
+        },
+        "cost": {
+          "points": {
+            "pool": "motes",
+            "amount": 2
+          }
+        },
+        "effect": "damage(1d8 - vigor, mending)",
+        "tags": [
+          "casting"
+        ]
+      },
+      "hex-bolt": {
+        "name": "Hex Bolt",
+        "magic": {
+          "level": 1,
+          "lists": [
+            "hexer"
+          ]
+        },
+        "cost": {
+          "points": {
+            "pool": "motes",
+            "amount": 2
+          }
+        },
+        "effect": "damage(1d6 + insight, force)",
+        "tags": [
+          "casting"
+        ]
+      },
+      "cold-clasp": {
+        "name": "Cold Clasp",
+        "magic": {
+          "level": 1,
+          "lists": [
+            "hexer"
+          ]
+        },
+        "cost": {
+          "points": {
+            "pool": "motes",
+            "amount": 2
+          }
+        },
+        "effect": "save(tenacity, 11, damage(1d8, frost), damage(half))",
+        "tags": [
+          "casting"
+        ]
+      },
+      "ember-halo": {
+        "name": "Ember Halo",
+        "magic": {
+          "level": 2,
+          "lists": [
+            "warden"
+          ]
+        },
+        "cost": {
+          "points": {
+            "pool": "motes",
+            "amount": 4
+          }
+        },
+        "targeting": {
+          "shape": "burst",
+          "radius": 2
+        },
+        "effect": "target(burst-2, save(reason, 13, damage(3d6, fire), damage(half)))",
+        "tags": [
+          "casting"
+        ]
+      },
+      "gloam-veil": {
+        "name": "Gloam Veil",
+        "magic": {
+          "level": 2,
+          "lists": [
+            "hedge-mage"
+          ]
+        },
+        "cost": {
+          "points": {
+            "pool": "motes",
+            "amount": 3
+          }
+        },
+        "effect": "applyCondition(dazzled, 3)",
+        "tags": [
+          "casting"
+        ]
+      },
+      "wyrd-bloom": {
+        "name": "Wyrd Bloom",
+        "magic": {
+          "level": 2,
+          "lists": [
+            "hedge-mage"
+          ]
+        },
+        "cost": {
+          "points": {
+            "pool": "motes",
+            "amount": 4
+          }
+        },
+        "targeting": {
+          "shape": "burst",
+          "radius": 2
+        },
+        "effect": "target(burst-2, save(presence, 12, applyCondition(beguiled, 3), damage(half)))",
+        "tags": [
+          "casting"
+        ]
+      },
+      "verge-light": {
+        "name": "Verge Light",
+        "magic": {
+          "level": 1,
+          "lists": [
+            "hedge-mage"
+          ]
+        },
+        "cost": {
+          "points": {
+            "pool": "motes",
+            "amount": 1
+          }
+        },
+        "effect": "applyCondition(dazzled, 1)",
+        "tags": [
+          "casting"
+        ]
+      },
+      "briar-word": {
+        "name": "Briar Word",
+        "magic": {
+          "level": 3,
+          "lists": [
+            "hedge-mage"
+          ]
+        },
+        "cost": {
+          "points": {
+            "pool": "motes",
+            "amount": 5
+          }
+        },
+        "targeting": {
+          "shape": "burst",
+          "radius": 3
+        },
+        "effect": "target(burst-3, save(tenacity, 14, applyCondition(hexbound, 4), damage(half)))",
+        "tags": [
+          "casting"
+        ]
+      },
+      "thorn-wake": {
+        "name": "Thorn Wake",
+        "magic": {
+          "level": 3,
+          "lists": [
+            "hexer"
+          ]
+        },
+        "cost": {
+          "points": {
+            "pool": "motes",
+            "amount": 5
+          }
+        },
+        "targeting": {
+          "shape": "burst",
+          "radius": 2
+        },
+        "effect": "target(burst-2, save(grace, 14, damage(4d6, pierce), damage(half)))",
+        "tags": [
+          "casting"
+        ]
+      }
+    },
+    "conditions": {
+      "sapped": {
+        "name": "Sapped",
+        "duration": 3,
+        "stacking": "refresh",
+        "restricts": [
+          "actions.tagged:main"
+        ]
+      },
+      "hexbound": {
+        "name": "Hexbound",
+        "duration": 2,
+        "stacking": "stack",
+        "restricts": [
+          "spells.tagged:casting"
+        ]
+      },
+      "beguiled": {
+        "name": "Beguiled",
+        "duration": 2,
+        "stacking": "refresh"
+      },
+      "dazzled": {
+        "name": "Dazzled",
+        "duration": 2,
+        "stacking": "ignore"
+      },
+      "braced": {
+        "name": "Braced",
+        "duration": 2,
+        "stacking": "refresh"
+      },
+      "rooted": {
+        "name": "Rooted",
+        "duration": 3,
+        "stacking": "refresh",
+        "restricts": [
+          "actions.tagged:move"
+        ]
+      },
+      "warded": {
+        "name": "Warded",
+        "duration": 3,
+        "stacking": "refresh"
+      },
+      "hexsight": {
+        "name": "Hexsight",
+        "duration": 5,
+        "stacking": "ignore"
+      }
+    },
+    "items": {
+      "oaken-cudgel": {
+        "name": "Oaken Cudgel",
+        "kind": "weapon"
+      },
+      "warded-mail": {
+        "name": "Warded Mail",
+        "kind": "armor"
+      },
+      "hedge-charm": {
+        "name": "Hedge Charm",
+        "kind": "charm"
+      },
+      "gloam-lantern": {
+        "name": "Gloam Lantern",
+        "kind": "gear"
+      },
+      "hearth-bread": {
+        "name": "Hearth Bread",
+        "kind": "provision"
+      },
+      "wyrd-token": {
+        "name": "Wyrd Token",
+        "kind": "relic"
+      }
+    }
+  },
+  "progression": {
+    "warden": {
+      "hd": "d10",
+      "attackTable": [
+        {
+          "level": 1,
+          "byDefense": {
+            "2": 20,
+            "3": 19,
+            "4": 18,
+            "5": 17,
+            "6": 16,
+            "7": 15,
+            "8": 14,
+            "9": 13,
+            "10": 12
+          }
+        },
+        {
+          "level": 2,
+          "byDefense": {
+            "2": 20,
+            "3": 19,
+            "4": 18,
+            "5": 17,
+            "6": 16,
+            "7": 15,
+            "8": 14,
+            "9": 13,
+            "10": 12
+          }
+        },
+        {
+          "level": 3,
+          "byDefense": {
+            "2": 19,
+            "3": 18,
+            "4": 17,
+            "5": 16,
+            "6": 15,
+            "7": 14,
+            "8": 13,
+            "9": 12,
+            "10": 11
+          }
+        },
+        {
+          "level": 4,
+          "byDefense": {
+            "2": 19,
+            "3": 18,
+            "4": 17,
+            "5": 16,
+            "6": 15,
+            "7": 14,
+            "8": 13,
+            "9": 12,
+            "10": 11
+          }
+        },
+        {
+          "level": 5,
+          "byDefense": {
+            "2": 18,
+            "3": 17,
+            "4": 16,
+            "5": 15,
+            "6": 14,
+            "7": 13,
+            "8": 12,
+            "9": 11,
+            "10": 10
+          }
+        },
+        {
+          "level": 6,
+          "byDefense": {
+            "2": 18,
+            "3": 17,
+            "4": 16,
+            "5": 15,
+            "6": 14,
+            "7": 13,
+            "8": 12,
+            "9": 11,
+            "10": 10
+          }
+        },
+        {
+          "level": 7,
+          "byDefense": {
+            "2": 17,
+            "3": 16,
+            "4": 15,
+            "5": 14,
+            "6": 13,
+            "7": 12,
+            "8": 11,
+            "9": 10,
+            "10": 9
+          }
+        },
+        {
+          "level": 8,
+          "byDefense": {
+            "2": 17,
+            "3": 16,
+            "4": 15,
+            "5": 14,
+            "6": 13,
+            "7": 12,
+            "8": 11,
+            "9": 10,
+            "10": 9
+          }
+        },
+        {
+          "level": 9,
+          "byDefense": {
+            "2": 16,
+            "3": 15,
+            "4": 14,
+            "5": 13,
+            "6": 12,
+            "7": 11,
+            "8": 10,
+            "9": 9,
+            "10": 8
+          }
+        },
+        {
+          "level": 10,
+          "byDefense": {
+            "2": 16,
+            "3": 15,
+            "4": 14,
+            "5": 13,
+            "6": 12,
+            "7": 11,
+            "8": 10,
+            "9": 9,
+            "10": 8
+          }
+        }
+      ],
+      "saves": {
+        "vigor": [
+          0,
+          0,
+          1,
+          1,
+          1,
+          2,
+          2,
+          2,
+          3,
+          3
+        ],
+        "grace": [
+          0,
+          1,
+          1,
+          1,
+          2,
+          2,
+          2,
+          3,
+          3,
+          3
+        ],
+        "tenacity": [
+          0,
+          0,
+          1,
+          1,
+          1,
+          2,
+          2,
+          2,
+          2,
+          3
+        ],
+        "reason": [
+          0,
+          0,
+          0,
+          1,
+          1,
+          1,
+          2,
+          2,
+          2,
+          2
+        ],
+        "presence": [
+          0,
+          0,
+          1,
+          1,
+          1,
+          1,
+          2,
+          2,
+          2,
+          2
+        ]
+      }
+    },
+    "hexer": {
+      "hd": "d6",
+      "attackBonus": "floor(level / 2) + grace",
+      "saves": {
+        "reason": [
+          2,
+          2,
+          3,
+          3,
+          4,
+          4,
+          4,
+          5,
+          5,
+          5
+        ],
+        "grace": [
+          1,
+          2,
+          2,
+          3,
+          3,
+          3,
+          4,
+          4,
+          4,
+          5
+        ],
+        "presence": [
+          0,
+          1,
+          1,
+          2,
+          2,
+          2,
+          3,
+          3,
+          3,
+          4
+        ]
+      }
+    },
+    "hedge-mage": {
+      "hd": "d8",
+      "attackBonus": "floor(level / 3) + insight",
+      "saves": {
+        "reason": [
+          1,
+          1,
+          2,
+          2,
+          2,
+          3,
+          3,
+          3,
+          4,
+          4
+        ],
+        "vigor": [
+          0,
+          0,
+          1,
+          1,
+          1,
+          1,
+          2,
+          2,
+          2,
+          2
+        ],
+        "presence": [
+          0,
+          1,
+          1,
+          1,
+          2,
+          2,
+          2,
+          2,
+          3,
+          3
+        ]
+      }
+    }
+  },
+  "bestiary": {
+    "thorn-wolf": {
+      "name": "Thorn Wolf",
+      "threat": 1.5,
+      "level": 1,
+      "hd": "d8",
+      "abilityOverrides": {
+        "might": 3,
+        "grace": 2
+      },
+      "attackTable": "warden",
+      "actions": [
+        "strike"
+      ]
+    },
+    "briar-shade": {
+      "name": "Briar Shade",
+      "threat": 3,
+      "level": 3,
+      "hd": "d6",
+      "abilityOverrides": {
+        "grace": 4,
+        "presence": 3,
+        "might": 1
+      },
+      "saveOverrides": {
+        "reason": 3,
+        "presence": 2
+      },
+      "attackTable": "warden",
+      "actions": [
+        "gloam-light",
+        "charm-word"
+      ]
+    },
+    "hollow-wight": {
+      "name": "Hollow Wight",
+      "threat": 5,
+      "level": 5,
+      "hd": "d10",
+      "abilityOverrides": {
+        "might": 4,
+        "vigor": 3,
+        "presence": 4,
+        "insight": 2
+      },
+      "saveOverrides": {
+        "reason": 4,
+        "presence": 3
+      },
+      "attackTable": "warden",
+      "actions": [
+        "thorn-lash",
+        "wyrd-gaze",
+        "root-snare"
+      ]
+    }
+  },
+  "tables": {
+    "wandering-dread": {
+      "kind": "weighted",
+      "entries": [
+        {
+          "weight": 4,
+          "value": "bestiary.thorn-wolf"
+        },
+        {
+          "weight": 3,
+          "value": "bestiary.briar-shade"
+        },
+        {
+          "weight": 1,
+          "value": "bestiary.hollow-wight"
+        }
+      ]
+    },
+    "glade-loot": {
+      "kind": "nested",
+      "entries": [
+        {
+          "weight": 3,
+          "value": "wyrd-charms"
+        },
+        {
+          "weight": 2,
+          "value": "verge-gear"
+        },
+        {
+          "weight": 1,
+          "value": "nothing"
+        }
+      ]
+    },
+    "wyrd-charms": {
+      "kind": "weighted",
+      "entries": [
+        {
+          "weight": 2,
+          "value": "hedge-charm"
+        },
+        {
+          "weight": 1,
+          "value": "wyrd-token"
+        },
+        {
+          "weight": 1,
+          "value": "tables.verge-gear"
+        }
+      ]
+    },
+    "verge-gear": {
+      "kind": "weighted",
+      "entries": [
+        {
+          "weight": 2,
+          "value": "gloam-lantern"
+        },
+        {
+          "weight": 1,
+          "value": "oaken-cudgel"
+        },
+        {
+          "weight": 1,
+          "value": "warded-mail"
+        }
+      ]
+    },
+    "briar-sting": {
+      "kind": "ranged",
+      "entries": [
+        {
+          "min": 1,
+          "max": 30,
+          "value": "a scratch that itches for days"
+        },
+        {
+          "min": 31,
+          "max": 70,
+          "value": "thorns catch sleeve and hair"
+        },
+        {
+          "min": 71,
+          "max": 90,
+          "value": "the path closes behind you"
+        },
+        {
+          "min": 91,
+          "max": 100,
+          "value": "applyCondition(sapped, 2)"
+        }
+      ]
+    },
+    "verge-mood": {
+      "kind": "ranged",
+      "entries": [
+        {
+          "min": 1,
+          "max": 25,
+          "value": "the gloam light gutters between the trees"
+        },
+        {
+          "min": 26,
+          "max": 50,
+          "value": "something hums under the moss"
+        },
+        {
+          "min": 51,
+          "max": 75,
+          "value": "the briars lean in, listening"
+        },
+        {
+          "min": 76,
+          "max": 100,
+          "value": "a distant pipe plays, thin and wrong"
+        }
+      ]
+    },
+    "weather": {
+      "kind": "ranged",
+      "entries": [
+        {
+          "min": 1,
+          "max": 30,
+          "value": "green mist"
+        },
+        {
+          "min": 31,
+          "max": 55,
+          "value": "low grey cloud"
+        },
+        {
+          "min": 56,
+          "max": 80,
+          "value": "still warmth"
+        },
+        {
+          "min": 81,
+          "max": 100,
+          "value": "rain on heavy leaves"
+        }
+      ]
+    },
+    "xp": {
+      "kind": "ranged",
+      "entries": [
+        {
+          "min": 0,
+          "max": 999,
+          "value": 1
+        },
+        {
+          "min": 1000,
+          "max": 2999,
+          "value": 2
+        },
+        {
+          "min": 3000,
+          "max": 5999,
+          "value": 3
+        },
+        {
+          "min": 6000,
+          "max": 9999,
+          "value": 4
+        },
+        {
+          "min": 10000,
+          "max": 14999,
+          "value": 5
+        },
+        {
+          "min": 15000,
+          "max": 20999,
+          "value": 6
+        },
+        {
+          "min": 21000,
+          "max": 27999,
+          "value": 7
+        },
+        {
+          "min": 28000,
+          "max": 35999,
+          "value": 8
+        },
+        {
+          "min": 36000,
+          "max": 44999,
+          "value": 9
+        },
+        {
+          "min": 45000,
+          "max": 999999,
+          "value": 10
+        }
+      ]
+    }
+  }
+}

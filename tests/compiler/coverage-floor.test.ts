@@ -1,15 +1,16 @@
 /**
  * Checkpoint-3 suite — the FR-21 coverage floor, the acceptance spine. Every
- * bullet is enumerated against BOTH generated packs (dark-fantasy = vancian
- * showcase; zombie-urban = drain/table showcase). This file is S08's proof-4
- * input: generateCampaign → validatePack(packDslChecker) → the floor holds.
+ * bullet is enumerated against ALL THREE generated packs (dark-fantasy =
+ * vancian showcase; zombie-urban = drain/table showcase; wyldwood = fey
+ * charm/ward showcase). This file is S08's proof-4 input:
+ * generateCampaign → validatePack(packDslChecker) → the floor holds.
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { runPipeline } from '../../src/compiler/pipeline';
-import { DARK_FANTASY, ZOMBIE_URBAN } from '../../src/compiler/theme-loader';
+import { DARK_FANTASY, ZOMBIE_URBAN, WYLDWOOD } from '../../src/compiler/theme-loader';
 import { validatePack } from '../../src/schema/validate';
 import { packDslChecker } from '../../src/core/dsl/checker';
 import { packContentHash } from '../../src/schema/version';
@@ -22,9 +23,10 @@ const SEED = 42;
 const PACKS: readonly { name: string; pack: Pack; theme: typeof DARK_FANTASY }[] = [
   { name: 'dark-fantasy', pack: runPipeline(DARK_FANTASY, SEED), theme: DARK_FANTASY },
   { name: 'zombie-urban', pack: runPipeline(ZOMBIE_URBAN, SEED), theme: ZOMBIE_URBAN },
+  { name: 'wyldwood', pack: runPipeline(WYLDWOOD, SEED), theme: WYLDWOOD },
 ];
 
-describe('FR-17/CA-1 — both themes generate and validate clean (the dogfood proof)', () => {
+describe('FR-17/CA-1 — all three themes generate and validate clean (the dogfood proof)', () => {
   for (const { name, pack } of PACKS) {
     it(`${name}: generateCampaign → schema.validatePack(+packDslChecker) → zero cards`, () => {
       const cards = validatePack(pack, packDslChecker);
@@ -36,7 +38,7 @@ describe('FR-17/CA-1 — both themes generate and validate clean (the dogfood pr
 });
 
 describe('v1.2 — every bundled class declares combat actions (UI B-1, D-23)', () => {
-  for (const themeId of ['dark-fantasy', 'zombie-urban'] as const) {
+  for (const themeId of ['dark-fantasy', 'zombie-urban', 'wyldwood'] as const) {
     it(`${themeId}: the generated pack loads in the Runtime and every class grants 1+ declared action`, () => {
       const pack = generateCampaign({ theme: loadTheme(themeId), seed: SEED });
       const rt = new Runtime(pack);
@@ -248,6 +250,48 @@ describe('FR-21 showcase split — dark-fantasy = vancian showcase', () => {
   });
 });
 
+describe('FR-21 showcase split — wyldwood = fey charm/ward showcase', () => {
+  it('a charm/ward loot economy: the hedge lists carry charms, wards, and bursts', () => {
+    const spells = Object.entries(WYLDWOOD.content?.spells ?? {});
+    expect(spells.length).toBe(10); // the hedge-magic band: L1–3, all three lists
+    const byLevel: Record<number, number> = {};
+    for (const [, spell] of spells) byLevel[spell.magic.level] = (byLevel[spell.magic.level] ?? 0) + 1;
+    expect(Object.keys(byLevel).sort()).toEqual(['1', '2', '3']);
+    const bursts = Object.values(WYLDWOOD.content?.spells ?? {}).filter(
+      (spell) => spell.targeting?.shape === 'burst',
+    );
+    expect(bursts.length).toBeGreaterThanOrEqual(3); // ember-halo, wyrd-bloom, briar-word, thorn-wake
+  });
+
+  it('point-pool spells only — no vancian slots anywhere (the third cost convention)', () => {
+    const spellCosts = Object.values(WYLDWOOD.content?.spells ?? {}).every(
+      (spell) => spell.cost.points !== undefined,
+    );
+    expect(spellCosts).toBe(true);
+    expect(Object.values(WYLDWOOD.progression ?? {}).every((prog) => prog.slots === undefined)).toBe(true);
+    expect(WYLDWOOD.formulas?.motes).toEqual({ expr: '#knob/mote-base + insight' });
+  });
+
+  it('loot is charm/ward-shaped: three loot tables over a six-item economy, one nested chain', () => {
+    const tables = Object.keys(WYLDWOOD.tables ?? {});
+    expect(tables).toContain('glade-loot');
+    expect(tables).toContain('wyrd-charms');
+    expect(tables).toContain('verge-gear');
+    expect(tables).toContain('briar-sting'); // the ranged flavor + effect-value loot table
+    const charms = Object.entries(WYLDWOOD.tables?.['wyrd-charms']?.entries ?? {}).map(
+      ([, entry]) => entry.value,
+    );
+    expect(charms).toContain('hedge-charm');
+    expect(charms).toContain('wyrd-token');
+    expect(charms).toContain('tables.verge-gear'); // the packed nested ref
+  });
+
+  it('race caps carry through generation: the demihuman curve keeps its classic shape', () => {
+    const on = runPipeline(WYLDWOOD, SEED);
+    expect(on.content.races?.['dwindle']?.caps).toEqual({ warden: 6, hexer: 10, 'hedge-mage': 5 });
+  });
+});
+
 describe('FR-21 showcase split — zombie-urban = drain/table showcase', () => {
   it('survivor classes + a drain pool (no vancian anywhere beyond a small ritual list)', () => {
     const classes = Object.keys(ZOMBIE_URBAN.content?.classes ?? {});
@@ -322,7 +366,7 @@ describe('coined-name lint (Q7/Q8) \u2014 pack content greps clean of SRD-adjace
   it('both theme data files are clean of the SRD-adjacent list', () => {
     const dir = fileURLToPath(new URL('../../src/compiler/themes', import.meta.url));
     const files = readdirSync(dir).filter((file) => file.endsWith('.json'));
-    expect(files.sort()).toEqual(['dark-fantasy.json', 'zombie-urban.json']);
+    expect(files.sort()).toEqual(['dark-fantasy.json', 'wyldwood.json', 'zombie-urban.json']);
     for (const file of files) {
       const source = readFileSync(join(dir, file), 'utf8').toLowerCase();
       for (const term of SRD_ADJACENT) {
