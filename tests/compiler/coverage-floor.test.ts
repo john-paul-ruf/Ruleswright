@@ -4,6 +4,10 @@
  * vancian showcase; zombie-urban = drain/table showcase; wyldwood = fey
  * charm/ward showcase). This file is S08's proof-4 input:
  * generateCampaign → validatePack(packDslChecker) → the floor holds.
+ *
+ * SESSION-04 extends the floor with the spatial declarations (CAP-G6, FR-11):
+ * every bundled theme declares the grid model and every generated pack ships it
+ * — stage-8 validation clean (the theater-of-mind default would omit the section).
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -154,6 +158,25 @@ describe('FR-21 floor — the shared bullets, enumerated against both packs', ()
       } else {
         // the zombie theme omits economy deliberately: the default-grant branch
         expect(pack.economy).toBeUndefined();
+      }
+    });
+
+    it(`${name}: spatial — the theme declares it, the pack ships it, shape-valid (CAP-G6)`, () => {
+      const theme = PACKS.find((entry) => entry.name === name)!.theme;
+      // declared: the grid model with an integer >= 1 at every reach key (the v1 set)
+      expect(theme.spatial?.model).toBe('grid');
+      expect(theme.spatial?.reach.default).toBeGreaterThanOrEqual(1);
+      for (const [key, steps] of Object.entries(theme.spatial?.reach ?? {}))
+        expect(steps, `theme spatial.reach.${key} (${name})`).toBeGreaterThanOrEqual(1);
+      // shipped: the pack section is the declaration, verbatim
+      expect(pack.spatial).toEqual(theme.spatial);
+      expect(pack.spatial?.model).toBe('grid');
+      expect(pack.spatial?.reach.default).toBeGreaterThanOrEqual(1);
+      // overrides name bestiary ids the theme declares; the override extends the default
+      for (const key of Object.keys(pack.spatial?.reach ?? {})) {
+        if (key === 'default') continue;
+        expect(pack.bestiary[key], key).toBeDefined();
+        expect(pack.spatial!.reach[key]!).toBeGreaterThanOrEqual(pack.spatial!.reach.default!);
       }
     });
 

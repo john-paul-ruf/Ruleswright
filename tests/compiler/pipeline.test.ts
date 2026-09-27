@@ -13,6 +13,7 @@ import { stageRng } from '../../src/compiler/rng-stream';
 import { listThemeKnobs, resolveKnobs } from '../../src/compiler/knobs';
 import { GenerationError } from '../../src/compiler/errors';
 import { composeTheme, readPatch } from '../../src/compiler/compose';
+import { DARK_FANTASY, ZOMBIE_URBAN, WYLDWOOD } from '../../src/compiler/theme-loader';
 import type { Stage, GenerationContext } from '../../src/compiler/stage';
 import type { ThemeTemplate, ThemePatch } from '../../src/compiler/theme';
 
@@ -332,6 +333,93 @@ describe('pipeline output is validator-clean (the dogfood contract, CA-1)', () =
     } catch (error) {
       const card = (error as GenerationError).errors[0]!;
       expect(card.jsonPath.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('spatial pass-through (v1.3, FR-11) — theme input to pack section (CA-G1)', () => {
+  it('a theme with spatial: the generated pack.spatial deep-equals the declaration, and the JSON keys mirror SpatialDef’s fields (no renaming at any layer)', () => {
+    const theme = microTheme();
+    theme.spatial = { model: 'grid', reach: { default: 1, 'barrow-wight': 2 }, shapes: ['single', 'burst'] };
+    const pack = runPipeline(theme, 42);
+    expect(pack.spatial).toEqual({
+      model: 'grid',
+      reach: { default: 1, 'barrow-wight': 2 },
+      shapes: ['single', 'burst'],
+    });
+    // CA-G1 boundary: the theme-side input is the pack's own SpatialDef vocabulary —
+    // model/reach/shapes with reach.default plus sibling overrides. No theme-side renaming.
+    expect(Object.keys(pack.spatial!).sort()).toEqual(['model', 'reach', 'shapes']);
+    expect(Object.keys(pack.spatial!.reach).sort()).toEqual(['barrow-wight', 'default']);
+    expect(pack.spatial!.model).toBe('grid');
+    expect(pack.spatial!.reach.default).toBe(1);
+    expect(pack.spatial!.reach['barrow-wight']).toBe(2);
+    expect(pack.spatial!.shapes).toEqual(['single', 'burst']);
+  });
+
+  it('a #knob token inside the spatial declaration resolves before the section lands in the pack', () => {
+    // Tokens stringify their value (the engine’s substitution discipline), so the legal
+    // placement inside a stage-8-valid section is a shape-valued enum knob: reach’s
+    // integer fields and the shape set itself cannot carry a tokenized number.
+    const theme = microTheme();
+    theme.knobs = {
+      'lead-shape': { type: 'enum', values: ['single'], default: 'single', desc: 'first declared shape' },
+    };
+    theme.spatial = {
+      model: 'grid',
+      reach: { default: 1, 'barrow-wight': 2 },
+      shapes: ['#knob/lead-shape', 'burst'] as never,
+    };
+    const pack = runPipeline(theme, 42);
+    // resolution, not pass-through: the theme declared the token, the pack carries the value
+    expect(theme.spatial!.shapes).toEqual(['#knob/lead-shape', 'burst']);
+    expect(pack.spatial!.shapes).toEqual(['single', 'burst']);
+    expect(pack.spatial!.reach).toEqual({ default: 1, 'barrow-wight': 2 });
+    expect(validatePack(pack, packDslChecker)).toEqual([]);
+  });
+
+  it('a theme without spatial: the generated pack carries no spatial key (absent = theater of mind)', () => {
+    const pack = runPipeline(microTheme(), 42);
+    expect('spatial' in pack).toBe(false);
+    expect(pack.spatial).toBeUndefined();
+    expect(validatePack(pack, packDslChecker)).toEqual([]);
+  });
+
+  it('generation never mutates the theme’s spatial declaration (the clone discipline)', () => {
+    const theme = microTheme();
+    theme.spatial = { model: 'grid', reach: { default: 1 }, shapes: ['single', 'burst'] };
+    const declaration = structuredClone(theme.spatial);
+    runPipeline(theme, 42);
+    expect(theme.spatial).toEqual(declaration);
+  });
+});
+
+describe('the bundled themes ship spatial (CAP-G6)', () => {
+  it('each generated pack carries model grid with an integer >= 1 at every reach key', () => {
+    for (const theme of [DARK_FANTASY, ZOMBIE_URBAN, WYLDWOOD]) {
+      const pack = runPipeline(theme, 42);
+      expect(pack.spatial, theme.id).toBeDefined();
+      expect(pack.spatial!.model).toBe('grid');
+      expect(pack.spatial!.reach.default).toBeGreaterThanOrEqual(1);
+      for (const [key, steps] of Object.entries(pack.spatial!.reach))
+        expect(steps, `spatial.reach.${key} (${theme.id})`).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it('the generated sections deep-equal the themes’ declarations (the pass-through is verbatim)', () => {
+    for (const theme of [DARK_FANTASY, ZOMBIE_URBAN, WYLDWOOD]) {
+      const pack = runPipeline(theme, 42);
+      expect(pack.spatial).toEqual(theme.spatial);
+    }
+  });
+
+  it('the reach overrides name bestiary ids the themes declare, with integer >= 1 steps', () => {
+    expect(DARK_FANTASY.spatial?.reach).toEqual({ default: 1, 'barrow-wight': 2 });
+    expect(ZOMBIE_URBAN.spatial?.reach).toEqual({ default: 1, 'slab-brute': 2 });
+    expect(WYLDWOOD.spatial?.reach).toEqual({ default: 1, 'hollow-wight': 2 });
+    for (const theme of [DARK_FANTASY, ZOMBIE_URBAN, WYLDWOOD]) {
+      for (const key of Object.keys(theme.spatial!.reach))
+        if (key !== 'default') expect(theme.bestiary?.[key], key).toBeDefined();
     }
   });
 });
