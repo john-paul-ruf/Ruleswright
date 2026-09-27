@@ -186,7 +186,11 @@
           "type": "object",
           "required": ["default"],
           "properties": {
-            "default": { "type": "integer", "minimum": 1, "description": "Melee reach in grid steps (1 = adjacency)" }
+            "default": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Melee reach in grid steps (1 = adjacency)"
+            }
           },
           "additionalProperties": { "type": "integer", "minimum": 1 },
           "description": "Per-id reach overrides are direct siblings of `default` (spatial.html verbatim: \"weapons.long-spear\": 2). The engine resolves a combatant's reach by combatant/artifact id (`reach[id] ?? reach.default`); dotted artifact paths are a documented v2 seam."
