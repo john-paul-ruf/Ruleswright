@@ -1,6 +1,8 @@
 /**
  * CAP-7 checkpoint 1 — character snapshots (FR-14): envelope conformance,
  * round-trip losslessness, plain-JSON purity, no-aliasing, pack identity.
+ * Loot-inventory SESSION-01 ck2 adds the inventory fidelity proofs (CAP-01/CA-01):
+ * held stacks serialize verbatim and restore round-trips them losslessly.
  */
 import { describe, expect, it } from 'vitest';
 import { Runtime } from '../../src/runtime/runtime';
@@ -122,6 +124,78 @@ describe('character snapshots (FR-14, CAP-7)', () => {
     const hashC = serializeCharacter(new Runtime(pack3), state).pack.contentHash;
     expect(hashA).not.toBe(hashB);
     expect(hashA).not.toBe(hashC);
+  });
+});
+
+/**
+ * CAP-01/CA-01 — inventory fidelity: held stacks serialize verbatim, restore
+ * round-trips them losslessly (loot-granted stacks included), and the envelope
+ * never carries a zero-qty entry (snapshots.schema.json: qty integer >= 1).
+ */
+describe('inventory fidelity (CAP-01/CA-01 — loot-inventory ck2)', () => {
+  /** The fixture vale plus one more declared item — two stack ids for per-entry proofs. */
+  function valeWithLantern() {
+    const pack = cloneRuntimePack();
+    pack.content.items!['lantern'] = { name: 'Lantern', kind: 'gear' };
+    return pack;
+  }
+
+  it('held stacks serialize verbatim and restore losslessly — loot-granted stacks included', () => {
+    const runtime = new Runtime(valeWithLantern());
+    const character = createCharacter(runtime, { name: 'Brynn', race: 'hillfolk', classes: ['warden'] });
+    character.grant('lantern', 2);
+    character.loot('district-scavenge', { seed: 0 }); // rope x1 through the CA-02 mapping
+    character.drop('lantern', 1); // a partial drop keeps the stack at qty 1
+    const state = character.state;
+    expect(state.inventory).toEqual([
+      { id: 'lantern', qty: 1 },
+      { id: 'rope', qty: 1 },
+    ]);
+
+    const snap = serializeCharacter(runtime, state);
+    expect(snap.state.inventory).toEqual([
+      { id: 'lantern', qty: 1 },
+      { id: 'rope', qty: 1 },
+    ]);
+    const roundTrip = JSON.parse(JSON.stringify(snap)) as typeof snap;
+    // The target runtime carries the same pack content (the identity gate
+    // hashes it) — restore replays the stacks verbatim, no mutation-time
+    // cross-validation on the load path (CA-01 discipline).
+    const restored = restoreCharacter(new Runtime(valeWithLantern()), roundTrip);
+    expect(restored.state).toEqual(state);
+    expect(restored.state.inventory).toEqual([
+      { id: 'lantern', qty: 1 },
+      { id: 'rope', qty: 1 },
+    ]);
+  });
+
+  it('no aliasing: mutating the restored inventory leaves the snapshot and source state untouched', () => {
+    const runtime = new Runtime(cloneRuntimePack());
+    const character = createCharacter(runtime, { name: 'Brynn', race: 'hillfolk', classes: ['warden'] });
+    character.grant('rope', 2);
+    const snap = serializeCharacter(runtime, character.state);
+    const restored = restoreCharacter(new Runtime(cloneRuntimePack()), snap);
+    restored.state.inventory[0]!.qty = 99;
+    restored.state.inventory.push({ id: 'rope', qty: 1 });
+    expect(snap.state.inventory).toEqual([{ id: 'rope', qty: 2 }]);
+    expect(character.state.inventory).toEqual([{ id: 'rope', qty: 2 }]);
+  });
+
+  it('the envelope never carries a zero-qty entry: drops to 0 remove the stack entirely', () => {
+    const runtime = new Runtime(cloneRuntimePack());
+    const character = createCharacter(runtime, { name: 'Brynn', race: 'hillfolk', classes: ['warden'] });
+    character.grant('rope', 5);
+    character.drop('rope', 4);
+    const snapPartial = serializeCharacter(runtime, character.state);
+    expect(snapPartial.state.inventory).toEqual([{ id: 'rope', qty: 1 }]);
+    for (const entry of snapPartial.state.inventory) {
+      expect(Object.keys(entry).sort()).toEqual(['id', 'qty']);
+      expect(Number.isInteger(entry.qty)).toBe(true);
+      expect(entry.qty).toBeGreaterThanOrEqual(1);
+    }
+    character.drop('rope', 1);
+    const snapEmpty = serializeCharacter(runtime, character.state);
+    expect(snapEmpty.state.inventory).toEqual([]);
   });
 });
 
