@@ -7,7 +7,8 @@
  * Derived stats resolve exclusively through the pack's reserved formula ids
  * (`hp`/`ac`, CA-6) — never hardcoded math. Build validation and the
  * progression paths live in progression.ts (both entry points run the same
- * validator); pools/slots vocabulary in pools.ts, conditions in conditions.ts.
+ * validator); pools/slots vocabulary in pools.ts, conditions in conditions.ts,
+ * inventory in inventory.ts.
  */
 import { evalFormula, valueOfFormula } from '../core/dsl/formula';
 import { Rng } from '../core/rng';
@@ -25,6 +26,13 @@ import {
   applyTheme as applyThemeFn,
   removeTheme as removeThemeFn,
 } from './conditions';
+import {
+  grantItem as grantItemFn,
+  dropItem as dropItemFn,
+  countItem as countItemFn,
+  grantLoot as grantLootFn,
+  type LootOptions,
+} from './inventory';
 import type { RuntimeEvent } from './events';
 import { validateBuild, buildCharacter, CharacterBuildError } from './progression';
 
@@ -39,6 +47,12 @@ export interface ActiveCondition {
 export interface ClassEntry {
   id: string;
   level: number;
+}
+
+/** One held stack: plain data; qty >= 1; ids resolve in content.items. */
+export interface InventoryEntry {
+  id: string;
+  qty: number;
 }
 
 /** Plain-JSON character state (FR-5/FR-14) — the serializer's subject (S06 pairs with this). */
@@ -62,6 +76,8 @@ export interface CharacterState {
   slots: Record<string, (string | null)[]>;
   conditions: ActiveCondition[];
   spells: string[];
+  /** Held items as {id, qty} stacks (CAP-01; ids resolve in content.items at mutation time). */
+  inventory: InventoryEntry[];
   /** HP bookkeeping: the reserved formula's value is the cap; `current` starts at it. */
   hp: { current: number; temp: number };
 }
@@ -128,6 +144,26 @@ export class Character {
   /** FR-7 — one round tick of condition durations (conditions.ts). */
   tick(): readonly RuntimeEvent[] {
     return tickConditions(this.runtime, this.state);
+  }
+
+  /** CAP-01 — gain a pack-declared item; stacks by id (inventory.ts). */
+  grant(itemId: string, qty?: number): void {
+    grantItemFn(this.runtime, this.state, itemId, qty);
+  }
+
+  /** CAP-01 — give up held qty of a pack-declared item (inventory.ts). */
+  drop(itemId: string, qty?: number): void {
+    dropItemFn(this.runtime, this.state, itemId, qty);
+  }
+
+  /** CAP-01 — how many of an item the character holds (inventory.ts). */
+  count(itemId: string): number {
+    return countItemFn(this.runtime, this.state, itemId);
+  }
+
+  /** CAP-02 — roll a pack loot table through the one table engine into inventory (inventory.ts). */
+  loot(tableId: string, opts?: LootOptions): readonly RuntimeEvent[] {
+    return grantLootFn(this.runtime, this.state, tableId, opts);
   }
 
   /** FR-3 — derived stats strictly through the pack's reserved formulas (CA-6). */

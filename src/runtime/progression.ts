@@ -166,6 +166,7 @@ export function buildCharacter(
     slots: derived.slots,
     conditions: [],
     spells: [],
+    inventory: [],
     hp: { current: hp, temp: 0 },
   };
 }

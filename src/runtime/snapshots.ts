@@ -19,7 +19,7 @@
  *   - conditions[]   ⇄ { id: conditionId, remaining: duration }
  *   - slots          ⇄ the bindings record verbatim (string level → (null|spell id)[])
  *   - pools          ⇄ the drain-pool balances verbatim (FR-8)
- *   - inventory      ⇄ [] (required field; v1 engine state tracks no inventory)
+ *   - inventory      ⇄ state.inventory (CA-01)
  *   - skills / feats ⇄ absent (envelope optionals; v1 engine state has neither)
  *   - saves / hp / level / xp / id ⇄ NOT envelope fields: reconstructed from
  *     pack + classes through the engine's own progression invariants (best-of
@@ -152,7 +152,7 @@ function serializeCharacterState(state: CharacterState): SnapshotCharacterState 
     pools: { ...state.pools },
     slots,
     conditions: state.conditions.map((active) => ({ id: active.conditionId, remaining: active.duration })),
-    inventory: [],
+    inventory: state.inventory.map((entry) => ({ id: entry.id, qty: entry.qty })),
   };
 }
 
@@ -323,6 +323,7 @@ function restoreCharacterState(runtime: Runtime, saved: SnapshotCharacterState):
     slots,
     conditions: saved.conditions.map((active) => ({ conditionId: active.id, duration: active.remaining })),
     spells: [...(saved.knownSpells ?? [])],
+    inventory: saved.inventory.map((entry) => ({ ...entry })),
     hp: { current: reserveValue(runtime, 'hp', abilities, built.level, new Rng(0)), temp: 0 },
   };
 }
