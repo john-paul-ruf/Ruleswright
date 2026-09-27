@@ -52,6 +52,7 @@ export function defaultStages(): readonly Stage[] {
 const STAGE_INPUT_SECTIONS: readonly string[] = [
   'stats',
   'economy',
+  'spatial',
   'actions',
   'formulas',
   'content',
@@ -140,6 +141,12 @@ export function runPipeline(
     const formulas: Record<string, unknown> = {};
     for (const [id, def] of Object.entries(themeView.formulas)) formulas[id] = structuredClone(def);
     pack['formulas'] = formulas;
+  }
+  // The optional spatial section passes through the same way (magic.ts's economy
+  // precedent): cloned from the resolved view so the theme object is never mutated
+  // by generation. Absent = theater of mind — the pack carries no spatial key.
+  if (themeView.spatial !== undefined) {
+    pack['spatial'] = structuredClone(themeView.spatial);
   }
 
   for (const stage of stages) {

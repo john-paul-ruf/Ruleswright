@@ -13,7 +13,7 @@
  * knobs block + its winter-march /knobs merge patch — the mock's shape);
  * `listThemeKnobs` renders the machine-readable array (FR-18).
  */
-import type { PackContent, PackEconomy, PackStats, FormulaDef } from '../schema/pack';
+import type { PackContent, PackEconomy, PackStats, FormulaDef, SpatialDef } from '../schema/pack';
 import type { ActionDef, ClassProgression, Statblock, TableDef } from '../schema/artifacts';
 
 /** FR-18 — a knob declaration: id (the map key), type, allowed values or range, default, description. */
@@ -48,9 +48,15 @@ export interface ThemeTemplate {
   knobs?: Readonly<Record<string, KnobDecl>>;
   /** The theme's authoring notes: the documented example override (FR-19 anchor) lives here. */
   readme?: string;
-  /** Stage inputs, section-keyed like the pack (stats/actions/economy?/formulas/content/progression/bestiary/tables). */
+  /** Stage inputs, section-keyed like the pack (stats/actions/economy?/spatial?/formulas/content/progression/bestiary/tables). */
   stats: PackStats;
   economy?: PackEconomy;
+  /**
+   * The optional spatial model (v1.3, FR-11) — section-keyed like the pack, the same
+   * `SpatialDef` the pack carries (CA-G1, no theme-side renaming):
+   * `{model: 'grid', reach: {default, <id>: n}, shapes?}` (spatial.html's anatomy; FR-11).
+   */
+  spatial?: SpatialDef;
   actions?: Record<string, ActionDef>;
   formulas?: Record<string, FormulaDef>;
   content?: PackContent;
