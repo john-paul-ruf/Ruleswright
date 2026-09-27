@@ -13,9 +13,10 @@ import {
 } from '../../src/runtime/snapshots';
 import type { CombatRestoreRequest, CombatSnapshot } from '../../src/runtime/snapshots';
 import { profileFromStatblock, type CombatantProfile } from '../../src/runtime/combat/resolve';
-import { startCombat, type Combat } from '../../src/runtime/combat/combat';
+import { startCombat, Combat, type CombatantState } from '../../src/runtime/combat/combat';
 import type { RuntimeEvent } from '../../src/runtime/events';
-import { emberMarchesPack } from '../runtime/fixtures/packs';
+import { emberMarchesPack, withSpatial } from '../runtime/fixtures/packs';
+import type { Position } from '../../src/runtime/combat/spatial';
 import { Rng } from '../../src/core/rng';
 
 /**
@@ -281,5 +282,170 @@ describe('snapshot pairing (FR-14: combat names the party snapshot)', () => {
     expect(combatSnap.pack).toEqual(partySnap.pack);
     expect(combatSnap.pack).toEqual(characterSnap.pack);
     expect(combatSnap.pairsWith.length).toBeGreaterThan(0);
+  });
+});
+
+describe('spatial snapshots (CAP-G5, CA-G3)', () => {
+  const SPATIAL = { model: 'grid', reach: { default: 1, 'barrow-wight': 2 } } as const;
+  const POSITIONS: Readonly<Record<string, Position>> = {
+    brynn: { x: 0, y: 0 },
+    wight: { x: 3, y: 0 },
+  };
+
+  /** A spatial fight whose actor under test always declares first. */
+  function spatialFight(): { runtime: Runtime; fight: Combat } {
+    const runtime = new Runtime(withSpatial(emberMarchesPack(), SPATIAL));
+    const brynn: CombatantProfile = {
+      ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'brynn'),
+      actions: ['strike', 'withdraw'],
+      initiativeBonus: 100,
+    };
+    const wight: CombatantProfile = {
+      ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'wight'),
+      actions: ['wight-claw', 'parry'],
+      initiativeBonus: -100,
+    };
+    const fight = startCombat(runtime, {
+      allies: [{ id: 'brynn', profile: brynn }],
+      enemies: [{ id: 'wight', profile: wight }],
+      positions: POSITIONS,
+      rng: new Rng('spatial-snap'),
+    });
+    return { runtime, fight };
+  }
+
+  /** The restore request for the spatial fight, with re-stated positions. */
+  function spatialRestore(
+    runtime: Runtime,
+    positions?: Readonly<Record<string, Position>>,
+  ): CombatRestoreRequest {
+    const brynn: CombatantProfile = {
+      ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'brynn'),
+      actions: ['strike', 'withdraw'],
+      initiativeBonus: 100,
+    };
+    const wight: CombatantProfile = {
+      ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'wight'),
+      actions: ['wight-claw', 'parry'],
+      initiativeBonus: -100,
+    };
+    return {
+      allies: [{ id: 'brynn', profile: brynn }],
+      enemies: [{ id: 'wight', profile: wight }],
+      ...(positions !== undefined ? { positions } : {}),
+    };
+  }
+
+  it('positions round-trip: emitted only when set, restored onto combatant state, never null', () => {
+    const { fight } = spatialFight();
+    fight.step();
+    fight.declare('withdraw'); // a state change, so the ledger differs too
+    const snap = serializeCombat(fight, { pairsWith: 'party-1' });
+    expect(snap.combatants[0]!.position).toEqual({ x: 0, y: 0 });
+    expect(snap.combatants[1]!.position).toEqual({ x: 3, y: 0 });
+    // The envelope is plain JSON and survives a stringify round trip verbatim.
+    const json = JSON.parse(JSON.stringify(snap));
+    expect(json.combatants[0]!.position).toEqual({ x: 0, y: 0 });
+
+    const fresh = new Runtime(withSpatial(emberMarchesPack(), SPATIAL));
+    const restored = deserializeCombat(fresh, json, spatialRestore(fresh, POSITIONS));
+    expect(restored.state.combatants['brynn']!.position).toEqual({ x: 0, y: 0 });
+    expect(restored.state.combatants['wight']!.position).toEqual({ x: 3, y: 0 });
+  });
+
+  it('restored fights re-enforce geometry: out-of-reach still rejects after resume (movement = serialize → restore)', () => {
+    const { fight } = spatialFight();
+    fight.step();
+    const snap = serializeCombat(fight, { pairsWith: 'party-1' });
+    // The host moved the fight: positions re-stated FAR apart on restore (FR-10 between-steps).
+    const moved: Readonly<Record<string, Position>> = { brynn: { x: 0, y: 0 }, wight: { x: 4, y: 0 } };
+    const fresh = new Runtime(withSpatial(emberMarchesPack(), SPATIAL));
+    const restored = deserializeCombat(fresh, JSON.parse(JSON.stringify(snap)), spatialRestore(fresh, moved));
+    expect(restored.state.active).toBe('brynn');
+    const rejected = restored.declare('strike', { targetId: 'wight' });
+    expect(rejected[0]!.type).toBe('declare:rejected');
+    expect(rejected[0]!.payload['kind']).toBe('spatial');
+    expect(rejected[0]!.why.rule).toBe('E-SPAT-01');
+    expect(String(rejected[0]!.payload['message'])).toContain('within reach 1');
+  });
+
+  it('restore refuses a spatial fight missing a position — E-SPAT-01 family, artifactId (snapshot), jsonPath restore.<id>.position', () => {
+    const { fight } = spatialFight();
+    const snap = serializeCombat(fight, { pairsWith: 'party-1' });
+    const fresh = new Runtime(withSpatial(emberMarchesPack(), SPATIAL));
+    const oneMissing = spatialRestore(fresh, { wight: { x: 3, y: 0 } });
+    expect(() => deserializeCombat(fresh, JSON.parse(JSON.stringify(snap)), oneMissing)).toThrow();
+    try {
+      deserializeCombat(fresh, JSON.parse(JSON.stringify(snap)), oneMissing);
+    } catch (error) {
+      expect((error as Error).name).toBe('RuntimeRuleError');
+      expect(String(error)).toMatch(/E-SPAT-01/);
+      const cards = (error as { errors: readonly { rule: string; artifactId: string; jsonPath: string }[] })
+        .errors;
+      expect(cards).toHaveLength(1);
+      expect(cards[0]!.rule).toBe('E-SPAT-01');
+      expect(cards[0]!.artifactId).toBe('(snapshot)');
+      expect(cards[0]!.jsonPath).toBe('restore.brynn.position');
+    }
+    // No state mutated: the fresh runtime's serial is untouched (fail-closed discipline).
+    expect(fresh.nextCharacterId).toBe(1);
+  });
+
+  it('every missing position is one card, all at once, before anything rebuilds', () => {
+    const { fight } = spatialFight();
+    const snap = serializeCombat(fight, { pairsWith: 'party-1' });
+    const fresh = new Runtime(withSpatial(emberMarchesPack(), SPATIAL));
+    const request = spatialRestore(fresh);
+    // A restore that names only the enemies side ALSO fails the existing
+    // describe-the-same-fight refusals — assert the aggregate carries both
+    // families when both apply.
+    try {
+      deserializeCombat(fresh, JSON.parse(JSON.stringify(snap)), { allies: [], enemies: request.enemies });
+      throw new Error('expected refusal');
+    } catch (error) {
+      const cards = (error as { errors: readonly { rule: string; jsonPath: string }[] }).errors;
+      expect(cards.some((card) => card.rule === 'E-SNAP-01' && card.jsonPath === 'combatants')).toBe(true);
+      expect(
+        cards.some((card) => card.rule === 'E-SPAT-01' && card.jsonPath === 'restore.wight.position'),
+      ).toBe(true);
+    }
+  });
+
+  it('theater fight round-trips unchanged: positions absent → field absent, not null', () => {
+    const { fight } = journeyFight('theater-snap');
+    fight.step();
+    const snap = serializeCombat(fight, { pairsWith: 'party-1' });
+    for (const combatant of snap.combatants) {
+      expect('position' in combatant).toBe(false);
+      expect(combatant.position).toBeUndefined();
+    }
+    const fresh = new Runtime(emberMarchesPack());
+    const restored = deserializeCombat(fresh, JSON.parse(JSON.stringify(snap)), journeyRestore(fresh));
+    for (const combatant of Object.values(restored.state.combatants)) {
+      expect(combatant.position).toBeUndefined();
+    }
+    // The gates never consult positions in a theater pack: declares resolve.
+    restored.step();
+    const declared = restored.declare(restored.state.active === 'brynn' ? 'strike' : 'wight-claw');
+    expect(declared.some((event) => event.type === 'declare:rejected')).toBe(false);
+  });
+
+  it('a spatial resume keeps gates against a combatant whose restore position was dropped mid-fight', () => {
+    // The host restores with positions, then one combatant's position is lost
+    // from state between steps: the declare-time gate still fails closed.
+    const { fight } = spatialFight();
+    fight.step();
+    const snap = serializeCombat(fight, { pairsWith: 'party-1' });
+    const fresh = new Runtime(withSpatial(emberMarchesPack(), SPATIAL));
+    const restored = deserializeCombat(
+      fresh,
+      JSON.parse(JSON.stringify(snap)),
+      spatialRestore(fresh, POSITIONS),
+    );
+    const combatants = restored.state.combatants as Record<string, CombatantState>;
+    delete (combatants['brynn'] as { position?: Position }).position;
+    const rejected = restored.declare('strike', { targetId: 'wight' });
+    expect(rejected[0]!.payload['kind']).toBe('spatial');
+    expect(String(rejected[0]!.payload['message'])).toContain('positions are missing');
   });
 });

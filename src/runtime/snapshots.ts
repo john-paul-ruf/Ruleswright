@@ -39,6 +39,7 @@ import { buildCharacter, validateBuild } from './progression';
 import { Character, reserveValue } from './character';
 import { Combat, defeatedSide, type CombatantState } from './combat/combat';
 import type { CombatantProfile } from './combat/resolve';
+import type { Position } from './combat/spatial';
 import type { EconomyBalances } from './combat/action-economy';
 import type { Runtime, CharacterState } from './runtime';
 
@@ -337,8 +338,8 @@ export interface SnapshotCombatant {
   /** CA-4 transients: the owner's per-turn slot ledger, by slot name. */
   readonly slotsUsed?: Readonly<Record<string, number>>;
   readonly conditions?: readonly SnapshotActiveCondition[];
-  /** Present only when the pack declares a spatial model (FR-11). */
-  readonly position?: null | Record<string, unknown>;
+  /** The precise {x, y} — emitted only when set; never null (FR-11, CA-G3). */
+  readonly position?: Position;
   /** Reactive action currently offered (FR-4/FR-13). */
   readonly pendingTrigger?: null | string;
 }
@@ -360,6 +361,8 @@ export interface CombatSnapshot {
 export interface CombatRestoreRequest {
   readonly allies: readonly { id: string; profile: CombatantProfile; balances?: EconomyBalances }[];
   readonly enemies: readonly { id: string; profile: CombatantProfile; balances?: EconomyBalances }[];
+  /** The host re-states each combatant's position (FR-10 between-steps: movement = restore with updated positions). */
+  readonly positions?: Readonly<Record<string, Position>>;
 }
 
 /**
@@ -394,6 +397,7 @@ export function serializeCombat(fight: Combat, options: { readonly pairsWith: st
           id: active.conditionId,
           remaining: active.duration,
         })),
+        ...(combatant.position !== undefined ? { position: { ...combatant.position } } : {}),
         ...(pendingTrigger !== undefined ? { pendingTrigger } : {}),
       };
     }),
@@ -418,6 +422,10 @@ export function deserializeCombat(
   const cards = envelopeRefusals('combat', snapshot, runtime.pack);
   if (isRecord(snapshot) && cards.length === 0) {
     cards.push(...combatRestoreRefusals(runtime, snapshot as unknown as CombatSnapshot, restore));
+    // CAP-G5 fail-closed: a spatial pack's fight restores only when every
+    // combatant re-states its position (CA-G3) — all cards at once, before
+    // anything is rebuilt.
+    cards.push(...spatialRestoreRefusals(runtime, restore));
   }
   if (cards.length > 0) throw new RuntimeRuleError(cards);
   validateRngWords(snapshot);
@@ -452,6 +460,7 @@ export function deserializeCombat(
         ? entry.profile.attackTable.map((row) => ({ level: row.level, byDefense: { ...row.byDefense } }))
         : undefined,
       attackBonus: entry.profile.attackBonus,
+      ...(restore.positions?.[entry.id] !== undefined ? { position: restore.positions[entry.id] } : {}),
     };
   }
   const fight = new Combat(runtime, {
@@ -474,6 +483,25 @@ export function deserializeCombat(
     });
   }
   return fight;
+}
+
+/**
+ * The spatial restore gate (CAP-G5): a spatial pack refuses a positionless
+ * combatant — the E-SPAT-01 family, fail-closed, every missing position one
+ * card, all before anything is rebuilt.
+ */
+function spatialRestoreRefusals(runtime: Runtime, restore: CombatRestoreRequest): ErrorCard[] {
+  if (runtime.pack.spatial === undefined) return [];
+  return [...restore.allies, ...restore.enemies]
+    .filter((entry) => restore.positions?.[entry.id] === undefined)
+    .map((entry) =>
+      makeErrorCard(
+        'E-SPAT-01',
+        '(snapshot)',
+        `restore.${entry.id}.position`,
+        `combatant "${entry.id}" has no position on restore — this pack declares a spatial model (FR-11), so resume requires every combatant's position.`,
+      ),
+    );
 }
 
 /**
