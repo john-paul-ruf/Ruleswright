@@ -68,7 +68,7 @@ All three themes gain an identical-shape `spatial` section placed after `economy
 ```json
 "spatial": {
   "model": "grid",
-  "reach": { "default": 1, "keys": { "barrow-wight": 2 } },
+  "reach": { "default": 1, "barrow-wight": 2 },
   "shapes": ["single", "burst"]
 }
 ```

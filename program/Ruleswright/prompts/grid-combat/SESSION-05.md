@@ -8,7 +8,7 @@
 > **Owns:** `tests/proofs/grid-journey.test.ts`, `README.md`
 > **Reads:** `src/runtime/**`, `src/compiler/**`, `src/schema/**`, `program/Ruleswright/prompts/grid-combat/STATE.md`, `tests/runtime/combat/combat-spatial.test.ts`, `tests/runtime/fixtures/packs.ts`
 > **Resources:** —
-> **Checkpoints:** 2
+> **Checkpoints:** 3
 
 ## Module Context
 
@@ -46,7 +46,16 @@ If any landed shape differs from the CA mapping, do not improvise: record the de
 
 ## Implementation
 
-### Checkpoint 1 — the journey
+### Checkpoint 1 — README block 03 positions (planned-debt payoff)
+
+After S04, every generated theme declares spatial, and S03's fail-closed `startCombat` throws (E-SPAT-01 family) when a spatial pack's combatants lack positions. The existing README quickstart block 03 calls `startCombat(rt, {allies, enemies})` with no positions — `tests/proofs/docs-run.test.ts` (which executes the quickstart against the live generated themes) goes red the moment S04 lands and stays red until this checkpoint. That is planned debt with this session as owner; pay it FIRST.
+
+- In README.md's quickstart block 03, pass host-declared `positions` for both combatants (brynn and the foe, one grid step apart — adjacency, so the strike still resolves). Do NOT add a new ```ts block and do NOT change the block count: docs-run pins the count at module scope (four) and `tests/proofs/docs-run.test.ts` is not in your lease.
+- Re-verify the block's expected-output line (`d20[9]=9 < ac12`) still holds — positions consume no RNG, so the roll line should be unchanged; run docs-run and prove it. If the line drifts, quote the newly observed line from your own run (the block-04 precedent: docs quote observed output).
+
+**Commit when:** `pnpm exec vitest run tests/proofs/` green (docs-run executes the amended block 03 against the spatial dark-fantasy pack; block count still 4; all four blocks' assertions hold).
+
+### Checkpoint 2 — the journey
 
 `tests/proofs/grid-journey.test.ts`, deterministic (seed 42, the established fixture seed; no ambient entropy):
 
@@ -54,7 +63,7 @@ If any landed shape differs from the CA mapping, do not improvise: record the de
 2. **Compose:** `profileFromCharacter` for the hero (an approved character path); `spawnMonster`/`profileFromStatblock` for a foe. `startCombat(runtime, {allies, enemies, positions: {...}, rng: new Rng(42)})`.
 3. **Adjacency rejects:** place the two combatants 3 grid steps apart → `declare` the melee action → expect `declare:rejected` kind `spatial` (rule `E-SPAT-01`), state unchanged (serialize before/after deep-equal).
 4. **Restore-close:** `serializeCombat` → `deserializeCombat` with the target's position moved adjacent (the v1 movement seam — the FR-10 between-steps boundary) → gates re-enforced: the same declare now resolves.
-5. **Burst (CA-G4):** place a second combatant of the *actor's own side* within the burst radius of the target and one outside → declare a burst spell (`ember-bloom`-shape: `target(burst-N, save(…))`) → assert every in-radius combatant (both sides) received a save outcome (mixed branches are the effect's data), the out-of-radius one did not.
+5. **Burst (CA-G4):** place a second combatant of the *actor's own side* within the burst radius of the target and one outside → declare a burst spell (`ember-bloom`-shape: `target(burst-N, save(…))`) → assert every in-radius combatant (both sides) received a save outcome (mixed branches are the effect's data), the out-of-radius one did not. Dark-fantasy is a vancian theme: bind the burst spell before declaring it (prepareSpell → bindSpell — approved runtime surfaces), or the declare rejects E-VANC-01 before any spatial gate is reached (a pool-cost spell from a pool-based theme is the alternative).
 6. **Validity (CA-G5):** an action with `valid: 'hasTarget(adjacent)'` rejects when its shape resolves empty; passes when the target is in reach.
 7. **Round-trip:** `serializeCombat` mid-fight → JSON.stringify/parse → `deserializeCombat` → gates hold (out-of-reach still rejects), `rng` state equal, positions restored.
 8. **Perf budget:** assert the round-loop (declare+step over 10 combatants) completes well inside the documented budget — reuse the existing `tests/proofs/perf-budget.test.ts` measurement idiom, not a copy of its file.
@@ -62,9 +71,9 @@ If any landed shape differs from the CA mapping, do not improvise: record the de
 
 **Commit when:** `pnpm exec vitest run tests/proofs/` green (the whole proof trio + perf budgets + your new journey).
 
-### Checkpoint 2 — README + close
+### Checkpoint 3 — README + close
 
-README gains a **Grid combat** section (after the combat section): the FR-11 opt-in story in one paragraph, a pack snippet showing the `spatial` section, a code example (generate → load → `startCombat` with `positions` → declare with gates → serialize → resume), and the theater-of-mind note. The journey test executes the README's snippet shape — keep them in sync (NFR-DX discipline: docs examples are tested; cite `tests/proofs/grid-journey.test.ts` in the section).
+README gains a **Grid combat** section (after the combat section): the FR-11 opt-in story in one paragraph, a pack snippet showing the `spatial` section, a cited code example — the journey test itself, `tests/proofs/grid-journey.test.ts` (it executes generate → load → `startCombat` with `positions` → declare with gates → serialize → resume; NFR-DX holds because the example is executed by the cited test) — and the theater-of-mind note. The pack snippet is fenced ```json, never ```ts: docs-run pins the README's ```ts block count (four) at module scope and `tests/proofs/docs-run.test.ts` is not in your lease — no new ```ts block, ever, in this session. The journey test executes the README's snippet shape — keep them in sync (NFR-DX discipline: docs examples are tested; cite `tests/proofs/grid-journey.test.ts` in the section).
 
 Then the full package gate: `pnpm typecheck` · `pnpm lint` · `pnpm test` (whole suite — the new baseline) · `pnpm build` · `pnpm check:isolation` · `pnpm check:security` · `pnpm format:check`.
 
@@ -77,6 +86,7 @@ Then the full package gate: `pnpm typecheck` · `pnpm lint` · `pnpm test` (whol
 - `pnpm build` + `pnpm check:isolation` + `pnpm check:security` — the runtime surface must not pull the compiler; your journey imports both *in tests only* (tests are not part of the bundle).
 - Artifact freshness: the journey builds from source via `generateCampaign` at run time — no stale dist involved; state the seed and theme in the test name.
 - Determinism: run the journey twice in one suite run (two identical fight scripts, byte-equal event streams) — the existing character-profile test's pattern.
+- Fence discipline: the README grid section adds a ```json pack snippet and cites the journey test; it adds no fifth ```ts block (docs-run's module-scope count pin; lease discipline recorded in STATE.md).
 
 ## State Update
 

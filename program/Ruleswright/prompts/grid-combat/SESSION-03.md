@@ -34,7 +34,7 @@ The geometry layer exists (`spatial.ts`: `gridGeometry`, `theaterOfMind`, `check
 
 Recheck at checkpoint 0 (Orchestrator confirms CA-G1 mapping against S02's committed types before dispatch):
 
-- **CA-G1:** `SpatialDef {model:'grid', reach:{default, keys?}, shapes?}` → adapter flattens `reach.keys` → `reachOverrides` into `SpatialModel {defaultReach, reachOverrides}`. Pack-section keys (`spatial.reach.keys`) vs internal model keys (`reachOverrides`) — you own the edge, name it explicitly in the adapter.
+- **CA-G1:** `SpatialDef {model:'grid', reach:{default, <id>: n, ...}, shapes?}` → adapter splits the inline reach map: `default` → `defaultReach`, the remaining sibling keys → `reachOverrides`, into `SpatialModel {defaultReach, reachOverrides}`. Pack-section reach keys (siblings of `default`) vs internal model keys (`reachOverrides`) — you own the edge, name it explicitly in the adapter.
 - **CA-G2:** `SpatialRejection.pendingId` → `rule: 'E-SPAT-01'` (the registered id from S02). Keep `kind: 'spatial'` for the `declare:rejected` payload.
 - **CA-G3:** positions plain JSON `{x,y}`; emitted only when set; restore refuses spatial-pack fights missing positions (fail-closed, all cards).
 - **CA-G4:** one `resolveShape`, three consumers (executor wiring, `hasTarget`, `target()` statements).
@@ -64,7 +64,7 @@ Read S02's committed `SpatialDef` and `RULE_IDS`; diff against CA-G1's mapping a
 
 In `spatial.ts`:
 
-- `spatialFromPack(pack: {spatial?: SpatialDef})`: `undefined` → `theaterOfMind` (unchanged). Declared → `gridGeometry({defaultReach: pack.spatial.reach.default, reachOverrides: pack.spatial.reach.keys})`. Keep the old `{defaultReach, reachOverrides}` overload signature working if it costs nothing — but its only callers are tests; migrate them in this lease (the test file is yours).
+- `spatialFromPack(pack: {spatial?: SpatialDef})`: `undefined` → `theaterOfMind` (unchanged). Declared → split the inline reach map: `const { default: defaultReach, ...reachOverrides } = pack.spatial.reach;` → `gridGeometry({defaultReach, reachOverrides})`. Keep the old `{defaultReach, reachOverrides}` overload signature working if it costs nothing — but its only callers are tests; migrate them in this lease (the test file is yours).
 - `SpatialRejection`: replace `pendingId: 'E-SPAT-01 (unregistered — DB decision pending)'` with `rule: 'E-SPAT-01'` (CA-G2). Update the doc comment (registration resolved v1-core's pending decision).
 - New export `packSpatialModel(pack: Pack): SpatialModel | undefined` — the typed edge combat uses; `undefined` = theater of mind.
 
@@ -159,7 +159,7 @@ In `snapshots.ts`:
 
 ### Checkpoint 5 — fixture + suite close
 
-- `tests/runtime/fixtures/packs.ts`: `emberMarchesSpatialPack()` — `withSpatial(emberMarchesPack(), {model:'grid', reach:{default:1, keys:{'barrow-wight':2}}})` reshaped to the v1.3 `SpatialDef` shape (the existing `withSpatial` helper is yours to update to the contract shape).
+- `tests/runtime/fixtures/packs.ts`: `emberMarchesSpatialPack()` — `withSpatial(emberMarchesPack(), {model:'grid', reach:{default:1, 'barrow-wight':2}})` reshaped to the v1.3 `SpatialDef` shape (the existing `withSpatial` helper is yours to update to the contract shape) (inline sibling override — no keys sub-object).
 - Run the full local gate: `pnpm typecheck` 0 · `pnpm lint` 0 · `npx vitest run tests/runtime tests/snapshots` green · `pnpm format:check` clean.
 
 **Commit when:** fixture lands, all four gates green.

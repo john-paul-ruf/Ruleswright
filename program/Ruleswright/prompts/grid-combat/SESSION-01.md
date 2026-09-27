@@ -68,17 +68,12 @@ Add to `properties` (after `economy`, mock order) and to `$defs`:
     },
     "reach": {
       "type": "object",
-      "additionalProperties": false,
       "required": ["default"],
       "properties": {
-        "default": { "type": "integer", "minimum": 1, "description": "Melee reach in grid steps (1 = adjacency)" },
-        "keys": {
-          "description": "Reach overrides keyed by combatant/artifact id or free-form label (e.g. \"weapons.long-spear\": 2 — spatial.html's example; v1 labels are documentation, runtime resolves by combatant id).",
-          "type": "object",
-          "propertyNames": { "type": "string", "minLength": 1 },
-          "additionalProperties": { "type": "integer", "minimum": 1 }
-        }
-      }
+        "default": { "type": "integer", "minimum": 1, "description": "Melee reach in grid steps (1 = adjacency)" }
+      },
+      "additionalProperties": { "type": "integer", "minimum": 1 },
+      "description": "Per-id reach overrides are direct siblings of `default` (spatial.html verbatim: \"weapons.long-spear\": 2). The engine resolves a combatant's reach by combatant/artifact id (`reach[id] ?? reach.default`); dotted artifact paths are a documented v2 seam."
     },
     "shapes": {
       "type": "array",
@@ -119,4 +114,4 @@ Also **verify the snapshots contract needs no edit**: `snapshots.schema.json` `c
 
 ## State Update
 
-Report: status, checkpoint count, CA-G1/CA-G2 producer status (committed shape + registered id), the mock-vs-contract verification result, the snapshots-contract no-edit confirmation, surprises. `followUp` for S02: the exact `$defs/spatial` JSON path names it must mirror (`spatial`, `spatial.model`, `spatial.reach.default`, `spatial.reach.keys`, `spatial.shapes`), and for S03: the `spatialFromPack` adapter contract (pack shape → `SpatialModel {defaultReach, reachOverrides}`) and the E-SPAT-01 semantic mapping (unshippable geometry + play-time gate rejections).
+Report: status, checkpoint count, CA-G1/CA-G2 producer status (committed shape + registered id), the mock-vs-contract verification result, the snapshots-contract no-edit confirmation, surprises. `followUp` for S02: the exact `$defs/spatial` JSON path names it must mirror (`spatial`, `spatial.model`, `spatial.reach.default`, `spatial.reach.<override-id>` — per-id overrides as siblings of `default`, `spatial.shapes`), and for S03: the `spatialFromPack` adapter contract (pack shape → `SpatialModel {defaultReach, reachOverrides}`) and the E-SPAT-01 semantic mapping (unshippable geometry + play-time gate rejections).

@@ -5,7 +5,7 @@
 > **Modules:** M01
 > **Depends on:** S01
 > **Concurrent with:** — (W2 runs alone)
-> **Owns:** `src/schema/pack.ts`, `src/schema/error-card.ts`, `src/schema/validate/sections/root.ts`, `src/schema/validate/index.ts`, `tests/schema/validate.test.ts`, `tests/schema/fixtures.ts`
+> **Owns:** `src/schema/pack.ts`, `src/schema/error-card.ts`, `src/schema/validate/sections/root.ts`, `src/schema/validate/index.ts`, `tests/schema/validate.test.ts`, `tests/schema/fixtures.ts`, `tests/schema/registry.test.ts`
 > **Reads:** `src/schema/contracts/pack.schema.json` (S01's §spatial — normative), `src/schema/validate/sections/root.ts`, `src/schema/validate/context.ts`, `src/schema/validate/helpers.ts`, `tests/schema/validate.test.ts`, `tests/schema/fixtures.ts`
 > **Resources:** —
 > **Checkpoints:** 3
@@ -34,7 +34,7 @@ S01 landed the normative `spatial` section (v1.3). You make it real for TypeScri
 |---|---|
 | `spatial.model` | `'grid'` (const) |
 | `spatial.reach.default` | `number` (integer ≥ 1) |
-| `spatial.reach.keys` | `Record<string, number>` (values integer ≥ 1; keys free-form) |
+| `spatial.reach` non-`default` keys | per-id reach overrides — direct siblings of `default` (spatial.html verbatim): `[overrideKey: string]: number` (values integer ≥ 1; keys free-form) |
 | `spatial.shapes?` | `readonly ('single' \| 'burst')[]` |
 
 ## Files to Create/Modify
@@ -47,6 +47,7 @@ S01 landed the normative `spatial` section (v1.3). You make it real for TypeScri
 | `src/schema/validate/index.ts` | modify | import + call `checkSpatial(ctx, json['spatial'])` |
 | `tests/schema/validate.test.ts` | modify | spatial acceptance + rejection cases |
 | `tests/schema/fixtures.ts` | modify | VALID_PACK stays non-spatial; add `withSpatial(pack, …)` fixture helper if useful for cross-suite reuse |
+| `tests/schema/registry.test.ts` | modify | RULE_IDS pin re-key 14→15 (additive discipline; ck2) |
 
 ## Implementation
 
@@ -59,14 +60,21 @@ In `src/schema/pack.ts` (mirroring `pack.schema.json` `$defs/spatial`, header co
 
 ```typescript
 /** $defs/spatial (v1.3) — optional spatial model (FR-11): grid reach + documented shape set. */
+export interface SpatialReach {
+  /** Melee reach in grid steps (1 = adjacency). */
+  default: number;
+  /** Per-id reach overrides — direct siblings of `default` (spatial.html verbatim). */
+  [overrideKey: string]: number;
+}
+
 export interface SpatialDef {
   model: 'grid';
-  reach: { default: number; keys?: Record<string, number> };
+  reach: SpatialReach;
   shapes?: readonly ('single' | 'burst')[];
 }
 ```
 
-Add `spatial?: SpatialDef` to the `Pack` interface (after `economy?`, schema order). Note: `reach.keys` mirrors the contract's nesting — the *internal* `SpatialModel` S03 consumes flattens this (`defaultReach`, `reachOverrides`); do not flatten here; you are the contract mirror.
+Add `spatial?: SpatialDef` to the `Pack` interface (after `economy?`, schema order). Note: reach's per-id overrides are direct siblings of `default` (mock-verbatim anatomy — there is no `keys` sub-object). The *internal* `SpatialModel` S03 consumes splits them (`defaultReach`, `reachOverrides`); the contract mirror keeps them inline.
 
 **Commit when:** `pnpm typecheck` 0; existing suite green (`npx vitest run tests/schema`).
 
@@ -74,19 +82,22 @@ Add `spatial?: SpatialDef` to the `Pack` interface (after `economy?`, schema ord
 
 In `root.ts`, following the file's existing section-function pattern (`checkEconomy` is the nearest sibling — read it first):
 
-- `checkSpatial(ctx, value)`: absent → return. Not a plain object → E-SCHEMA-01. Structural checks: `model` must be present and `'grid'` (missing/mistyped → E-SCHEMA-01, message citing the const); `reach` present, plain object, `reach.default` integer ≥ 1 (else E-SCHEMA-01); `reach.keys` optional map, values integer ≥ 1, keys non-empty strings (else E-SCHEMA-01); `spatial.shapes` optional array, each entry ∈ {single, burst}, unique (structural violation → E-SCHEMA-01). Semantic check: model present but not `'grid'` → **E-SPAT-01** ("pack declares a spatial model the engine does not ship"); `shapes` containing a non-v1 shape string → **E-SPAT-01** (declared geometry the engine does not have). Unknown properties anywhere in the section → E-SCHEMA-02 (closed shape, per contract `additionalProperties: false`). Use the existing helpers (`isPlainObject`, `reqFields`, `forbidUnknown`, `add`).
+- `checkSpatial(ctx, value)`: absent → return. Not a plain object → E-SCHEMA-01. Structural checks: `model` must be present and `'grid'` (missing/mistyped → E-SCHEMA-01, message citing the const); `reach` present, plain object, `reach.default` integer ≥ 1 (else E-SCHEMA-01); every non-`default` key of `reach` is a reach override — non-empty-string key with an integer ≥ 1 value (else E-SCHEMA-01 at that key's path); `spatial.shapes` optional array, each entry ∈ {single, burst}, unique (structural violation → E-SCHEMA-01). Semantic check: model present but not `'grid'` → **E-SPAT-01** ("pack declares a spatial model the engine does not ship"); `shapes` containing a non-v1 shape string → **E-SPAT-01** (declared geometry the engine does not have). Unknown TOP-LEVEL properties in the section → E-SCHEMA-02 (closed shape, per contract `additionalProperties: false`); unknown keys INSIDE reach are reach overrides (validated as above), not unknown properties — the contract's reach-level additionalProperties is the integer override schema, not false. Use the existing helpers (`isPlainObject`, `reqFields`, `forbidUnknown`, `add`).
 - Dispatch in `validate/index.ts`: `checkSpatial(ctx, json['spatial'])` after `checkEconomy`.
 
 In `error-card.ts`: append `'E-SPAT-01'` to `RULE_ID_TUPLE` (last position). Update the doc comment: additive minor event, database.md registry v1.3.
 
-**Commit when:** typecheck 0; `npx vitest run tests/schema` green including your new cases; rule registry still frozen-additive (existing ids untouched).
+- In `tests/schema/registry.test.ts` (your lease): extend `DB_V1_REGISTRY` with `'E-SPAT-01'` (last position — registry order) and update the two count assertions 14 → 15 (`toHaveLength` and set size; the verbatim `toEqual` array carries 15 entries; `Object.isFrozen` unchanged). This is the additive-discipline re-key the test's own name documents.
+
+**Commit when:** typecheck 0; `npx vitest run tests/schema` green including your new cases and the re-keyed `registry.test.ts` (15 ids); rule registry still frozen-additive (existing ids untouched).
 
 ### Checkpoint 3 — tests
 
 In `tests/schema/validate.test.ts` (a new describe block near the economy/root tests; follow the file's existing card-assertion style):
 
 1. valid pack + `spatial: {model:'grid', reach:{default:1}, shapes:['single','burst']}` → no cards.
-2. valid pack + `spatial: {model:'grid', reach:{default:2, keys:{'weapons.long-spear':2}}}` → no cards (mock-verbatim reach label accepted).
+2. valid pack + `spatial: {model:'grid', reach:{default:2, 'weapons.long-spear':2}}` → no cards (mock-verbatim sibling override accepted).
+2b. `reach:{default:1, 'rusty-blade':0}` → E-SCHEMA-01 at `spatial.reach.rusty-blade` (override value < 1).
 3. absent `spatial` → no cards (theater-of-mind default holds — VALID_PACK unchanged).
 4. missing `model` → E-SCHEMA-01 at `spatial.model`.
 5. `model:'hex'` → E-SPAT-01 (message names the engine-shipped set).
