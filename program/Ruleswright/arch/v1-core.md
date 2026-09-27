@@ -305,6 +305,51 @@ ambient shim `src/compiler/themes.d.ts` deleted (cast retained in theme-loader.t
 `tests/compiler/fresh-load.d.ts` retained — it types the vite `?fresh-load` query specifier (not a
 file), and its consumer `tests/compiler/coverage-floor.test.ts` was outside the correction write set.
 
+<!-- loot-inventory SESSION-01 -->
+
+# SESSION-01 arch delta — loot-inventory (runtime inventory core)
+
+## M03 (runtime) — new module file: `src/runtime/inventory.ts`
+
+- CAP-01/CA-02 producer. Public surface: `grantItem`, `dropItem`, `countItem`,
+  `rollLoot`, `grantLoot`, `type LootOptions` (exported via the runtime barrel).
+- Verb discipline mirrors `pools.ts` (validate with named `ruleCard` rejections
+  → mutate `state.inventory` in place → emit one provenanced event); loot shape
+  mirrors `conditions.ts` (`applyTheme`/`unknown-theme` → `unknown-table`,
+  `theme-grants-nothing` → `loot-grants-nothing`).
+- Loot rolls through the one core table engine (`rollTable`, Custom Rule 3) with
+  grantLoot's normalized dual-space nested resolver (bare-id theme-space refs +
+  `tables.`-prefixed pack-space refs). Failed roll outcomes (`TableOutcome.ok ===
+  false`) map to named runtime rejections: `unresolvable-ref` verbatim;
+  `range-gap` / `depth-exceeded` / `malformed-entries` → `table-roll-failed`
+  naming the core reason. No ambient entropy: `opts.rng` wins, else
+  `new Rng(opts.seed ?? tableId)`.
+
+## Public API added (M03)
+
+- `CharacterState.inventory: InventoryEntry[]` (new `InventoryEntry {id, qty}` in
+  `character.ts`); `buildCharacter` initializes `inventory: []`.
+- `Character` facade methods: `grant(itemId, qty?)`, `drop(itemId, qty?)`,
+  `count(itemId)`, `loot(tableId, opts?)` — one-to-one delegates.
+- Snapshots: `serializeCharacterState` emits `state.inventory` verbatim (fresh
+  copies), `restoreCharacterState` restores it (fresh entry copies; no
+  pack cross-validation on the load path) — CA-01.
+- New event types (character-side, round 0): `item:granted`, `item:dropped`,
+  `loot:rolled` — payload/why anatomy per the session prompt; the `EventStream`
+  envelope itself is unchanged.
+
+## Realized import edges (value imports, type-only excluded)
+
+- `runtime/index.ts → ./inventory` (barrel re-export; OWNER-08-BARREL closed at landing).
+- `character.ts → ./inventory` (facade delegates) — new intra-module value-import
+  pair in M03 (alongside the existing `character ⇄ progression` and
+  `combat/triggers → combat` pairs).
+- `inventory.ts → ./character` is **type-only** — excluded from realized edges;
+  no third value-import cycle was added (the M03 pair count stays as documented).
+- Module-registry delta: M03 key files gain `inventory.ts`.
+
+*(Integrated by Orchestrator at receive of SESSION-01 attempt 2 / RECOVERY-01, commits 24b37c1 + db531d5; synthesis is the Archivist final pass.)*
+
 ## Recorded drift & intra-module notes (for the next cycle)
 
 - **M03 internal cycles (value imports):** `character.ts ⇄ progression.ts` (progression imports
