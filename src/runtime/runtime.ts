@@ -21,6 +21,7 @@ import { parseEffect, type EffectAst } from '../core/dsl/effect';
 import { parseFormula, type FormulaAst } from '../core/dsl/formula';
 import type { ErrorCard } from '../schema/error-card';
 import { EventStream, type RuntimeEvent } from './events';
+import { spatialFromPack, type SpatialGeometry } from './combat/spatial';
 import {
   createCharacter,
   Character,
@@ -74,6 +75,11 @@ export class Runtime {
   readonly pack: Pack;
   readonly events: EventStream;
   readonly index: PackIndex;
+  /**
+   * The pack's spatial geometry, built once at load (FR-11): the combat loop
+   * reads it per declare; theater-of-mind packs get the disabled no-op.
+   */
+  readonly spatial: SpatialGeometry;
   /** Monotonic per-runtime character serial — stable ids without ambient entropy. */
   nextCharacterId = 1;
 
@@ -102,6 +108,7 @@ export class Runtime {
 
     this.pack = loaded;
     this.events = new EventStream();
+    this.spatial = spatialFromPack(loaded);
     this.index = {
       classes: loaded.content.classes ?? {},
       conditions: loaded.content.conditions ?? {},

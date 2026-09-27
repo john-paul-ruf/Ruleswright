@@ -41,6 +41,8 @@ import {
   type MutationRequest,
   type Side,
 } from './resolve';
+import { checkReach, type Position, type SpatialRejection } from './spatial';
+import { RuntimeRuleError, ruleCard } from '../errors';
 
 /** One combatant's live combat state — plain JSON, snapshot-ready (FR-14). */
 export interface CombatantState {
@@ -62,6 +64,8 @@ export interface CombatantState {
   readonly actions: readonly string[];
   readonly attackTable?: readonly { level: number; byDefense: Record<string, number> }[];
   readonly attackBonus?: number;
+  /** The host-declared grid position (FR-11); absent in theater-of-mind packs. */
+  readonly position?: Position;
 }
 
 /** The one combat state object — plain JSON end to end (FR-14). */
@@ -106,7 +110,8 @@ export type DeclareRejection =
       rule: 'E-REF-01';
       resource: string;
       message: string;
-    };
+    }
+  | SpatialRejection;
 
 /** What one `step()` call advanced — the stepwise boundary (FR-10). */
 export type StepOutcome =
@@ -120,6 +125,8 @@ export type StepOutcome =
 export interface StartCombatRequest {
   readonly allies: readonly { id: string; profile: CombatantProfile; balances?: EconomyBalances }[];
   readonly enemies: readonly { id: string; profile: CombatantProfile; balances?: EconomyBalances }[];
+  /** Host-declared grid positions (FR-11); every combatant needs one when the pack declares a spatial model. */
+  readonly positions?: Readonly<Record<string, Position>>;
   /** Initiative roll source; defaults to the injected rng. */
   readonly rng?: RandomSource;
 }
@@ -132,6 +139,25 @@ export interface StartCombatRequest {
  * row).
  */
 export function startCombat(runtime: Runtime, request: StartCombatRequest): Combat {
+  // CAP-G2 fail-closed gate: a spatial pack's fight is refused — all missing
+  // combatants in one aggregate, nothing built — before any state or rolls.
+  if (runtime.pack.spatial !== undefined) {
+    const missing = [...request.allies, ...request.enemies].filter(
+      (member) => request.positions?.[member.id] === undefined,
+    );
+    if (missing.length > 0) {
+      throw new RuntimeRuleError(
+        missing.map((member) =>
+          ruleCard(
+            'E-SPAT-01',
+            member.id,
+            `positions.${member.id}`,
+            `combatant "${member.id}" has no position — this pack declares a spatial model (FR-11), so startCombat requires every combatant's position.`,
+          ),
+        ),
+      );
+    }
+  }
   const rng = request.rng ?? new Rng(0);
   const grants = resolveSlotGrants(runtime.pack);
   const entries: {
@@ -140,6 +166,7 @@ export function startCombat(runtime: Runtime, request: StartCombatRequest): Comb
     name: string;
     profile: CombatantProfile;
     balances: EconomyBalances;
+    positions: Position | undefined;
     initiativeRoll: number;
   }[] = [];
   for (const member of request.allies) {
@@ -149,6 +176,7 @@ export function startCombat(runtime: Runtime, request: StartCombatRequest): Comb
       name: member.id,
       profile: member.profile,
       balances: member.balances ?? {},
+      positions: request.positions?.[member.id],
       initiativeRoll: rng.int(20) + 1,
     });
   }
@@ -159,6 +187,7 @@ export function startCombat(runtime: Runtime, request: StartCombatRequest): Comb
       name: member.id,
       profile: member.profile,
       balances: member.balances ?? {},
+      positions: request.positions?.[member.id],
       initiativeRoll: rng.int(20) + 1,
     });
   }
@@ -193,6 +222,7 @@ export function startCombat(runtime: Runtime, request: StartCombatRequest): Comb
         ? entry.profile.attackTable.map((row) => ({ level: row.level, byDefense: { ...row.byDefense } }))
         : undefined,
       attackBonus: entry.profile.attackBonus,
+      ...(entry.positions !== undefined ? { position: entry.positions } : {}),
     };
   }
 
@@ -352,6 +382,10 @@ export class Combat {
     if ('rejection' in target) {
       return [this.rejectionEvent(actorId, target.rejection)];
     }
+    const spatial = this.spatialGate(actor, target.combatant);
+    if (spatial !== undefined) {
+      return [this.rejectionEvent(actorId, spatial)];
+    }
     const costRejection = checkCost(def.cost, this.grants, this.balancesOf(actor));
     if (costRejection !== undefined) {
       return [this.rejectionEvent(actorId, costRejection)];
@@ -472,6 +506,28 @@ export class Combat {
       };
     }
     return { combatant: target };
+  }
+
+  /**
+   * The one spatial declare-gate (CAP-G2): a spatial pack's reach gate runs
+   * after the target resolves and before any cost is spent — shared by
+   * declare() and reactive resolution (triggers ride the same pipeline).
+   * Theater-of-mind packs never reject: checkReach is a no-op there.
+   */
+  private spatialGate(actor: CombatantState, target: CombatantState): DeclareRejection | undefined {
+    return checkReach(
+      this.runtime.spatial,
+      { position: actor.position, reach: this.reachOf(actor.id) },
+      { id: target.id, position: target.position },
+      this.runtime.pack.spatial?.reach.default ?? 1,
+    );
+  }
+
+  /** The actor's pack-declared reach: its override key, else the model's default (spatial.html). */
+  private reachOf(id: string): number | undefined {
+    const reach = this.runtime.pack.spatial?.reach;
+    if (reach === undefined) return undefined;
+    return reach[id] ?? reach.default;
   }
 
   private applyNonSlotCosts(actor: CombatantState, cost: ActionCost): void {
@@ -611,6 +667,10 @@ export class Combat {
     const target = this.resolveTarget(reactor, targetId);
     if ('rejection' in target) {
       return [this.rejectionEvent(reactor.id, target.rejection)];
+    }
+    const spatial = this.spatialGate(reactor, target.combatant);
+    if (spatial !== undefined) {
+      return [this.rejectionEvent(reactor.id, spatial)];
     }
     const costRejection = checkCost(def.cost, this.grants, this.balancesOf(reactor));
     if (costRejection !== undefined) {
