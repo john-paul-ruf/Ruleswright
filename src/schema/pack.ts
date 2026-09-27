@@ -1,6 +1,6 @@
 /**
  * The pack document type — mirrors the top level of pack.schema.json
- * (8 required + 1 optional section, schemaVersion 1 / v1.1).
+ * (8 required + 2 optional sections, schemaVersion 1: economy v1.1, spatial v1.3).
  */
 import type {
   ActionDef,
@@ -53,6 +53,20 @@ export interface PackEconomy {
   turnSlots: Record<KebabId, number>;
 }
 
+/** $defs/spatial (v1.3) — optional spatial model (FR-11): grid reach + documented shape set. */
+export interface SpatialReach {
+  /** Melee reach in grid steps (1 = adjacency). */
+  default: number;
+  /** Per-id reach overrides — direct siblings of `default` (spatial.html verbatim). */
+  [overrideKey: string]: number;
+}
+
+export interface SpatialDef {
+  model: 'grid';
+  reach: SpatialReach;
+  shapes?: readonly ('single' | 'burst')[];
+}
+
 /** formulas map entry — pure data; the function registry is closed (NFR-Security). */
 export interface FormulaDef {
   params?: string[];
@@ -76,6 +90,7 @@ export interface Pack {
   stats: PackStats;
   actions: Record<string, ActionDef>;
   economy?: PackEconomy;
+  spatial?: SpatialDef;
   formulas: Record<string, FormulaDef>;
   content: PackContent;
   progression: Record<string, ClassProgression>;
