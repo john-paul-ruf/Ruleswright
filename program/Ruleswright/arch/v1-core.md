@@ -350,6 +350,27 @@ file), and its consumer `tests/compiler/coverage-floor.test.ts` was outside the 
 
 *(Integrated by Orchestrator at receive of SESSION-01 attempt 2 / RECOVERY-01, commits 24b37c1 + db531d5; synthesis is the Archivist final pass.)*
 
+<!-- loot-inventory SESSION-02 -->
+
+## M04 compiler — public surface delta (loot-inventory SESSION-02)
+
+- `src/compiler/theme-loader.ts`: new exported const `WYLDWOOD` (the `src/compiler/themes/wyldwood.json`
+  theme, typed `ThemeTemplate`); `loadTheme` gains the `case 'wyldwood'` (registry is now three names:
+  `dark-fantasy`, `zombie-urban`, `wyldwood`; unknown names keep the existing FR-17 error shape).
+- `src/compiler/index.ts`: `WYLDWOOD` re-exported beside `DARK_FANTASY`/`ZOMBIE_URBAN` (surface
+  completeness in the same lease, the D20 lesson).
+- New theme artifact `src/compiler/themes/wyldwood.json` — third FR-21 proof (fey/wilderness,
+  charm/ward loot economy, point-pool spells, no vancian slots). Data only; no new theme-template
+  field (items ride `content.items` per the theme-shape authority).
+- Stage 7 (`src/compiler/stages/tables.ts`) additionally contributes `content.items` (guarded like
+  races/conditions — optional; a theme with no items contributes nothing) and rejects
+  CA-02-checkable reference defects in `-loot`-suffixed tables with E-REF-01 theme cards
+  (objects with undeclared item ids + missed `tables.`-prefixed nested refs; every other string in a
+  `-loot` table is CA-02 flavor, never an error — REPLAN-LOOT-01). No registry growth, no schema
+  change, no new event type.
+
+*(Integrated by Orchestrator at receive of SESSION-02 (commits 753ced1 + fc60edc + c7b43a0); synthesis is the Archivist final pass.)*
+
 ## Recorded drift & intra-module notes (for the next cycle)
 
 - **M03 internal cycles (value imports):** `character.ts ⇄ progression.ts` (progression imports
