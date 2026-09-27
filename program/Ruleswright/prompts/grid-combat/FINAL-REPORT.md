@@ -8,7 +8,7 @@
 
 **Sessions: 5/5 done** (+1 planning-completeness Archivist, +1 replan worker, +1 owner-correction worker). **Files created/modified:** 2 author artifacts (pack.schema.json, database.md), 9 source files (schema ×4, runtime ×6 incl. the ratified barrel line, core ×1), 3 theme JSONs, 1 fixture file, 7 test files (5 modified, 2 created), README. **Architecture impact:** M01 gains the spatial contract mirror + validator section; M02 gains `evalValidity` (injected-callback isolation held); M03 gains the adapter, positions, reach/validity gates, one shape resolver, snapshot position I/O; M04 gains the spatial pass-through + theme declarations; no new modules; isolation and all architecture guards held (runtime never imports compiler; core stays runtime-ignorant).
 
-**Verification (FINAL, all seven package gates green at `f178c0a`, Orchestrator-run):** `pnpm typecheck` 0 · `pnpm lint` 0 · `pnpm test` **564/564 across 35 files** · `pnpm build` 0 (24 dist files) · `check-runtime-isolation` 0 · `check-security-lint` 0 · `pnpm format:check` 0 · plus `pnpm exec vitest run tests/proofs/` 28/28 (ci.yml's exact command). Baseline lineage: 503/503 (loot close) → 513 (S02) → 552/553 (W3) → **564/564** (S05 close).
+**Verification (FINAL, all seven package gates green at `f178c0a`, Orchestrator-run; re-confirmed fresh by the final Archivist pass at `c72908a`):** `pnpm typecheck` 0 · `pnpm lint` 0 · `pnpm test` **564/564 across 35 files** · `pnpm build` 0 (24 dist files) · `check-runtime-isolation` 0 · `check-security-lint` 0 · `pnpm format:check` 0 · plus `pnpm exec vitest run tests/proofs/` 28/28 (ci.yml's exact command). Baseline lineage: 503/503 (loot close) → 513 (S02) → 552/553 (W3) → **564/564** (S05 close).
 
 **Capabilities.** CAP-G1..G7 all **verified** against current sources — CAP-G7 (the first narrow journey) crosses the real transport with no mocked boundary; CA-G1..G5 all legs landed with proofs passed; no required capability remains planned, blocked, or stale.
 
@@ -22,7 +22,7 @@
 
 **Concurrency:** 3   **Wall clock:** ~4h (first dispatch ~13:00Z to S05 close ~16:52Z local; per-wave durations from recorded launch/receive times below)
 **Sessions run:** 5 Planner sessions + 3 workers (1 planning-completeness Archivist, 1 replan, 1 owner correction)
-**Checkpoints committed by Coder:** 17 checkpoint/correction commits across the five sessions (2+1corr, 3, 5, 3, 3+1corr) + 1 owner-correction commit + 1 replan commit = **19 worker commits**; plus 4 Orchestrator commits (1 session-end residual format fix, 3 STATE updates) and 5 arch-integration commits.
+**Checkpoints committed by Coder:** 17 checkpoint/correction commits across the five sessions (2+1corr, 3, 5, 3, 3+1corr) + 1 owner-correction commit + 1 replan commit = **19 worker commits**; plus 4 Orchestrator commits (1 session-end residual format fix, 3 STATE updates) and 5 arch-integration commits; plus the final Archivist synthesis commit (`c72908a`).
 
 ### Wave plan as executed
 | Wave | Sessions | Notes |
@@ -32,6 +32,7 @@
 | W2 | S02 (h-H-QJ/Ciqwt) | TS mirror + validator + registry re-key, solo; 3/3; baseline 513/513 |
 | W3 | S03 ∥ S04 (h-ZL9_/Cvh5O + h-zZq1/CQ2Bw), then OWNER-CP-POSITIONS (h-WiOD/CR2Ih) | Both launched before any await; disjoint leases held; S03 5/5 (one ratified barrel export), S04 3/3; the outside-lease CA-08 seam cleared by the owner correction at wave close |
 | W4 | S05 (h-jbQs/C3n8a) | Journey + README, solo; 3/3 (+1 in-lease correction); all seven package gates green; feature closed |
+| completion | ARCHIVIST-FINAL (h-bTvU/AbDHp) | Final synthesis: arch across four cycles (incl. v1-shell's first record), registry re-derived, three conventions promoted, log entry; all gates re-run fresh and green |
 
 ### Blocked
 | S | Reason | Last checkpoint | Dependents stalled |
@@ -54,10 +55,10 @@ No human interruption was required at any point; every blocker passed the Human 
 | After wave | Sessions received | Result | Drift found | Actions |
 |---|---|---|---|---|
 | pre-W1 (planning-completeness) | 0 | done (h-rxH5/AOQID) | 4 findings (F-G1 plan-text contradiction; F-G2/F-G3 unowned pins; F-G4 informational) | REPLAN-GC-01 corrected all before first dispatch |
-| (no further interim checks — 5 sessions < 16, default cadence; Owner-Seam Rechecks ran after each correction batch instead) | — | — | — | — |
+| completion (final pass) | all | done (h-bTvU/AbDHp, commit `c72908a`) | arch reconciled across four cycles (v1-shell's first record absorbed); module registry re-derived mechanically; three conventions promoted; one record correction (`combat/triggers → combat` cycle is type-only at creation and remains so — resolved against git, not recency) | see Archivist's Note below |
 
 ### Lease violations
-- **S03 (one, self-reported):** ck1 commit `0a911b2` includes `src/runtime/index.ts` — one-line additive export of the new `packSpatialModel` in the M03 surface barrel, outside the literal write set. The worker self-reported it in the handoff and `needsOwnerCorrection` before Orchestrator's check; ratified under Auto-Decision precedence 3 (narrowest change satisfying the approved checkpoint; the adapter edge's surface export; D16 precedent from v1-core's identical one-block S06 barrel completion). Never amended; recorded here as the run's one lease violation. All other 16 worker commits verified path-by-path inside their leases.
+- **S03 (one, self-reported):** ck1 commit `0a911b2` includes `src/runtime/index.ts` — one-line additive export of the new `packSpatialModel` in the M03 surface barrel, outside the literal write set. The worker self-reported it in the handoff and `needsOwnerCorrection` before Orchestrator's check; ratified under Auto-Decision precedence 3 (narrowest change satisfying the approved checkpoint; the adapter edge's surface export; D16 precedent from v1-core's identical one-block S06 barrel completion). Never amended; recorded here as the run's one lease violation. All other 16 worker commits verified path-by-path inside their leases. The final Archivist pass verified the record is consistent (STATE DD14a + session row + this report).
 
 ### Checkpoint shortfalls
 None — every session's claimed checkpoint count matched `git log --oneline -- <lease paths>` exactly (2/2+corr, 3/3, 5/5, 3/3, 3/3+corr).
@@ -77,7 +78,7 @@ None — Planner's `Concurrent with` claim (S03 ∥ S04) verified literally path
 - **Wall-clock per wave (from recorded start/receive):** W0+preflight ~35 min; W1 ~25 min; W2 ~30 min; W3 ~80 min (parallel) + correction ~10 min; W4 ~35 min. No invented history — all from ledger timestamps.
 
 ### Capability completion
-All in-scope required capabilities are **verified against current sources**: CAP-G1..G6 with named producer/proof checkpoints, and CAP-G7 (the first narrow journey) proven end to end on generated content through the real transport with no mocked boundary. No capability remains planned, blocked, or stale. The feature is complete; product completion additionally inherits the two prior features' verified capabilities (unchanged by this run — no prior surface was modified outside additive contract/schema growth).
+All in-scope required capabilities are **verified against current sources**: CAP-G1..G6 with named producer/proof checkpoints, and CAP-G7 (the first narrow journey) proven end to end on generated content through the real transport with no mocked boundary. No capability remains planned, blocked, or stale. The feature is complete; product completion additionally inherits the prior features' verified capabilities (v1-core, loot-inventory, and now v1-shell recorded; unchanged by this run — no prior surface was modified outside additive contract/schema growth).
 
 ### Follow-up closure ledger
 | Source | Entry (verbatim summary) | Disposition |
@@ -89,7 +90,7 @@ All in-scope required capabilities are **verified against current sources**: CAP
 | S03 `surprises` (1) | Lease violation ratified-or-revert decision | **closed** — ratified (DD14a); recorded in §Lease violations |
 | S03 `surprises` (2) | character-profile seam | **closed** — OWNER-CP-POSITIONS `2f3b1d3` |
 | S03 `surprises` (3) | docs-run red + fix must update README AND test | **closed** — S05 ck1 paid it; docs-run green |
-| S03 `surprises` (4) | `npx vitest run` broken → `pnpm exec vitest run` | **closed** — recorded as DD14e; envelopes updated from S05 on |
+| S03 `surprises` (4) | `npx vitest run` broken → `pnpm exec vitest run` | **closed** — recorded as DD14e; envelopes updated from S05 on; PROGRAM-CONFIG verification row corrected by the Archivist |
 | S03 `surprises` (5) | prompt selector matched nonexistent path | **closed** — theater parity run via real path; recorded |
 | S03 `surprises` (6,7) | instance-id reach keys; harness mechanics (ScriptedRng, execSave, save-d20s-as-outcomes, empty-allies self-target) | **closed** — consumed by S05's journey (byte-exact assertions) |
 | S04 `followUp` | Theme spatial sections for journey assertions; docs-run debt; perf re-run; theater parity note | **closed** — journey pins them (`efdd69c`); perf 4/4 + proofs 28/28 at close |
@@ -103,4 +104,33 @@ All in-scope required capabilities are **verified against current sources**: CAP
 No follow-up left the run without a row above.
 
 ### Archivist's Note
-*(appended after the final Archivist pass completes — see below)*
+
+## Archivist Note
+
+- **role:** archivist
+- **registryUpdated:** true
+- **reconciled:**
+  - `program/Ruleswright/arch/v1-core.md` — one realized-state record at `c2a8fff` across **four feature cycles** (v1-core, v1-shell, loot-inventory, grid-combat); the Orchestrator-integrated feature fragments collapsed into the M01–M05 module sections and surfaces map; grid deltas folded in (`Pack.spatial`/`checkSpatial`, `evalValidity`, the runtime spatial integration, `ThemeTemplate.spatial` + three spatial themes, the grid journey); **v1-shell received its first record** — absorbing the loot-inventory pass's unfinished record-debt (its final Archivist pass aborted on provider capacity, two attempts, zero writes). Record correction resolved against git, not recency: the standing `combat/triggers.ts → combat.ts` "value-import cycle" was **type-only at creation (`6afbe31`) and remains so** (`41a967b` is format-only) — the record now says so; `character ⇄ progression` is real and stays. Verified-by-execution vs verified-by-source distinguished throughout.
+  - `program/Ruleswright/PROGRAM-CONFIG.MD` — module registry re-derived mechanically from value imports of every non-test file at `c2a8fff` (validate/ tree, `SpatialDef`, `evalValidity`, `inventory.ts`, `character-profile.ts`, three spatial themes); M02→M01 re-verified **type-only**.
+- **conventionsAdded:**
+  - **Pin-lease ownership** (2 program cycles, 3 in-cycle instances: loot F-2, grid F-G2/F-G3) — cross-suite pins name their re-key owner and checkpoint in the plan.
+  - **Factual-premise verification at planning time** (2 cycles, 4 instances: loot F-1/F-3/F-4 + grid F-G1) — envelope premises checked against artifacts before dispatch; checkpoint-0 rechecks verify, they do not originate premises.
+  - **Whole-repo fast gates at role-scoped receives** (3 cycles: OWNER-01-LINT `c5fbb94`, FORMAT-RECONCILE `8b802b7`, grid `0ab3622`) — every role-scoped receive runs the whole-repo fast gates; red gates clear via format-only owner correction.
+  - Verification Commands corrected: `npx vitest run` fails here (DD14e) — **`pnpm exec vitest run <path>`** is the lease-scoped gate; Stack/CI rows updated (ESLint 10, lint on Node 22, format:check).
+- **proposedForFramework:**
+  - CODER.md bound checkpoint-0 read scope for large sessions — cycles 2, in-cycle instances 2 (v1-core; grid: 0, the discipline held).
+  - Orchestrator guardrail for subagent tool-input fabrication + document the `run` argv shape — cycles 2, in-cycle instances 8 (v1-core; grid: 0).
+  - PLANNER.md name the barrel/surface-completion checkpoint in the last session's lease — cycles 2, in-cycle instances 3 (OWNER-08-BARREL, D20, grid DD14a `0a911b2`).
+  - `commit_pathspec` deleted-file handling — cycles 1, instances 1 (no recurrence).
+- **logEntry:** 2025-09-27 dated entry appended to `program/Ruleswright/ARCHIVIST-LOG.md`; prior entry byte-verbatim; standing recommendations carried forward with stable IDs (5 carried, 6 minted); cleanup ledger carried (C5 retired, C6 `parsePackEffects` zero-consumer + C7 `WYLDWOOD` added; no brief threshold crossed).
+
+**Corroboration of the FINAL-REPORT — verified by fresh execution:** `pnpm typecheck` 0 · `pnpm lint` 0 · `pnpm test` **564/564 across 35 files** · `pnpm build` 0 (24 dist files) · `check:isolation` 0 · `check:security` 0 · `pnpm format:check` 0 · `pnpm exec vitest run tests/proofs/` **28/28 across 5 files**. Every headline matches; no count discrepancies this cycle.
+
+**Verified by source:** `RULE_IDS` = 15 with `'E-SPAT-01'` last; `pack.schema.json` `$defs/spatial` matches `mocks/spatial.html` field-for-field; all three themes declare spatial with the recorded reach keys; `grid-journey.test.ts` ran 11/11; README Grid combat section with exactly 4 ```ts blocks, ```json snippet, journey cited; README/journey/contract byte-untouched since `f178c0a`; **DD14a/lease-violation record consistent** (STATE session row + DD14a + S03 receive record + FINAL-REPORT §Lease violations: one ratified, self-reported, never amended).
+
+- **cleanupBriefs:** none — no cluster crossed a brief threshold (C6 `parsePackEffects` is high-confidence zero-consumer but its disposition is blocked on the recorded "spells as combat actions" engine design event, not on evidence; the surface-intent cluster C3/C4/C7 is three related low-confidence findings).
+- **standingRecommendations:** the full open backlog is carried in the log's latest table (11 rows: 5 open, 3 promoted this pass, 3 new tracked). Top open rows: subagent tool-input fabrication (2 cycles/8 instances), barrel-completeness lease gaps (2 cycles/3 instances, +1 grid), provider stream aborts with tree-resume recovery (2 cycles/4 instances), bare-`npx` gate hazard (2 cycles/3 instances, partially mitigated by the gate-form correction).
+
+*(In-pass anomaly, disclosed in the log: this Archivist's first PROGRAM-CONFIG.MD write produced corrupted content — the same failure class S02 recorded — caught by the post-write re-read discipline, rewritten cleanly, nothing corrupted committed. `PLANNER.md`/`CODER.md`/`UI-CODER.md`/`ORCHESTRATOR.md` are byte-identical to how this pass found them; adoption was checked by content and by git, not assumed.)*
+
+*(Synthesis commit `c72908a`: `program/Ruleswright/{arch/v1-core.md, PROGRAM-CONFIG.MD, ARCHIVIST-LOG.md}` — explicit pathspec, tree clean.)*
