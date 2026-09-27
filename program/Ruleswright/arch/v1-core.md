@@ -429,6 +429,54 @@ fixture actions `ember-bloom-rite` (burst-2 save spell-as-action), `seize-openin
 
 *(Integrated by Orchestrator at receive of grid-combat SESSION-03 (commits 0a911b2 + be9cda9 + 8f3959e + 606c817 + 38c017e); synthesis is the Archivist final pass.)*
 
+<!-- grid-combat SESSION-04 -->
+
+## M04 compiler — public surface delta (grid-combat SESSION-04, f77bb5d/6675af7/bf30863)
+
+- `src/compiler/theme.ts`: `ThemeTemplate` gains `spatial?: SpatialDef` (the same type the pack
+  carries — imported from `../schema/pack`, no theme-side renaming; after `economy?`, contract
+  order). CA-G1 recheck at ck0: the committed `$defs/spatial` == `SpatialDef` field-for-field — no delta.
+- `src/compiler/pipeline.ts`: `STAGE_INPUT_SECTIONS` gains `'spatial'` after `'economy'` (knob
+  tokens now resolve inside a theme's spatial declaration); pass-through after the manifest/formulas
+  seeding (`structuredClone(themeView.spatial)` — the theme object is never mutated by generation;
+  absent = no key, theater of mind).
+- All three bundled themes declare `spatial` (identical shape): dark-fantasy
+  `reach: {default: 1, 'barrow-wight': 2}`, zombie-urban `reach: {default: 1, 'slab-brute': 2}`,
+  wyldwood `reach: {default: 1, 'hollow-wight': 2}` — each override key names a bestiary id that
+  theme declares; `shapes: ['single', 'burst']` by all three (the v1 set).
+- Token discipline (found by S04's own first token test): `substituteTokens` stringifies knob values,
+  so the only stage-8-valid token placement inside a spatial declaration is a shape-valued knob
+  spliced into `shapes`; reach values stay plain integers.
+- Stage-8 dogfood proof: the FR-17/CA-1 generate→`validatePack` path sees the spatial section on all
+  three packs and produces zero cards (coverage-floor 78/78 — CAP-G6's evidence).
+
+*(Integrated by Orchestrator at receive of grid-combat SESSION-04 (commits f77bb5d + 6675af7 + bf30863); synthesis is the Archivist final pass.)*
+
+<!-- grid-combat SESSION-05 -->
+
+## Grid journey proof + README (grid-combat SESSION-05, 1cb3e70/efdd69c/d3db8ea/f178c0a)
+
+- CAP-G7 proven end-to-end on the real generated dark-fantasy pack (seed 42): generate → `new Runtime`
+  (stage-8 load gate) → host positions → spatial/E-SPAT-01 reject → restore-close distance → burst
+  with per-target saves (mixed branches) → validity gate → snapshot round-trip → theater parity on
+  wyldwood-42. No mocked boundary anywhere; two-run determinism byte-equal. `tests/proofs/grid-journey.test.ts`
+  (11 tests) — the feature's integration proof; also ci.yml's `tests/proofs/` job input.
+- The burst shape rides the journey as **pack data added at test setup** (a data-only action carrying
+  the generated spell's verbatim cost + effect on the caster's action list — FR-12 rules-are-data
+  discipline, zero engine diffs): combat `declare()` resolves actions only from `pack.actions` (no
+  spell path; `parsePackEffects`' spell ASTs have zero consumers), so generated packs'
+  `content.spells` are not combat-declarable. Recorded as the feature's CA-G4 consumer-shape
+  amendment need — a "spells as combat actions" bridge is an engine design event (Author/DB re-entry
+  class), not a test defect.
+- README: quickstart block 03 now passes host-declared positions (the docs-run planned-debt payoff;
+  `d20[9]=9 < ac12` unchanged — positions consume no RNG, proved by run); a **Grid combat** section
+  documents the FR-11 opt-in (```json spatial snippet, mechanics, E-SPAT-01, burst semantics,
+  vancian vs pool casting, the no-move-verb/FR-10 restore seam, the journey cited for NFR-DX).
+- Baseline after S05: **564/564 across 35 files**; all seven package gates green (typecheck, lint,
+  test, build, isolation, security, format).
+
+*(Integrated by Orchestrator at receive of grid-combat SESSION-05 (commits 1cb3e70 + efdd69c + d3db8ea + f178c0a); synthesis is the Archivist final pass.)*
+
 ## Recorded drift & intra-module notes (for the next cycle)
 
 - **M03 internal cycles (value imports):** `character.ts ⇄ progression.ts` (progression imports
@@ -444,15 +492,20 @@ fixture actions `ember-bloom-rite` (burst-2 save spell-as-action), `seize-openin
 - **`MAX_TABLE_DEPTH` duplication:** same value 8 in `core/tables.ts` and `schema/validate.ts`
   (S02/S01 independently chose 8; DB ratification pending). Single-source in v1.1.
 - **E-SPAT-01 unregistered:** typed `pendingId` carried verbatim in `src/runtime/combat/spatial.ts`;
-  registry frozen additive; DB decision pending. *(grid-combat update: the DB decision has now
-  LANDED — `E-SPAT-01` is registered in database.md v1.3 and `RULE_IDS` (S01 `0120359` + S02
-  `98e463e`); S03 switched `pendingId` → `rule: 'E-SPAT-01'` with zero remnants (`0a911b2`).)*
+  registry frozen additive; DB decision pending. *(grid-combat update: RESOLVED — `E-SPAT-01` is
+  registered in database.md v1.3 and `RULE_IDS` (S01 `0120359` + S02 `98e463e`); S03 switched
+  `pendingId` → `rule: 'E-SPAT-01'` with zero remnants (`0a911b2`).)*
 - **Dice/Rng on the runtime surface:** not exported (see Surfaces above) — the approved surface
   spec said types should ride runtime; the README's "dice" bullet is satisfied by the engine's
   injectable seam + snapshots, not by exported dice symbols. Next surface revision decides.
 - **Declare gate order (grid-combat, S03):** validity gate → spatial reach gate → cost (validity
   before spatial so the out-of-reach `hasTarget(adjacent)` rejection stays observable); recorded in
   the source comment; both orders keep the ck2 contract green.
+- **Spells are not combat-declarable (grid-combat, S05 finding):** `declare()` resolves actions only
+  from `pack.actions`; `parsePackEffects`' spell ASTs have zero consumers. Generated packs ship
+  burst shapes only as `content.spells`. The "spells as combat actions" bridge is an engine design
+  event (Author/DB re-entry class) — the journey proves bursts through pack data at test setup in
+  the meantime.
 
 <!-- Historical delta sections (pre-synthesis, kept verbatim below this line for provenance) -->
 
