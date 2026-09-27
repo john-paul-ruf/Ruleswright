@@ -22,13 +22,7 @@ import { describe, expect, it } from 'vitest';
 import { Runtime } from '../../src/runtime/runtime';
 import { RuntimeRuleError } from '../../src/runtime/errors';
 import type { ErrorCard } from '../../src/schema/error-card';
-import {
-  grantItem,
-  dropItem,
-  countItem,
-  rollLoot,
-  grantLoot,
-} from '../../src/runtime/inventory';
+import { grantItem, dropItem, countItem, rollLoot, grantLoot } from '../../src/runtime/inventory';
 import { createCharacter } from '../../src/runtime/character';
 import { serializeCharacter } from '../../src/runtime/snapshots';
 import { Rng } from '../../src/core/rng';
@@ -236,7 +230,7 @@ describe('CAP-02 — grantLoot rolls the one table engine into inventory (CA-02)
     };
     const runtime = new Runtime(pack);
     const character = createCharacter(runtime, { name: 'B', race: 'ashkin', classes: ['warden'] }).state;
-    grantLoot(runtime, character, 'flavored', { rng: { int: () => 1 } });// draw 1 selects the rope entry
+    grantLoot(runtime, character, 'flavored', { rng: { int: () => 1 } }); // draw 1 selects the rope entry
     expect(character.inventory).toEqual([{ id: 'rope', qty: 2 }]);
     const events = runtime.events.sinceRound(0).filter((event) => event.type !== 'character:created');
     expect(events.map((event) => event.type)).toEqual(['loot:rolled', 'item:granted']);
@@ -253,9 +247,7 @@ describe('CAP-02 — grantLoot rolls the one table engine into inventory (CA-02)
 
   it('CA-02 keeps vocabularies distinct: a string condition id in a loot table is flavor, not a condition', () => {
     const { runtime, character } = vale();
-    expect(() => grantLoot(runtime, character, 'wandering-dread', { seed: 0 })).toThrow(
-      /nothing grantable/,
-    );
+    expect(() => grantLoot(runtime, character, 'wandering-dread', { seed: 0 })).toThrow(/nothing grantable/);
     expect(character.conditions).toEqual([]);
     expect(character.inventory).toEqual([]);
   });
@@ -375,7 +367,9 @@ describe('CAP-02 — failed roll outcomes map to named rejections, state unchang
     } catch (error) {
       expect(ruleOf(error)).toBe('unresolvable-ref');
       expect(((error as RuntimeRuleError).errors[0] as ErrorCard).artifactId).toBe('dangling');
-      expect(((error as RuntimeRuleError).errors[0] as ErrorCard).jsonPath).toBe('tables.dangling.entries[0]');
+      expect(((error as RuntimeRuleError).errors[0] as ErrorCard).jsonPath).toBe(
+        'tables.dangling.entries[0]',
+      );
     }
     expect(JSON.stringify(character)).toBe(before);
     expect(runtime.events.sinceRound(0).some((event) => event.type === 'loot:rolled')).toBe(false);
@@ -467,9 +461,8 @@ function inventoryValePack(): Pack {
 }
 
 function rollTableDirect(): TableOutcome {
-  return rollTable(
-    { kind: 'nested', entries: [{ value: 'tables.no-such-table' }] },
-    new Rng(0),
-    { jsonPath: 'tables.malformed-ref', resolve: () => undefined },
-  );
+  return rollTable({ kind: 'nested', entries: [{ value: 'tables.no-such-table' }] }, new Rng(0), {
+    jsonPath: 'tables.malformed-ref',
+    resolve: () => undefined,
+  });
 }

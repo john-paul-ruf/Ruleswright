@@ -54,7 +54,16 @@ describe('CAP-04 — wyldwood generates a complete, validator-clean pack', () =>
       knobs: { threat: 'medium', 'briar-density': 2, 'hedge-magic': 3, 'ward-depth': 'deep', 'mote-base': 6 },
     });
     // the pack is complete: all eight required sections + the declared economy
-    for (const section of ['manifest', 'stats', 'actions', 'formulas', 'content', 'progression', 'bestiary', 'tables'] as const)
+    for (const section of [
+      'manifest',
+      'stats',
+      'actions',
+      'formulas',
+      'content',
+      'progression',
+      'bestiary',
+      'tables',
+    ] as const)
       expect(pack[section], section).toBeDefined();
     expect(pack.economy?.turnSlots).toEqual({ main: 1, move: 1, reaction: 1 });
   });

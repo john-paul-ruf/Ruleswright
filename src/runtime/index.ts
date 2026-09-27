@@ -27,14 +27,7 @@ export {
 } from './character';
 export { CharacterBuildError, validateBuild, levelForXp, xpSplit, levelSet, awardXp } from './progression';
 export { spendPool, prepareSpell, castSpell, knownSpells, poolVocabulary, initPools, rest } from './pools';
-export {
-  grantItem,
-  dropItem,
-  countItem,
-  rollLoot,
-  grantLoot,
-  type LootOptions,
-} from './inventory';
+export { grantItem, dropItem, countItem, rollLoot, grantLoot, type LootOptions } from './inventory';
 export {
   matchesRestriction,
   declaredTags,

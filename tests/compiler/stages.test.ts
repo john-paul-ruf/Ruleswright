@@ -105,7 +105,10 @@ describe('stage 4 · classes', () => {
 
   it('a class without progression fails located (E-REF-03 territory, before stage 8)', () => {
     const theme = microTheme();
-    theme.content = { ...theme.content!, classes: { ...theme.content!, classes: { orphan: { name: 'Orphan' } } } as never };
+    theme.content = {
+      ...theme.content!,
+      classes: { ...theme.content!, classes: { orphan: { name: 'Orphan' } } } as never,
+    };
     try {
       generate(theme);
       expect.unreachable();

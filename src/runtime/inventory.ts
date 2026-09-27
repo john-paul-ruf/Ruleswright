@@ -42,7 +42,10 @@ export interface LootOptions {
 function lootTableResolver(runtime: Runtime): TableResolver {
   return (ref: unknown): TableDef | undefined => {
     if (typeof ref !== 'string') return undefined;
-    return runtime.pack.tables[ref] ?? (ref.startsWith('tables.') ? runtime.pack.tables[ref.slice('tables.'.length)] : undefined);
+    return (
+      runtime.pack.tables[ref] ??
+      (ref.startsWith('tables.') ? runtime.pack.tables[ref.slice('tables.'.length)] : undefined)
+    );
   };
 }
 
@@ -185,11 +188,7 @@ export function dropItem(
 }
 
 /** CAP-01 — how many of an item the character holds (0 for anything unknown or unheld). */
-export function countItem(
-  runtime: Runtime,
-  character: CharacterState,
-  itemId: string,
-): number {
+export function countItem(runtime: Runtime, character: CharacterState, itemId: string): number {
   if (runtime.pack.content.items?.[itemId] === undefined) {
     throw new RuntimeRuleError([
       ruleCard(
@@ -249,9 +248,7 @@ export function grantLoot(
   if (!outcome.ok) {
     const { reason, jsonPath, message } = outcome.failure;
     const rule = reason === 'unresolvable-ref' ? 'unresolvable-ref' : 'table-roll-failed';
-    throw new RuntimeRuleError([
-      ruleCard(rule, tableId, jsonPath, `loot roll failed: ${message}`),
-    ]);
+    throw new RuntimeRuleError([ruleCard(rule, tableId, jsonPath, `loot roll failed: ${message}`)]);
   }
   const grants: { id: string; qty: number }[] = [];
   const grant = grantableValue(runtime, outcome.value);
@@ -281,7 +278,11 @@ export function grantLoot(
 }
 
 /** CAP-02 — apply one CA-02 grant to the inventory, stacking by id; emits `item:granted`. */
-function grantStack(runtime: Runtime, character: CharacterState, grant: { id: string; qty: number }): RuntimeEvent {
+function grantStack(
+  runtime: Runtime,
+  character: CharacterState,
+  grant: { id: string; qty: number },
+): RuntimeEvent {
   const total = addStack(character, grant.id, grant.qty);
   return runtime.events.emit({
     type: 'item:granted',

@@ -5,11 +5,7 @@
   "knobs": {
     "threat": {
       "type": "enum",
-      "values": [
-        "low",
-        "medium",
-        "high"
-      ],
+      "values": ["low", "medium", "high"],
       "default": "medium",
       "desc": "Bestiary threat budget: low thins the briar paths, high stacks the glades."
     },
@@ -29,10 +25,7 @@
     },
     "ward-depth": {
       "type": "enum",
-      "values": [
-        "light",
-        "deep"
-      ],
+      "values": ["light", "deep"],
       "default": "deep",
       "desc": "Ward-table depth: light keeps the hedge-ward table shallow, deep stacks the chain."
     },
@@ -45,21 +38,8 @@
     }
   },
   "stats": {
-    "abilities": [
-      "might",
-      "grace",
-      "vigor",
-      "reason",
-      "insight",
-      "presence"
-    ],
-    "saves": [
-      "vigor",
-      "grace",
-      "tenacity",
-      "reason",
-      "presence"
-    ]
+    "abilities": ["might", "grace", "vigor", "reason", "insight", "presence"],
+    "saves": ["vigor", "grace", "tenacity", "reason", "presence"]
   },
   "economy": {
     "turnSlots": {
@@ -77,9 +57,7 @@
       },
       "valid": "hasTarget(adjacent)",
       "effect": "sequence(attack(ac, might), damage(1d8 + might, sharp))",
-      "tags": [
-        "main"
-      ]
+      "tags": ["main"]
     },
     "thorn-lash": {
       "cost": {
@@ -93,9 +71,7 @@
       },
       "valid": "hasTarget(adjacent)",
       "effect": "sequence(attack(ac, grace), damage(1d6 + grace, pierce), applyCondition(sapped, 1))",
-      "tags": [
-        "main"
-      ]
+      "tags": ["main"]
     },
     "bow-volley": {
       "cost": {
@@ -104,9 +80,7 @@
         }
       },
       "effect": "sequence(attack(ac, 0), damage(1d8, pierce))",
-      "tags": [
-        "main"
-      ]
+      "tags": ["main"]
     },
     "glade-spear": {
       "cost": {
@@ -115,9 +89,7 @@
         }
       },
       "effect": "sequence(attack(ac, 0), damage(2d6, pierce))",
-      "tags": [
-        "main"
-      ]
+      "tags": ["main"]
     },
     "fall-back": {
       "cost": {
@@ -126,9 +98,7 @@
         }
       },
       "effect": "applyCondition(braced, 2)",
-      "tags": [
-        "move"
-      ]
+      "tags": ["move"]
     },
     "circle-path": {
       "cost": {
@@ -137,9 +107,7 @@
         }
       },
       "effect": "applyCondition(warded, 1)",
-      "tags": [
-        "move"
-      ]
+      "tags": ["move"]
     },
     "ward-step": {
       "cost": {
@@ -151,9 +119,7 @@
         "on": "attack:rolled[target=self]"
       },
       "effect": "applyCondition(warded, 2)",
-      "tags": [
-        "reaction"
-      ]
+      "tags": ["reaction"]
     },
     "root-snare": {
       "cost": {
@@ -165,9 +131,7 @@
         "on": "attack:rolled[target=self]"
       },
       "effect": "sequence(attack(ac, grace), damage(1d4, bludgeon), applyCondition(rooted, 1))",
-      "tags": [
-        "reaction"
-      ]
+      "tags": ["reaction"]
     },
     "charm-word": {
       "cost": {
@@ -177,9 +141,7 @@
         }
       },
       "effect": "save(presence, 11, applyCondition(beguiled, 2), applyCondition(beguiled, 1))",
-      "tags": [
-        "casting"
-      ]
+      "tags": ["casting"]
     },
     "briar-crown": {
       "cost": {
@@ -189,9 +151,7 @@
         }
       },
       "effect": "save(tenacity, 12, applyCondition(hexbound, 2), applyCondition(hexbound, 1))",
-      "tags": [
-        "casting"
-      ]
+      "tags": ["casting"]
     },
     "gloam-light": {
       "cost": {
@@ -201,9 +161,7 @@
         }
       },
       "effect": "applyCondition(dazzled, 2)",
-      "tags": [
-        "casting"
-      ]
+      "tags": ["casting"]
     },
     "wyrd-gaze": {
       "cost": {
@@ -212,9 +170,7 @@
         }
       },
       "effect": "save(reason, 12, applyCondition(hexsight, 3), damage(half))",
-      "tags": [
-        "casting"
-      ]
+      "tags": ["casting"]
     }
   },
   "formulas": {
@@ -235,12 +191,8 @@
     "classes": {
       "warden": {
         "name": "Warden",
-        "spellLists": [
-          "warden"
-        ],
-        "armorCasting": [
-          "leather"
-        ],
+        "spellLists": ["warden"],
+        "armorCasting": ["leather"],
         "features": [
           {
             "level": 1,
@@ -251,51 +203,29 @@
             "ref": "verges-glyph"
           }
         ],
-        "actions": [
-          "strike",
-          "thorn-lash",
-          "fall-back",
-          "circle-path",
-          "ward-step"
-        ]
+        "actions": ["strike", "thorn-lash", "fall-back", "circle-path", "ward-step"]
       },
       "hexer": {
         "name": "Hexer",
-        "spellLists": [
-          "hexer"
-        ],
+        "spellLists": ["hexer"],
         "features": [
           {
             "level": 1,
             "ref": "hexers-eye"
           }
         ],
-        "actions": [
-          "bow-volley",
-          "glade-spear",
-          "circle-path",
-          "root-snare",
-          "charm-word"
-        ]
+        "actions": ["bow-volley", "glade-spear", "circle-path", "root-snare", "charm-word"]
       },
       "hedge-mage": {
         "name": "Hedge Mage",
-        "spellLists": [
-          "hedge"
-        ],
+        "spellLists": ["hedge"],
         "features": [
           {
             "level": 2,
             "ref": "hedges-eye"
           }
         ],
-        "actions": [
-          "thorn-lash",
-          "gloam-light",
-          "fall-back",
-          "ward-step",
-          "wyrd-gaze"
-        ]
+        "actions": ["thorn-lash", "gloam-light", "fall-back", "ward-step", "wyrd-gaze"]
       }
     },
     "races": {
@@ -389,9 +319,7 @@
         "name": "Ward Sigil",
         "magic": {
           "level": 1,
-          "lists": [
-            "warden"
-          ]
+          "lists": ["warden"]
         },
         "cost": {
           "points": {
@@ -400,17 +328,13 @@
           }
         },
         "effect": "applyCondition(warded, 3)",
-        "tags": [
-          "casting"
-        ]
+        "tags": ["casting"]
       },
       "bind-wound": {
         "name": "Bind Wound",
         "magic": {
           "level": 1,
-          "lists": [
-            "warden"
-          ]
+          "lists": ["warden"]
         },
         "cost": {
           "points": {
@@ -419,17 +343,13 @@
           }
         },
         "effect": "damage(1d8 - vigor, mending)",
-        "tags": [
-          "casting"
-        ]
+        "tags": ["casting"]
       },
       "hex-bolt": {
         "name": "Hex Bolt",
         "magic": {
           "level": 1,
-          "lists": [
-            "hexer"
-          ]
+          "lists": ["hexer"]
         },
         "cost": {
           "points": {
@@ -438,17 +358,13 @@
           }
         },
         "effect": "damage(1d6 + insight, force)",
-        "tags": [
-          "casting"
-        ]
+        "tags": ["casting"]
       },
       "cold-clasp": {
         "name": "Cold Clasp",
         "magic": {
           "level": 1,
-          "lists": [
-            "hexer"
-          ]
+          "lists": ["hexer"]
         },
         "cost": {
           "points": {
@@ -457,17 +373,13 @@
           }
         },
         "effect": "save(tenacity, 11, damage(1d8, frost), damage(half))",
-        "tags": [
-          "casting"
-        ]
+        "tags": ["casting"]
       },
       "ember-halo": {
         "name": "Ember Halo",
         "magic": {
           "level": 2,
-          "lists": [
-            "warden"
-          ]
+          "lists": ["warden"]
         },
         "cost": {
           "points": {
@@ -480,17 +392,13 @@
           "radius": 2
         },
         "effect": "target(burst-2, save(reason, 13, damage(3d6, fire), damage(half)))",
-        "tags": [
-          "casting"
-        ]
+        "tags": ["casting"]
       },
       "gloam-veil": {
         "name": "Gloam Veil",
         "magic": {
           "level": 2,
-          "lists": [
-            "hedge-mage"
-          ]
+          "lists": ["hedge-mage"]
         },
         "cost": {
           "points": {
@@ -499,17 +407,13 @@
           }
         },
         "effect": "applyCondition(dazzled, 3)",
-        "tags": [
-          "casting"
-        ]
+        "tags": ["casting"]
       },
       "wyrd-bloom": {
         "name": "Wyrd Bloom",
         "magic": {
           "level": 2,
-          "lists": [
-            "hedge-mage"
-          ]
+          "lists": ["hedge-mage"]
         },
         "cost": {
           "points": {
@@ -522,17 +426,13 @@
           "radius": 2
         },
         "effect": "target(burst-2, save(presence, 12, applyCondition(beguiled, 3), damage(half)))",
-        "tags": [
-          "casting"
-        ]
+        "tags": ["casting"]
       },
       "verge-light": {
         "name": "Verge Light",
         "magic": {
           "level": 1,
-          "lists": [
-            "hedge-mage"
-          ]
+          "lists": ["hedge-mage"]
         },
         "cost": {
           "points": {
@@ -541,17 +441,13 @@
           }
         },
         "effect": "applyCondition(dazzled, 1)",
-        "tags": [
-          "casting"
-        ]
+        "tags": ["casting"]
       },
       "briar-word": {
         "name": "Briar Word",
         "magic": {
           "level": 3,
-          "lists": [
-            "hedge-mage"
-          ]
+          "lists": ["hedge-mage"]
         },
         "cost": {
           "points": {
@@ -564,17 +460,13 @@
           "radius": 3
         },
         "effect": "target(burst-3, save(tenacity, 14, applyCondition(hexbound, 4), damage(half)))",
-        "tags": [
-          "casting"
-        ]
+        "tags": ["casting"]
       },
       "thorn-wake": {
         "name": "Thorn Wake",
         "magic": {
           "level": 3,
-          "lists": [
-            "hexer"
-          ]
+          "lists": ["hexer"]
         },
         "cost": {
           "points": {
@@ -587,9 +479,7 @@
           "radius": 2
         },
         "effect": "target(burst-2, save(grace, 14, damage(4d6, pierce), damage(half)))",
-        "tags": [
-          "casting"
-        ]
+        "tags": ["casting"]
       }
     },
     "conditions": {
@@ -597,17 +487,13 @@
         "name": "Sapped",
         "duration": 3,
         "stacking": "refresh",
-        "restricts": [
-          "actions.tagged:main"
-        ]
+        "restricts": ["actions.tagged:main"]
       },
       "hexbound": {
         "name": "Hexbound",
         "duration": 2,
         "stacking": "stack",
-        "restricts": [
-          "spells.tagged:casting"
-        ]
+        "restricts": ["spells.tagged:casting"]
       },
       "beguiled": {
         "name": "Beguiled",
@@ -628,9 +514,7 @@
         "name": "Rooted",
         "duration": 3,
         "stacking": "refresh",
-        "restricts": [
-          "actions.tagged:move"
-        ]
+        "restricts": ["actions.tagged:move"]
       },
       "warded": {
         "name": "Warded",
@@ -816,150 +700,29 @@
         }
       ],
       "saves": {
-        "vigor": [
-          0,
-          0,
-          1,
-          1,
-          1,
-          2,
-          2,
-          2,
-          3,
-          3
-        ],
-        "grace": [
-          0,
-          1,
-          1,
-          1,
-          2,
-          2,
-          2,
-          3,
-          3,
-          3
-        ],
-        "tenacity": [
-          0,
-          0,
-          1,
-          1,
-          1,
-          2,
-          2,
-          2,
-          2,
-          3
-        ],
-        "reason": [
-          0,
-          0,
-          0,
-          1,
-          1,
-          1,
-          2,
-          2,
-          2,
-          2
-        ],
-        "presence": [
-          0,
-          0,
-          1,
-          1,
-          1,
-          1,
-          2,
-          2,
-          2,
-          2
-        ]
+        "vigor": [0, 0, 1, 1, 1, 2, 2, 2, 3, 3],
+        "grace": [0, 1, 1, 1, 2, 2, 2, 3, 3, 3],
+        "tenacity": [0, 0, 1, 1, 1, 2, 2, 2, 2, 3],
+        "reason": [0, 0, 0, 1, 1, 1, 2, 2, 2, 2],
+        "presence": [0, 0, 1, 1, 1, 1, 2, 2, 2, 2]
       }
     },
     "hexer": {
       "hd": "d6",
       "attackBonus": "floor(level / 2) + grace",
       "saves": {
-        "reason": [
-          2,
-          2,
-          3,
-          3,
-          4,
-          4,
-          4,
-          5,
-          5,
-          5
-        ],
-        "grace": [
-          1,
-          2,
-          2,
-          3,
-          3,
-          3,
-          4,
-          4,
-          4,
-          5
-        ],
-        "presence": [
-          0,
-          1,
-          1,
-          2,
-          2,
-          2,
-          3,
-          3,
-          3,
-          4
-        ]
+        "reason": [2, 2, 3, 3, 4, 4, 4, 5, 5, 5],
+        "grace": [1, 2, 2, 3, 3, 3, 4, 4, 4, 5],
+        "presence": [0, 1, 1, 2, 2, 2, 3, 3, 3, 4]
       }
     },
     "hedge-mage": {
       "hd": "d8",
       "attackBonus": "floor(level / 3) + insight",
       "saves": {
-        "reason": [
-          1,
-          1,
-          2,
-          2,
-          2,
-          3,
-          3,
-          3,
-          4,
-          4
-        ],
-        "vigor": [
-          0,
-          0,
-          1,
-          1,
-          1,
-          1,
-          2,
-          2,
-          2,
-          2
-        ],
-        "presence": [
-          0,
-          1,
-          1,
-          1,
-          2,
-          2,
-          2,
-          2,
-          3,
-          3
-        ]
+        "reason": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4],
+        "vigor": [0, 0, 1, 1, 1, 1, 2, 2, 2, 2],
+        "presence": [0, 1, 1, 1, 2, 2, 2, 2, 3, 3]
       }
     }
   },
@@ -974,9 +737,7 @@
         "grace": 2
       },
       "attackTable": "warden",
-      "actions": [
-        "strike"
-      ]
+      "actions": ["strike"]
     },
     "briar-shade": {
       "name": "Briar Shade",
@@ -993,10 +754,7 @@
         "presence": 2
       },
       "attackTable": "warden",
-      "actions": [
-        "gloam-light",
-        "charm-word"
-      ]
+      "actions": ["gloam-light", "charm-word"]
     },
     "hollow-wight": {
       "name": "Hollow Wight",
@@ -1014,11 +772,7 @@
         "presence": 3
       },
       "attackTable": "warden",
-      "actions": [
-        "thorn-lash",
-        "wyrd-gaze",
-        "root-snare"
-      ]
+      "actions": ["thorn-lash", "wyrd-gaze", "root-snare"]
     }
   },
   "tables": {
