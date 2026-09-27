@@ -43,6 +43,8 @@ export interface PackIndex {
   readonly formulaAsts: Readonly<Record<string, FormulaAst>>;
   /** Parse-once per-class attackBonus formulas (FR-3; table-convention classes have none). */
   readonly attackBonusAsts: Readonly<Record<string, FormulaAst>>;
+  /** Parse-once validity ASTs for actions declaring `valid` (CA-5/CA-G5; absent field = no entry). */
+  readonly validAsts: Readonly<Record<string, FormulaAst>>;
 }
 
 /** Aggregate load failure (FR-2): `errors` is the complete ErrorCard[] from the validator. */
@@ -117,6 +119,7 @@ export class Runtime {
       spellEffects: compileEffects(loaded.content.spells ?? {}, (spell) => spell.effect),
       formulaAsts: compileFormulas(loaded.formulas),
       attackBonusAsts: compileFormulas(classAttackBonusDefs(loaded)),
+      validAsts: compileValidAsts(loaded.actions),
     };
   }
 
@@ -153,6 +156,22 @@ function compileEffects<T extends { readonly effect: string }>(
     if (!parsed.ok) {
       throw new Error(
         `effect parse failed for "${id}" at load — ${parsed.reason} (the validator's dslChecker should have caught this)`,
+      );
+    }
+    compiled[id] = parsed.value;
+  }
+  return compiled;
+}
+
+/** Parse-once validity compilation (CA-2): only actions declaring `valid` compile. */
+function compileValidAsts(actions: Pack['actions']): Record<string, FormulaAst> {
+  const compiled: Record<string, FormulaAst> = {};
+  for (const [id, def] of Object.entries(actions)) {
+    if (def.valid === undefined) continue;
+    const parsed = parseFormula(def.valid);
+    if (!parsed.ok) {
+      throw new Error(
+        `valid parse failed for "${id}" at load — ${parsed.reason} (the validator's dslChecker should have caught this)`,
       );
     }
     compiled[id] = parsed.value;

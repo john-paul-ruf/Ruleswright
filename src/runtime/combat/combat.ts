@@ -42,6 +42,7 @@ import {
   type Side,
 } from './resolve';
 import { checkReach, type Position, type SpatialRejection } from './spatial';
+import { evalValidity, type FormulaAst } from '../../core/dsl/formula';
 import { RuntimeRuleError, ruleCard } from '../errors';
 
 /** One combatant's live combat state — plain JSON, snapshot-ready (FR-14). */
@@ -111,7 +112,13 @@ export type DeclareRejection =
       resource: string;
       message: string;
     }
-  | SpatialRejection;
+  | SpatialRejection
+  | {
+      kind: 'valid';
+      rule: 'E-REF-01';
+      resource: string;
+      message: string;
+    };
 
 /** What one `step()` call advanced — the stepwise boundary (FR-10). */
 export type StepOutcome =
@@ -382,6 +389,27 @@ export class Combat {
     if ('rejection' in target) {
       return [this.rejectionEvent(actorId, target.rejection)];
     }
+    // The validity gate speaks before the spatial gate (validity-into-grid.html:
+    // the hasTarget failure is what the declarative gate reports; reach is
+    // consulted after the action's own clause passes). Both run before cost.
+    const validity = this.runtime.index.validAsts[actionId];
+    if (validity !== undefined) {
+      const ok = evalValidity(
+        validity,
+        this.validityVars(actor),
+        (shape) => this.resolveShape(shape, actor, target.combatant).length > 0,
+      );
+      if (!ok) {
+        return [
+          this.rejectionEvent(actorId, {
+            kind: 'valid',
+            rule: 'E-REF-01',
+            resource: actionId,
+            message: `action "${actionId}" is not valid right now — its valid clause failed (hasTarget: no combatant resolves for the declared shape).`,
+          }),
+        ];
+      }
+    }
     const spatial = this.spatialGate(actor, target.combatant);
     if (spatial !== undefined) {
       return [this.rejectionEvent(actorId, spatial)];
@@ -523,6 +551,46 @@ export class Combat {
     );
   }
 
+  /**
+   * The one shape resolver (CA-G4): the executor's resolveTargets, the
+   * validity gate's hasTarget, and target() statements all resolve shapes
+   * here — once, combat-side. Theater-of-mind: every shape answers with the
+   * bound targets (the no-op discipline — spatial.html's absent-column).
+   */
+  private resolveShape(shape: string, actor: CombatantState, target: CombatantState): readonly string[] {
+    const geometry = this.runtime.spatial;
+    if (!geometry.enabled) return [target.id];
+    if (shape === 'adjacent') {
+      return this.state.order.filter((id) => {
+        const other = this.state.combatants[id]!;
+        return (
+          other.side !== actor.side &&
+          other.position !== undefined &&
+          actor.position !== undefined &&
+          this.reachOf(actor.id) !== undefined &&
+          geometry.canReach(actor.position, other.position, this.reachOf(actor.id)!)
+        );
+      });
+    }
+    if (shape.startsWith('burst-')) {
+      const radius = Number(shape.slice('burst-'.length));
+      if (target.position === undefined) return [];
+      const candidates: (readonly [string, Position])[] = [];
+      for (const id of this.state.order) {
+        const combatant = this.state.combatants[id]!;
+        if (combatant.hp.current <= 0 || combatant.position === undefined) continue;
+        candidates.push([id, combatant.position]);
+      }
+      return geometry.inBurst(target.position, radius, candidates);
+    }
+    return [];
+  }
+
+  /** The declare-time validity context: abilities ∪ saves ∪ level (pack v1.1 names, FR-3). */
+  private validityVars(actor: CombatantState): Readonly<Record<string, number>> {
+    return { ...actor.abilities, ...actor.saves, level: actor.level };
+  }
+
   /** The actor's pack-declared reach: its override key, else the model's default (spatial.html). */
   private reachOf(id: string): number | undefined {
     const reach = this.runtime.pack.spatial?.reach;
@@ -561,18 +629,20 @@ export class Combat {
       // pending attack for this target hit. One action = one attack verdict.
       let attackLanded: boolean | undefined;
       const boundAction = this.boundActionOf(actionId, def);
-      const mutations: MutationRequest[] = [];
       const outcomes = executeAgainst(
         boundAction,
         { id: actor.id, side: actor.side, profile: this.profileOf(actor) },
         { id: target.id, side: target.side, profile: this.profileOf(target) },
         this.rng,
         (request) => {
-          mutations.push(request);
+          // CA-G4: burst scopes reach ids outside the primary target — apply
+          // each mutation to the combatant the executor named, not the bound
+          // target. The attack gate stays: one action = one attack verdict.
+          const subject = this.state.combatants[request.targetId] ?? target;
           const isDamage = request.kind === 'damage';
           if (isDamage && attackLanded === false) return; // onHit anatomy: gated damage never applies
-          this.applyMutation(target, request);
-          const hpBefore = isDamage ? this.hpBefore(target, request.amount ?? 0) : undefined;
+          this.applyMutation(subject, request);
+          const hpBefore = isDamage ? this.hpBefore(subject, request.amount ?? 0) : undefined;
           const event = this.runtime.events.emit({
             type: isDamage ? 'damage:applied' : 'condition:applied',
             actor: actor.id,
@@ -584,7 +654,7 @@ export class Combat {
                   hp:
                     hpBefore === undefined
                       ? undefined
-                      : `${hpBefore}→${this.state.combatants[target.id]!.hp.current}`,
+                      : `${hpBefore}→${this.state.combatants[subject.id]!.hp.current}`,
                 }
               : { conditionId: request.conditionId, duration: request.duration },
             why: {
@@ -592,9 +662,9 @@ export class Combat {
               rolls: request.rolls.map((roll) => displayRoll(roll)),
             },
           });
-          mutations.pop();
           void event;
         },
+        (shape) => this.resolveShape(shape, actor, target),
       );
       // Attack outcomes are events too (attack:rolled) — one per target, with the verdict.
       // The executor nests statements in sequence/target/save wrappers; flatten first.

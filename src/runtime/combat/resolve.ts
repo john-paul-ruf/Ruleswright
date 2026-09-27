@@ -314,6 +314,12 @@ export function attackBonusAgainst(attacker: CombatantProfile, defenseValue: num
  * target with per-target vars: actor numbers plus the defender's saves and
  * defense under their pack names. Mutations flow to `sink` in executor order;
  * every mutation carries the statement's full roll history for `why.rolls`.
+ *
+ * `resolveTargets` (optional, combat-injected) is the CA-G4 edge: the
+ * executor calls it once per `target(shape, …)` statement, and the combat
+ * layer resolves the shape — against the primary target's position — to the
+ * ids that statement's scope. Callers without the callback (direct executor
+ * use) keep the bound-target binding.
  */
 export function executeAgainst(
   action: BoundAction,
@@ -321,6 +327,7 @@ export function executeAgainst(
   target: BoundCombatant,
   rng: RandomSource,
   sink: MutationSink,
+  resolveShapeTargets?: (shape: string) => readonly string[],
 ): readonly EffectResolution[] {
   const rolls: RollResult[] = [];
   const vars: Record<string, number> = {
@@ -337,10 +344,10 @@ export function executeAgainst(
   vars['ac'] = target.profile.ac;
   const apply: EffectApply = {
     resolveTargets: (shape: string) => {
-      // Shapes resolve to the target the combat layer bound for this action;
-      // combat declares one primary target per execution.
-      void shape;
-      return [{ id: target.id }];
+      // CA-G4: the one shape resolver lives in the combat layer; the injected
+      // callback resolves each shape against the primary target's position.
+      if (resolveShapeTargets === undefined) return [{ id: target.id }];
+      return resolveShapeTargets(shape).map((id) => ({ id }));
     },
     damage: (ref: EffectTargetRef, roll: RollResult, type?: string) => {
       rolls.push(roll);

@@ -80,6 +80,23 @@ export function emberMarchesPack(): Pack {
         effect: 'sequence(attack(ac, 0), damage(1d6, grave-touch))',
         tags: ['main'],
       },
+      'ember-bloom-rite': {
+        cost: { slots: { main: 1 } },
+        effect: 'target(burst-2, save(reason, 12, damage(3d6, fire), damage(half)))',
+        tags: ['casting'],
+      },
+      'seize-opening': {
+        cost: { slots: { main: 1 } },
+        valid: 'hasTarget(adjacent)',
+        effect: 'sequence(attack(ac, might), damage(1d6, sharp))',
+        tags: ['main'],
+      },
+      'veterans-censure': {
+        cost: { slots: { move: 1 } },
+        valid: 'level >= 3',
+        effect: 'applyCondition(braced, 2)',
+        tags: ['move'],
+      },
       'grave-gaze': {
         cost: { slots: { main: 1 } },
         effect: 'save(reason, 12, applyCondition(hexbound, 2), applyCondition(hexbound, 1))',

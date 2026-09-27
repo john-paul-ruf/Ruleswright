@@ -394,9 +394,43 @@ export function valueOfFormula(value: FormulaValue): number {
   return isRoll(value) ? value.total : value;
 }
 
+/**
+ * Evaluate a validity AST (CA-G5). Comparators and scalar calls delegate to
+ * evalFormula; `hasTarget(shape)` resolves through the injected geometry
+ * callback — the engine's shape vocabulary lives in the caller (M03), not
+ * here (core stays runtime-ignorant). Unknown call names throw (E-FORM-02's
+ * check-time guarantee: a validated pack never reaches one at play time).
+ */
+export function evalValidity(
+  ast: FormulaAst,
+  ctx: FormulaContext,
+  hasTarget: (shape: string) => boolean,
+): boolean {
+  switch (ast.kind) {
+    case 'call':
+      if (ast.text === 'hasTarget') {
+        const arg = (ast.args ?? [])[0];
+        if (arg === undefined || arg.kind !== 'name') {
+          throw new Error('hasTarget takes a bare shape name — validate before evaluation (E-FORM-02)');
+        }
+        return hasTarget(arg.text ?? '');
+      }
+      return valueOfFormula(evalFormula(ast, ctx, zeroRng)) !== 0;
+    case 'comparator':
+      return valueOfFormula(evalFormula(ast, ctx, zeroRng)) !== 0;
+    default:
+      throw new Error(
+        `a validity expression evaluates to a comparator or call, got "${ast.kind}" — validate before evaluation (E-FORM-01)`,
+      );
+  }
+}
+
 function isRoll(value: FormulaValue): value is RollResult {
   return typeof value === 'object';
 }
+
+/** Validity expressions never roll dice — evaluations ride the zero-RNG stream. */
+const zeroRng: RandomSource = { int: () => 0 };
 
 function sum(values: readonly number[]): number {
   return values.reduce((total, value) => total + value, 0);
