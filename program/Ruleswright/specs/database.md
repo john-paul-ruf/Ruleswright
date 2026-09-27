@@ -1,6 +1,6 @@
 # Database Design — Ruleswright
 
-> **Status:** v1.2, revised — DB, schema-change Author re-entry (builder-approved Option A, UI B-1: class combat actions; v1.1: S-CONTRACT-GAP).
+> **Status:** v1.3, revised — DB, schema-change Author re-entry (builder-authorized 2026-09-27: optional spatial section (FR-11) + E-SPAT-01 registration; v1.2: UI B-1 class combat actions; v1.1: S-CONTRACT-GAP).
 > v1.0 (phase `database`, final Author phase) approved; v1.1 adds the turn-economy
 > declaration (`economy.turnSlots`) and action/spell `tags` with `restricts`
 > reference semantics. Read with `specs/architecture.md` (approved),
@@ -32,11 +32,12 @@ no silent acceptance of foreign versions, loud refusal over mangling.
 ## Schema Overview
 
 ```
-Pack (one JSON document, 8 required + 1 optional section)
+Pack (one JSON document, 8 required + 2 optional sections)
 ├── manifest        identity + schemaVersion + license/attribution + provenance
 ├── stats           name-keyed abilities and named saves
 ├── actions         action declarations: cost, validity, trigger?, tags?, effect
 ├── economy?        OPTIONAL turn-economy declaration: per-turn slot grants (FR-4)
+├── spatial?        OPTIONAL spatial model: grid reach + shape set (FR-11)
 ├── formulas        named formula-DSL expressions
 ├── content         classes · races · skills · feats · spells · conditions · items
 ├── progression     per-class tables: HD, attack table, saves, vancian slots
@@ -51,7 +52,7 @@ All three contract files live at the real repo path:
 
 ```
 src/schema/contracts/
-├── pack.schema.json        — the pack document, schemaVersion 1 (v1.1)
+├── pack.schema.json        — the pack document, schemaVersion 1 (v1.3)
 ├── snapshots.schema.json   — the three snapshot envelopes
 └── override.schema.json    — the override/patch document
 ```
@@ -117,6 +118,28 @@ Turn-economy declaration: the grant source for the generic slot/points economy (
 - **Slot *spending*** is per-turn and per-combatant: grants replenish at the start of
   the combatant's turn. Slot use is a combat transient; it is not character state and
   does not appear in character snapshots.
+
+### `spatial` — OPTIONAL (v1.3)
+Spatial model declaration (FR-11): positions/adjacency/reach for packs that want geometry.
+Mock anatomy, verbatim from `mocks/spatial.html`: `{model: "grid", reach: {default, <label>: n}, shapes?}`.
+
+| Field | Type | Constraints | Notes |
+|---|---|---|---|
+| `model` | string | `const "grid"` | v1 ships exactly the square grid (Chebyshev distance). Other models are future additive revisions, never silent aliases |
+| `reach` | object | required | Melee reach map; `reach.default` (integer ≥ 1) is the base — 1 = adjacency |
+| `reach.<override-id>` | integer | ≥ 1; free-form labels | Per-id reach overrides are **direct siblings of `default`** (spatial.html verbatim: `"weapons.long-spear": 2`). Runtime resolves a combatant's reach by combatant/artifact id: `reach[id] ?? reach.default`. Dotted artifact paths are a documented v2 seam; no idPattern constraint on override keys in v1 |
+| `shapes` | string[]? | unique; values ⊆ {`single`, `burst`} | Documented shape set (FR-11): v1 ships single + burst only; cone/line are deferred engine geometry and cannot be declared (→ `E-SPAT-01`) |
+
+- **Theater-of-mind default:** an **absent** section = no adjacency checks, no position
+  state; packs without it pay nothing (FR-11). Same combat loop, same events — nothing
+  else changes.
+- **Positions are host-declared per combatant**; the engine never invents a grid. They ride
+  the combat envelope's existing `combatants[].position` field (`snapshots.schema.json`,
+  anticipated in v1.0) — no snapshot contract edit was needed for v1.3.
+- **Validation split:** missing/mistyped `spatial` fields are structural (→ `E-SCHEMA-01`,
+  consistent with `schemaVersion const 1` handling); declared-but-unshippable geometry —
+  model or shape outside the v1 set — is semantic (→ `E-SPAT-01`: the pack opts into
+  geometry the engine does not ship).
 
 ### `actions`
 Map `actionId → ActionDef`:
@@ -214,8 +237,9 @@ answer (FR-23).
 
 One error shape everywhere (`schema/error-card.ts`); this registry is the DB-owned
 enumeration of v1 rule ids. Mock-attested ids are **fixed by approved design**.
-**Unchanged by v1.1** — the revision reuses existing ids only (tag integrity rides
-`E-REF-01`; turn-slot cost resolution rides `E-ECON-01`); no id added, renamed, or retired.
+**Additive by discipline** — v1.3 adds `E-SPAT-01` (grid-combat spatial, FR-11) as a
+compatible minor (see §spatial); earlier revisions (v1.1, v1.2) added no ids and reused
+existing ids only. No id has been renamed or retired.
 
 | Rule id | Family | Meaning |
 |---|---|---|
@@ -229,6 +253,7 @@ enumeration of v1 rule ids. Mock-attested ids are **fixed by approved design**.
 | `E-FORM-02` | DSL | Unknown function (closed registry) |
 | `E-FORM-03` | DSL | Unknown ability/save identifier (hint: did you mean …) |
 | `E-ECON-01` | economy | Action costs an undeclared slot name / unknown pool or slot level — v1.1: when `economy` is present, slot names must resolve to `economy.turnSlots` keys |
+| `E-SPAT-01` | spatial | Pack declares geometry the engine does not ship (model/shape outside the v1 set), or a spatial-gate rejection at play time (out of reach) |
 | `E-TBL-01` | tables | Malformed weights/ranges; nesting depth exceeded |
 | `E-OVR-01` | override | Override targets an unknown artifact id |
 | `E-SNAP-01` | snapshot | Pack identity mismatch on load — loud refusal (FR-14) |
@@ -254,6 +279,7 @@ all built or compiled once at load (architecture: parse once, play many):
 | Trigger dispatch | event pattern → registered reactive actions | event→action index, built at load |
 | Restricts matching (v1.1) | declared tag set per action/spell → condition patterns | tag index built at load; runtime matcher consults it |
 | Turn-slot grants (v1.1) | `economy.turnSlots` or the documented per-cost default | grant table resolved at load |
+| Spatial geometry | pack.spatial → engine geometry at load | SpatialModel → SpatialGeometry (grid, Chebyshev) |
 
 ---
 
@@ -279,6 +305,7 @@ request back to DB, never a scope adjustment for Coder** (DB.md contract).
 | 1 | 1 (v1.0) | Initial contract layer: pack document (8 sections), three snapshot envelopes, override document, ErrorCard rule registry | `src/schema/contracts/pack.schema.json` · `snapshots.schema.json` · `override.schema.json` |
 | 2 | 1 (v1.1) | **S-CONTRACT-GAP resolution (builder Option A):** optional `economy.turnSlots` turn-economy declaration (FR-4 grant source); optional `tags` on actions and spells; `restricts` pattern `actions.tagged:<tag>` must reference a declared tag (`E-REF-01`). Pre-release in-place revision: purely additive-optional fields, no field removed/renamed, no rule id added/renamed/retired, `schemaVersion` stays 1 (registry discipline: additive optional = compatible) | same three files (pack.schema.json revised) |
 | 3 | 1 (v1.2) | **UI B-1 resolution (builder Option A, 2026-09-26):** optional `content.classes.<id>.actions` (unique action ids; each must resolve in `actions` → `E-REF-01`). Pre-release in-place revision: purely additive-optional, no field removed/renamed, no rule id added/renamed/retired, `schemaVersion` stays 1 | `pack.schema.json` revised |
+| 4 | 1 (v1.3) | **grid-combat resolution (builder-authorized 2026-09-27):** optional spatial section (FR-11 opt-in: model/reach/shapes) + E-SPAT-01 registration (resolves the v1-core pending DB decision). Pre-release in-place revision: purely additive-optional, no field removed/renamed, no rule id added/renamed/retired except the new E-SPAT-01, schemaVersion stays 1 | pack.schema.json revised |
 
 **Versioning discipline (FR-23, formalized):**
 - Additive optional fields within v1 = compatible (minor).
