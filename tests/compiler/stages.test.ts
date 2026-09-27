@@ -12,6 +12,7 @@ import type { ThemeTemplate } from '../../src/compiler/theme';
 import { validatePack } from '../../src/schema/validate';
 import { packDslChecker } from '../../src/core/dsl/checker';
 import { packContentHash } from '../../src/schema/version';
+import { DARK_FANTASY, ZOMBIE_URBAN } from '../../src/compiler/theme-loader';
 import { microTheme } from './pipeline.test';
 
 function generate(theme: ThemeTemplate, seed: number | string = 42) {
@@ -104,7 +105,7 @@ describe('stage 4 · classes', () => {
 
   it('a class without progression fails located (E-REF-03 territory, before stage 8)', () => {
     const theme = microTheme();
-    theme.content = { ...theme.content!, classes: { ...theme.content!.classes, orphan: { name: 'Orphan' } } };
+    theme.content = { ...theme.content!, classes: { ...theme.content!, classes: { orphan: { name: 'Orphan' } } } as never };
     try {
       generate(theme);
       expect.unreachable();
@@ -228,6 +229,144 @@ describe('stage 7 · tables', () => {
       const card = (error as GenerationError).errors[0]!;
       expect(card.jsonPath.length).toBeGreaterThan(0);
       expect(card.message).toContain('gapped-table');
+    }
+  });
+
+  it('contributes content.items verbatim from the theme (CAP-03: the items producer exists)', () => {
+    const pack = generate(microTheme());
+    expect(pack.content.items).toEqual(microTheme().content?.items); // verbatim, {'ember-oil': …}
+  });
+
+  it('a theme without items still generates — items stay optional (guard mirrors races/conditions)', () => {
+    const itemless = structuredClone(microTheme()) as ThemeTemplate & {
+      content: NonNullable<ThemeTemplate['content']>;
+    };
+    delete itemless.content.items;
+    const pack = generate(itemless);
+    expect(pack.content.items).toBeUndefined();
+    expect(validatePack(pack, packDslChecker)).toEqual([]);
+    expect(pack.tables['wandering-dread']?.entries.length).toBe(2); // stage 7 still lands everything else
+  });
+
+  it('a -loot table entry object naming an undeclared item id fails located (E-REF-01, CA-02-checkable branch b)', () => {
+    const theme = microTheme();
+    theme.tables = {
+      ...theme.tables,
+      'void-loot': {
+        kind: 'weighted',
+        entries: [{ weight: 1, value: { id: 'ghost-item', qty: 2 } }],
+      },
+    };
+    try {
+      generate(theme);
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(GenerationError);
+      const card = (error as GenerationError).errors[0]!;
+      expect(card.rule).toBe('E-REF-01');
+      expect(card.artifactId).toBe('void-loot');
+      expect(card.jsonPath).toBe('tables.void-loot.entries[0].value');
+      expect(card.message).toContain('ghost-item'); // the undeclared id is named
+    }
+  });
+
+  it('a -loot table entry object whose id IS declared passes; a declared-id object and strings stay flavor (branch a)', () => {
+    const theme = microTheme();
+    theme.tables = {
+      ...theme.tables,
+      'ember-loot': {
+        kind: 'weighted',
+        entries: [
+          { weight: 1, value: { id: 'ember-oil', qty: 2 } }, // declared → rolls clean
+          { weight: 1, value: 'nothing' }, // CA-02 flavor — never an error
+          { weight: 1, value: 'ember-oil' }, // CA-02 string branch — never an error
+          { weight: 1, value: 'tables.weather' }, // a resolvable prefixed ref — fine
+        ],
+      },
+    };
+    const pack = generate(theme);
+    expect(pack.content.items).toEqual(microTheme().content?.items);
+    expect(pack.tables['ember-loot']?.entries.length).toBe(4);
+  });
+
+  it('a -loot table entry string starting with tables. missing the table fails located (branch b)', () => {
+    const theme = microTheme();
+    theme.tables = {
+      ...theme.tables,
+      'ghost-loot': { kind: 'nested', entries: [{ value: 'tables.no-such-table' }] },
+    };
+    try {
+      generate(theme);
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(GenerationError);
+      const card = (error as GenerationError).errors[0]!;
+      expect(card.rule).toBe('E-REF-01');
+      expect(card.artifactId).toBe('ghost-loot');
+      expect(card.jsonPath).toBe('tables.ghost-loot.entries[0].value');
+      expect(card.message).toContain('ghost-loot');
+      expect(card.message).toContain('no-such-table');
+    }
+  });
+
+  it('a -loot string that is merely a prose flavor value never errors (CA-02 flavor clause)', () => {
+    const theme = microTheme();
+    theme.tables = {
+      ...theme.tables,
+      'mood-loot': {
+        kind: 'weighted',
+        entries: [
+          { weight: 1, value: 'the hush of deep water' },
+          { weight: 1, value: 42 },
+          { weight: 1, value: 'sapped' }, // an undeclared condition id — flavor in loot space, not a defect
+        ],
+      },
+    };
+    const pack = generate(theme);
+    expect(pack.tables['mood-loot']?.entries.length).toBe(3);
+    expect(validatePack(pack, packDslChecker)).toEqual([]);
+  });
+
+  it('the -loot integrity check leaves non-loot tables alone (wandering-dread / weather stay out of scope)', () => {
+    const theme = microTheme();
+    theme.tables = {
+      ...theme.tables,
+      'wandering-dread': {
+        kind: 'weighted',
+        entries: [
+          { weight: 1, value: 'sapped' },
+          { weight: 1, value: 'braced' },
+          { weight: 1, value: { id: 'ghost-item', qty: 1 } }, // undeclared id, non-loot table — flavor
+          { weight: 1, value: 'tables.weather' }, // fine — a resolvable table ref
+        ],
+      },
+      weather: { kind: 'ranged', entries: [{ min: 1, max: 100, value: 'tables.no-such-table' }] },
+    };
+    const pack = generate(theme);
+    expect(pack.tables['wandering-dread']?.entries.length).toBe(4);
+    expect(pack.tables.weather?.entries.length).toBe(1);
+    expect(validatePack(pack, packDslChecker)).toEqual([]);
+  });
+
+  it('CA-02 proof — the shipped themes now generate with zero cards and byte-identical existing sections', () => {
+    for (const theme of [DARK_FANTASY, ZOMBIE_URBAN]) {
+      const pack = runPipeline(theme, 42);
+      expect(validatePack(pack, packDslChecker)).toEqual([]);
+      expect(pack.content.items, theme.id).toEqual(theme.content?.items); // verbatim, both themes
+      // every shipped -loot-suffixed table rolls a grantable id declared in items (CA-02 loop closed at generation time)
+      for (const [tableId, def] of Object.entries(pack.tables)) {
+        if (!tableId.endsWith('-loot')) continue;
+        const itemIds = new Set(Object.keys(pack.content.items ?? {}));
+        const tableIds = new Set(Object.keys(pack.tables));
+        for (const entry of def.entries) {
+          const value = entry.value;
+          if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+            const id = (value as { id?: unknown }).id;
+            if (typeof id === 'string') expect(itemIds.has(id), `${tableId} → ${id}`).toBe(true);
+          }
+        }
+        void tableIds;
+      }
     }
   });
 });
