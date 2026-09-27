@@ -236,4 +236,14 @@ byte-conformance) stay open with their recorded owners and are unaffected by thi
 
 ### Archivist's Note
 
-*(appended below by Orchestrator once the final Archivist pass returns — see the committed file.)*
+The final Archivist pass did not complete: two attempts (h-1z_h/AfytB, h-UR7O/ACioy, both glm-5.3-flash:cloud) were killed by provider-capacity failures with zero writes and zero commits —
+attempt 1: `ollama /api/chat failed with 429: timed out waiting for a concurrent request slot` (23:07:18); attempt 2 (the capacity-retry exception): `ollama /api/chat stream ended before its terminal chunk` (23:23:03). No alternate provider is configured.
+
+Both partial passes completed the read/verification phase before dying, and their observations are consistent with the committed record (fragments preserved in `.program/results/ARCHIVIST-FINAL.attempt1-429.md` / `ARCHIVIST-FINAL.result.md`):
+- All seven gates verified by fresh execution (both attempts independently): typecheck 0 · lint 0 · **503/503 across 33 files** · build 0 (24 dist files) · isolation 0 · security 0 · format 0 — every Final Report headline matches.
+- CA/CAP spot-checks by source confirm the claims (inventory.ts mapping + dual-space resolver + failed-outcome cards; snapshots fidelity; stage-7 items contribution + narrowed -loot integrity; WYLDWOOD registration; dist surface).
+- C1-C4 v1-core cleanup candidates re-confirmed still-current at HEAD.
+- The pass surfaced one record-debt item it had not yet written up: the **v1-shell cycle** (`770950f`-`72346a5` — schema v1.2, `src/runtime/character-profile.ts` (M03), the `validate.ts` -> `validate/` split (M01), end-of-combat rule, docs/CI, license/lint, coverage tooling) landed between the v1-core close and this feature, and neither `arch/v1-core.md` module map nor `PROGRAM-CONFIG.MD` Module Registry reflects it (both still describe the v1-core state). This is documentation-drift debt for the next Archivist entry (owner: the next Archivist pass), NOT a code or plan defect — the source of truth for the current tree is the committed source itself.
+- The preflight framework proposal (mechanical premise verification at planning time; 3 in-cycle instances: F-1, F-3, F-4) and the new provider-crash signature (S01 attempt-1 ollama stream abort — 1 instance, distinct from the context-exhaustion row) are recorded here for the standing-recommendations backlog; stable-ID minting did not complete before the abort.
+
+Per ORCHESTRATOR.md, the capacity failure is recorded and no further Archivist retry is made; the run closes with the committed Final Report.
