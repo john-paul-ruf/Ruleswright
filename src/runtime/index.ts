@@ -104,6 +104,7 @@ export {
   theaterOfMind,
   gridGeometry,
   spatialFromPack,
+  packSpatialModel,
   checkReach,
   type Position,
   type SpatialModel,

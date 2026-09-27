@@ -1,14 +1,14 @@
 /**
  * Checkpoint-3 suite — spatial (FR-11) + triggers (FR-4/FR-13, FR-12 proof 2).
  * Spatial: packs without a model pay nothing (theater-of-mind no-op); declared
- * models enforce adjacency/reach with the typed rejection (pending DB id).
- * Triggers: pack-declared reactive actions fire from the event substrate, are
- * offered (`trigger:fired`), and resolve through the SAME pipeline when taken —
- * zero engine special-casing (the proof-2 shape).
+ * models enforce adjacency/reach with the typed rejection carrying the
+ * registered E-SPAT-01 id. Triggers: pack-declared reactive actions fire from
+ * the event substrate, are offered (`trigger:fired`), and resolve through the
+ * SAME pipeline when taken — zero engine special-casing (the proof-2 shape).
  */
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../../../src/core/rng';
-import { emberMarchesPack, type SpatialPack } from '../fixtures/packs';
+import { emberMarchesPack, withSpatial, type SpatialPack } from '../fixtures/packs';
 import { Runtime } from '../../../src/runtime/runtime';
 import { profileFromStatblock, type CombatantProfile } from '../../../src/runtime/combat/resolve';
 import {
@@ -21,6 +21,7 @@ import {
   gridGeometry,
   theaterOfMind,
   spatialFromPack,
+  packSpatialModel,
   checkReach,
   type Position,
 } from '../../../src/runtime/combat/spatial';
@@ -75,6 +76,19 @@ describe('spatial layer (FR-11)', () => {
     ).toBeUndefined();
   });
 
+  it('the adapter splits the inline reach map: default + sibling overrides (CA-G1)', () => {
+    const pack = withSpatial(emberMarchesPack(), {
+      model: 'grid',
+      reach: { default: 1, 'barrow-wight': 2 },
+    });
+    expect(packSpatialModel(pack)).toEqual({
+      defaultReach: 1,
+      reachOverrides: { 'barrow-wight': 2 },
+    });
+    const geometry = spatialFromPack(pack);
+    expect(geometry.enabled).toBe(true);
+  });
+
   it('a declared grid enforces adjacency and reach from pack data', () => {
     const geometry = gridGeometry({ defaultReach: 1 });
     expect(geometry.distance({ x: 0, y: 0 }, { x: 3, y: 2 })).toBe(3);
@@ -95,7 +109,7 @@ describe('spatial layer (FR-11)', () => {
     expect(geometry.inBurst({ x: 4, y: 3 }, 2, candidates)).toEqual(['a', 'b', 'c']);
   });
 
-  it('out-of-reach declares a typed rejection (E-SPAT-01 pending DB, recorded verbatim)', () => {
+  it('out-of-reach declares a typed rejection carrying the registered E-SPAT-01 id (CA-G2)', () => {
     const geometry = gridGeometry({ defaultReach: 1 });
     const rejection = checkReach(
       geometry,
@@ -104,7 +118,7 @@ describe('spatial layer (FR-11)', () => {
       1,
     );
     expect(rejection).toBeDefined();
-    expect(rejection!.pendingId).toBe('E-SPAT-01 (unregistered — DB decision pending)');
+    expect(rejection!.rule).toBe('E-SPAT-01');
     expect(rejection!.message).toContain('pack-declared');
   });
 

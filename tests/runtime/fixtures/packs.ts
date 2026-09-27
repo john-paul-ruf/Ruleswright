@@ -1,8 +1,7 @@
-/**
- * Fixture packs for the combat suite (D5: test fixtures live under tests/).
- * Built against the v1.1 contract surface: `economy.turnSlots` grants and
- * `tags` on actions/spells are declared natively — no override-patch
- * workarounds (S-CONTRACT-GAP closed, builder Option A).
+/** Fixture packs for the combat suite (D5: test fixtures live under tests/).
+ * Built against the v1.3 contract surface: `economy.turnSlots`, `tags` on
+ * actions/spells, and the optional `spatial` section (inline reach map —
+ * `default` + sibling overrides, spatial.html verbatim) are declared natively.
  *
  * Expression policy (Q7/Q8): all names are coined; "d20" appears only as the
  * generic body-text term inside DSL expressions.
@@ -12,16 +11,13 @@
  * hexer class declares the ascending `attackBonus` alternative. The engine
  * looks up `byDefense[defenseValue]` without interpreting either (FR-3).
  */
-import type { Pack } from '../../../src/schema/pack';
+import type { Pack, SpatialDef } from '../../../src/schema/pack';
 
-/** The optional spatial declaration a pack may carry (FR-11; structural seam for S05's geometry). */
-export type SpatialPack = { spatial?: { defaultReach: number; reachOverrides?: Record<string, number> } };
+/** The optional spatial declaration a pack may carry (v1.3, FR-11; CA-G1). */
+export type SpatialPack = { spatial?: SpatialDef };
 
 /** Attach a spatial model to a pack (test helper — the engine reads whatever the pack declares). */
-export function withSpatial(
-  pack: Pack,
-  spatial: { defaultReach: number; reachOverrides?: Record<string, number> },
-): Pack & SpatialPack {
+export function withSpatial(pack: Pack, spatial: SpatialDef): Pack & SpatialPack {
   return { ...pack, spatial } as Pack & SpatialPack;
 }
 

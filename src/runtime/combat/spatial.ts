@@ -6,9 +6,15 @@
  * declares (theater-of-mind discipline, spatial.html).
  *
  * Positions are host-declared per combatant (the engine never invents a grid);
- * the reach model is pack data via the `spatial` section's documented shape.
+ * the reach model is pack data via the pack's `spatial` section. The pack
+ * declares `{model:'grid', reach:{default, <id>: n, ...}, shapes?}` (the v1.3
+ * contract, spatial.html verbatim); `spatialFromPack`/`packSpatialModel` are
+ * the one adapter edge that splits that inline reach map into the internal
+ * `SpatialModel` — pack keys (`default` + sibling overrides) vs internal keys
+ * (`defaultReach`/`reachOverrides`), CA-G1.
  * Race `size` is a documented no-op for v1 adjacency (DB v1.1 rider, D6).
  */
+import type { SpatialDef } from '../../schema/pack';
 
 /** A combatant's position — pack-neutral integers; the host may use any grid. */
 export interface Position {
@@ -16,7 +22,7 @@ export interface Position {
   readonly y: number;
 }
 
-/** The pack's spatial declaration (spatial.html: model, reach defaults, v1 shapes). */
+/** The combat loop's internal reach model — the adapted form of the pack declaration. */
 export interface SpatialModel {
   readonly defaultReach: number;
   /** Per-combatant reach overrides keyed by combatant or artifact id. */
@@ -63,24 +69,35 @@ export function gridGeometry(model: SpatialModel): SpatialGeometry {
   };
 }
 
-/** Build the pack's geometry: absent declaration → theater-of-mind (FR-11). */
-export function spatialFromPack(pack: {
-  spatial?: { defaultReach: number; reachOverrides?: Record<string, number> };
-}): SpatialGeometry {
-  if (pack.spatial === undefined) return theaterOfMind;
-  return gridGeometry(pack.spatial);
+/**
+ * The pack→internal adapter edge (CA-G1): split the declared inline reach map
+ * — `default` becomes `defaultReach`, every sibling key becomes a
+ * `reachOverrides` entry. `undefined` = theater of mind (FR-11): the pack's
+ * own `{defaultReach, reachOverrides}` anatomy is never read as pack data.
+ */
+export function spatialFromPack(pack: { spatial?: SpatialDef }): SpatialGeometry {
+  const model = packSpatialModel(pack);
+  return model === undefined ? theaterOfMind : gridGeometry(model);
+}
+
+/** The typed edge combat consumes: `undefined` = theater of mind (the pack declares no spatial model). */
+export function packSpatialModel(pack: { spatial?: SpatialDef }): SpatialModel | undefined {
+  const declared = pack.spatial;
+  if (declared === undefined) return undefined;
+  const { default: defaultReach, ...reachOverrides } = declared.reach;
+  return { defaultReach, ...(Object.keys(reachOverrides).length > 0 ? { reachOverrides } : {}) };
 }
 
 /**
- * The typed spatial rejection. E-SPAT-01 is shown in validation-errors.html
- * but is NOT in the DB's 14-id rule registry (STATE.md: registry is frozen
- * additively; DB ratification pending) — this failure carries the full card
- * data except the registered id, so S06/DB can map it without a rename here.
+ * The typed spatial rejection, carrying the registered `E-SPAT-01` rule id
+ * ("pack declares spatial geometry the engine does not ship / spatial gate
+ * rejection" — v1.3 registry, additive minor). Faces: load-time validation of
+ * unshippable geometry (the pack validator) and play-time spatial-gate
+ * rejection ("out of reach", the combat loop) — one id, both mappings.
  */
 export interface SpatialRejection {
   readonly kind: 'spatial';
-  /** The unregistered-id choice is a pending DB decision, recorded verbatim. */
-  readonly pendingId: 'E-SPAT-01 (unregistered — DB decision pending)';
+  readonly rule: 'E-SPAT-01';
   readonly resource: string;
   readonly message: string;
   readonly hint?: string;
@@ -97,7 +114,7 @@ export function checkReach(
   if (from.position === undefined || to.position === undefined) {
     return {
       kind: 'spatial',
-      pendingId: 'E-SPAT-01 (unregistered — DB decision pending)',
+      rule: 'E-SPAT-01',
       resource: to.id,
       message: `this pack declares a spatial model, but combatant positions are missing (from: ${from.position === undefined ? 'absent' : 'set'}, target ${to.id}: ${to.position === undefined ? 'absent' : 'set'}).`,
     };
@@ -105,7 +122,7 @@ export function checkReach(
   if (!geometry.canReach(from.position, to.position, from.reach ?? defaultReach)) {
     return {
       kind: 'spatial',
-      pendingId: 'E-SPAT-01 (unregistered — DB decision pending)',
+      rule: 'E-SPAT-01',
       resource: to.id,
       message: `action requires a target within reach ${from.reach ?? defaultReach}; nearest ${to.id} is ${geometry.distance(from.position, to.position)} away. Spatial rules are pack-declared (FR-11) — this pack opted in.`,
     };
