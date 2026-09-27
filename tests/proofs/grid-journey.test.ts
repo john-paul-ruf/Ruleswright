@@ -93,8 +93,9 @@ function packWithBurstAction(base: Pack, spellId: string, actionId: string): Pac
 
 /** The same generated pack, theater-of-mind: the optional spatial section is pack data — remove it and the pack never declared a grid. */
 function stripSpatial(base: Pack): Pack {
-  const { spatial: _spatial, ...rest } = base;
-  return rest;
+  const stripped: Pack = { ...base };
+  delete stripped.spatial;
+  return stripped;
 }
 
 interface HeroOptions {
