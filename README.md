@@ -80,6 +80,9 @@ rt.events.on((event) => events.push(event));
 const fight = startCombat(rt, {
   allies: [{ id: 'brynn', ...profileFromCharacter(rt, brynn) }],
   enemies: [{ id: 'wight', profile: spawnMonster(rt, 'barrow-wight', 'wight') }],
+  // The generated pack declares a grid (FR-11): every combatant states its
+  // position. One step apart — adjacent, so the melee actions still resolve.
+  positions: { brynn: { x: 0, y: 0 }, wight: { x: 1, y: 0 } },
 });
 
 while (!fight.roundComplete) {
