@@ -266,7 +266,12 @@ export function checkSpatial(ctx: Ctx, value: unknown): void {
   if (!isPlainObject(value)) {
     add(
       ctx,
-      makeErrorCard('E-SCHEMA-01', 'spatial', 'spatial', 'spatial must be an object {model, reach, shapes?}.'),
+      makeErrorCard(
+        'E-SCHEMA-01',
+        'spatial',
+        'spatial',
+        'spatial must be an object {model, reach, shapes?}.',
+      ),
     );
     return;
   }

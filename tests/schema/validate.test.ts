@@ -6,6 +6,7 @@ import {
   validatePack,
   type DslChecker,
 } from '../../src/schema/validate';
+import { RULE_IDS } from '../../src/schema/error-card';
 import type { Pack } from '../../src/schema/pack';
 
 /** Accepts only expressions that mention "might" — used to prove the checker is invoked with the right context. */
@@ -416,6 +417,108 @@ describe('semantic pass — one purpose-built fixture per rule id', () => {
     );
     expect(nonFormulaFields.length).toBeGreaterThan(0);
     expect(firstRule(cards, 'E-FORM-01')?.artifactId).toBeDefined();
+  });
+});
+
+describe('spatial section (v1.3) — CAP-G1/CA-G1, structural vs semantic split', () => {
+  it('accepts the mock-verbatim declaration: grid model, default reach, v1 shapes', () => {
+    expect(
+      errorsFor(
+        (pack) =>
+          ((pack as unknown as Record<string, unknown>).spatial = {
+            model: 'grid',
+            reach: { default: 1 },
+            shapes: ['single', 'burst'],
+          }),
+      ),
+    ).toEqual([]);
+  });
+
+  it('accepts per-id reach overrides as direct siblings of default (spatial.html anatomy)', () => {
+    expect(
+      errorsFor(
+        (pack) =>
+          ((pack as unknown as Record<string, unknown>).spatial = {
+            model: 'grid',
+            reach: { default: 2, 'weapons.long-spear': 2 },
+          }),
+      ),
+    ).toEqual([]);
+  });
+
+  it('rejects an override below the integer >= 1 bound (E-SCHEMA-01 at the key path)', () => {
+    const cards = errorsFor(
+      (pack) =>
+        ((pack as unknown as Record<string, unknown>).spatial = {
+          model: 'grid',
+          reach: { default: 1, 'rusty-blade': 0 },
+        }),
+    );
+    expect(firstRule(cards, 'E-SCHEMA-01')?.jsonPath).toBe('spatial.reach.rusty-blade');
+  });
+
+  it('absent spatial is theater of mind: no cards, nothing else changes', () => {
+    expect(errorsFor(() => undefined)).toEqual([]);
+  });
+
+  it('a missing model is structural (E-SCHEMA-01)', () => {
+    const cards = errorsFor(
+      (pack) => ((pack as unknown as Record<string, unknown>).spatial = { reach: { default: 1 } }),
+    );
+    expect(firstRule(cards, 'E-SCHEMA-01')?.jsonPath).toBe('spatial.model');
+  });
+
+  it('a model the engine does not ship is semantic (E-SPAT-01) and names the shipped set', () => {
+    const cards = errorsFor(
+      (pack) =>
+        ((pack as unknown as Record<string, unknown>).spatial = { model: 'hex', reach: { default: 1 } }),
+    );
+    const card = firstRule(cards, 'E-SPAT-01');
+    expect(card?.jsonPath).toBe('spatial.model');
+    expect(card?.message).toContain('grid');
+  });
+
+  it('reach.default below 1 is structural (E-SCHEMA-01)', () => {
+    const cards = errorsFor(
+      (pack) =>
+        ((pack as unknown as Record<string, unknown>).spatial = { model: 'grid', reach: { default: 0 } }),
+    );
+    expect(firstRule(cards, 'E-SCHEMA-01')?.jsonPath).toBe('spatial.reach.default');
+  });
+
+  it('a shape outside the v1 vocabulary is semantic (E-SPAT-01) — cone/line deferred, never faked', () => {
+    const cards = errorsFor(
+      (pack) =>
+        ((pack as unknown as Record<string, unknown>).spatial = {
+          model: 'grid',
+          reach: { default: 1 },
+          shapes: ['cone'],
+        }),
+    );
+    const card = firstRule(cards, 'E-SPAT-01');
+    expect(card?.jsonPath).toBe('spatial.shapes[0]');
+    expect(card?.message).toContain('single, burst');
+  });
+
+  it('unknown top-level keys in the section are E-SCHEMA-02; reach keys are overrides, not unknowns', () => {
+    const cards = errorsFor(
+      (pack) =>
+        ((pack as unknown as Record<string, unknown>).spatial = {
+          model: 'grid',
+          reach: { default: 1 },
+          foo: 1,
+        }),
+    );
+    expect(firstRule(cards, 'E-SCHEMA-02')?.jsonPath).toBe('spatial.foo');
+    expect(
+      cards.filter((card) => card.rule === 'E-SCHEMA-02' && card.jsonPath.startsWith('spatial.reach')),
+    ).toHaveLength(0);
+  });
+
+  it('E-SPAT-01 is registered: in RULE_IDS, last position, 15 ids (CA-G2)', () => {
+    expect(RULE_IDS).toContain('E-SPAT-01');
+    expect(RULE_IDS[RULE_IDS.length - 1]).toBe('E-SPAT-01');
+    expect(RULE_IDS).toHaveLength(15);
   });
 });
 
