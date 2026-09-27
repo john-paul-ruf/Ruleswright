@@ -385,6 +385,50 @@ Consumers: S03 (`spatialFromPack` adapter, `SpatialRejection.rule = 'E-SPAT-01'`
 
 *(Integrated by Orchestrator at receive of grid-combat SESSION-02 (commits ad3dc5d + 98e463e + 555db03); synthesis is the Archivist final pass.)*
 
+<!-- grid-combat SESSION-03 -->
+
+## M02/M03 runtime spatial integration — public API delta (grid-combat SESSION-03, 0a911b2/be9cda9/8f3959e/606c817/38c017e)
+
+Module registry deltas (M02, M03):
+
+- M03 `src/runtime/combat/spatial.ts`: `spatialFromPack(pack: { spatial?: SpatialDef }): SpatialGeometry`
+  now reads the v1.3 pack contract shape (`Pack.spatial`: `{model:'grid', reach:{default, <id>:n}, shapes?}`);
+  new export `packSpatialModel(pack: { spatial?: SpatialDef }): SpatialModel | undefined` — the typed
+  adapter edge combat consumes (`undefined` = theater of mind). The internal `SpatialModel`
+  `{defaultReach, reachOverrides}` signature is unchanged; only the pack-reading edge adapts (CA-G1).
+  `SpatialRejection.pendingId` → `rule: 'E-SPAT-01'` (registered id, CA-G2). Note: the pack
+  declaration uses the *structural* input `{ spatial?: SpatialDef }` (accepted by `Pack`
+  structurally), not the nominal `Pack` type.
+- M03 `src/runtime/combat/combat.ts` (public surface): `StartCombatRequest.positions?:
+  Readonly<Record<string, Position>>`; `CombatantState.position?: Position`; `DeclareRejection`
+  gains members `kind: 'spatial'` (`SpatialRejection`) and `kind: 'valid'`
+  (`rule: 'E-REF-01'`). `startCombat` fails closed (RuntimeRuleError, E-SPAT-01 card per missing
+  combatant) when a spatial pack's fight is declared without full positions. The declare-time
+  validity gate (reads `Runtime.index.validAsts`) runs BEFORE the spatial reach gate (both before
+  cost spend) — gate order recorded in the source comment.
+- M03 `src/runtime/combat/resolve.ts`: `executeAgainst` gains optional 6th param
+  `resolveShapeTargets?: (shape: string) => readonly string[]` — the CA-G4 edge replacing the
+  bound-target `resolveTargets` stub; combat injects it per execution.
+- M03 `src/runtime/runtime.ts` (public surface): `Runtime.spatial: SpatialGeometry` built once at
+  load (`spatialFromPack(pack)`); `PackIndex.validAsts: Readonly<Record<string, FormulaAst>>`
+  compiled parse-once from `pack.actions[*].valid` (skip-undefined), honoring CA-2.
+- M03 `src/runtime/snapshots.ts` (public surface): `SnapshotCombatant.position?: Position`
+  (precise `{x,y}`, emitted only when set, never null); `CombatRestoreRequest.positions?`;
+  spatial restore refuses positionless combatants (E-SPAT-01, artifactId `(snapshot)`, jsonPath
+  `restore.<id>.position`, all cards before rebuild) — CA-G3.
+- M02 `src/core/dsl/formula.ts`: new export `evalValidity(ast, ctx, hasTarget)` — validity-AST
+  evaluation with the injected geometry callback (core stays runtime-ignorant); comparators/scalars
+  delegate to `evalFormula` over the zero-RNG stream.
+- M03 `src/runtime/index.ts`: `packSpatialModel` added to the runtime surface barrel.
+
+Test/fixture surface: `tests/runtime/fixtures/packs.ts` — `SpatialPack` re-keyed to
+`{ spatial?: SpatialDef }` (v1.3), `withSpatial(pack, spatial: SpatialDef)`, new
+`emberMarchesSpatialPack()` (default 1, `barrow-wight` override 2, shapes single+burst), plus
+fixture actions `ember-bloom-rite` (burst-2 save spell-as-action), `seize-opening`
+(`valid: hasTarget(adjacent)`), `veterans-censure` (`valid: level >= 3`).
+
+*(Integrated by Orchestrator at receive of grid-combat SESSION-03 (commits 0a911b2 + be9cda9 + 8f3959e + 606c817 + 38c017e); synthesis is the Archivist final pass.)*
+
 ## Recorded drift & intra-module notes (for the next cycle)
 
 - **M03 internal cycles (value imports):** `character.ts ⇄ progression.ts` (progression imports
@@ -402,10 +446,13 @@ Consumers: S03 (`spatialFromPack` adapter, `SpatialRejection.rule = 'E-SPAT-01'`
 - **E-SPAT-01 unregistered:** typed `pendingId` carried verbatim in `src/runtime/combat/spatial.ts`;
   registry frozen additive; DB decision pending. *(grid-combat update: the DB decision has now
   LANDED — `E-SPAT-01` is registered in database.md v1.3 and `RULE_IDS` (S01 `0120359` + S02
-  `98e463e`); `pendingId` → `rule` switch is S03's first in-lease change.)*
+  `98e463e`); S03 switched `pendingId` → `rule: 'E-SPAT-01'` with zero remnants (`0a911b2`).)*
 - **Dice/Rng on the runtime surface:** not exported (see Surfaces above) — the approved surface
   spec said types should ride runtime; the README's "dice" bullet is satisfied by the engine's
   injectable seam + snapshots, not by exported dice symbols. Next surface revision decides.
+- **Declare gate order (grid-combat, S03):** validity gate → spatial reach gate → cost (validity
+  before spatial so the out-of-reach `hasTarget(adjacent)` rejection stays observable); recorded in
+  the source comment; both orders keep the ck2 contract green.
 
 <!-- Historical delta sections (pre-synthesis, kept verbatim below this line for provenance) -->
 
