@@ -86,9 +86,11 @@ describe('CA-08 — every bundled class at level 1 maps through the production p
 
 /**
  * The engine-side acceptance script: the hero (a level-1 character) against
- * the first bestiary entry, driven only by step/declare/respond — every turn
- * declares the first action the engine accepts, every trigger offer is
- * declined — until `combat-over` (the side-defeated end rule) or 500 steps.
+ * the first bestiary entry at host-declared grid positions (FR-11 — every
+ * combatant needs one when the pack declares a spatial model), driven only by
+ * step/declare/respond — every turn declares the first action the engine
+ * accepts, every trigger offer is declined — until `combat-over` (the
+ * side-defeated end rule) or 500 steps.
  */
 function fightScript(themeId: string, race: string, classId: string) {
   const rt = new Runtime(packFor(themeId));
@@ -100,6 +102,7 @@ function fightScript(themeId: string, race: string, classId: string) {
   const fight = startCombat(rt, {
     allies: [{ id: 'hero', ...profileFromCharacter(rt, character) }],
     enemies: [{ id: 'foe', profile: spawnMonster(rt, bestiaryIds(rt)[0]!, 'foe') }],
+    positions: { hero: { x: 0, y: 0 }, foe: { x: 1, y: 0 } },
   });
   const resolved: Record<string, number> = { hero: 0, foe: 0 };
   let steps = 0;
