@@ -34,6 +34,11 @@
     "abilities": ["might", "grace", "vigor", "reason", "insight", "presence"],
     "saves": ["vigor", "grace", "tenacity", "reason", "presence"]
   },
+  "spatial": {
+    "model": "grid",
+    "reach": { "default": 1, "slab-brute": 2 },
+    "shapes": ["single", "burst"]
+  },
   "actions": {
     "baton-blow": {
       "cost": { "slots": { "main": 1 } },

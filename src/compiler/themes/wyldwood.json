@@ -48,6 +48,14 @@
       "reaction": 1
     }
   },
+  "spatial": {
+    "model": "grid",
+    "reach": {
+      "default": 1,
+      "hollow-wight": 2
+    },
+    "shapes": ["single", "burst"]
+  },
   "actions": {
     "strike": {
       "cost": {

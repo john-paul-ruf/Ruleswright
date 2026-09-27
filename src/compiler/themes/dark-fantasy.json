@@ -34,6 +34,11 @@
     "saves": ["vigor", "grace", "tenacity", "reason", "presence"]
   },
   "economy": { "turnSlots": { "main": 1, "move": 1, "reaction": 1 } },
+  "spatial": {
+    "model": "grid",
+    "reach": { "default": 1, "barrow-wight": 2 },
+    "shapes": ["single", "burst"]
+  },
   "actions": {
     "strike": {
       "cost": { "slots": { "main": 1 } },
