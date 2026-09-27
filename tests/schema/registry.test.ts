@@ -16,6 +16,7 @@ const DB_V1_REGISTRY = [
   'E-OVR-01',
   'E-SNAP-01',
   'E-SNAP-02',
+  'E-SPAT-01',
 ] as const;
 
 describe('rule-id registry (CA-1)', () => {
@@ -23,10 +24,10 @@ describe('rule-id registry (CA-1)', () => {
     expect([...RULE_IDS]).toEqual([...DB_V1_REGISTRY]);
   });
 
-  it('is frozen at exactly 14 ids (additive-only extension point)', () => {
-    expect(RULE_IDS).toHaveLength(14);
+  it('is frozen at exactly 15 ids (additive-only extension point)', () => {
+    expect(RULE_IDS).toHaveLength(15);
     expect(Object.isFrozen(RULE_IDS)).toBe(true);
-    expect(new Set(RULE_IDS).size).toBe(14);
+    expect(new Set(RULE_IDS).size).toBe(15);
   });
 
   it('contains the snapshot ids this module registers for S06', () => {

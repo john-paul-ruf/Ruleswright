@@ -1,8 +1,8 @@
 /**
- * The pack document's root and its first three sections: root shape, manifest,
- * stats, formulas. Root-level discipline lives here — required sections, the
- * closed top-level key set, manifest provenance, and the reserved formula ids
- * every pack must define.
+ * The pack document's root and its first sections: root shape, manifest,
+ * stats, formulas, and the optional spatial model (v1.3). Root-level
+ * discipline lives here — required sections, the closed top-level key set,
+ * manifest provenance, and the reserved formula ids every pack must define.
  */
 import { makeErrorCard } from '../../error-card';
 import type { Ctx } from '../context';
@@ -39,7 +39,7 @@ export function checkRootSections(ctx: Ctx, doc: Record<string, unknown>): void 
     }
   }
   for (const key of Object.keys(doc)) {
-    if (!required.includes(key) && key !== 'economy') {
+    if (!required.includes(key) && key !== 'economy' && key !== 'spatial') {
       add(
         ctx,
         makeErrorCard(
@@ -247,5 +247,101 @@ export function checkFormulas(ctx: Ctx, value: unknown): void {
         );
       }
     }
+  }
+}
+
+/** The v1 shape vocabulary (FR-11) — cone/line are deferred engine geometry, never faked in data. */
+const V1_SHAPES: readonly string[] = ['single', 'burst'];
+
+/**
+ * The optional spatial section (v1.3, FR-11): the grid model's reach table and
+ * documented shape set. Structural violations (missing/mistyped fields) are
+ * E-SCHEMA-01; declared-but-unshippable geometry (a model other than 'grid',
+ * shape values outside the v1 set) is semantic — E-SPAT-01 (Design Decision 6).
+ * Reach overrides are free-form sibling keys of `default` (spatial.html
+ * verbatim); absent section = theater of mind, nothing else changes.
+ */
+export function checkSpatial(ctx: Ctx, value: unknown): void {
+  if (value === undefined) return; // optional (v1.3): absence = theater of mind
+  if (!isPlainObject(value)) {
+    add(
+      ctx,
+      makeErrorCard('E-SCHEMA-01', 'spatial', 'spatial', 'spatial must be an object {model, reach, shapes?}.'),
+    );
+    return;
+  }
+  reqFields(ctx, value, ['model', 'reach'], 'spatial', 'spatial');
+  forbidUnknown(ctx, value, ['model', 'reach', 'shapes'], 'spatial', 'spatial');
+  const model = value['model'];
+  if (model !== undefined && (typeof model !== 'string' || model !== 'grid')) {
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SPAT-01',
+        'spatial',
+        'spatial.model',
+        `pack declares a spatial model the engine does not ship ("${String(model)}") — v1 ships exactly {grid} (square grid, Chebyshev distance); other models are future additive revisions, never silent aliases.`,
+      ),
+    );
+  }
+  const reach = value['reach'];
+  if (isPlainObject(reach)) {
+    reqFields(ctx, reach, ['default'], 'spatial', 'spatial.reach');
+    for (const [key, steps] of Object.entries(reach)) {
+      if (!isInteger(steps) || steps < 1) {
+        add(
+          ctx,
+          makeErrorCard(
+            'E-SCHEMA-01',
+            'spatial',
+            `spatial.reach.${key}`,
+            key === 'default'
+              ? 'spatial.reach.default must be an integer >= 1 (melee reach in grid steps; 1 = adjacency).'
+              : `spatial.reach.${key} must be an integer >= 1 (per-id reach override).`,
+          ),
+        );
+      }
+    }
+  }
+  const shapes = value['shapes'];
+  if (shapes === undefined) return;
+  if (!Array.isArray(shapes)) {
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        'spatial',
+        'spatial.shapes',
+        'spatial.shapes must be an array of shape names (single | burst).',
+      ),
+    );
+    return;
+  }
+  const seen = new Set<string>();
+  for (const [index, shape] of shapes.entries()) {
+    if (typeof shape !== 'string' || !V1_SHAPES.includes(shape)) {
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SPAT-01',
+          'spatial',
+          `spatial.shapes[${index}]`,
+          `pack declares a shape the engine does not have ("${String(shape)}") — the v1 shape vocabulary is {${V1_SHAPES.join(', ')}}; cone/line are deferred engine geometry, never faked in data (FR-11).`,
+        ),
+      );
+      continue;
+    }
+    if (seen.has(shape)) {
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          'spatial',
+          `spatial.shapes[${index}]`,
+          `spatial.shapes entries must be unique (uniqueItems) — "${shape}" repeats.`,
+        ),
+      );
+    }
+    seen.add(shape);
   }
 }

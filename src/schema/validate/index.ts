@@ -19,7 +19,7 @@ import { checkActions } from './sections/actions';
 import { checkBestiary } from './sections/bestiary';
 import { checkContent } from './sections/content';
 import { checkEconomy } from './sections/economy';
-import { checkFormulas, checkManifest, checkRootSections, checkStats } from './sections/root';
+import { checkFormulas, checkManifest, checkRootSections, checkSpatial, checkStats } from './sections/root';
 import { checkProgression } from './sections/progression';
 import { checkTables } from './sections/tables';
 import { checkProgressionPairing, checkRestrictsTags } from './sections/cross';
@@ -60,6 +60,7 @@ export function validatePack(json: unknown, dslChecker: DslChecker = deferredDsl
   checkStats(ctx, json['stats']);
   checkActions(ctx, json['actions']);
   checkEconomy(ctx, json['economy']);
+  checkSpatial(ctx, json['spatial']);
   checkFormulas(ctx, json['formulas']);
   checkContent(ctx, json['content']);
   checkProgression(ctx, json['progression']);

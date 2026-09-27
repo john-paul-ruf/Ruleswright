@@ -33,16 +33,19 @@ const RULE_ID_TUPLE = [
   'E-OVR-01',
   'E-SNAP-01',
   'E-SNAP-02',
+  'E-SPAT-01',
 ] as const;
 
 /**
- * Rule-id registry — the DB's v1 enumeration, verbatim (specs/database.md,
+ * Rule-id registry — the DB's enumeration, verbatim (specs/database.md,
  * ErrorCard Rule Registry). FREEZE: additive-only. Adding ids is a compatible
  * minor event; renumbering or retiring a shipped id is a major schema event
  * (database.md Versioning discipline). W-* / I-* prefixes are reserved; v1
  * registers none.
  *
  * E-SNAP-01/-02 are registered here but enforced by runtime/snapshots.ts (S06).
+ * E-SPAT-01 (v1.3, additive minor) is registered here and enforced by the
+ * pack validator's spatial section plus the runtime's spatial gate (S03).
  */
 export const RULE_IDS: readonly RuleId[] = Object.freeze(RULE_ID_TUPLE);
 
