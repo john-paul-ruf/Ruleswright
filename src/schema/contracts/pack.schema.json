@@ -14,6 +14,10 @@
       "$ref": "#/$defs/economy",
       "description": "Optional turn-economy declaration (FR-4): per-turn slot grants. Absent section = documented engine default."
     },
+    "spatial": {
+      "$ref": "#/$defs/spatial",
+      "description": "Optional spatial model (FR-11): positions/adjacency/reach for packs that want geometry. Absent = theater of mind; nothing else changes."
+    },
     "formulas": {
       "type": "object",
       "additionalProperties": {
@@ -167,6 +171,34 @@
         }
       },
       "description": "Turn-economy declaration (FR-4) — the generic slot/points economy's grant source. Optional; resolves S-CONTRACT-GAP (builder option A)."
+    },
+
+    "spatial": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "reach"],
+      "properties": {
+        "model": {
+          "const": "grid",
+          "description": "v1 ships exactly the square grid (Chebyshev distance). Other models are future additive revisions, never silent aliases."
+        },
+        "reach": {
+          "type": "object",
+          "required": ["default"],
+          "properties": {
+            "default": { "type": "integer", "minimum": 1, "description": "Melee reach in grid steps (1 = adjacency)" }
+          },
+          "additionalProperties": { "type": "integer", "minimum": 1 },
+          "description": "Per-id reach overrides are direct siblings of `default` (spatial.html verbatim: \"weapons.long-spear\": 2). The engine resolves a combatant's reach by combatant/artifact id (`reach[id] ?? reach.default`); dotted artifact paths are a documented v2 seam."
+        },
+        "shapes": {
+          "type": "array",
+          "items": { "enum": ["single", "burst"] },
+          "uniqueItems": true,
+          "description": "Documented shape set (FR-11): v1 ships single + burst only; cone/line are deferred engine geometry and cannot be declared (E-SPAT-01 if attempted post-validation shape growth)."
+        }
+      },
+      "description": "The spatial model (spatial.html verbatim): {model: 'grid', reach: {default, <label>: n}, shapes?}. Positions are host-declared per combatant; the engine never invents a grid."
     },
 
     "content": {
