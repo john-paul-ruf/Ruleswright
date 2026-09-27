@@ -371,6 +371,20 @@ file), and its consumer `tests/compiler/coverage-floor.test.ts` was outside the 
 
 *(Integrated by Orchestrator at receive of SESSION-02 (commits 753ced1 + fc60edc + c7b43a0); synthesis is the Archivist final pass.)*
 
+<!-- grid-combat SESSION-02 -->
+
+## M01 schema surface — public API delta (grid-combat SESSION-02, ad3dc5d/98e463e/555db03)
+
+Public API additions to M01 (`src/schema/`); no existing symbol renamed, re-typed, or removed:
+
+- `src/schema/pack.ts`: new exports `SpatialReach`, `SpatialDef` (mirror of `pack.schema.json` `$defs/spatial`, v1.3); `Pack` gains optional `spatial?: SpatialDef` (after `economy?`, contract order).
+- `src/schema/error-card.ts`: `RuleId` union and frozen `RULE_IDS` registry extend 14 → 15; new id `'E-SPAT-01'` (last position, additive minor per database.md v1.3).
+- `src/schema/validate/sections/root.ts`: new exported section check `checkSpatial(ctx, value)` — structural violations → E-SCHEMA-01, declared-but-unshippable geometry (model ≠ 'grid', shapes outside {single, burst}) → E-SPAT-01; wired in `validatePack` (`src/schema/validate/index.ts`) as `checkSpatial(ctx, json['spatial'])` after `checkEconomy`; `checkRootSections`' closed-top-level key set now admits `spatial` alongside `economy`.
+
+Consumers: S03 (`spatialFromPack` adapter, `SpatialRejection.rule = 'E-SPAT-01'`) and S04 (generated packs may declare `spatial` without stage-8 rejections) import from the M01 surface; nothing else may redefine these symbols.
+
+*(Integrated by Orchestrator at receive of grid-combat SESSION-02 (commits ad3dc5d + 98e463e + 555db03); synthesis is the Archivist final pass.)*
+
 ## Recorded drift & intra-module notes (for the next cycle)
 
 - **M03 internal cycles (value imports):** `character.ts ⇄ progression.ts` (progression imports
@@ -386,7 +400,9 @@ file), and its consumer `tests/compiler/coverage-floor.test.ts` was outside the 
 - **`MAX_TABLE_DEPTH` duplication:** same value 8 in `core/tables.ts` and `schema/validate.ts`
   (S02/S01 independently chose 8; DB ratification pending). Single-source in v1.1.
 - **E-SPAT-01 unregistered:** typed `pendingId` carried verbatim in `src/runtime/combat/spatial.ts`;
-  registry frozen additive; DB decision pending.
+  registry frozen additive; DB decision pending. *(grid-combat update: the DB decision has now
+  LANDED — `E-SPAT-01` is registered in database.md v1.3 and `RULE_IDS` (S01 `0120359` + S02
+  `98e463e`); `pendingId` → `rule` switch is S03's first in-lease change.)*
 - **Dice/Rng on the runtime surface:** not exported (see Surfaces above) — the approved surface
   spec said types should ride runtime; the README's "dice" bullet is satisfied by the engine's
   injectable seam + snapshots, not by exported dice symbols. Next surface revision decides.
