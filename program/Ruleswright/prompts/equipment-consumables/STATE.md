@@ -24,7 +24,7 @@
 | 01 | Contract gate — schema v1.4 (DB re-entry) | M01 contracts | `src/schema/contracts/pack.schema.json`, `src/schema/contracts/snapshots.schema.json`, `program/Ruleswright/specs/database.md` | **done** | 3/3 (`a6a3334`, `c32d2d2`, `a409ef4`; Orchestrator format residual `8668c53`) | 2026-09-28 | Author role; grid S01 precedent; now owns the snapshots contract too (F-E4). Receive gates: typecheck 0, lint 0, format 0 (after residual), 564/564 |
 | 02 | TS mirror + validator + heal registry + `gear-*` DSL | M01, M02 | `src/schema/pack.ts`, `src/schema/artifacts.ts`, `src/schema/validate/sections/content.ts`, `src/schema/validate/sections/root.ts`, `src/schema/validate/index.ts`, `src/schema/validate/context.ts`, `src/schema/validate/collect.ts`, `src/core/dsl/registry.ts`, `src/core/dsl/effect.ts`, `src/core/dsl/formula.ts`, `tests/schema/validate.test.ts`, `tests/core/dsl/checker.test.ts`, `tests/core/dsl/effect.test.ts`, `tests/core/dsl/formula.test.ts` | **done** | 2/2 (`0f1ff65`, `52df545`) | 2026-09-28 | Receive (after `pnpm build`): typecheck 0, lint 0, format 0, build 0, isolation 0, security 0, **584/584**; arch delta `f1563b1`. Serial after S1; owns the registry membership re-key (checker.test.ts:13-26) |
 | 03 | Character verbs: equip/unequip/use + grants + armorCasting gate | M03 | `src/runtime/equipment.ts`, `src/runtime/character.ts`, `src/runtime/pools.ts`, `src/runtime/inventory.ts`, `src/runtime/runtime.ts`, `src/runtime/index.ts`, `tests/runtime/fixtures/**`, `tests/runtime/equipment.test.ts`, `tests/runtime/character.test.ts`, `tests/runtime/pools.test.ts`, `tests/runtime/inventory.test.ts` | **done** | 4/4 (`09fb6a7`, `8dcfe41`, `960ee39`, `d9f2be6`) | 2026-09-28 | Receive: lease gates tests/runtime+tests/snapshots 223/223, typecheck 0, lease lint/format 0; arch `643fd76`; whole-repo at W3 close. | Concurrent with S04 (disjoint); owns the shared runtime fixtures; must not run `pnpm build`; exports the pure `equippedUnits` helper (R-5) |
-| 04 | Themes + equipSlots pipeline pass-through | M04 | `src/compiler/theme.ts`, `src/compiler/pipeline.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `tests/compiler/pipeline.test.ts`, `tests/compiler/coverage-floor.test.ts` | pending | — | — | Concurrent with S03 (disjoint); must not run `pnpm build` |
+| 04 | Themes + equipSlots pipeline pass-through | M04 | `src/compiler/theme.ts`, `src/compiler/pipeline.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `tests/compiler/pipeline.test.ts`, `tests/compiler/coverage-floor.test.ts` | **done** | 4/4 (`4749543`, `926f4c6`, `22fc990`, `90dbfc7`) | 2026-09-28 | W3-close whole-repo (after build): typecheck 0, lint 0, format 0, build 0, isolation 0, security 0, **623/623 (36 files)**; arch `7c3db75`. | Concurrent with S03 (disjoint); must not run `pnpm build` |
 | 05 | Combat integration: profiles, fight.use, clamp, settlement, snapshots | M03 | `src/runtime/combat/combat.ts`, `src/runtime/combat/resolve.ts`, `src/runtime/combat/action-economy.ts`, `src/runtime/character-profile.ts`, `src/runtime/snapshots.ts`, `src/runtime/runtime.ts`, `src/runtime/index.ts`, `tests/runtime/combat/**`, `tests/snapshots/combat.test.ts`, `tests/snapshots/character.test.ts` | pending | — | — | After S03 and S04; re-key owner for `tests/snapshots/combat.test.ts:102`; re-verifies loot-journey:126 at ck5; `checkPackDsl` item-`use` check (R-7) |
 | 06 | Journey + README | proofs, docs | `tests/proofs/equipment-journey.test.ts`, `tests/proofs/docs-run.test.ts`, `README.md` | pending | — | — | Last; journey first, docs pin inside the README checkpoint |
 
@@ -168,7 +168,7 @@ S01 ──> S02 ──┬──> S03 ──┐
 | CAP-E3 | armorCasting enforced at **slot** cast time | armor marker (S01); gate (S03 ck3); dark-fantasy warden/mail + hexer/leather (S04 ck2) | CA-EG3 | S03 ck3; S06 ck1 (dark-fantasy leg) | **verified (unit leg)** S03 ck3 `960ee39`; journey leg planned (S06 ck1, dark-fantasy) | `tests/runtime/pools.test.ts`: rejection with no state/event change, cast after unequip, listed kind casts, non-armor never blocks; negative control failed as expected | Point-pool casting is out of scope (DD-EG5) |
 | CAP-E4 | A consumable heals out of combat (`useItem`) and in combat (`fight.use`), capped at max hp and never lowering hp already above it (R-2); `fight.use` only while the fight is live, by the active combatant (R-3) | `heal` (S02 ck1); `itemEffects` + `useItem` (S03 ck3); `maxHp` + heal rule + `use()` gate 0 (S05 ck1–2); med-kit (S04 ck3) | CA-EG4, CA-EG5 | S03 ck3 (character side, incl. over-cap); S05 ck2 (combat, incl. over-cap and use-after-over); S06 ck1 | **partial** — character leg verified S03 ck3 `960ee39`; combat leg planned (S05 ck2); journey (S06) | `tests/runtime/equipment.test.ts`: 16→20 at cap, cap = derived().hp (22), over-cap `22→22` with unit consumed; negative control failed as expected | — |
 | CAP-E5 | Snapshots carry `equipped`, `itemsUsed`, `maxHp`; restore fails closed | contract (S01 ck2); serializer/restore (S05 ck4) | CA-EG6 | S05 ck4; S06 ck1 | planned | planned | — |
-| CAP-E6 | All three themes carry the new content and gear formulas; `equipSlots` reaches the pack; packs validate; floor green | pass-through (S04 ck1); themes (S04 ck2–4) | CA-EG1, CA-EG2, CA-EG3 | S04 ck4 | planned | planned | — |
+| CAP-E6 | All three themes carry the new content and gear formulas; `equipSlots` reaches the pack; packs validate; floor green | pass-through (S04 ck1); themes (S04 ck2–4) | CA-EG1, CA-EG2, CA-EG3 | S04 ck4 | **verified** S04 ck4 `90dbfc7` | `tests/compiler/pipeline.test.ts` (3 pass-through tests; negative control failed as expected), `tests/compiler/coverage-floor.test.ts` (per-theme equipment + CA-EG3 pairing; zero stage-8 cards ×3); docs-run block-03 `hp: 27, ac: 12` unchanged; W3-close whole suite 623/623 after build | — |
 | CAP-E7 | **First narrow journey** end to end (DD-EG9) | all above | all | S06 ck1 | planned | planned | — |
 | CAP-E8 | A combat use ends with exactly one unit removed from the character's inventory | ledger (S05 ck2); `settleItemUses` (S05 ck3); drop guard + pure `equippedUnits` (S03 ck1, R-5) | CA-EG5 | S05 ck3; S06 ck1 (inventory asserted after the fight) | planned — pieces landed S03 ck1 `09fb6a7` (`equippedUnits`, `dropItem` `item-equipped` guard); settlement S05 ck3 | planned (S05 ck3; S06 ck1) | Documented v1 limit (R-4): idempotent per live fight object; settle once per fight (DD-EG6a, README) |
 
@@ -183,7 +183,7 @@ S01 ──> S02 ──┬──> S03 ──┐
 
 | ID | Required meaning / authority | Producer → boundary → consumer | Mapping / constraints | Correction + proof owners / checkpoints | Agreement | Producer | Proof / evidence / checked sources |
 |----|------------------------------|--------------------------------|-----------------------|------------------------------------------|-----------|----------|------------------------------------|
-| CA-EG1 | ItemDef admits `grants` (keys ∈ abilities ∪ saves ∪ {hp, ac, initiative, armor}; integer values; `armor` ≥ 1), `slots` (non-empty unique, each ∈ `equipSlots`), `use` (effect DSL). Root optional `equipSlots` (≥1, unique, kebab; not global ids). `stats` ids ≠ `gear-*` | pack.schema.json (S01) → validator/context/collect (S02) → mirror (S02) → themes (S04) → runtime verbs (S03) → runtime re-check `checkPackDsl` item `use` (S05 ck1, R-7) | Additive-optional; schemaVersion 1; structural → E-SCHEMA-01, reference → E-REF-01. Validator context keeps **absent** `equipSlots` (empty set → slotted items get E-REF-01) distinct from **unreadable** (null → item slot refs skipped, no cascade) (R-8) | S01 ck1 → S02 ck2 (tests, incl. malformed-vs-absent); S05 ck1 (`checkPackDsl`) | agreed | contract **landed** S01 ck1 `a6a3334` (fmt `8668c53`), incl. `grants.properties.armor {integer, minimum 1}`; mirror/validator **landed** S02 ck2 `52df545` | **passed** S02 ck2 (`tests/schema/validate.test.ts`); consumer legs: S04 themes, S03 verbs, S05 `checkPackDsl` planned |
+| CA-EG1 | ItemDef admits `grants` (keys ∈ abilities ∪ saves ∪ {hp, ac, initiative, armor}; integer values; `armor` ≥ 1), `slots` (non-empty unique, each ∈ `equipSlots`), `use` (effect DSL). Root optional `equipSlots` (≥1, unique, kebab; not global ids). `stats` ids ≠ `gear-*` | pack.schema.json (S01) → validator/context/collect (S02) → mirror (S02) → themes (S04) → runtime verbs (S03) → runtime re-check `checkPackDsl` item `use` (S05 ck1, R-7) | Additive-optional; schemaVersion 1; structural → E-SCHEMA-01, reference → E-REF-01. Validator context keeps **absent** `equipSlots` (empty set → slotted items get E-REF-01) distinct from **unreadable** (null → item slot refs skipped, no cascade) (R-8) | S01 ck1 → S02 ck2 (tests, incl. malformed-vs-absent); S05 ck1 (`checkPackDsl`) | agreed | contract **landed** S01 ck1 `a6a3334` (fmt `8668c53`), incl. `grants.properties.armor {integer, minimum 1}`; mirror/validator **landed** S02 ck2 `52df545` | **passed** S02 ck2 (`tests/schema/validate.test.ts`); consumer legs: S04 themes **passed** (stage 8 zero cards ×3, S04 ck2–4), S03 verbs **passed** (S03 ck1–3), S05 `checkPackDsl` planned |
 | CA-EG2 | **Grant semantics (F-E2 (b)):** ability/save grants ADD; reserved grants are exposed only to `formulas` as `gear-hp/ac/initiative/armor` (sum over equipped; 0 when none or unbound). The engine applies no direction. Equipping never heals; unequip never clamps | contract (S01) → formula checker/eval (S02 ck1) → `equipmentView` + `derived()`/pool caps (S03 ck2) → theme formulas (S04) → `profileFromCharacter` abilities/saves/initiative/maxHp (S05 ck1) | One composition site (`equipment.ts`). Build/level-set/restore hp init stays at base (gear not passed) | S02 ck1; S03 ck2 (both AC directions); S05 ck1 (profile); S06 ck1 (generated pack) | agreed | contract S01 `a6a3334`; DSL S02 `0f1ff65`; composition **landed** S03 ck2 `8dcfe41` (`equipmentView`/`equipmentScope`, one site in `equipment.ts`); profile leg planned (S05 ck1) | DSL **passed** S02 ck1; composition **passed** S03 ck2 (both AC directions); profile planned (S05 ck1); generated pack (S06) |
 | CA-EG3 | Armor marker: an item is armor iff `grants` has `armor`. A **slot** cast while armor-equipped requires a character class listing the item's `kind` in `armorCasting` | `pools.ts` `castSpell` → RuntimeRuleError | `armor-not-castable`, no state change, gate before the slot lookup; monsters and point-pool spells unaffected | S03 ck3; S06 ck1 (dark-fantasy) | agreed | **landed** S03 ck3 `960ee39` (`armorBlockingCast` in `pools.ts`, gate after `unknown-spell`, before slot lookup); content pairing S04 ck2 `926f4c6` | **passed** S03 ck3 (`pools.test.ts`); journey planned (S06 ck1) |
 | CA-EG4 | `heal(formula)` = an effect statement → a negative-amount `damage` request; `why.rolls` carry the roll; `damage:applied` anatomy unchanged. Cap: character = derived hp with grants; combat = `maxHp`. **Rule (R-2):** `after = current >= cap ? current : min(cap, current + heal)`, never above the cap and never lowering hp already above it. `hp` display shows the actual values (`X→X` when unchanged; `hpBefore` captured before the mutation) | registry/`execHeal` (S02) → `useItem` (S03) / `applyMutation` (S05) | Registry 12→13; membership pin re-keyed by S02. **No E-FORM-01 message change** (F-E1). Combat `maxHp` fallback floored at 0 (R-9) | S02 ck1 → S03 ck3 (over-cap test) → S05 ck2 (over-cap test) | agreed | registry note **landed** S01 ck3 `a409ef4` (database.md §formulas, row 5); executor **landed** S02 ck1 `0f1ff65` (`REGISTRY.heal`, `execHeal` negates whole RollResult — values/modifier/total, purpose `heal`) | DSL **passed** S02 ck1; character clamp **passed** S03 ck3 (over-cap `X→X`); combat clamp planned (S05 ck2) |
@@ -524,3 +524,69 @@ The burst-shape/spells-as-actions bridge is future-program debt (DD17a), *not* s
   - `tests/runtime/pools.test.ts`
   - `tests/runtime/inventory.test.ts`
   - `.program/signal/SESSION-03.arch.md` (arch fragment; uncommitted, for Orchestrator)
+
+### SESSION-04 — received 2026-09-28 (Orchestrator receive: accepted; W3-close whole-repo battery green 623/623; typecheck red in handoff was S03 in-flight, cleared at close)
+
+- **session:** 04
+- **status:** done
+- **checkpoint:** 4
+- **notes:** CAP-E6 verified at ck4: `equipSlots` reaches the pack, all three themes carry the equipment content and `gear-*` formulas, generated packs have zero stage-8 cards, and the coverage floor passes. Code added: `ThemeTemplate.equipSlots`, and in `runPipeline` the `'equipSlots'` entry in `STAGE_INPUT_SECTIONS` plus a structuredClone pass-through. CA-EG1 consumer leg (themes) passed: stage 8 accepted every declared field, so no producer defect. CA-EG2 theme-formula leg landed, descending direction. CA-EG3 content pairing landed; this is content only, and the runtime proof stays with S03 ck3 / S06. Commits: ck1 `4749543`, ck2 `926f4c6`, ck3 `22fc990`, ck4 `90dbfc7`.
+- **delivered:** Exact content as landed, for S05/S06 to re-check:
+  - **dark-fantasy**
+    - `equipSlots: ["body","main-hand"]`
+    - `warded-mail`: kind `armor` → **`mail`**, slots `["body"]`, grants `{ac:2, armor:1}`
+    - `oaken-cudgel`: kind `weapon`, slots `["main-hand"]`, grants `{might:1}`
+    - formulas: hp `"6 + level + vigor * 2 + gear-hp"`, ac `"12 - floor(level / 3) - gear-ac"`, initiative `"d20 + grace + gear-initiative"`
+    - `armorCasting` unchanged: warden `["mail"]` (legal with warded-mail), hexer `["leather"]` (blocked)
+  - **zombie-urban**
+    - `equipSlots: ["body","main-hand"]`
+    - `riot-plate`: kind `armor`, slots `["body"]`, grants `{ac:1, armor:1}`
+    - `fire-axe`: kind `weapon`, slots `["main-hand"]`, grants `{might:1}`
+    - `med-kit`: kind `consumable`, use `"heal(2 + vigor)"`
+    - formulas: hp `"6 + level + vigor * 2 + gear-hp"`, ac `"11 - floor(level / 3) - gear-ac"`, initiative `"d20 + grace + gear-initiative"`
+  - **wyldwood**
+    - `equipSlots: ["charm"]`
+    - `hedge-charm`: kind `charm`, slots `["charm"]`, grants `{ac:1, armor:1}`; item count still 6
+    - formulas: hp `"6 + level + vigor * 2 + gear-hp"`, ac `"12 - floor(level / 3) - gear-ac"`, initiative `"d20 + grace + gear-initiative"`
+  - No new item ids anywhere, and loot tables are unchanged.
+  - **Tests added:**
+    - `tests/compiler/pipeline.test.ts`: a new `describe` with 3 tests (equipSlots passed through and slotted item clears stage 8; no key when absent; theme not mutated).
+    - `tests/compiler/coverage-floor.test.ts`: one per-theme test (non-empty `equipSlots` matching the theme, an armor grant, an ability grant for dark-fantasy and zombie-urban, a `use` item for zombie-urban, and an `ac` formula matching `/ - gear-ac\b/`), plus one CA-EG3 pairing test for dark-fantasy.
+- **verification:**
+  - `pnpm exec vitest run tests/compiler/ tests/proofs/docs-run.test.ts tests/proofs/grid-journey.test.ts` → 7 files, 204/204 passed, exit 0 at ck4 (200/200 at ck2 and ck3). That is the intended 7 files: the 5 compiler files plus 2 proofs, so no over- or under-selection. coverage-floor went from 78 to 82 tests and pipeline from 24 to 27.
+  - Stage 8 ×3: the floor's "zero cards" tests (`validatePack` + `packDslChecker`) pass for dark-fantasy, zombie-urban and wyldwood. `runPipeline` also throws on any card, so every generating test is further evidence.
+  - docs-run block-03 still asserts `hp: 27, ac: 12` and passes; `themes.test.ts` still pins wyldwood at 6 and passes.
+  - Negative control: with the pass-through line turned off, 2 of the 3 new pipeline tests fail (E-REF-01 "pack declares no equipSlots", and `equipSlots` undefined). Restored afterwards.
+  - Read-only: `tests/runtime/combat/{combat,character-profile}.test.ts` → 36/36 against my themes.
+  - Lint: eslint on the lease files passes (exit 0). Prettier `--check` passes on all lease files.
+  - `pnpm typecheck`: passed (0) at ck1. It fails at ck4 only on S03's in-flight `src/runtime/equipment.ts` (TS2339 `equipped` not on `CharacterState`); no errors in lease files.
+  - `pnpm build` not run, as instructed.
+- **surprises:**
+  - The whole-repo `pnpm typecheck` failure comes from S03's uncommitted `src/runtime/equipment.ts`. Reported, not fixed; re-run after S03's next commit.
+  - `tsx` isn't installed, so I dropped a standalone stage-8 probe script (deleted, never committed). The coverage-floor zero-card tests are the evidence instead.
+  - Prettier expanded the edited single-line item entries in the dark-fantasy and zombie-urban JSON into multi-line blocks. This is formatting only.
+  - I also added the CA-EG3 pairing assertion (warden lists `mail`, hexer does not) to the floor as content-level evidence.
+  - Lease revision 1.
+- **followUp:**
+  - CAP-E2: S03 ck2 fixtures; S06 ck1 on the generated pack.
+  - CAP-E3 runtime gate: S03 ck3; S06 dark-fantasy leg (warden/mail legal, hexer/leather rejected).
+  - CAP-E4 med-kit heal clamp: S03 ck3, S05 ck2, S06.
+  - Item `use` re-check in `checkPackDsl`: S05 ck1.
+  - wyldwood charm armor is content-only coverage (point-pool casting never reaches the gate); no runtime claim.
+  - `tests/proofs/loot-journey.test.ts` reads `dist/`, so Orchestrator's wave-close build is needed.
+  - Arch delta written to `.program/signal/SESSION-04.arch.md`.
+- **needsOwnerCorrection:** —
+- **needsDesignSource:** —
+- **blockedReason:** —
+- **filesTouched:**
+  - `src/compiler/theme.ts`
+  - `src/compiler/pipeline.ts`
+  - `tests/compiler/pipeline.test.ts`
+  - `src/compiler/themes/dark-fantasy.json`
+  - `src/compiler/themes/zombie-urban.json`
+  - `src/compiler/themes/wyldwood.json`
+  - `tests/compiler/coverage-floor.test.ts`
+
+### W3 close — 2026-09-28
+
+- Whole-repo re-verify after both receives, with fresh `pnpm build`: typecheck 0 · lint 0 · format:check 0 · build 0 · check:isolation 0 · check:security 0 · **623/623 across 36 files**. Shared-tree hazard: no red observed in either direction (both sessions report).
