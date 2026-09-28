@@ -48,6 +48,7 @@ export function emberMarchesPack(): Pack {
       saves: ['vigor', 'reflexes', 'reason', 'tenacity', 'grit'],
     },
     economy: { turnSlots: { main: 1, move: 1, reaction: 1 } },
+    equipSlots: ['body', 'main-hand'],
     actions: {
       strike: {
         cost: { slots: { main: 1 } },
@@ -160,6 +161,11 @@ export function emberMarchesPack(): Pack {
       },
       items: {
         'ember-oil': { name: 'Ember Oil', kind: 'consumable' },
+        // v1.4 equipment + consumables (CA-EG1): armor (marker `armor`), a weapon
+        // with an ability grant, and a consumable with a rolled heal.
+        'scale-coat': { name: 'Scale Coat', kind: 'mail', slots: ['body'], grants: { ac: 2, armor: 1 } },
+        'ember-brand': { name: 'Ember Brand', kind: 'weapon', slots: ['main-hand'], grants: { might: 1 } },
+        'mend-salve': { name: 'Mend Salve', kind: 'consumable', use: 'heal(1d6 + 2)' },
       },
     },
     progression: {

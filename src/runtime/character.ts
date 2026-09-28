@@ -33,6 +33,7 @@ import {
   grantLoot as grantLootFn,
   type LootOptions,
 } from './inventory';
+import { equipItem as equipItemFn, unequipItem as unequipItemFn, type EquippedEntry } from './equipment';
 import type { RuntimeEvent } from './events';
 import { validateBuild, buildCharacter, CharacterBuildError } from './progression';
 
@@ -78,6 +79,8 @@ export interface CharacterState {
   spells: string[];
   /** Held items as {id, qty} stacks (CAP-01; ids resolve in content.items at mutation time). */
   inventory: InventoryEntry[];
+  /** Occupied equip slots (CAP-E2) — ABSENT until the first equip (absent = `[]`, F-E5). */
+  equipped?: EquippedEntry[];
   /** HP bookkeeping: the reserved formula's value is the cap; `current` starts at it. */
   hp: { current: number; temp: number };
 }
@@ -159,6 +162,16 @@ export class Character {
   /** CAP-01 — how many of an item the character holds (inventory.ts). */
   count(itemId: string): number {
     return countItemFn(this.runtime, this.state, itemId);
+  }
+
+  /** CAP-E2 — equip a held item into one of its declared slots (equipment.ts). */
+  equip(itemId: string, slot: string): void {
+    equipItemFn(this.runtime, this.state, itemId, slot);
+  }
+
+  /** CAP-E2 — free a slot (equipment.ts). */
+  unequip(slot: string): void {
+    unequipItemFn(this.runtime, this.state, slot);
   }
 
   /** CAP-02 — roll a pack loot table through the one table engine into inventory (inventory.ts). */

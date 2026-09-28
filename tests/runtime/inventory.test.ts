@@ -25,6 +25,7 @@ import type { ErrorCard } from '../../src/schema/error-card';
 import { grantItem, dropItem, countItem, rollLoot, grantLoot } from '../../src/runtime/inventory';
 import { createCharacter } from '../../src/runtime/character';
 import { serializeCharacter } from '../../src/runtime/snapshots';
+import { equipItem, unequipItem } from '../../src/runtime/equipment';
 import { Rng } from '../../src/core/rng';
 import { rollTable, type TableOutcome } from '../../src/core/tables';
 import { cloneRuntimePack } from './fixtures/pack';
@@ -154,6 +155,38 @@ describe('CAP-01 — grant / drop / count over {id, qty} stacks', () => {
     expect(() => character.drop('rope', 5)).toThrow(RuntimeRuleError);
     expect(() => character.drop('rope-x')).toThrow(RuntimeRuleError);
     expect(() => character.grant('rope', 0)).toThrow(RuntimeRuleError);
+  });
+});
+
+describe('CAP-E8/R-5 — dropItem never strands an equipped unit (item-equipped)', () => {
+  it('rejects dropping the last equipped unit with no state change and no event', () => {
+    const { runtime, character } = vale();
+    grantItem(runtime, character, 'chain-shirt');
+    equipItem(runtime, character, 'chain-shirt', 'body');
+    const before = JSON.stringify(character);
+    const eventsBefore = runtime.events.sinceRound(0).length;
+    try {
+      dropItem(runtime, character, 'chain-shirt');
+      expect.unreachable();
+    } catch (error) {
+      expect(ruleOf(error)).toBe('item-equipped');
+    }
+    expect(JSON.stringify(character)).toBe(before);
+    expect(runtime.events.sinceRound(0).length).toBe(eventsBefore);
+  });
+
+  it('allows dropping a surplus unit, then rejects the drop that would reach below the equipped count', () => {
+    const { runtime, character } = vale();
+    grantItem(runtime, character, 'ashwood-blade', 3);
+    equipItem(runtime, character, 'ashwood-blade', 'main-hand');
+    equipItem(runtime, character, 'ashwood-blade', 'off-hand');
+    expect(() => dropItem(runtime, character, 'ashwood-blade', 2)).toThrow(/strand an equipped unit/);
+    dropItem(runtime, character, 'ashwood-blade', 1);
+    expect(character.inventory).toEqual([{ id: 'ashwood-blade', qty: 2 }]);
+    expect(() => dropItem(runtime, character, 'ashwood-blade', 1)).toThrow(RuntimeRuleError);
+    unequipItem(runtime, character, 'off-hand');
+    dropItem(runtime, character, 'ashwood-blade', 1);
+    expect(character.inventory).toEqual([{ id: 'ashwood-blade', qty: 1 }]);
   });
 });
 

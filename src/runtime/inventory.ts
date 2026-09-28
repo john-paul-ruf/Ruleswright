@@ -26,6 +26,7 @@ import type { Runtime } from './runtime';
 import type { CharacterState } from './character';
 import { RuntimeRuleError, ruleCard } from './errors';
 import type { RuntimeEvent } from './events';
+import { equippedUnits } from './equipment';
 
 /** The loot call's optional entropy steering: an injected source wins over the seed (FR-1). */
 export interface LootOptions {
@@ -128,8 +129,9 @@ export function grantItem(
 /**
  * CAP-01 — give up held qty of a pack-declared item (default 1); the entry
  * leaves the inventory entirely at qty 0. Rejections (`unknown-item`,
- * `item-not-held`, `insufficient-qty`, `invalid-amount`) leave no durable
- * change. Emits `item:dropped` with the remaining stack.
+ * `item-not-held`, `insufficient-qty`, `invalid-amount`, and `item-equipped`
+ * when the drop would strand an equipped unit — the one `equippedUnits` rule,
+ * R-5) leave no durable change. Emits `item:dropped` with the remaining stack.
  */
 export function dropItem(
   runtime: Runtime,
@@ -177,6 +179,17 @@ export function dropItem(
     ]);
   }
   const remaining = held - amount;
+  const worn = equippedUnits(character, itemId);
+  if (remaining < worn) {
+    throw new RuntimeRuleError([
+      ruleCard(
+        'item-equipped',
+        itemId,
+        'equipped',
+        `"${itemId}" is held x${held} with ${worn} equipped; dropping ${amount} would strand an equipped unit — unequip first.`,
+      ),
+    ]);
+  }
   if (remaining === 0) character.inventory.splice(index, 1);
   else character.inventory[index]!.qty = remaining;
   return runtime.events.emit({

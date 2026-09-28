@@ -22,6 +22,7 @@ export const RUNTIME_PACK: Pack = {
     saves: ['fortitude', 'reflex', 'will', 'toughness', 'luck'],
   },
   economy: { turnSlots: { main: 1, move: 1 } },
+  equipSlots: ['body', 'main-hand', 'off-hand', 'ring'],
   actions: {
     strike: {
       cost: { slots: { main: 1 } },
@@ -88,6 +89,18 @@ export const RUNTIME_PACK: Pack = {
     },
     items: {
       rope: { name: 'Rope', kind: 'gear' },
+      // v1.4 equipment + consumables (CA-EG1): armor (the `armor` grant is the marker;
+      // kind `mail` is on warden's armorCasting, not hexer's), a two-slot weapon
+      // with an ability grant, a ring with hp + save grants, and a consumable.
+      'chain-shirt': { name: 'Chain Shirt', kind: 'mail', slots: ['body'], grants: { ac: 2, armor: 1 } },
+      'ashwood-blade': {
+        name: 'Ashwood Blade',
+        kind: 'weapon',
+        slots: ['main-hand', 'off-hand'],
+        grants: { might: 1 },
+      },
+      'ward-ring': { name: 'Ward Ring', kind: 'trinket', slots: ['ring'], grants: { hp: 2, luck: 1 } },
+      'mend-draught': { name: 'Mend Draught', kind: 'consumable', use: 'heal(10)' },
     },
   },
   progression: {
