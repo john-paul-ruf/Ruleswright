@@ -16,6 +16,7 @@ import type { Runtime } from './runtime';
 import type { Character, CharacterState } from './character';
 import { evalPackFormula, type CombatantProfile } from './combat/resolve';
 import type { EconomyBalances } from './combat/action-economy';
+import { equipmentView } from './equipment';
 import { RuntimeRuleError, ruleCard } from './errors';
 
 /** A character ready for `startCombat`: spread it into an ally/enemy entry (`{ id, ...pair }`). */
@@ -27,10 +28,12 @@ export interface CharacterCombatant {
 /**
  * Build a combatant from a character (UI B-1 / CA-08).
  *
- * - `hp` is the character's current hp; `ac` and `attackBonus` come from
- *   `character.derived()`; `initiativeBonus` evaluates the pack's reserved
- *   `initiative` formula (0 when undeclared) over abilities ∪ saves ∪ level,
- *   exactly as statblock profiles do.
+ * - Equipment (CA-EG2): `abilities`/`saves` are the equipment view's (grants
+ *   added); `initiativeBonus` evaluates the pack's reserved `initiative`
+ *   formula (0 when undeclared) over view abilities ∪ view saves ∪ level ∪
+ *   `gear-*`, as statblock profiles do over their own numbers.
+ * - `hp` is the character's current hp (it may exceed `maxHp` after an
+ *   unequip); `maxHp`, `ac` and `attackBonus` come from `character.derived()`.
  * - Table convention (only when no class yields an `attackBonus`): the
  *   table-convention class with the highest class level wins (ties → first in
  *   `state.classes`). A single-class character carries that progression's rows
@@ -70,7 +73,8 @@ export function profileFromCharacter(
   }
 
   const derived = character.derived();
-  const base: Record<string, number> = { ...state.abilities, ...state.saves, level: state.level };
+  const view = equipmentView(runtime, state);
+  const base: Record<string, number> = { ...view.abilities, ...view.saves, level: state.level, ...view.gear };
   const attackTable = derived.attackBonus === undefined ? characterAttackTable(runtime, state) : undefined;
   const boundSlots: Record<string, number> = {};
   for (const [level, bindings] of Object.entries(state.slots)) {
@@ -80,10 +84,11 @@ export function profileFromCharacter(
   return {
     profile: {
       id: id ?? state.id,
-      abilities: { ...state.abilities },
-      saves: { ...state.saves },
+      abilities: view.abilities,
+      saves: view.saves,
       level: state.level,
       hp: state.hp.current,
+      maxHp: derived.hp,
       ac: derived.ac,
       initiativeBonus:
         pack.formulas['initiative'] !== undefined ? evalPackFormula(pack, 'initiative', base) : 0,

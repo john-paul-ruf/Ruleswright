@@ -198,3 +198,25 @@ describe('fixture pack identity (FR-17/FR-23 seams)', () => {
     expect(packContentHash(emberMarchesNoEconomyPack())).not.toBe(packContentHash(pack));
   });
 });
+
+describe('checkPackDsl covers content.items.<id>.use (R-7, CA-EG1 runtime re-check)', () => {
+  function withItemUse(use: string): Pack {
+    const pack = structuredClone(emberMarchesPack());
+    pack.content.items!['field-tonic'] = { name: 'Field Tonic', kind: 'consumable', use };
+    return pack;
+  }
+
+  it('a registry effect (`heal(2 + might)`) passes', () => {
+    expect(checkPackDsl(withItemUse('heal(2 + might)'))).toEqual([]);
+  });
+
+  it('an unknown function is one E-FORM-02 card at content.items.<id>.use', () => {
+    const cards = checkPackDsl(withItemUse('mend(2)'));
+    expect(cards).toHaveLength(1);
+    expect(cards[0]).toMatchObject({
+      rule: 'E-FORM-02',
+      artifactId: 'field-tonic',
+      jsonPath: 'content.items.field-tonic.use',
+    });
+  });
+});

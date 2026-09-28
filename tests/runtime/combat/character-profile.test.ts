@@ -17,8 +17,10 @@ import {
   spawnMonster,
   startCombat,
   type Character,
+  type CombatantProfile,
   type RuntimeEvent,
 } from '../../../src/runtime';
+import { evalPackFormula } from '../../../src/runtime/combat/resolve';
 import type { Pack } from '../../../src/schema/pack';
 
 const SEED = 42;
@@ -255,3 +257,81 @@ describe('CA-08 — actions and balances', () => {
     }
   });
 });
+
+/**
+ * CA-EG2 profile leg (equipment-consumables S05 ck1): the combatant carries the
+ * character's equipment — grants through `equipmentView`, the pack's `gear-*`
+ * formula terms through `derived()`, and the heal cap `maxHp` = `derived().hp`.
+ * Real generated zombie-urban pack (seed 42): riot-plate {ac:1, armor:1},
+ * fire-axe {might:1}, ac formula `11 - floor(level / 3) - gear-ac`.
+ */
+describe('CA-EG2 — profiles carry equipment grants and maxHp', () => {
+  const rt = new Runtime(packFor('zombie-urban'));
+  const classId = Object.keys(rt.pack.content.classes ?? {})[0]!;
+  const survivor = () => hero(rt, 'mile-born', [{ id: classId, level: 1 }]);
+
+  it('an equipped armor shifts ac by exactly the pack formula response (descending: − gear-ac)', () => {
+    const character = survivor();
+    const before = profileFromCharacter(rt, character).profile;
+    character.grant('riot-plate');
+    character.equip('riot-plate', 'body');
+    const after = profileFromCharacter(rt, character).profile;
+    expect(before.ac).toBe(11 - Math.floor(1 / 3));
+    expect(after.ac).toBe(before.ac - 1);
+    expect(after.ac).toBe(character.derived().ac);
+  });
+
+  it('a might grant raises profile.abilities.might by 1, and the effect vars see it', () => {
+    const character = survivor();
+    const base = character.state.abilities['might']!;
+    character.grant('fire-axe');
+    character.equip('fire-axe', 'main-hand');
+    const { profile } = profileFromCharacter(rt, character);
+    expect(profile.abilities['might']).toBe(base + 1);
+    expect(character.state.abilities['might']).toBe(base);
+    expect(startCombatWith(rt, profile).state.combatants['hero']!.abilities['might']).toBe(base + 1);
+  });
+
+  it('maxHp = derived().hp; hp stays the current hp', () => {
+    const character = survivor();
+    character.state.hp.current -= 3;
+    const { profile } = profileFromCharacter(rt, character);
+    expect(profile.maxHp).toBe(character.derived().hp);
+    expect(profile.hp).toBe(character.derived().hp - 3);
+  });
+
+  it('a statblock profile carries maxHp = its evaluated hp', () => {
+    const profile = spawnMonster(rt, bestiaryIds(rt)[0]!, 'foe');
+    expect(profile.maxHp).toBe(profile.hp);
+  });
+
+  it('nothing equipped: the profile is the pre-equipment profile plus maxHp', () => {
+    const character = survivor();
+    const state = character.state;
+    const derived = character.derived();
+    const { profile } = profileFromCharacter(rt, character);
+    const { maxHp, ...rest } = profile;
+    const base = { ...state.abilities, ...state.saves, level: state.level };
+    expect(maxHp).toBe(derived.hp);
+    expect(rest).toEqual({
+      id: state.id,
+      abilities: state.abilities,
+      saves: state.saves,
+      level: state.level,
+      hp: state.hp.current,
+      ac: derived.ac,
+      initiativeBonus: evalPackFormula(rt.pack, 'initiative', base),
+      actions: rt.pack.content.classes![classId]!.actions,
+      ...(derived.attackBonus !== undefined ? { attackBonus: derived.attackBonus } : {}),
+      ...(profile.attackTable !== undefined ? { attackTable: profile.attackTable } : {}),
+    });
+  });
+});
+
+function startCombatWith(rt: Runtime, profile: CombatantProfile) {
+  return startCombat(rt, {
+    allies: [{ id: 'hero', profile }],
+    enemies: [{ id: 'foe', profile: spawnMonster(rt, bestiaryIds(rt)[0]!, 'foe') }],
+    positions: { hero: { x: 0, y: 0 }, foe: { x: 1, y: 0 } },
+  });
+}

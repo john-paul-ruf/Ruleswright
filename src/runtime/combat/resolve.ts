@@ -80,6 +80,8 @@ export interface CombatantProfile {
   readonly saves: Readonly<Record<string, number>>;
   readonly level: number;
   readonly hp: number;
+  /** The heal cap (CA-EG4): characters = derived hp with equipment grants; statblocks = the hp formula value. Absent → combat falls back to max(0, hp). */
+  readonly maxHp?: number;
   readonly ac: number;
   readonly initiativeBonus: number;
   /** Ids of the actions this combatant may declare (characters and statblocks alike). */
@@ -168,6 +170,10 @@ export function checkPackDsl(pack: Pack): ReturnType<typeof packDslChecker> {
     if (feat.passive !== undefined)
       cards.push(...packDslChecker(request(feat.passive, 'passive', id, `content.feats.${id}.passive`)));
   }
+  for (const [id, item] of Object.entries(pack.content.items ?? {})) {
+    if (item.use !== undefined)
+      cards.push(...packDslChecker(request(item.use, 'effect', id, `content.items.${id}.use`)));
+  }
   for (const [id, formula] of Object.entries(pack.formulas)) {
     cards.push(...packDslChecker(request(formula.expr, 'formula', id, `formulas.${id}.expr`)));
   }
@@ -208,12 +214,14 @@ export function profileFromStatblock(pack: Pack, block: Statblock, id: string): 
   for (const save of pack.stats.saves) if (base[save] === undefined) base[save] = 0;
   base['level'] = level;
   const progression = block.attackTable === undefined ? undefined : pack.progression[block.attackTable];
+  const hp = evalPackFormula(pack, 'hp', base);
   return {
     id,
     abilities,
     saves,
     level,
-    hp: evalPackFormula(pack, 'hp', base),
+    hp,
+    maxHp: hp,
     ac: evalPackFormula(pack, 'ac', base),
     initiativeBonus:
       pack.formulas['initiative'] !== undefined ? evalPackFormula(pack, 'initiative', base) : 0,
