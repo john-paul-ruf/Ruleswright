@@ -15,6 +15,7 @@
  * Runtime leaf (R-11): value imports are core, `./errors` and `./conditions`
  * only — character/pools/inventory import this module, never the reverse.
  */
+import { EQUIPMENT_SCALARS } from '../core/dsl/formula';
 import type { Runtime } from './runtime';
 import type { CharacterState } from './character';
 import { RuntimeRuleError, ruleCard } from './errors';
@@ -44,6 +45,41 @@ export function equippedGrants(runtime: Runtime, state: CharacterState): Record<
     for (const [key, value] of Object.entries(grants)) sums[key] = (sums[key] ?? 0) + value;
   }
   return sums;
+}
+
+/**
+ * CA-EG2 — the character's effective scalars: ability/save grants ADDED to the base stat;
+ * reserved grants exposed as gear-hp/gear-ac/gear-initiative/gear-armor (0 when none).
+ */
+export interface EquipmentView {
+  readonly abilities: Record<string, number>;
+  readonly saves: Record<string, number>;
+  /** Exactly the `EQUIPMENT_SCALARS` keys. */
+  readonly gear: Record<string, number>;
+}
+
+/**
+ * CA-EG2 — the one composition site. A key naming both an ability and a save
+ * adds to both; a save the character's classes grant no base for starts at 0.
+ * Nothing equipped ⇒ the base stats verbatim and every `gear-*` 0.
+ */
+export function equipmentView(runtime: Runtime, state: CharacterState): EquipmentView {
+  const abilities: Record<string, number> = { ...state.abilities };
+  const saves: Record<string, number> = { ...state.saves };
+  const gear: Record<string, number> = {};
+  for (const scalar of EQUIPMENT_SCALARS) gear[scalar] = 0;
+  for (const [key, value] of Object.entries(equippedGrants(runtime, state))) {
+    const scalar = `gear-${key}`;
+    if (scalar in gear) gear[scalar] = gear[scalar]! + value;
+    if (runtime.pack.stats.abilities.includes(key)) abilities[key] = (abilities[key] ?? 0) + value;
+    if (runtime.pack.stats.saves.includes(key)) saves[key] = (saves[key] ?? 0) + value;
+  }
+  return { abilities, saves, gear };
+}
+
+/** CA-EG2 — the formula scope for the character's reserved stats: `{...view.abilities, level, ...view.gear}`. */
+export function equipmentScope(view: EquipmentView, level: number): Record<string, number> {
+  return { ...view.abilities, level, ...view.gear };
 }
 
 function unknownItem(runtime: Runtime, itemId: string): RuntimeRuleError {

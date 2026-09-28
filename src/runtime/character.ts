@@ -33,7 +33,13 @@ import {
   grantLoot as grantLootFn,
   type LootOptions,
 } from './inventory';
-import { equipItem as equipItemFn, unequipItem as unequipItemFn, type EquippedEntry } from './equipment';
+import {
+  equipItem as equipItemFn,
+  unequipItem as unequipItemFn,
+  equipmentView,
+  equipmentScope,
+  type EquippedEntry,
+} from './equipment';
 import type { RuntimeEvent } from './events';
 import { validateBuild, buildCharacter, CharacterBuildError } from './progression';
 
@@ -179,19 +185,22 @@ export class Character {
     return grantLootFn(this.runtime, this.state, tableId, opts);
   }
 
-  /** FR-3 — derived stats strictly through the pack's reserved formulas (CA-6). */
+  /**
+   * FR-3 — derived stats strictly through the pack's reserved formulas (CA-6),
+   * over the equipment view (CA-EG2): granted abilities/saves plus `gear-*`.
+   */
   derived(rng: Rng = new Rng(0)): DerivedStats {
-    const abilities = this.state.abilities;
-    const hp = reserveValue(this.runtime, 'hp', abilities, this.state.level, rng);
-    const ac = reserveValue(this.runtime, 'ac', abilities, this.state.level, rng);
+    const view = equipmentView(this.runtime, this.state);
+    const hp = reserveValue(this.runtime, 'hp', view.abilities, this.state.level, rng, view.gear);
+    const ac = reserveValue(this.runtime, 'ac', view.abilities, this.state.level, rng, view.gear);
     let attackBonus: number | undefined;
     for (const entry of this.state.classes) {
       const ast = this.runtime.index.attackBonusAsts[entry.id];
       if (ast === undefined) continue;
-      const value = valueOfFormula(evalFormula(ast, { ...abilities, level: entry.level }, rng));
+      const value = valueOfFormula(evalFormula(ast, equipmentScope(view, entry.level), rng));
       if (attackBonus === undefined || value > attackBonus) attackBonus = value;
     }
-    return { hp, ac, saves: { ...this.state.saves }, ...(attackBonus !== undefined ? { attackBonus } : {}) };
+    return { hp, ac, saves: view.saves, ...(attackBonus !== undefined ? { attackBonus } : {}) };
   }
 }
 
@@ -227,8 +236,10 @@ export function createCharacter(runtime: Runtime, request: CharacterCreateReques
 
 /**
  * Evaluate ANY declared pack formula by id against the character's scalars
- * (abilities + level) — the shared engine for the reserved ids (CA-6) and
- * pool capacities (CA-4). Formula presence is a load-time guarantee.
+ * (abilities + level, plus the `gear-*` values when given — CA-EG2) — the
+ * shared engine for the reserved ids (CA-6) and pool capacities (CA-4).
+ * Omitting `gear` evaluates the unequipped base (build, level-set, restore).
+ * Formula presence is a load-time guarantee.
  */
 export function formulaValue(
   runtime: Runtime,
@@ -236,6 +247,7 @@ export function formulaValue(
   abilities: Readonly<Record<string, number>>,
   level: number,
   rng: Rng,
+  gear?: Readonly<Record<string, number>>,
 ): number {
   const ast = runtime.index.formulaAsts[formulaId];
   if (ast === undefined) {
@@ -243,13 +255,13 @@ export function formulaValue(
       `formula "${formulaId}" missing at play time — Runtime load should have rejected the pack (E-REF-01)`,
     );
   }
-  return valueOfFormula(evalFormula(ast, { ...abilities, level }, rng));
+  return valueOfFormula(evalFormula(ast, { ...abilities, level, ...gear }, rng));
 }
 
 /**
  * CA-6 — the only door to a derived stat: resolve the pack's reserved formula
- * id against the character's scalars (abilities + level). The load-time
- * recheck in Runtime guarantees the id exists.
+ * id against the character's scalars (abilities + level, plus optional
+ * `gear-*` — CA-EG2). The load-time recheck in Runtime guarantees the id exists.
  */
 export function reserveValue(
   runtime: Runtime,
@@ -257,6 +269,7 @@ export function reserveValue(
   abilities: Readonly<Record<string, number>>,
   level: number,
   rng: Rng,
+  gear?: Readonly<Record<string, number>>,
 ): number {
-  return formulaValue(runtime, reservedId, abilities, level, rng);
+  return formulaValue(runtime, reservedId, abilities, level, rng, gear);
 }

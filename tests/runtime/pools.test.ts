@@ -126,3 +126,23 @@ describe('vancian bindings (FR-8 end-to-end)', () => {
     expect(event.payload.slotsCleared).toBe(2);
   });
 });
+
+describe('pool capacities over the equipment view (CA-EG2)', () => {
+  it('rest refills to the with-grants cap; nothing equipped keeps the base cap byte-identical', () => {
+    const pack = cloneRuntimePack();
+    pack.formulas['stamina'] = { expr: '12 + might' };
+    const runtime = new Runtime(pack);
+    const vex = runtime.createCharacter({ name: 'Vex', race: 'ashkin', classes: ['hexer'] });
+    expect(vex.state.pools.stamina).toBe(22);
+    rest(runtime, vex.state);
+    expect(vex.state.pools.stamina).toBe(22);
+    vex.grant('ashwood-blade');
+    vex.equip('ashwood-blade', 'main-hand');
+    const event = rest(runtime, vex.state);
+    expect(vex.state.pools.stamina).toBe(23);
+    expect(event.payload.poolsRefilled).toEqual({ stamina: 23 });
+    vex.unequip('main-hand');
+    rest(runtime, vex.state);
+    expect(vex.state.pools.stamina).toBe(22);
+  });
+});

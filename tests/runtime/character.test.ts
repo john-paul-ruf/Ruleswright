@@ -8,6 +8,8 @@ import { Runtime } from '../../src/runtime/runtime';
 import { CharacterBuildError } from '../../src/runtime/progression';
 import { cloneRuntimePack } from './fixtures/pack';
 import type { RuntimeEvent } from '../../src/runtime/events';
+import type { Pack } from '../../src/schema/pack';
+import { equipmentView } from '../../src/runtime/equipment';
 
 describe('createCharacter (FR-5)', () => {
   it('defaults abilities from the pack and initializes hp from the reserved formula', () => {
@@ -119,5 +121,120 @@ describe('derived() — CA-6 reserved formulas only', () => {
     expect(derived.ac).toBe(20); // 10 + grace(10)
     expect(derived.attackBonus).toBe(2); // hexer attackBonus: 1 + level/2 at level 2
     expect(derived.saves).toEqual({ will: 1, luck: 0 });
+  });
+});
+
+/** An in-test pack: the fixture clone with assigned formulas (the fixture's own strings stay untouched). */
+function packWith(formulas: Record<string, string>, hexerAttackBonus?: string): Pack {
+  const pack = cloneRuntimePack();
+  for (const [id, expr] of Object.entries(formulas)) pack.formulas[id] = { expr };
+  if (hexerAttackBonus !== undefined) pack.progression['hexer']!.attackBonus = hexerAttackBonus;
+  return pack;
+}
+
+describe('CAP-E2 closing proof — grants compose into derived() in either AC direction (CA-EG2)', () => {
+  it('ascending AC (10 + gear-ac): equipping {ac: 2} moves ac by +2; unequip restores byte-exactly', () => {
+    const runtime = new Runtime(packWith({ ac: '10 + gear-ac' }));
+    const brynn = runtime.createCharacter({ name: 'Brynn', race: 'ashkin', classes: ['warden'] });
+    const base = JSON.stringify(brynn.derived());
+    expect(brynn.derived().ac).toBe(10);
+    brynn.grant('chain-shirt');
+    brynn.equip('chain-shirt', 'body');
+    expect(brynn.derived().ac).toBe(12);
+    brynn.unequip('body');
+    expect(JSON.stringify(brynn.derived())).toBe(base);
+  });
+
+  it('descending AC (12 - floor(level / 3) - gear-ac): equipping {ac: 2} moves ac by -2; unequip restores', () => {
+    const runtime = new Runtime(packWith({ ac: '12 - floor(level / 3) - gear-ac' }));
+    const brynn = runtime.createCharacter({
+      name: 'Brynn',
+      race: 'ashkin',
+      classes: [{ id: 'warden', level: 3 }],
+    });
+    const base = JSON.stringify(brynn.derived());
+    expect(brynn.derived().ac).toBe(11);
+    brynn.grant('chain-shirt');
+    brynn.equip('chain-shirt', 'body');
+    expect(brynn.derived().ac).toBe(9);
+    brynn.unequip('body');
+    expect(JSON.stringify(brynn.derived())).toBe(base);
+  });
+
+  it('{hp: 2} raises derived().hp by exactly 2 while hp.current is unchanged (equipping never heals)', () => {
+    const runtime = new Runtime(packWith({ hp: '10 + vigor + gear-hp' }));
+    const brynn = runtime.createCharacter({ name: 'Brynn', race: 'ashkin', classes: ['warden'] });
+    expect(brynn.derived().hp).toBe(20);
+    expect(brynn.state.hp.current).toBe(20);
+    brynn.grant('ward-ring');
+    brynn.equip('ward-ring', 'ring');
+    expect(brynn.derived().hp).toBe(22);
+    expect(brynn.state.hp.current).toBe(20);
+    brynn.unequip('ring');
+    expect(brynn.derived().hp).toBe(20);
+    expect(brynn.state.hp.current).toBe(20); // unequip never clamps either
+  });
+
+  it('{might: 1} ADDS to might inside attackBonus (floor(level / 2) + might): might 3 uses 4, not 1', () => {
+    const runtime = new Runtime(packWith({}, 'floor(level / 2) + might'));
+    const vex = runtime.createCharacter({
+      name: 'Vex',
+      race: 'ashkin',
+      classes: [{ id: 'hexer', level: 2 }],
+    });
+    (vex.state.abilities as Record<string, number>)['might'] = 3;
+    expect(vex.derived().attackBonus).toBe(4); // 1 + 3
+    vex.grant('ashwood-blade');
+    vex.equip('ashwood-blade', 'main-hand');
+    expect(vex.derived().attackBonus).toBe(5); // 1 + (3 + 1)
+    expect(vex.state.abilities['might']).toBe(3); // the base is never written
+  });
+
+  it('a save grant adds to derived().saves; the base saves in state are untouched', () => {
+    const runtime = new Runtime(cloneRuntimePack());
+    const brynn = runtime.createCharacter({ name: 'Brynn', race: 'ashkin', classes: ['warden'] });
+    expect(brynn.derived().saves['luck']).toBe(0);
+    brynn.grant('ward-ring');
+    brynn.equip('ward-ring', 'ring');
+    expect(brynn.derived().saves).toEqual({ fortitude: 0, reflex: 0, will: 0, toughness: 1, luck: 1 });
+    expect(brynn.state.saves['luck']).toBe(0);
+  });
+
+  it('a key naming both an ability and a save adds to both', () => {
+    const pack = packWith({});
+    pack.stats.saves.push('vigor');
+    pack.content.items!['stone-heart'] = {
+      name: 'Stone Heart',
+      kind: 'trinket',
+      slots: ['ring'],
+      grants: { vigor: 2 },
+    };
+    const runtime = new Runtime(pack);
+    const brynn = runtime.createCharacter({ name: 'Brynn', race: 'ashkin', classes: ['warden'] });
+    brynn.grant('stone-heart');
+    brynn.equip('stone-heart', 'ring');
+    const view = equipmentView(runtime, brynn.state);
+    expect(view.abilities['vigor']).toBe(12);
+    expect(view.saves['vigor']).toBe(2);
+    expect(brynn.derived().hp).toBe(22); // formulas.hp: 10 + vigor
+  });
+
+  it('nothing equipped: every fixture value equals its pre-equipment value, gear-* all 0', () => {
+    const runtime = new Runtime(cloneRuntimePack());
+    const vex = runtime.createCharacter({
+      name: 'Vex',
+      race: 'ashkin',
+      classes: [{ id: 'hexer', level: 2 }],
+    });
+    const absent = vex.derived();
+    expect(absent).toEqual({ hp: 20, ac: 20, attackBonus: 2, saves: { will: 1, luck: 0 } });
+    vex.state.equipped = [];
+    expect(vex.derived()).toEqual(absent);
+    expect(equipmentView(runtime, vex.state).gear).toEqual({
+      'gear-hp': 0,
+      'gear-ac': 0,
+      'gear-initiative': 0,
+      'gear-armor': 0,
+    });
   });
 });

@@ -12,7 +12,9 @@
  * a schema event (v1.1 declares no refill fields).
  *
  * All state is plain JSON inside the character snapshot (FR-14). This module
- * imports only core + types — the character/progression modules depend on it.
+ * imports only core, errors, types and ONE runtime value module — the
+ * equipment leaf (`./equipment`, which never imports pools/character; R-11) —
+ * so the character/progression modules can depend on it without a cycle.
  */
 import { evalFormula, valueOfFormula } from '../core/dsl/formula';
 import { Rng } from '../core/rng';
@@ -20,13 +22,19 @@ import type { Runtime } from './runtime';
 import type { CharacterState } from './character';
 import { RuntimeRuleError, ruleCard } from './errors';
 import type { RuntimeEvent } from './events';
+import { equipmentView } from './equipment';
 
-/** Evaluate a pool-capacity formula against the character's scalars (CA-4: the pack formula is the only math). */
+/**
+ * Evaluate a pool-capacity formula against the character's scalars (CA-4: the
+ * pack formula is the only math); `gear` adds the `gear-*` values when a
+ * character's equipment view is at hand (CA-EG2).
+ */
 function evalPoolFormula(
   runtime: Runtime,
   pool: string,
   abilities: Readonly<Record<string, number>>,
   level: number,
+  gear?: Readonly<Record<string, number>>,
 ): number {
   const ast = runtime.index.formulaAsts[pool];
   if (ast === undefined) {
@@ -39,7 +47,7 @@ function evalPoolFormula(
       ),
     ]);
   }
-  return valueOfFormula(evalFormula(ast, { ...abilities, level }, new Rng(0)));
+  return valueOfFormula(evalFormula(ast, { ...abilities, level, ...gear }, new Rng(0)));
 }
 
 /**
@@ -275,13 +283,14 @@ export function knownSpells(runtime: Runtime, character: CharacterState): readon
 
 /**
  * FR-8 — the host's rest event: emits `rest:completed`, then applies the
- * documented v1 default policy — every pool refills to its formula cap and
- * every bound slot clears. Returns the emitted event.
+ * documented v1 default policy — every pool refills to its formula cap (over
+ * the equipment view, CA-EG2) and every bound slot clears. Returns the emitted event.
  */
 export function rest(runtime: Runtime, character: CharacterState): RuntimeEvent {
   const refilled: Record<string, number> = {};
+  const view = equipmentView(runtime, character);
   for (const pool of Object.keys(character.pools)) {
-    const cap = evalPoolFormula(runtime, pool, character.abilities, character.level);
+    const cap = evalPoolFormula(runtime, pool, view.abilities, character.level, view.gear);
     refilled[pool] = cap;
     character.pools[pool] = cap;
   }
