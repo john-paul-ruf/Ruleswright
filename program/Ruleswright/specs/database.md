@@ -1,6 +1,6 @@
 # Database Design — Ruleswright
 
-> **Status:** v1.3, revised — DB, schema-change Author re-entry (builder-authorized 2026-09-27: optional spatial section (FR-11) + E-SPAT-01 registration; v1.2: UI B-1 class combat actions; v1.1: S-CONTRACT-GAP).
+> **Status:** v1.4, revised — DB, schema-change Author re-entry (builder-authorized 2025-09-27, equipment-consumables: slot-based equipment + consumables + the `heal` effect, snapshot `equipped`/`itemsUsed`/`maxHp`; v1.3: optional spatial section (FR-11) + E-SPAT-01 registration; v1.2: UI B-1 class combat actions; v1.1: S-CONTRACT-GAP).
 > v1.0 (phase `database`, final Author phase) approved; v1.1 adds the turn-economy
 > declaration (`economy.turnSlots`) and action/spell `tags` with `restricts`
 > reference semantics. Read with `specs/architecture.md` (approved),
@@ -32,12 +32,13 @@ no silent acceptance of foreign versions, loud refusal over mangling.
 ## Schema Overview
 
 ```
-Pack (one JSON document, 8 required + 2 optional sections)
+Pack (one JSON document, 8 required + 3 optional sections)
 ├── manifest        identity + schemaVersion + license/attribution + provenance
 ├── stats           name-keyed abilities and named saves
 ├── actions         action declarations: cost, validity, trigger?, tags?, effect
 ├── economy?        OPTIONAL turn-economy declaration: per-turn slot grants (FR-4)
 ├── spatial?        OPTIONAL spatial model: grid reach + shape set (FR-11)
+├── equipSlots?     OPTIONAL declared equip-slot vocabulary (v1.4; FR-3/FR-9)
 ├── formulas        named formula-DSL expressions
 ├── content         classes · races · skills · feats · spells · conditions · items
 ├── progression     per-class tables: HD, attack table, saves, vancian slots
@@ -52,8 +53,8 @@ All three contract files live at the real repo path:
 
 ```
 src/schema/contracts/
-├── pack.schema.json        — the pack document, schemaVersion 1 (v1.3)
-├── snapshots.schema.json   — the three snapshot envelopes
+├── pack.schema.json        — the pack document, schemaVersion 1 (v1.4)
+├── snapshots.schema.json   — the three snapshot envelopes (v1.4)
 └── override.schema.json    — the override/patch document
 ```
 
@@ -101,6 +102,11 @@ Canonical shape: `src/schema/contracts/pack.schema.json` (draft 2020-12, closed 
 | `abilities` | string[] | ≥ 1, unique, kebab | **Name-keyed**; the engine stores by string (FR-5). v1 validator enforces the six-ability convention |
 | `saves` | string[] | ≥ 1, unique, kebab | Pack declares which named saves exist (five in the classic-CRPG sample) |
 
+- **Reserved ids (v1.4):** no ability or save id may equal `gear-hp`, `gear-ac`,
+  `gear-initiative` or `gear-armor` → `E-SCHEMA-01`. Those names are the equipment
+  variables of the `formulas` section (see §formulas); a stat with the same name would make
+  a formula reference ambiguous.
+
 ### `economy` — OPTIONAL (v1.1)
 Turn-economy declaration: the grant source for the generic slot/points economy (FR-4).
 
@@ -141,6 +147,26 @@ Mock anatomy, verbatim from `mocks/spatial.html`: `{model: "grid", reach: {defau
   model or shape outside the v1 set — is semantic (→ `E-SPAT-01`: the pack opts into
   geometry the engine does not ship).
 
+### `equipSlots` — OPTIONAL (v1.4)
+Declared equip-slot vocabulary (FR-3 "…and equipment", FR-9 armorCasting). A root-level
+array alongside `actions`/`economy`/`spatial` — **not** inside `content`.
+
+| Field | Type | Constraints | Notes |
+|---|---|---|---|
+| `equipSlots` | string[] | ≥ 1 entry, unique, kebab ids | e.g. `["body", "main-hand", "charm"]`. The pack's authority on slot names; the engine has no built-in slot vocabulary |
+
+- **Own vocabulary:** slot ids are like economy slot names — they are **not** artifact ids
+  and do not enter the global-uniqueness namespace (`E-DUP-01` does not apply; a slot may
+  share a spelling with an artifact id).
+- **Resolution:** every `content.items.<id>.slots` entry must resolve to an `equipSlots`
+  entry → `E-REF-01`.
+- **Validation split:** empty, duplicate or non-kebab entries are structural →
+  `E-SCHEMA-01`; unresolved item slot references are `E-REF-01`.
+- **Absent section:** the pack declares no equipment slots; no item can be equippable
+  (any item `slots` would dangle → `E-REF-01`). Packs without it pay nothing.
+- **Equipment state** (one item per slot) is character state — see §Snapshot Envelopes
+  (`equipped`).
+
 ### `actions`
 Map `actionId → ActionDef`:
 
@@ -157,6 +183,33 @@ Map `formulaId → {params?: string[], expr: string}`. Pure data; the function r
 closed and versioned with the schema — extension is a schema event, never an escape hatch
 (NFR-Security). Unknown function → `E-FORM-02`; unknown ability/save name → `E-FORM-03`.
 
+**Equipment variables (v1.4, FR-3):** expressions in the `formulas` section — and **only**
+there — may read four variables:
+
+| Variable | Value |
+|---|---|
+| `gear-hp` | sum of the reserved grant key `hp` over every equipped item |
+| `gear-ac` | sum of `ac` over every equipped item |
+| `gear-initiative` | sum of `initiative` over every equipped item |
+| `gear-armor` | sum of `armor` over every equipped item |
+
+- **0 when nothing is equipped**, and 0 wherever unbound (e.g. statblocks): a pack that
+  never equips evaluates byte-identically to v1.3.
+- **The formula decides direction; the engine adds nothing on its own** (Q2). An
+  ascending-AC pack writes `10 + gear-ac`; a descending-AC pack writes
+  `12 - floor(level / 3) - gear-ac`. Descending AC stays expressible.
+- Every other DSL field (action `effect`/`valid`, spell `effect`, feat `passive`/`effect`,
+  item `use`, `attackBonus`) keeps its v1.3 vocabulary; a `gear-*` name there is an
+  unknown identifier (`E-FORM-03`).
+
+**Registry note (v1.4):** the frozen effect registry grows **12 → 13** with
+`heal(formula)` — arity 1, kind `effect`, signature `['formula']`. It executes as a
+negative-amount `damage` mutation (the executor's honest total, positive or negative) and
+clamps at the target's max hp: out of combat the character's derived `hp` with equipment
+grants; in combat the combatant's `maxHp`. A heal never raises hp above the cap and never
+lowers hp. Extension of the registry is a schema event (CA-2 / NFR-Security) — **this
+revision is that event**. No new rule id: an unknown function remains `E-FORM-02`.
+
 ### `content`
 Seven maps, keyed by id: `classes`, `races`, `skills`, `feats`, `spells`, `conditions`, `items`.
 Highlights (full field lists in the JSON Schema):
@@ -167,6 +220,22 @@ Highlights (full field lists in the JSON Schema):
 - **races**: `caps?` (map classId → uint max level — the classic cap curve, FR-6); unknown classId → `E-REF-02`. `size?` (`small | medium | large`, default medium, documented no-op for adjacency in v1 — FR-11 seam).
 - **feats**: passive or reactive (`trigger.on`); the sample packs ship ≥ 1 reactive feat (FR-12 proof 2).
 - **skills**: `ability` (must name an ability declared in `stats`).
+- **items** (v1.4): `name`, `kind?` (free string; the armor type `armorCasting` names), plus
+  three optional fields:
+
+  | Field | Type | Constraints | Duty |
+  |---|---|---|---|
+  | `slots` | string[] | ≥ 1, unique, kebab | The declared slots the item **may** be equipped into; one equip places it in exactly one of them. Presence makes the item equippable. Each id must resolve in `equipSlots` → `E-REF-01` |
+  | `grants` | object | key → integer; **no dice** (FR-1 determinism); `armor` ≥ 1 | Applied while equipped. **Ability or save key:** the value is **added** to that stat (never a replacement); a key naming both an ability and a save adds to both. **Reserved key** `hp` / `ac` / `initiative` / `armor`: summed over equipped items and exposed only to `formulas` as `gear-*` (see §formulas). Any other key → `E-REF-01`; non-integer value or `armor` < 1 → `E-SCHEMA-01` |
+  | `use` | string | effect DSL | Same grammar actions and spells use (e.g. `heal(2 + vigor)`); parsed once at load. Presence makes the item consumable; one use consumes one unit. `E-FORM-01/02/03` as for any DSL field |
+
+  **Armor marker (CA-EG3):** an item is armor iff its grants include the reserved key
+  `armor`; casting a slot-prepared spell while armor-equipped requires one of the
+  character's classes to declare the item's `kind` in `armorCasting`. **Scope: slot
+  casting only** — point-pool spells have no cast verb in v1 (DD17a), so `armorCasting`
+  governs slot (vancian) casting only (DD-EG5); packs whose casters are point-pool-only
+  carry armor content as validation coverage. The rejection is a runtime rule error
+  (`armor-not-castable`), not a load-time card.
 
 ### `progression`
 Map `classId → ClassProgression`, **required for every id in `content.classes`** (→ `E-REF-03`):
@@ -222,9 +291,22 @@ its state; `savedAt` is host metadata if a host wants it, never engine state.
 
 | Envelope | Carries |
 |---|---|
-| `character` | name, race, classes `[{id, level, xp?}]`, abilities (map name→score), skill ranks, feats, knownSpells, `pools` (map poolId→current), `slots` (per level: array of bindings — `null` or spell id), active conditions `[{id, remaining}]`, inventory `[{id, qty}]`. All plain JSON — no class instances, no closures (FR-5) |
+| `character` | name, race, classes `[{id, level, xp?}]`, abilities (map name→score), skill ranks, feats, knownSpells, `pools` (map poolId→current), `slots` (per level: array of bindings — `null` or spell id), active conditions `[{id, remaining}]`, inventory `[{id, qty}]`, optional `equipped` `[{slot, itemId}]` (v1.4). All plain JSON — no class instances, no closures (FR-5) |
 | `party` | `members` (array of character state) |
-| `combat` | `pairsWith` (party snapshot id — the documented pairing), `round`, `turn`, `order`, per-combatant state incl. transients, **`rng: {a, b, c, d}`** — four uint32 sfc32 words (FR-1 state export; resume test: next roll equals the uninterrupted fight's next roll) |
+| `combat` | `pairsWith` (party snapshot id — the documented pairing), `round`, `turn`, `order`, per-combatant state incl. transients (optional `itemsUsed` and `maxHp`, v1.4), **`rng: {a, b, c, d}`** — four uint32 sfc32 words (FR-1 state export; resume test: next roll equals the uninterrupted fight's next roll) |
+
+**v1.4 fields** (additive-optional; `snapshotVersion` stays 1; no `required` array changed):
+
+| Field | Where | Type | Meaning | Restore precedence |
+|---|---|---|---|---|
+| `equipped` | `characterState` | `[{slot, itemId}]`? — both kebab strings, `additionalProperties: false` | One entry per occupied slot (one item per slot). **Absent = nothing equipped** (≡ `[]`) | Emitted only when the character's state carries it (presence-preserving: never-equipped characters round-trip byte-exact). Restored only when present; each entry is validated — item exists, slot declared, slot eligible for the item, held quantity covers it, slot unique across entries — any failure → `E-SNAP-01`, all refusals collected before any application. Slot uniqueness cannot be expressed in JSON Schema (`uniqueItems` compares whole objects), so restore enforces it fail-closed. Inventory still restores verbatim (the documented CA-01 divergence) |
+| `itemsUsed` | combatant | object? item id → integer ≥ 0 | Units this combatant has **spent** in this fight — **not** units remaining | Fight-start balances are not in the snapshot: the host re-states them in `CombatRestoreRequest.balances` (`items`), exactly as pools and boundSlots are re-stated. The snapshot wins for the spend; remaining = restated balance − `itemsUsed`. Unknown id or over-spend → `E-SNAP-01`. Absent = nothing spent |
+| `maxHp` | combatant | integer? ≥ 0 | The combatant's heal cap, fixed at fight start: derived hp with grants for characters; the hp formula value for statblocks | Snapshot wins over the re-stated profile; when absent (pre-v1.4 envelope) → `profile.maxHp` → `profile.hp` (floored at 0). A heal never lowers hp: a combatant already above its cap stays unchanged |
+
+Note the deliberate asymmetry: `slotsUsed` serializes the **remaining** per-turn ledger (it
+has no host-stated source), whereas `itemsUsed` records the **spend** because the host
+re-states fight-start item balances. A fight never writes back to character state; the
+host settles item spend explicitly after `combat-over` (runtime verb, not a contract field).
 
 **Load discipline:** pack identity check first — `id + schemaVersion + contentHash` must
 all match. Mismatch → loud refusal `E-SNAP-01`; stale `snapshotVersion` → `E-SNAP-02`.
@@ -239,7 +321,9 @@ One error shape everywhere (`schema/error-card.ts`); this registry is the DB-own
 enumeration of v1 rule ids. Mock-attested ids are **fixed by approved design**.
 **Additive by discipline** — v1.3 adds `E-SPAT-01` (grid-combat spatial, FR-11) as a
 compatible minor (see §spatial); earlier revisions (v1.1, v1.2) added no ids and reused
-existing ids only. No id has been renamed or retired.
+existing ids only. v1.4 (equipment-consumables) adds no id: its load-time duties reuse
+`E-SCHEMA-01` (structure) and `E-REF-01` (slot/grant references), and restore reuses
+`E-SNAP-01`. No id has been renamed or retired.
 
 | Rule id | Family | Meaning |
 |---|---|---|
@@ -280,6 +364,8 @@ all built or compiled once at load (architecture: parse once, play many):
 | Restricts matching (v1.1) | declared tag set per action/spell → condition patterns | tag index built at load; runtime matcher consults it |
 | Turn-slot grants (v1.1) | `economy.turnSlots` or the documented per-cost default | grant table resolved at load |
 | Spatial geometry | pack.spatial → engine geometry at load | SpatialModel → SpatialGeometry (grid, Chebyshev) |
+| Equipment composition (v1.4) | equipped items → ability/save adds + `gear-*` sums → formulas | per-item grants read from the id→artifact Map; one composition site |
+| Consumable use (v1.4) | item id → pre-parsed `use` effect | item-effect AST index, compiled once at load (items declaring `use` only) |
 
 ---
 
@@ -306,6 +392,7 @@ request back to DB, never a scope adjustment for Coder** (DB.md contract).
 | 2 | 1 (v1.1) | **S-CONTRACT-GAP resolution (builder Option A):** optional `economy.turnSlots` turn-economy declaration (FR-4 grant source); optional `tags` on actions and spells; `restricts` pattern `actions.tagged:<tag>` must reference a declared tag (`E-REF-01`). Pre-release in-place revision: purely additive-optional fields, no field removed/renamed, no rule id added/renamed/retired, `schemaVersion` stays 1 (registry discipline: additive optional = compatible) | same three files (pack.schema.json revised) |
 | 3 | 1 (v1.2) | **UI B-1 resolution (builder Option A, 2026-09-26):** optional `content.classes.<id>.actions` (unique action ids; each must resolve in `actions` → `E-REF-01`). Pre-release in-place revision: purely additive-optional, no field removed/renamed, no rule id added/renamed/retired, `schemaVersion` stays 1 | `pack.schema.json` revised |
 | 4 | 1 (v1.3) | **grid-combat resolution (builder-authorized 2026-09-27):** optional spatial section (FR-11 opt-in: model/reach/shapes) + E-SPAT-01 registration (resolves the v1-core pending DB decision). Pre-release in-place revision: purely additive-optional, no field removed/renamed, no rule id added/renamed/retired except the new E-SPAT-01, schemaVersion stays 1 | pack.schema.json revised |
+| 5 | 1 (v1.4) | builder-authorized 2025-09-27: slot-based equipment + consumables + the `heal` effect (registry 12→13); purely additive-optional; no field removed or renamed; no rule id added; schemaVersion stays 1 | `pack.schema.json` · `snapshots.schema.json` revised |
 
 **Versioning discipline (FR-23, formalized):**
 - Additive optional fields within v1 = compatible (minor).
