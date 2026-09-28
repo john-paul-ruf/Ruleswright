@@ -20,6 +20,9 @@
  *   - slots          ⇄ the bindings record verbatim (string level → (null|spell id)[])
  *   - pools          ⇄ the drain-pool balances verbatim (FR-8)
  *   - inventory      ⇄ state.inventory (CA-01)
+ *   - equipped       ⇄ state.equipped, presence-preserving (v1.4, CA-EG6):
+ *                      emitted only when the state carries it; restore
+ *                      validates every entry before applying anything
  *   - skills / feats ⇄ absent (envelope optionals; v1 engine state has neither)
  *   - saves / hp / level / xp / id ⇄ NOT envelope fields: reconstructed from
  *     pack + classes through the engine's own progression invariants (best-of
@@ -70,6 +73,12 @@ export interface SnapshotInventoryEntry {
   readonly qty: number;
 }
 
+/** snapshots.schema.json $defs/characterState/properties/equipped/items (v1.4). */
+export interface SnapshotEquippedEntry {
+  readonly slot: string;
+  readonly itemId: string;
+}
+
 /** snapshots.schema.json $defs/characterState — exactly these fields, no others. */
 export interface SnapshotCharacterState {
   readonly name: string;
@@ -83,6 +92,8 @@ export interface SnapshotCharacterState {
   readonly slots: Readonly<Record<string, readonly (string | null)[]>>;
   readonly conditions: readonly SnapshotActiveCondition[];
   readonly inventory: readonly SnapshotInventoryEntry[];
+  /** v1.4 — occupied equip slots; absent when the character never equipped (CA-EG6). */
+  readonly equipped?: readonly SnapshotEquippedEntry[];
 }
 
 /** The character envelope — kind/snapshotVersion/pack/state, nothing else. */
@@ -154,6 +165,9 @@ function serializeCharacterState(state: CharacterState): SnapshotCharacterState 
     slots,
     conditions: state.conditions.map((active) => ({ id: active.conditionId, remaining: active.duration })),
     inventory: state.inventory.map((entry) => ({ id: entry.id, qty: entry.qty })),
+    ...(state.equipped !== undefined
+      ? { equipped: state.equipped.map((entry) => ({ slot: entry.slot, itemId: entry.itemId })) }
+      : {}),
   };
 }
 
@@ -262,8 +276,8 @@ function declaredIdentityId(snapshot: unknown): string | undefined {
 export function restoreCharacter(runtime: Runtime, snapshot: CharacterSnapshot): Character {
   const cards = envelopeRefusals('character', snapshot, runtime.pack);
   if (cards.length > 0) throw new RuntimeRuleError(cards);
-  const buildErrors = characterBuildRefusals(runtime, snapshot.state);
-  if (buildErrors.length > 0) throw new RuntimeRuleError(buildErrors);
+  const stateErrors = characterStateRefusals(runtime, snapshot.state, 'state');
+  if (stateErrors.length > 0) throw new RuntimeRuleError(stateErrors);
   return new Character(runtime, restoreCharacterState(runtime, snapshot.state));
 }
 
@@ -273,10 +287,10 @@ export function restoreParty(runtime: Runtime, snapshot: PartySnapshot): Charact
   if (cards.length > 0) throw new RuntimeRuleError(cards);
   // One refusing member refuses the party: every build validates before any
   // build is minted - ids mint for valid builds only (fail-closed, FR-5).
-  for (const member of snapshot.members) {
-    const buildErrors = characterBuildRefusals(runtime, member);
-    if (buildErrors.length > 0) throw new RuntimeRuleError(buildErrors);
-  }
+  snapshot.members.forEach((member, index) => {
+    const stateErrors = characterStateRefusals(runtime, member, `members[${index}]`);
+    if (stateErrors.length > 0) throw new RuntimeRuleError(stateErrors);
+  });
   return snapshot.members.map((member) => restoreCharacterState(runtime, member));
 }
 
@@ -285,12 +299,65 @@ export function restoreParty(runtime: Runtime, snapshot: PartySnapshot): Charact
  * a snapshot whose build no longer fits the pack is refused with the named
  * rules, never partially applied (FR-5 discipline).
  */
-function characterBuildRefusals(runtime: Runtime, saved: SnapshotCharacterState): ErrorCard[] {
-  return validateBuild(
-    runtime,
-    saved.race,
-    saved.classes.map((entry) => ({ id: entry.id, level: entry.level })),
-  );
+function characterStateRefusals(runtime: Runtime, saved: SnapshotCharacterState, path: string): ErrorCard[] {
+  return [
+    ...validateBuild(
+      runtime,
+      saved.race,
+      saved.classes.map((entry) => ({ id: entry.id, level: entry.level })),
+    ),
+    ...equippedRefusals(runtime, saved, path),
+  ];
+}
+
+/**
+ * CA-EG6 — the `equipped` restore gate (E-SNAP-01, all cards before anything
+ * is applied): every entry names a declared item and a declared slot the item
+ * admits, each slot appears once (the schema cannot say so, R-9a), and the
+ * restored inventory holds a unit for every entry. Absent `equipped` = nothing.
+ */
+function equippedRefusals(runtime: Runtime, saved: SnapshotCharacterState, path: string): ErrorCard[] {
+  const equipped: unknown = saved.equipped;
+  if (equipped === undefined) return [];
+  const refuse = (jsonPath: string, message: string) =>
+    makeErrorCard(
+      'E-SNAP-01',
+      runtime.pack.manifest.id,
+      jsonPath,
+      `${message} — refusing the snapshot (CA-EG6).`,
+    );
+  if (!Array.isArray(equipped))
+    return [refuse(`${path}.equipped`, 'equipped must be an array of {slot, itemId}')];
+  const cards: ErrorCard[] = [];
+  const packSlots = runtime.pack.equipSlots ?? [];
+  const slotsSeen = new Set<string>();
+  const unitsWorn = new Map<string, number>();
+  equipped.forEach((entry: unknown, index) => {
+    const at = `${path}.equipped[${index}]`;
+    if (!isRecord(entry) || typeof entry['slot'] !== 'string' || typeof entry['itemId'] !== 'string') {
+      cards.push(refuse(at, 'an equipped entry must be {slot, itemId} strings'));
+      return;
+    }
+    const slot = entry['slot'];
+    const itemId = entry['itemId'];
+    const item = runtime.pack.content.items?.[itemId];
+    if (item === undefined)
+      cards.push(refuse(`${at}.itemId`, `item "${itemId}" is not declared in content.items`));
+    if (!packSlots.includes(slot))
+      cards.push(refuse(`${at}.slot`, `slot "${slot}" is not declared in equipSlots`));
+    else if (item !== undefined && !(item.slots ?? []).includes(slot)) {
+      cards.push(refuse(`${at}.slot`, `item "${itemId}" cannot be equipped in "${slot}"`));
+    }
+    if (slotsSeen.has(slot)) cards.push(refuse(`${at}.slot`, `slot "${slot}" is equipped twice`));
+    slotsSeen.add(slot);
+    const worn = (unitsWorn.get(itemId) ?? 0) + 1;
+    unitsWorn.set(itemId, worn);
+    const held = saved.inventory.find((stack) => stack.id === itemId)?.qty ?? 0;
+    if (held < worn) {
+      cards.push(refuse(at, `"${itemId}" is equipped ${worn} time(s) but the inventory holds x${held}`));
+    }
+  });
+  return cards;
 }
 
 function restoreCharacterState(runtime: Runtime, saved: SnapshotCharacterState): CharacterState {
@@ -325,6 +392,9 @@ function restoreCharacterState(runtime: Runtime, saved: SnapshotCharacterState):
     conditions: saved.conditions.map((active) => ({ conditionId: active.id, duration: active.remaining })),
     spells: [...(saved.knownSpells ?? [])],
     inventory: saved.inventory.map((entry) => ({ ...entry })),
+    ...(saved.equipped !== undefined
+      ? { equipped: saved.equipped.map((entry) => ({ slot: entry.slot, itemId: entry.itemId })) }
+      : {}),
     hp: { current: reserveValue(runtime, 'hp', abilities, built.level, new Rng(0)), temp: 0 },
   };
 }
@@ -342,6 +412,10 @@ export interface SnapshotCombatant {
   readonly position?: Position;
   /** Reactive action currently offered (FR-4/FR-13). */
   readonly pendingTrigger?: null | string;
+  /** v1.4 — item id -> units SPENT in this fight (CA-EG6); emitted only when non-empty. */
+  readonly itemsUsed?: Readonly<Record<string, number>>;
+  /** v1.4 — the heal cap fixed at fight start (CA-EG4/EG6); always emitted by v1.4 serializers. */
+  readonly maxHp?: number;
 }
 
 /** The combat envelope - pairsWith is the documented combat→party pairing (FR-14). */
@@ -368,8 +442,9 @@ export interface CombatRestoreRequest {
 /**
  * FR-14 - the combat envelope: the whole fight, mid-round included (the state
  * is whole between any two steps). Per-combatant state carries the CA-4
- * transients (the per-turn slot ledger). Pool/bound-slot balances ride the
- * paired party's character states - FR-14's pairsWith discipline.
+ * transients (the per-turn slot ledger), the item spend (`itemsUsed`) and the
+ * heal cap (`maxHp`). Pool/bound-slot/item balances ride the paired party's
+ * character states - FR-14's pairsWith discipline.
  */
 export function serializeCombat(fight: Combat, options: { readonly pairsWith: string }): CombatSnapshot {
   const state = fight.state;
@@ -392,6 +467,7 @@ export function serializeCombat(fight: Combat, options: { readonly pairsWith: st
       return {
         id,
         hp: combatant.hp.current,
+        maxHp: combatant.maxHp,
         slotsUsed: { ...combatant.slots.remaining },
         conditions: combatant.conditions.map((active) => ({
           id: active.conditionId,
@@ -399,6 +475,7 @@ export function serializeCombat(fight: Combat, options: { readonly pairsWith: st
         })),
         ...(combatant.position !== undefined ? { position: { ...combatant.position } } : {}),
         ...(pendingTrigger !== undefined ? { pendingTrigger } : {}),
+        ...(Object.keys(combatant.itemsUsed).length > 0 ? { itemsUsed: { ...combatant.itemsUsed } } : {}),
       };
     }),
   };
@@ -407,7 +484,10 @@ export function serializeCombat(fight: Combat, options: { readonly pairsWith: st
 /**
  * Resume a fight from its envelope (FR-14 resume discipline): the identity
  * gate first, then the host re-states its sides exactly as `startCombat` took
- * them. hp/conditions/slot ledgers carry the frozen transients; the fight
+ * them. hp/conditions/slot ledgers carry the frozen transients; item charges
+ * are the re-stated `balances.items` with the frozen `itemsUsed` as the spend,
+ * and `maxHp` is the frozen value, else `profile.maxHp`, else
+ * `max(0, profile.hp)` (CA-EG6, R-9); the fight
  * resumes mid-round in `awaiting-declare` (the envelope carries no phase -
  * freezing between steps is the FR-10 boundary), unless the frozen hp already
  * satisfy the end rule (every combatant of one side at hp ≤ 0), in which case
@@ -444,7 +524,7 @@ export function deserializeCombat(
       side: entry.side,
       name: entry.id,
       hp: { current: frozenState.hp },
-      maxHp: entry.profile.maxHp ?? Math.max(0, entry.profile.hp),
+      maxHp: frozenState.maxHp ?? entry.profile.maxHp ?? Math.max(0, entry.profile.hp),
       conditions:
         frozenState.conditions?.map((active) => ({ conditionId: active.id, duration: active.remaining })) ??
         [],
@@ -452,7 +532,7 @@ export function deserializeCombat(
       pools: { ...(entry.balances?.pools ?? {}) },
       boundSlots: { ...(entry.balances?.boundSlots ?? {}) },
       itemBalances: { ...(entry.balances?.items ?? {}) },
-      itemsUsed: {},
+      itemsUsed: { ...(frozenState.itemsUsed ?? {}) },
       abilities: { ...entry.profile.abilities },
       saves: { ...entry.profile.saves },
       level: entry.profile.level,
@@ -579,6 +659,44 @@ function combatRestoreRefusals(
       );
     }
   }
+  const balances = new Map(
+    [...restore.allies, ...restore.enemies].map((entry) => [entry.id, entry.balances]),
+  );
+  saved.combatants.forEach((combatant, index) => {
+    if (combatant.maxHp !== undefined && !(Number.isInteger(combatant.maxHp) && combatant.maxHp >= 0)) {
+      cards.push(
+        makeErrorCard(
+          'E-SNAP-01',
+          artifactId,
+          `combatants[${index}].maxHp`,
+          `maxHp ${display(combatant.maxHp)} is not an integer ≥ 0 (CA-EG6).`,
+        ),
+      );
+    }
+    for (const [itemId, spent] of Object.entries(combatant.itemsUsed ?? {})) {
+      const at = `combatants[${index}].itemsUsed.${itemId}`;
+      const stated = balances.get(combatant.id)?.items?.[itemId] ?? 0;
+      if (runtime.pack.content.items?.[itemId] === undefined) {
+        cards.push(
+          makeErrorCard(
+            'E-SNAP-01',
+            artifactId,
+            at,
+            `frozen spend names item "${itemId}", which this pack does not declare (CA-EG6).`,
+          ),
+        );
+      } else if (!Number.isInteger(spent) || spent < 0 || spent > stated) {
+        cards.push(
+          makeErrorCard(
+            'E-SNAP-01',
+            artifactId,
+            at,
+            `combatant "${combatant.id}" spent ${display(spent)} "${itemId}", but the restore request states ${stated} — the host re-states the fight-start balances.items (CA-EG6).`,
+          ),
+        );
+      }
+    }
+  });
   saved.combatants.forEach((combatant, index) => {
     if (combatant.pendingTrigger === undefined || combatant.pendingTrigger === null) return;
     const def = runtime.pack.actions[combatant.pendingTrigger];

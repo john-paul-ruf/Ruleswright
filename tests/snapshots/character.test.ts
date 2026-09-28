@@ -255,3 +255,103 @@ describe('restore rejects builds that no longer fit the pack (FR-5 discipline on
     }
   });
 });
+
+/**
+ * CA-EG6 character leg (equipment-consumables S05 ck4): `equipped` is
+ * presence-preserving, and restore validates every entry (item, slot,
+ * eligibility, slot uniqueness, held) with E-SNAP-01 — all cards before any
+ * application. Fixture items: chain-shirt (body), ashwood-blade
+ * (main-hand/off-hand), ward-ring (ring).
+ */
+describe('equipped snapshots (CA-EG6)', () => {
+  function armed(runtime: Runtime): CharacterState {
+    const character = createCharacter(runtime, { name: 'Brynn', race: 'hillfolk', classes: ['warden'] });
+    character.grant('chain-shirt');
+    character.grant('ashwood-blade', 2);
+    character.equip('chain-shirt', 'body');
+    character.equip('ashwood-blade', 'main-hand');
+    character.equip('ashwood-blade', 'off-hand');
+    return character.state;
+  }
+
+  function refusal(run: () => unknown): { rule: string; jsonPath: string }[] {
+    try {
+      run();
+    } catch (error) {
+      expect((error as Error).name).toBe('RuntimeRuleError');
+      return (error as { errors: readonly { rule: string; jsonPath: string }[] }).errors.map((card) => ({
+        rule: card.rule,
+        jsonPath: card.jsonPath,
+      }));
+    }
+    throw new Error('expected a refusal');
+  }
+
+  it('a never-equipped character carries no equipped key; an equipped one round-trips losslessly', () => {
+    const runtime = new Runtime(cloneRuntimePack());
+    const plain = createCharacter(runtime, { name: 'Ald', race: 'hillfolk', classes: ['warden'] }).state;
+    expect('equipped' in serializeCharacter(runtime, plain).state).toBe(false);
+    expect(
+      'equipped' in
+        restoreCharacter(new Runtime(cloneRuntimePack()), serializeCharacter(runtime, plain)).state,
+    ).toBe(false);
+
+    const source = new Runtime(cloneRuntimePack());
+    const state = armed(source);
+    const snap = JSON.parse(JSON.stringify(serializeCharacter(source, state))) as ReturnType<
+      typeof serializeCharacter
+    >;
+    expect(snap.state.equipped).toEqual([
+      { slot: 'body', itemId: 'chain-shirt' },
+      { slot: 'main-hand', itemId: 'ashwood-blade' },
+      { slot: 'off-hand', itemId: 'ashwood-blade' },
+    ]);
+    const restored = restoreCharacter(new Runtime(cloneRuntimePack()), snap);
+    expect(restored.state).toEqual(state);
+  });
+
+  it('an emptied equipment list round-trips as [] (presence preserved)', () => {
+    const runtime = new Runtime(cloneRuntimePack());
+    const character = createCharacter(runtime, { name: 'Brynn', race: 'hillfolk', classes: ['warden'] });
+    character.grant('ward-ring');
+    character.equip('ward-ring', 'ring');
+    character.unequip('ring');
+    const snap = serializeCharacter(runtime, character.state);
+    expect(snap.state.equipped).toEqual([]);
+    expect(restoreCharacter(new Runtime(cloneRuntimePack()), snap).state).toEqual(character.state);
+  });
+
+  it('dangling or illegal entries refuse loudly with every card; the target runtime is untouched', () => {
+    const runtime = new Runtime(cloneRuntimePack());
+    const snap = JSON.parse(JSON.stringify(serializeCharacter(runtime, armed(runtime)))) as {
+      state: { equipped: { slot: string; itemId: string }[] };
+    };
+    snap.state.equipped = [
+      { slot: 'body', itemId: 'chain-shirt' },
+      { slot: 'body', itemId: 'chain-shirt' }, // slot twice + a second unit that is not held
+      { slot: 'ring', itemId: 'ashwood-blade' }, // slot the item does not admit
+      { slot: 'cloak', itemId: 'ward-ring' }, // undeclared slot + not held
+      { slot: 'off-hand', itemId: 'moon-rock' }, // undeclared item + not held
+    ];
+    const target = new Runtime(cloneRuntimePack());
+    expect(refusal(() => restoreCharacter(target, snap as never))).toEqual([
+      { rule: 'E-SNAP-01', jsonPath: 'state.equipped[1].slot' },
+      { rule: 'E-SNAP-01', jsonPath: 'state.equipped[1]' },
+      { rule: 'E-SNAP-01', jsonPath: 'state.equipped[2].slot' },
+      { rule: 'E-SNAP-01', jsonPath: 'state.equipped[3].slot' },
+      { rule: 'E-SNAP-01', jsonPath: 'state.equipped[3]' },
+      { rule: 'E-SNAP-01', jsonPath: 'state.equipped[4].itemId' },
+      { rule: 'E-SNAP-01', jsonPath: 'state.equipped[4]' },
+    ]);
+    expect(target.nextCharacterId).toBe(1);
+
+    const party = JSON.parse(JSON.stringify(serializeParty(runtime, [armed(runtime)]))) as {
+      members: { equipped: { slot: string; itemId: string }[] }[];
+    };
+    party.members[0]!.equipped = [{ slot: 'body', itemId: 'ashwood-blade' }];
+    expect(refusal(() => restoreParty(target, party as never))).toEqual([
+      { rule: 'E-SNAP-01', jsonPath: 'members[0].equipped[0].slot' },
+    ]);
+    expect(target.nextCharacterId).toBe(1);
+  });
+});

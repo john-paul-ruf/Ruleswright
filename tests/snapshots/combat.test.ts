@@ -99,7 +99,8 @@ describe('combat snapshots (FR-14, CAP-7)', () => {
       expect(word).toBeGreaterThanOrEqual(0);
       expect(word).toBeLessThanOrEqual(4294967295);
     }
-    expect(Object.keys(snap.combatants[0]!).sort()).toEqual(['conditions', 'hp', 'id', 'slotsUsed']);
+    // v1.4 (CA-EG6): maxHp is always emitted; itemsUsed only once something is spent.
+    expect(Object.keys(snap.combatants[0]!).sort()).toEqual(['conditions', 'hp', 'id', 'maxHp', 'slotsUsed']);
   });
 
   it('the combatants array follows initiative order and carries the CA-4 transients', () => {
@@ -447,5 +448,120 @@ describe('spatial snapshots (CAP-G5, CA-G3)', () => {
     const rejected = restored.declare('strike', { targetId: 'wight' });
     expect(rejected[0]!.payload['kind']).toBe('spatial');
     expect(String(rejected[0]!.payload['message'])).toContain('positions are missing');
+  });
+});
+
+/**
+ * CA-EG6 combat leg (equipment-consumables S05 ck4): the combatant's item spend
+ * (`itemsUsed`, SPENT units) and heal cap (`maxHp`) survive a snapshot; the
+ * host re-states the fight-start `balances.items`, the snapshot wins for the
+ * spend, and a spend the restated balances cannot cover refuses (E-SNAP-01).
+ */
+describe('item spend + maxHp snapshots (CA-EG6)', () => {
+  function itemSides(runtime: Runtime, charges: number, maxHp?: number): CombatRestoreRequest {
+    const base = profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'brynn');
+    const brynn: CombatantProfile = { ...base, actions: ['strike', 'withdraw'], initiativeBonus: 100, maxHp };
+    const wight: CombatantProfile = { ...base, actions: ['wight-claw', 'parry'], initiativeBonus: -100 };
+    return {
+      allies: [{ id: 'brynn', profile: brynn, balances: { items: { 'mend-salve': charges } } }],
+      enemies: [{ id: 'wight', profile: wight }],
+    };
+  }
+
+  function usedOnce(): { fight: Combat; snap: CombatSnapshot } {
+    const runtime = new Runtime(emberMarchesPack());
+    const fight = startCombat(runtime, { ...itemSides(runtime, 2, 30), rng: new Rng('items') });
+    fight.step();
+    expect(fight.use('mend-salve')[0]!.type).toBe('item:used');
+    return { fight, snap: JSON.parse(JSON.stringify(serializeCombat(fight, { pairsWith: 'party-1' }))) };
+  }
+
+  function refusal(run: () => unknown): { rule: string; jsonPath: string }[] {
+    try {
+      run();
+    } catch (error) {
+      return (error as { errors: readonly { rule: string; jsonPath: string }[] }).errors.map((card) => ({
+        rule: card.rule,
+        jsonPath: card.jsonPath,
+      }));
+    }
+    throw new Error('expected a refusal');
+  }
+
+  it('serializes itemsUsed (spent) and maxHp; restore rebuilds balances from the request and the spend from the snapshot', () => {
+    const { fight, snap } = usedOnce();
+    const brynn = snap.combatants.find((combatant) => combatant.id === 'brynn')!;
+    const wight = snap.combatants.find((combatant) => combatant.id === 'wight')!;
+    expect(brynn.itemsUsed).toEqual({ 'mend-salve': 1 });
+    expect(brynn.maxHp).toBe(30);
+    expect('itemsUsed' in wight).toBe(false);
+    expect(wight.maxHp).toBe(fight.state.combatants['wight']!.maxHp);
+
+    const fresh = new Runtime(emberMarchesPack());
+    const sink: RuntimeEvent[] = [];
+    fresh.events.on((event) => {
+      sink.push(event);
+    });
+    const restored = deserializeCombat(fresh, snap, itemSides(fresh, 2));
+    const state = restored.state.combatants['brynn']!;
+    expect(state.itemBalances).toEqual({ 'mend-salve': 2 });
+    expect(state.itemsUsed).toEqual({ 'mend-salve': 1 });
+    expect(state.maxHp).toBe(30);
+    expect(state.hp.current).toBe(fight.state.combatants['brynn']!.hp.current);
+
+    // The resumed leg (fresh sink, DD17e): one charge left, then no-charges.
+    expect(restored.use('mend-salve')[0]!.payload).toEqual({ itemId: 'mend-salve', remaining: 0 });
+    expect(restored.use('mend-salve')[0]!.payload['kind']).toBe('no-charges');
+    expect(sink.map((event) => event.type)).toEqual(['item:used', 'damage:applied', 'declare:rejected']);
+  });
+
+  it('maxHp precedence: snapshot, else profile.maxHp, else max(0, profile.hp) (R-9)', () => {
+    const { snap } = usedOnce();
+    const fresh = new Runtime(emberMarchesPack());
+    expect(deserializeCombat(fresh, snap, itemSides(fresh, 2, 12)).state.combatants['brynn']!.maxHp).toBe(30);
+
+    const legacy = JSON.parse(JSON.stringify(snap)) as { combatants: { maxHp?: number }[] };
+    for (const combatant of legacy.combatants) delete combatant.maxHp;
+    expect(deserializeCombat(fresh, legacy, itemSides(fresh, 2, 12)).state.combatants['brynn']!.maxHp).toBe(
+      12,
+    );
+
+    const sides = itemSides(fresh, 2);
+    const uncapped: CombatRestoreRequest = {
+      ...sides,
+      allies: sides.allies.map((entry) => ({
+        ...entry,
+        profile: { ...entry.profile, maxHp: undefined, hp: -4 },
+      })),
+    };
+    expect(deserializeCombat(fresh, legacy, uncapped).state.combatants['brynn']!.maxHp).toBe(0);
+  });
+
+  it('an over-spend and an unknown item id refuse with E-SNAP-01, all cards before any rebuild', () => {
+    const { snap } = usedOnce();
+    const tampered = JSON.parse(JSON.stringify(snap)) as {
+      combatants: { id: string; itemsUsed?: Record<string, number>; maxHp?: number }[];
+    };
+    const brynn = tampered.combatants.find((combatant) => combatant.id === 'brynn')!;
+    brynn.itemsUsed = { 'mend-salve': 3, 'moon-rock': 1 };
+    brynn.maxHp = -1;
+    const index = tampered.combatants.indexOf(brynn);
+    const fresh = new Runtime(emberMarchesPack());
+    expect(refusal(() => deserializeCombat(fresh, tampered, itemSides(fresh, 2)))).toEqual([
+      { rule: 'E-SNAP-01', jsonPath: `combatants[${index}].maxHp` },
+      { rule: 'E-SNAP-01', jsonPath: `combatants[${index}].itemsUsed.mend-salve` },
+      { rule: 'E-SNAP-01', jsonPath: `combatants[${index}].itemsUsed.moon-rock` },
+    ]);
+    // A host that forgets to re-state the balances cannot cover the recorded spend either.
+    const forgot = itemSides(fresh, 2);
+    expect(
+      refusal(() =>
+        deserializeCombat(fresh, snap, {
+          ...forgot,
+          allies: forgot.allies.map(({ id, profile }) => ({ id, profile })),
+        }),
+      ),
+    ).toEqual([{ rule: 'E-SNAP-01', jsonPath: `combatants[${index}].itemsUsed.mend-salve` }]);
+    expect(fresh.nextCharacterId).toBe(1);
   });
 });
