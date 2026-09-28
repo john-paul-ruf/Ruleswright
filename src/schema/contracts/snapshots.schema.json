@@ -105,6 +105,19 @@
             "required": ["id", "qty"],
             "properties": { "id": { "type": "string" }, "qty": { "type": "integer", "minimum": 1 } }
           }
+        },
+        "equipped": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["slot", "itemId"],
+            "properties": {
+              "slot": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$", "description": "A slot id declared in the pack's equipSlots" },
+              "itemId": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$", "description": "A content.items id whose slots list admits this slot" }
+            }
+          },
+          "description": "v1.4 — optional equipment state: one {slot, itemId} entry per occupied slot (one item per slot). Absent = nothing equipped (equivalent to []). The runtime emits the key only when the character's state carries it, preserving the byte-exact round-trip of characters that never equipped. Slot uniqueness across entries cannot be expressed in JSON Schema (uniqueItems compares whole objects), so runtime restore enforces it fail-closed, together with item/slot existence, slot eligibility and held quantity — any violation = E-SNAP-01, all refusals collected before any application. Inventory still restores verbatim."
         }
       }
     },
@@ -193,6 +206,17 @@
               "pendingTrigger": {
                 "type": ["null", "string"],
                 "description": "Reactive action currently offered (FR-4/13)"
+              },
+              "itemsUsed": {
+                "type": "object",
+                "propertyNames": { "pattern": "^[a-z][a-z0-9-]*$" },
+                "additionalProperties": { "type": "integer", "minimum": 0 },
+                "description": "v1.4 — optional: item id -> units this combatant has SPENT in this fight (not units remaining). Deliberately unlike slotsUsed, which serializes the remaining per-turn ledger: fight-start item balances are not in the snapshot — restore takes them from the host's re-stated CombatRestoreRequest balances (balances.items), the same way pools and boundSlots are re-stated, and this snapshot value wins for the spend. Remaining = restated balance - itemsUsed. An unknown item id or a spend exceeding the restated balance = E-SNAP-01. Absent = nothing spent."
+              },
+              "maxHp": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "v1.4 — optional: the combatant's heal cap, fixed at fight start (characters: derived hp with equipment grants; statblocks: the hp formula value). A heal never raises hp above maxHp and never lowers hp: a combatant already above its cap stays unchanged. Restore precedence: this snapshot value wins over the re-stated profile; when absent (a pre-v1.4 envelope) restore falls back to the profile's maxHp, then to the profile's hp (floored at 0)."
               }
             }
           }
