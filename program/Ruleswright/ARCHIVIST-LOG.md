@@ -342,3 +342,217 @@ cluster (C3/C4/C7) is three related low-confidence findings — below the medium
   S02 recorded in grid-combat. Caught by the post-write re-read discipline; the file was
   rewritten cleanly and verified by re-read before this log entry. No corrupted byte was
   committed.
+---
+
+## 2026-09-28 — final pass, cycle `equipment-consumables` (feature commits `0ee3974` → tree HEAD `c39ef87`)
+
+**Mode:** final, after the equipment-consumables Final Report (`c39ef87`; last source commit
+`e5e4846`). A single-cycle synthesis this time. The grid-combat pass left no record debt, so
+this is not a double synthesis. **Date note:** the two previous entries are headed `2025-09-2x`,
+but their commits (`7dcff85`, `c72908a`) are dated 2026-09-25 and 2026-09-27. The headings are
+typos. This log is append-only, so they stay as written. PROGRAM-CONFIG's convention notes
+(Archivist-owned) were corrected to 2026-09-27.
+
+### Reconciled
+
+- **`arch/v1-core.md`: the four Orchestrator-integrated delta sections** (`<!--
+  equipment-consumables SESSION-02..05 -->`, commits `f1563b1`, `643fd76`, `7c3db75`,
+  `7a479e6`) were folded into the module-ordered record. Where each piece went:
+  - v1.4 contract and mirror/validator: the M01 section.
+  - `heal`, registry 12→13 and `EQUIPMENT_SCALARS`: the M02 DSL section.
+  - The new **M03 — Equipment** section for the `equipment.ts` leaf.
+  - `profileFromCharacter` over the view and `settleItemUses`: M03 character side.
+  - `Combat.use`, `maxHp`/`itemBalances`/`itemsUsed`, the R-2 clamp in `applyMutation` and `checkPackDsl` on item `use`: M03 combat.
+  - `equipped`/`itemsUsed`/`maxHp`: M03 snapshots.
+  - `ThemeTemplate.equipSlots`, the pass-through and the exact theme content: M04.
+  - The equipment journey, the README section and the CI dist gap: M05.
+  - DD-EG1..DD-EG9 are summarized under Cross-cutting decisions. The header, module map, surfaces and drift notes were updated to `c39ef87`.
+  - Pass-relative wording ("this pass") left over from the grid pass was re-attributed to the grid-combat pass, so no claim is misdated.
+  - The trailing provenance comment no longer nests `<!-- -->` markers. Nesting them ended the comment early, in this revision and in the previous one.
+- **Record correction, checked against source (Principle 2).** The Final Report's
+  *Architecture impact* and the S03 arch fragment name the new realized edges as `character`,
+  `pools`, `inventory` → `equipment` and nothing else. Deriving edges mechanically from value imports at
+  `c39ef87` adds **`character-profile.ts → equipment.ts`** (`equipmentView`,
+  `equippedUnits`) and **`character-profile.ts → inventory.ts`** (`dropItem`). Both landed at
+  S05 ck1/ck3 (`14c01dc`, `31540b0`). Neither closes a cycle: `equipment.ts` value-imports
+  only core, `./errors` and `./conditions`, and `inventory.ts` does not import
+  `character-profile`. Both the arch record and the registry now carry these edges. The Final
+  Report is committed and not Archivist's to edit, so this goes to Orchestrator as a
+  report-accuracy item (cleanup ledger C9).
+- **Module registry in `PROGRAM-CONFIG.MD`** reconciled to `c39ef87`. No new module ID, no
+  new cross-module edge, and no rule id this cycle. Key files gained `equipment.ts`, the v1.4
+  mirror and `RESERVED_GRANT_KEYS`, `EQUIPMENT_SCALARS`, the 13-entry registry, the snapshot
+  fields, and the equipSlots pass-through and theme content. Guards were re-verified:
+  - M02→M01 is still **type-only** (seven `import type` lines in `core/dsl/*`, no value import);
+  - M01 imports no core value;
+  - `src/runtime` has no compiler import (the one match is the barrel's comment);
+  - `src/compiler` has no runtime import.
+- **Custom Rules (Archivist-owned) updated:**
+  - Rule 1 records the v1.4 contract event.
+  - Rule 2 records the `gear-*` reserved scalars (formulas only, 0 when unbound, direction set by the pack).
+  - Rule 4 records that FR-9 armorCasting is slot-cast-only.
+  - Author Sources' "Data source" line still reads "v1.2 class actions + v1.3 spatial" and does not mention v1.4. That section is Planner-owned, not Archivist's, so it is flagged here for the next Planner rather than edited.
+- **Contract Agreements CA-EG1..EG6, sampled against source at `c39ef87`:**
+  - **CA-EG1:** `checkEquipSlots` is dispatched in `validate/index.ts:72`. `checkItemSlots` and `checkItemGrants` are in `content.ts:652-688`. `Ctx` documents absent vs unreadable at `context.ts:34`.
+  - **CA-EG2:** grants are summed only in `equipment.ts`, and `profileFromCharacter` imports `equipmentView`.
+  - **CA-EG3:** `armorBlockingCast` is at `pools.ts:208` and gated at `:247`.
+  - **CA-EG4:** registry `heal` is at `registry.ts:17`. `applyMutation`'s clamp is documented at `combat.ts:24`, and `maxHp` falls back to `profile.maxHp ?? Math.max(0, profile.hp)` at `:243`.
+  - **CA-EG5:** `Combat.use` is at `combat.ts:471`, and `no-charges` compares `itemBalances` against `itemsUsed` (`:517-524`).
+  - **CA-EG6:** `equippedRefusals` (`snapshots.ts:319-357`) refuses every case before anything is applied: non-array, bad entry shape, ineligible slot, duplicate slot, worn > held. Serialization is presence-preserving (`:168`).
+  - **Findings:** no mismatch found. Every CA row's producer and consumer path exists as recorded.
+- **Capability Readiness** (CAP-E1..E8 verified) is consistent with the record.
+  - CAP-E7's journey file exists and ran green in this pass's fresh proofs run, 38/38 across 6 files, 10 of them the equipment journey.
+  - STATE's *Current Blockers* and the Final Report's closure ledger agree on the three carried items: the CI build step, effect-scope shadowing, and `rollText`.
+  - No stale summary found.
+- **Verified by execution** (fresh runs by this pass at `c39ef87`, after a fresh `pnpm build`):
+  - `pnpm typecheck` 0
+  - `pnpm build` 0 (24 dist files)
+  - `check:isolation` 0
+  - `pnpm test` **661/661 across 37 files**
+  - `pnpm exec vitest run tests/proofs/` **38/38 across 6 files**
+  - lint, format:check and security were **not** re-run. They are inherited from the Orchestrator receive at `e5e4846`.
+  - Every re-run headline matches the Final Report.
+- **Adoption check, done before carrying rows forward.** `program-agents/` is gitignored (`.gitignore:28`), so `git log` cannot show adoption. The file mtimes of all role docs are `2026-09-25 16:37`, earlier than the grid pass's commit `c72908a` (2026-09-27), so nothing changed since the prior pass. The current content was also checked for each open row's substance:
+  - **b32fc8d0:** CODER.md:47 still has only "one bounded sweep", with no per-checkpoint read-scope bound.
+  - **f57dbe4d:** ORCHESTRATOR.md:405 has the two-consecutive-failure ladder, but no guardrail specific to tool-input fabrication.
+  - **b85c8f3e:** PLANNER.md has no language about the barrel checkpoint.
+  - **3658f327:** there is no note on deletion commits.
+  - **c1ed872b:** there is no documentation of the argv shape.
+  - **6f6b491b:** CODER.md:186 and ORCHESTRATOR.md:368 **still name `npx vitest run <path>` as the working narrow form**. That contradicts this program's recorded evidence (DD14e) and PROGRAM-CONFIG's Verification Commands.
+  - **Result:** no row is adopted. `PLANNER.md`, `CODER.md`, `UI-CODER.md` and `ORCHESTRATOR.md` are byte-identical to how this pass found them. That is a separate claim from the adoption check above.
+
+### Crossed thresholds (Principle 4): considered, with evidence counts
+
+- **Factual-premise verification at planning time** (row 576a2816, promoted 2026-09-27) is **re-confirmed, and its evidence now spans three program cycles.** This is not a new promotion.
+  - **Instances this cycle.** The preflight returned 15 findings (F-E1..F-E15). The following were premise defects, each disproved against source at `dadf461`:
+    - F-E1 (false E-FORM-01 premise);
+    - F-E2 (grant composition);
+    - F-E3 (pipeline dropped `equipSlots`);
+    - F-E4 (closed snapshot contract);
+    - F-E7 (wrong theme facts);
+    - F-E14 (`VALID_PACK` non-registry words).
+    - The recheck added R-7, the wrong "only caller" note.
+  - **Did the convention work?** The review ran before any dispatch, both replans landed before code, first-dispatch completion was 6/6, and integration rework was zero.
+  - **Leak:** one disproved premise still reached a session. S03's prompt said `tests/runtime/fixtures/pack.ts` builds on `VALID_PACK`, which is false and had no effect (S03 surprise 5).
+  - **Action:** the PROGRAM-CONFIG note was updated with the third-cycle evidence. The rule text is unchanged.
+  - **Not minted:** a rule that a replan's Orchestrator decisions get a scoped recheck before dispatch. R-2 shows why it matters: REPLAN-EC-01's F-E9 clamp could lower hp, and the recheck caught it. It rests on one cycle, and ORCHESTRATOR.md:121 already requires rechecking after a correction lands, so it is noted here instead.
+- **Session commit gates that hard-code a plan-time SHA (R-1).** **Not promoted: 1 cycle, 1 instance.**
+  - **What happened:** S01's ck3 gate diffed against the plan-time HEAD. REPLAN-EC-01 then moved the base (`0ee3974` follows `dadf461`), and Orchestrator repaired the gate through S01's envelope.
+  - **Search:** the prior cycles' prompts show no SHA-pinned gate. grid S01 used a worktree-relative `git diff --stat <path>`.
+  - **Neither axis crosses**, so no rule was minted. It is recorded below under Principle 3, which has no threshold.
+- **Whole-repo fast gates at role-scoped receives** (row 854ceecd, promoted): **held, with a fourth-cycle instance.**
+  - S01's contracts were unformatted at a role-scoped receive.
+  - Orchestrator caught it with the whole-repo gate and cleared it with the format-only residual `8668c53`, exactly as the convention prescribes.
+  - Counts are raised to 4 cycles and 4 instances.
+- **Pin-lease ownership** (row 1cc46f93, promoted): **held.**
+  - STATE carried a full *Pin re-key owners* table, covering the registry 12→13 change (S02 ck1), `combat.test.ts:102` (S05 ck4), the combat profile equalities (S05 ck1) and the docs-run pin (S06 ck2).
+  - No unowned pin surfaced.
+  - The row stays promoted. Its counts are not raised, since a held rule is not a recurrence.
+
+### Proposed for the framework (Principle 3: no threshold, recorded at first sight)
+
+- **New: PLANNER.md / ORCHESTRATOR.md should state session gates relative to the dispatch base, never a plan-time SHA.**
+  - A gate like `git diff --stat <sha> -- <owned paths>` goes stale the moment any replan or owner correction lands between planning and dispatch.
+  - **Recommendation:** gates use a base Orchestrator stamps into the envelope at dispatch (the "dispatch HEAD"), or a worktree-relative form.
+  - **Evidence:** R-1. **1 cycle · 1 in-cycle instance.**
+- **New: document the host await idle timeout in ORCHESTRATOR.md's Native binding.**
+  - The Final Report records that several `await_subagent_result` calls hit the host's 300-second idle timeout. Re-awaiting the same handle reattached cleanly every time, and nothing was lost.
+  - **Recommendation:** name that as the expected recovery, so a future Orchestrator does not read the timeout as a crash and start the Recovery ladder.
+  - **Evidence: 1 cycle · ≥2 in-cycle instances.** The exact count is unrecorded ("several" per the Final Report), so 2 is entered as a floor.
+- **New: Final Report mechanical facts should be derived, not transcribed.**
+  - This cycle, the *Architecture impact* edge list came from the handoffs and missed two value edges (C9).
+  - v1-core's report miscounted test files, 28 vs 29 (C5, retired).
+  - **Recommendation:** ORCHESTRATOR.md's Final Report step should derive counts and edges mechanically, or cite the command. Archivist's registry derivation remains the backstop.
+  - **Evidence: 2 cycles · 2 instances.**
+- **Carried: CODER.md/ORCHESTRATOR.md name `npx vitest run <path>` as the working narrow form** (row 6f6b491b).
+  - This program's recorded environment evidence says the opposite: DD14e, and PROGRAM-CONFIG's corrected Verification Commands.
+  - This cycle's envelopes used `pnpm exec vitest run`, and no session tripped on it, so there were 0 new instances.
+  - The framework text still teaches the failing form. **Recommendation:** make the narrow form a per-program Verification Commands lookup rather than a literal in the role doc.
+  - **2 cycles · 3 instances.**
+- **Carried, no recurrence this cycle:**
+  - b32fc8d0: checkpoint-0 read scope. S05 ran 5 checkpoints read-scoped with no stall.
+  - f57dbe4d: fabrication guardrail and argv documentation. Every dispatch succeeded first time.
+  - b85c8f3e: barrel checkpoint. This cycle's barrel was owned by S03 and S05 leases, and S05's `settleItemUses` export landed inside its lease.
+  - c1ed872b: argv.
+  - 3658f327: deletion commits.
+  - 17f4803c: provider aborts.
+  - 1d910de1: double synthesis.
+  - The counts are unchanged. Three of these rows (b32fc8d0, f57dbe4d, c1ed872b) have now gone two consecutive cycles without recurrence. They stay **open** because none has been adopted and the evidence is not false. A human may choose to retire them.
+
+### Standing recommendations
+
+| id | pattern | cycles | in-cycle instances | first seen | status |
+|----|---------|-------:|-------------------:|------------|--------|
+| b32fc8d0c8c92d52 | Large single-session builds exhaust context on exhaustive checkpoint-0 read sweeps (empty-final crash; recovery = checkpoint-scoped reading) | 2 | 2 | v1-core | open |
+| f57dbe4d010638fe | Subagent model fabricates tool inputs (invented paths, invented project state, fabricated git output) under long-recovery prompts | 2 | 8 | v1-core | open |
+| b85c8f3e113a6764 | Public surface/barrel completeness gaps discovered at integration (lease gaps across wave-spanning modules) | 2 | 3 | v1-core | open |
+| c1ed872bea557b96 | run tool drops/misroutes argv; workers pass whole command lines as single argv entries | 2 | 3 | v1-core | open |
+| 3658f327cc9cff2f | commit_pathspec-style single-command commits fail on deleted files | 1 | 1 | v1-core | open |
+| 1cc46f93038f1d9a | Cross-suite pinning tests (docs-run block-count pin, registry-count pin) land without a named owner in the plan | 2 | 3 | loot-inventory | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-27; held in equipment-consumables) |
+| 576a281656f83b23 | Envelope factual premises (mock-vs-prompt anatomy, cross-suite counts) reach sessions unverified; mechanical premise verification at planning time is the fix | 3 | 11 | loot-inventory | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-27; third-cycle evidence recorded 2026-09-28) |
+| 854ceecd39d4b0d3 | Whole-repo fast gates (typecheck/lint/format:check) go red at role-scoped receives; cleared by format-only owner corrections | 4 | 4 | v1-core | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-27; held — `8668c53`) |
+| 17f4803c1b08da77 | Provider stream aborts / capacity failures kill subagents mid-session with zero commits; recovery resumes from the preserved tree | 2 | 4 | loot-inventory | open |
+| 6f6b491bdbe37bf0 | Bare npx misresolves in this runtime; the working gate forms are pnpm exec vitest run <path> and node_modules/.bin/vitest | 2 | 3 | loot-inventory | open |
+| 1d910de11732c6c4 | Final Archivist pass aborts on provider capacity leave the next cycle's pass a double synthesis (prior cycle's integrated fragments + record-debt) | 2 | 2 | loot-inventory | open |
+| c172cd30e8dfc756 | Session commit gates hard-code a plan-time base SHA that a later replan makes stale | 1 | 1 | equipment-consumables | open |
+| cecd211504587426 | Host await idle timeout (300 s) interrupts long subagent waits; re-awaiting the same handle reattaches with no work lost | 1 | 2 | equipment-consumables | open |
+| f68c42a3f6224eb1 | Final Report mechanical facts (test-file counts, realized module edges) transcribed from handoffs rather than derived from the tree | 2 | 2 | v1-core | open |
+
+- **Carried rows (1–11):** the ids are copied verbatim.
+- **Minted this pass (12–14):** these follow the stable-ID contract, `sha256(firstSeen + '\n' + normalize(pattern)).slice(0,16)`.
+  - Row 14's `first seen` is `v1-core`, because its first instance is the v1-core C5 file-count discrepancy.
+  - Row 13's instance count of 2 is a floor.
+- **Count changes:**
+  - Row 7 went from 4 to 11 instances: the prior 4 plus F-E1, F-E2, F-E3, F-E4, F-E7, F-E14 and R-7.
+  - Row 8 went from 3 cycles and 3 instances to 4 and 4.
+
+### Cleanup ledger (carried forward; maintained here, no separate CLEANUP-LEDGER.md yet)
+
+| id | candidate | evidence | confidence | blast radius | proposed check | cluster | status |
+|----|-----------|----------|------------|--------------|----------------|---------|--------|
+| C1 | `matchesRestriction`/`isLivePattern` (`src/runtime/conditions.ts`) have no non-test consumer; combat.ts implements its own actions-only inline matcher (`restrictionRejection`) | re-verified at `c39ef87`: src refs = conditions.ts + index.ts re-export only; 1 test file (`declaredTags` also names an unrelated validator Ctx field, so the grep is noisy for it) | medium | src/runtime surface | grep after removing the re-export; conditions.test.ts pins them — decide surface-first | duplicated-logic | **briefed** (2026-09-28) |
+| C2 | `MAX_TABLE_DEPTH = 8` duplicated in `src/core/tables.ts` and `src/schema/validate/helpers.ts` | re-verified at `c39ef87`: both definitions present; both test-pinned; database.md prose ratifies the value | medium | cross-module constant (schema must not value-import core — the single source must respect M01's no-internal-import rule) | single-source strategy that keeps M01 import-free (e.g. schema owns it, core imports type-free literal via a pinned equality test) | duplicated-logic | **briefed** (2026-09-28) |
+| C3 | `readPatch` exported from the compiler surface but consumed only by tests | re-verified at `c39ef87`: compose.ts + index.ts; 2 test files | low | compiler surface | decide public-surface intent (FR-20 host-side composition) | compiler-surface | **tracking** |
+| C4 | `EventSeed`/`EventSink` exported from the runtime surface, no consumer | re-verified at `c39ef87`: events.ts + index.ts; 0 test files | low | runtime surface | same surface-first decision | runtime-surface | **tracking** |
+| C5 | Final Report test-file count 28 vs 29 | corrected at v1-core close (`0290d47`) | high | report accuracy | — | report-accuracy | **retired** |
+| C6 | `parsePackEffects` (`src/runtime/combat/resolve.ts`) has zero consumers | re-verified at `c39ef87`: definition only, 0 tests | high | M03 internal | delete **only if** the spells-as-combat-actions engine event is rejected | spell-asts | **tracking** (resumption condition: that engine design event's outcome) |
+| C7 | `WYLDWOOD` exported from the compiler surface, consumed only via theme-loader/index | re-verified at `c39ef87`: 3 test files | low | compiler surface | same surface-first decision as C3/C4 | compiler-surface | **tracking** |
+| C8 | `equipment.ts` private `rollText` duplicates `combat.ts` `displayRoll` (minus the verdict suffix) because the leaf may not import `combat.ts` (R-11) | `equipment.ts:352` vs `combat.ts:1002`; S03 surprise 1, S05/S06 followUp; Final Report closure ledger "carried" | high | M03 internal (display strings in `why.rolls`) | move `displayRoll` to a leaf (beside `core/dice` or a runtime leaf), import from both; assert byte-identical `why.rolls` strings in equipment + combat tests | duplicated-logic | **briefed** (2026-09-28) |
+| C9 | Final Report *Architecture impact* omits the `character-profile.ts → {equipment, inventory}` value edges | value imports at `c39ef87` vs FINAL-REPORT §Architecture impact | high | report accuracy only | Orchestrator appends a correction (or the Archivist note carries it) | report-accuracy | **tracking** (owner: Orchestrator) |
+| C10 | `Combat.use`'s restriction gate cannot block (`ItemDef` has no `tags`) | S05 surprise 2; `combat.ts` use() gate order | low | M03 combat | retain as forward-compat unless item tags are rejected as a product direction | item-tags | **tracking** (intentional; resumption: item tags decision) |
+
+**Cleanup brief for Planner: Single-source duplicated logic (C1, C2, C8).**
+
+- **Target area:**
+  - `src/runtime/equipment.ts`, `src/runtime/combat/combat.ts` (`displayRoll`) and `src/runtime/conditions.ts` vs `combat.ts` `restrictionRejection`;
+  - `src/core/tables.ts` vs `src/schema/validate/helpers.ts`.
+- **Why a brief now:** this crosses the "repeated cleanup pattern already observed in the standing ledger" bar. Duplicated implementations were logged at v1-core (C1, C2), and this cycle added a third, high-confidence instance (C8) with an owner already named in the Final Report.
+- **Findings:** C8 (high), C1 (medium), C2 (medium).
+- **Proposed automated strategy (one session per finding, serial):**
+  1. Move `displayRoll` to a runtime- or core-level leaf and import it from `combat.ts` and `equipment.ts`.
+  2. Decide the restricts matcher's surface. Either `combat.ts` calls `matchesRestriction`, or the helpers leave the barrel. This is a surface decision.
+  3. Single-source `MAX_TABLE_DEPTH` without giving M01 a core value import.
+- **Required checks:**
+  - `pnpm typecheck`, `pnpm lint`, `pnpm test` (661+) and `pnpm build` followed by `check:isolation`;
+  - byte-identical `why.rolls` strings in `tests/runtime/equipment.test.ts` and `tests/runtime/combat/**`;
+  - grep proving one definition per symbol;
+  - M01 still imports nothing internal, verified by mechanical import derivation.
+- **Risks:**
+  - `displayRoll` is exported from the runtime barrel, so moving it must keep the export path.
+  - The restricts helpers are public surface and pinned by `conditions.test.ts`, so removing them is a surface change, not a pure cleanup.
+  - `MAX_TABLE_DEPTH` sits on the schema public surface, and the M01/M02 sibling rule forbids a naive re-export.
+- **Not destructive to user data.** No human authorization is needed for C8. C1 needs a surface-intent decision from Planner.
+
+### Verification of this pass
+
+- **Sources.** Every realized-state claim traces to:
+  - git (`git log`, `git show 0ee3974:src/runtime/character-profile.ts` for the pre-feature imports);
+  - STATE.md (all 790 lines read, including the planning-completeness tables and the S01–S06 handoffs);
+  - the Final Report;
+  - a mechanical grep or read of `src/**` at `c39ef87`.
+- **No contradictions** with STATE.md or the Final Report, apart from the one edge-list omission, which was resolved against source and is recorded above and as C9.
+- **Re-read after writing:**
+  - `arch/v1-core.md` has 2 `<!--` and 2 `-->`, with no nesting.
+  - PROGRAM-CONFIG's diff touches only the header realized-state note, the Module Registry, the Conventions evidence note (plus the date correction) and Custom Rules 1, 2 and 4.
+  - Verification Commands, Git Config, Session Defaults, Stack and Author Sources are byte-unchanged.
+- **Role docs:** `PLANNER.md`, `CODER.md`, `UI-CODER.md` and `ORCHESTRATOR.md` are byte-identical to how this pass found them.
