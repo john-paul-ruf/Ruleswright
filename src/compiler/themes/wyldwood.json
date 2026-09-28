@@ -56,6 +56,7 @@
     },
     "shapes": ["single", "burst"]
   },
+  "equipSlots": ["charm"],
   "actions": {
     "strike": {
       "cost": {
@@ -183,13 +184,13 @@
   },
   "formulas": {
     "hp": {
-      "expr": "6 + level + vigor * 2"
+      "expr": "6 + level + vigor * 2 + gear-hp"
     },
     "ac": {
-      "expr": "12 - floor(level / 3)"
+      "expr": "12 - floor(level / 3) - gear-ac"
     },
     "initiative": {
-      "expr": "d20 + grace"
+      "expr": "d20 + grace + gear-initiative"
     },
     "motes": {
       "expr": "#knob/mote-base + insight"
@@ -546,7 +547,12 @@
       },
       "hedge-charm": {
         "name": "Hedge Charm",
-        "kind": "charm"
+        "kind": "charm",
+        "slots": ["charm"],
+        "grants": {
+          "ac": 1,
+          "armor": 1
+        }
       },
       "gloam-lantern": {
         "name": "Gloam Lantern",

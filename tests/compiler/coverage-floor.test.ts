@@ -180,6 +180,22 @@ describe('FR-21 floor — the shared bullets, enumerated against both packs', ()
       }
     });
 
+    it(`${name}: v1.4 equipment — equipSlots ship, armor + gear formulas exercised (CAP-E6)`, () => {
+      const theme = PACKS.find((entry) => entry.name === name)!.theme;
+      expect(pack.equipSlots?.length ?? 0).toBeGreaterThan(0);
+      expect(pack.equipSlots).toEqual(theme.equipSlots);
+      const items = Object.values(pack.content.items ?? {});
+      expect(items.some((item) => item.grants?.['armor'] !== undefined)).toBe(true);
+      if (name !== 'wyldwood') {
+        const abilities = pack.stats.abilities;
+        expect(
+          items.some((item) => Object.keys(item.grants ?? {}).some((key) => abilities.includes(key))),
+        ).toBe(true);
+      }
+      if (name === 'zombie-urban') expect(items.some((item) => item.use !== undefined)).toBe(true);
+      expect(pack.formulas['ac']?.expr).toMatch(/ - gear-ac\b/);
+    });
+
     it(`${name}: every id kebab-unique pack-wide (E-DUP-01 held, E-REF-01 clean)`, () => {
       const ids = [
         pack.manifest.id,
@@ -270,6 +286,17 @@ describe('FR-21 showcase split — dark-fantasy = vancian showcase', () => {
     const capsOn = Object.values(on.content.races ?? {}).some((race) => race.caps !== undefined);
     expect(capsOn).toBe(true);
     expect(on.content.races?.['dwindle']?.caps).toEqual({ warden: 6, hexer: 10, 'crypt-warden': 5 });
+  });
+});
+
+describe('v1.4 armorCasting pairing — dark-fantasy carries the legal and the blocked case (CA-EG3)', () => {
+  it('warded-mail is armor of kind mail: the warden lists mail, the hexer does not', () => {
+    const pack = PACKS[0]!.pack;
+    const mail = pack.content.items?.['warded-mail'];
+    expect(mail?.kind).toBe('mail');
+    expect(mail?.grants?.['armor']).toBeGreaterThanOrEqual(1);
+    expect(pack.content.classes?.['warden']?.armorCasting).toContain('mail');
+    expect(pack.content.classes?.['hexer']?.armorCasting).not.toContain('mail');
   });
 });
 
