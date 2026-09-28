@@ -17,6 +17,11 @@
  * `condition:applied` events carrying `why.rolls` (the mock's anatomy:
  * `rule` = the acting artifact's pack path, `rolls` = structured roll display
  * strings).
+ *
+ * Consumables (CA-EG5): `use()` spends one of the actor's host-stated item
+ * charges and runs the item's parse-once `use` effect through the same
+ * executor path as an action. A heal arrives as a negative-amount damage
+ * mutation and clamps at the combatant's `maxHp` (CA-EG4, R-2).
  */
 import type { ActionDef, ActionCost } from '../../schema/artifacts';
 import { Rng, type RandomSource, type RngState } from '../../core/rng';
@@ -51,12 +56,18 @@ export interface CombatantState {
   readonly side: Side;
   readonly name: string;
   readonly hp: { current: number };
+  /** The heal cap, fixed at fight start (CA-EG4): `profile.maxHp`, else `max(0, profile.hp)` (R-9). */
+  readonly maxHp: number;
   conditions: { conditionId: string; duration: number }[];
   /** Per-turn slot ledger (CA-4): the combat transient, replenished each turn start. */
   readonly slots: SlotLedger;
   pools: Record<string, number>;
   /** Spell level ("1") → remaining bound slot count (FR-8; consuming decrements). */
   boundSlots: Record<string, number>;
+  /** Item id -> host-stated charges at fight start (CA-EG5, `balances.items`); never changes in the fight. */
+  readonly itemBalances: Readonly<Record<string, number>>;
+  /** Item id -> units SPENT in this fight (CA-EG5); remaining = itemBalances − itemsUsed. */
+  itemsUsed: Record<string, number>;
   readonly abilities: Readonly<Record<string, number>>;
   readonly saves: Readonly<Record<string, number>>;
   readonly level: number;
@@ -107,7 +118,16 @@ export interface DeclareOptions {
 export type DeclareRejection =
   | CostRejection
   | {
-      kind: 'no-action' | 'not-your-turn' | 'no-target' | 'restricted' | 'invalid-target' | 'unknown-target';
+      kind:
+        | 'no-action'
+        | 'not-your-turn'
+        | 'no-target'
+        | 'restricted'
+        | 'invalid-target'
+        | 'unknown-target'
+        | 'unknown-item'
+        | 'not-consumable'
+        | 'no-charges';
       rule: 'E-REF-01';
       resource: string;
       message: string;
@@ -119,6 +139,11 @@ export type DeclareRejection =
       resource: string;
       message: string;
     };
+
+/** `fight.use` options (CA-EG5): the item's target, defaulting to the user itself. */
+export interface UseOptions {
+  readonly target?: string;
+}
 
 /** What one `step()` call advanced — the stepwise boundary (FR-10). */
 export type StepOutcome =
@@ -215,10 +240,13 @@ export function startCombat(runtime: Runtime, request: StartCombatRequest): Comb
       side: entry.side,
       name: entry.name,
       hp: { current: entry.profile.hp },
+      maxHp: entry.profile.maxHp ?? Math.max(0, entry.profile.hp),
       conditions: [],
       slots: freshLedger(grants),
       pools: { ...(entry.balances.pools ?? {}) },
       boundSlots: { ...(entry.balances.boundSlots ?? {}) },
+      itemBalances: { ...(entry.balances.items ?? {}) },
+      itemsUsed: {},
       abilities: { ...entry.profile.abilities },
       saves: { ...entry.profile.saves },
       level: entry.profile.level,
@@ -429,6 +457,91 @@ export class Combat {
     return events;
   }
 
+  /**
+   * Use one charge of a consumable as the active combatant (CA-EG5, DD-EG6).
+   * Gates, in order: `combat-over` throws exactly as `declare` does (R-3);
+   * `unknown-item`; `not-consumable`; the restriction gate over a synthetic
+   * item-only action (items declare no tags, so it cannot bite today);
+   * `unknown-target` (default target: the user); `no-charges`. A rejection
+   * is one `declare:rejected` event and changes nothing. On success the spend
+   * is recorded, `item:used` is emitted, and the item's `use` effect runs
+   * through the action executor with `why.rule` `content.items.<id>`. A use
+   * consumes no turn slot and does not end the turn.
+   */
+  use(itemId: string, options: UseOptions = {}): readonly RuntimeEvent[] {
+    if (this.state.phase === 'combat-over') throw new Error('combat is over');
+
+    const actorId = this.state.active;
+    const actor = this.state.combatants[actorId]!;
+    const item = this.runtime.pack.content.items?.[itemId];
+    if (item === undefined) {
+      return [
+        this.rejectionEvent(actorId, {
+          kind: 'unknown-item',
+          rule: 'E-REF-01',
+          resource: itemId,
+          message: `item "${itemId}" is not declared in content.items.`,
+        }),
+      ];
+    }
+    const ast = this.runtime.index.itemEffects[itemId];
+    if (ast === undefined || item.use === undefined) {
+      return [
+        this.rejectionEvent(actorId, {
+          kind: 'not-consumable',
+          rule: 'E-REF-01',
+          resource: itemId,
+          message: `item "${itemId}" declares no use effect — it cannot be used.`,
+        }),
+      ];
+    }
+    // F-E15: an item-only synthetic action; spells never ride this path (DD17a).
+    const def: ActionDef = { cost: {}, effect: item.use };
+    const restriction = this.restrictionRejection(actor, def);
+    if (restriction !== undefined) {
+      return [this.rejectionEvent(actorId, restriction)];
+    }
+    const targetId = options.target ?? actorId;
+    const target = this.state.combatants[targetId];
+    if (target === undefined) {
+      return [
+        this.rejectionEvent(actorId, {
+          kind: 'unknown-target',
+          rule: 'E-REF-01',
+          resource: targetId,
+          message: `target "${targetId}" is not in this fight.`,
+        }),
+      ];
+    }
+    const used = actor.itemsUsed[itemId] ?? 0;
+    const remaining = (actor.itemBalances[itemId] ?? 0) - used;
+    if (remaining <= 0) {
+      return [
+        this.rejectionEvent(actorId, {
+          kind: 'no-charges',
+          rule: 'E-REF-01',
+          resource: itemId,
+          message: `combatant "${actorId}" has no "${itemId}" charges left (${used} of ${actor.itemBalances[itemId] ?? 0} spent).`,
+        }),
+      ];
+    }
+
+    actor.itemsUsed = { ...actor.itemsUsed, [itemId]: used + 1 };
+    const rule = `content.items.${itemId}`;
+    this.setClock();
+    const usedEvent = this.runtime.events.emit({
+      type: 'item:used',
+      actor: actorId,
+      target: targetId,
+      payload: { itemId, remaining: remaining - 1 },
+      why: { rule, rolls: [] },
+    });
+    const effectEvents = this.execute(actor, { id: itemId, def, ast }, target, rule);
+    this.endIfSideDefeated();
+    this.surfaceOffers(effectEvents);
+    return [usedEvent, ...effectEvents];
+  }
+
   /** Answer an offered trigger (api-map: fight.respond). */
   respond(triggerId: string, choice: 'take' | 'decline', targetId?: string): readonly RuntimeEvent[] {
     const index = this.pendingTriggers.findIndex((offer) => offer.triggerId === triggerId);
@@ -618,6 +731,30 @@ export class Combat {
     def: ActionDef,
     target: CombatantState,
   ): readonly RuntimeEvent[] {
+    this.execute(actor, this.boundActionOf(actionId, def), target, this.ruleBaseOf(actionId));
+    this.state = { ...this.state, phase: 'resolved' };
+    this.runtime.events.emit({
+      type: 'action:resolved',
+      actor: actor.id,
+      payload: { actionId, targetId: target.id },
+      why: { rule: `${this.ruleBaseOf(actionId)}`, rolls: [] },
+    });
+    this.endIfSideDefeated();
+    return this.runtime.events.sinceRound(this.state.round);
+  }
+
+  /**
+   * Run a bound effect for one target through the executor: mutations land on
+   * state as `damage:applied` / `condition:applied`, attack verdicts as
+   * `attack:rolled`, every event provenanced by `rule`. Returns the events it
+   * emitted; the rng state is saved afterwards.
+   */
+  private execute(
+    actor: CombatantState,
+    boundAction: BoundAction,
+    target: CombatantState,
+    rule: string,
+  ): RuntimeEvent[] {
     const emitted: RuntimeEvent[] = [];
     const sink = (event: RuntimeEvent) => {
       emitted.push(event);
@@ -628,7 +765,6 @@ export class Combat {
       // The attack gate: the executor's damage callbacks only land when the
       // pending attack for this target hit. One action = one attack verdict.
       let attackLanded: boolean | undefined;
-      const boundAction = this.boundActionOf(actionId, def);
       const outcomes = executeAgainst(
         boundAction,
         { id: actor.id, side: actor.side, profile: this.profileOf(actor) },
@@ -641,9 +777,9 @@ export class Combat {
           const subject = this.state.combatants[request.targetId] ?? target;
           const isDamage = request.kind === 'damage';
           if (isDamage && attackLanded === false) return; // onHit anatomy: gated damage never applies
+          const hpBefore = subject.hp.current; // captured before the (possibly clamped) mutation
           this.applyMutation(subject, request);
-          const hpBefore = isDamage ? this.hpBefore(subject, request.amount ?? 0) : undefined;
-          const event = this.runtime.events.emit({
+          this.runtime.events.emit({
             type: isDamage ? 'damage:applied' : 'condition:applied',
             actor: actor.id,
             target: request.targetId,
@@ -651,18 +787,11 @@ export class Combat {
               ? {
                   amount: request.amount,
                   type: request.damageType,
-                  hp:
-                    hpBefore === undefined
-                      ? undefined
-                      : `${hpBefore}→${this.state.combatants[subject.id]!.hp.current}`,
+                  hp: `${hpBefore}→${subject.hp.current}`,
                 }
               : { conditionId: request.conditionId, duration: request.duration },
-            why: {
-              rule: `${this.ruleBaseOf(actionId)}`,
-              rolls: request.rolls.map((roll) => displayRoll(roll)),
-            },
+            why: { rule, rolls: request.rolls.map((roll) => displayRoll(roll)) },
           });
-          void event;
         },
         (shape) => this.resolveShape(shape, actor, target),
       );
@@ -671,29 +800,20 @@ export class Combat {
       for (const outcome of flattenResolutions(outcomes)) {
         if (outcome.kind === 'attack') {
           attackLanded = outcome.hit;
-          emitted.push(
-            this.runtime.events.emit({
-              type: 'attack:rolled',
-              actor: actor.id,
-              target: outcome.targetId,
-              payload: { actionId, verdict: outcome.roll.verdict, total: outcome.roll.total },
-              why: { rule: `${this.ruleBaseOf(actionId)}.attackBonus`, rolls: [displayRoll(outcome.roll)] },
-            }),
-          );
+          this.runtime.events.emit({
+            type: 'attack:rolled',
+            actor: actor.id,
+            target: outcome.targetId,
+            payload: { actionId: boundAction.id, verdict: outcome.roll.verdict, total: outcome.roll.total },
+            why: { rule: `${rule}.attackBonus`, rolls: [displayRoll(outcome.roll)] },
+          });
         }
       }
     } finally {
       this.runtime.events.off(sink);
     }
-    this.state = { ...this.state, phase: 'resolved', rng: this.rng.getState() };
-    this.runtime.events.emit({
-      type: 'action:resolved',
-      actor: actor.id,
-      payload: { actionId, targetId: target.id },
-      why: { rule: `${this.ruleBaseOf(actionId)}`, rolls: [] },
-    });
-    this.endIfSideDefeated();
-    return this.runtime.events.sinceRound(this.state.round);
+    this.state = { ...this.state, rng: this.rng.getState() };
+    return emitted;
   }
 
   /**
@@ -778,6 +898,7 @@ export class Combat {
       saves: state.saves,
       level: state.level,
       hp: state.hp.current,
+      maxHp: state.maxHp,
       ac: state.ac,
       initiativeBonus: state.initiativeBonus,
       actions: state.actions,
@@ -792,7 +913,15 @@ export class Combat {
 
   private applyMutation(target: CombatantState, request: MutationRequest): void {
     if (request.kind === 'damage' && request.amount !== undefined) {
-      target.hp.current -= request.amount;
+      // CA-EG4 (R-2): a heal is a negative amount — never above maxHp, never
+      // lowering hp already above it. Damage keeps today's unfloored semantics.
+      const current = target.hp.current;
+      target.hp.current =
+        request.amount >= 0
+          ? current - request.amount
+          : current >= target.maxHp
+            ? current
+            : Math.min(target.maxHp, current - request.amount);
     } else if (request.kind === 'condition' && request.conditionId !== undefined) {
       const def = this.runtime.pack.content.conditions?.[request.conditionId];
       target.conditions.push({
@@ -800,10 +929,6 @@ export class Combat {
         duration: request.duration ?? def?.duration ?? 1,
       });
     }
-  }
-
-  private hpBefore(target: CombatantState, amount: number): number {
-    return target.hp.current + amount;
   }
 
   private rejectionEvent(actorId: string, rejection: DeclareRejection): RuntimeEvent {

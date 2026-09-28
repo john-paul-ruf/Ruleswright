@@ -42,8 +42,9 @@ export interface CharacterCombatant {
  * - `actions` is the union of the character's class action lists in class
  *   order, first occurrence wins. None at all → `RuntimeRuleError`
  *   (`no-combat-actions`).
- * - `balances` carries the character's pool points and, per spell level, the
- *   count of bound (memorized) slots.
+ * - `balances` carries the character's pool points, per spell level the count
+ *   of bound (memorized) slots, and (CA-EG5) the held qty of every consumable
+ *   (an item with a parse-once `use` effect) — the fight's item charges.
  * - Active conditions are NOT carried (v1: `StartCombatRequest` has no field).
  */
 export function profileFromCharacter(
@@ -80,6 +81,10 @@ export function profileFromCharacter(
   for (const [level, bindings] of Object.entries(state.slots)) {
     boundSlots[level] = bindings.filter((binding) => binding !== null).length;
   }
+  const items: Record<string, number> = {};
+  for (const entry of state.inventory) {
+    if (runtime.index.itemEffects[entry.id] !== undefined) items[entry.id] = entry.qty;
+  }
 
   return {
     profile: {
@@ -96,7 +101,7 @@ export function profileFromCharacter(
       ...(derived.attackBonus !== undefined ? { attackBonus: derived.attackBonus } : {}),
       ...(attackTable !== undefined ? { attackTable } : {}),
     },
-    balances: { pools: { ...state.pools }, boundSlots },
+    balances: { pools: { ...state.pools }, boundSlots, items },
   };
 }
 

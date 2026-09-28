@@ -456,3 +456,188 @@ describe('the end-of-combat rule (D-26: combat.sideDefeated)', () => {
     expect(restored.state.rng).toEqual(fight.state.rng);
   });
 });
+
+/**
+ * CAP-E4 combat leg / CA-EG4 / CA-EG5 (equipment-consumables S05 ck2): `fight.use`
+ * spends a host-stated item charge and runs the item's `use` effect through the
+ * executor; a heal is a negative-amount damage mutation clamped at `maxHp` (R-2).
+ * `field-dose` (heal(5)) is added in-test; `mend-salve` (heal(1d6 + 2)) and
+ * `scale-coat` (no use) are the fixture's.
+ */
+interface ItemSide {
+  readonly id: string;
+  readonly hp?: number;
+  readonly maxHp?: number;
+  readonly actions?: readonly string[];
+  readonly initiativeBonus: number;
+  readonly items?: Readonly<Record<string, number>>;
+}
+
+function itemFight(
+  allies: readonly ItemSide[],
+  enemies: readonly ItemSide[] = [{ id: 'wight', actions: ['wight-claw'], initiativeBonus: 0 }],
+): { fight: Combat; events: RuntimeEvent[] } {
+  const pack = emberMarchesPack();
+  pack.content.items!['field-dose'] = { name: 'Field Dose', kind: 'consumable', use: 'heal(5)' };
+  const runtime = new Runtime(pack);
+  const events: RuntimeEvent[] = [];
+  runtime.events.on((event) => {
+    events.push(event);
+  });
+  const side = (member: ItemSide) => {
+    const base = profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, member.id);
+    return {
+      id: member.id,
+      profile: {
+        ...base,
+        actions: [...(member.actions ?? ['withdraw'])],
+        hp: member.hp ?? base.hp,
+        maxHp: member.maxHp ?? base.maxHp,
+        initiativeBonus: member.initiativeBonus,
+      },
+      balances: { pools: { stamina: 10 }, items: { ...(member.items ?? {}) } },
+    };
+  };
+  const fight = startCombat(runtime, {
+    allies: allies.map(side),
+    enemies: enemies.map(side),
+    rng: new Rng('item-use'),
+  });
+  fight.step(); // the first ally's turn begins
+  return { fight, events };
+}
+
+const MEDIC: ItemSide = { id: 'brynn', initiativeBonus: 100, items: { 'field-dose': 2, 'mend-salve': 1 } };
+
+describe('fight.use — consumables in combat (CAP-E4, CA-EG4, CA-EG5)', () => {
+  it('heals a damaged ally by the roll, clamped at maxHp, with exact before→after', () => {
+    const { fight, events } = itemFight([MEDIC, { id: 'sera', hp: 4, maxHp: 12, initiativeBonus: 50 }]);
+    expect(fight.state.active).toBe('brynn');
+    const first = fight.use('field-dose', { target: 'sera' });
+    expect(first.map((event) => event.type)).toEqual(['item:used', 'damage:applied']);
+    expect(first[0]!.payload).toEqual({ itemId: 'field-dose', remaining: 1 });
+    expect(first[1]!.actor).toBe('brynn');
+    expect(first[1]!.target).toBe('sera');
+    expect(first[1]!.payload).toEqual({ amount: -5, type: undefined, hp: '4→9' });
+    const second = fight.use('field-dose', { target: 'sera' });
+    expect(second[1]!.payload['amount']).toBe(-5);
+    expect(second[1]!.payload['hp']).toBe('9→12');
+    expect(fight.state.combatants['sera']!.hp.current).toBe(12);
+    expect(fight.state.combatants['brynn']!.itemsUsed).toEqual({ 'field-dose': 2 });
+    expect(events.filter((event) => event.type === 'item:used')).toHaveLength(2);
+  });
+
+  it('a heal at full hp leaves hp unchanged (X→X)', () => {
+    const { fight } = itemFight([{ ...MEDIC, hp: 12, maxHp: 12 }]);
+    const [, healed] = fight.use('field-dose');
+    expect(healed!.target).toBe('brynn');
+    expect(healed!.payload['hp']).toBe('12→12');
+    expect(fight.state.combatants['brynn']!.hp.current).toBe(12);
+  });
+
+  it('over-cap (R-2): a combatant above maxHp is healed → hp unchanged, event X→X, never lowered', () => {
+    const { fight } = itemFight([{ ...MEDIC, hp: 15, maxHp: 12 }]);
+    const [, healed] = fight.use('field-dose');
+    expect(healed!.payload).toEqual({ amount: -5, type: undefined, hp: '15→15' });
+    expect(fight.state.combatants['brynn']!.hp.current).toBe(15);
+    expect(fight.state.combatants['brynn']!.itemsUsed).toEqual({ 'field-dose': 1 });
+  });
+
+  it('use after combat-over (R-3) throws like declare: no event, no ledger change', () => {
+    const { fight, events } = itemFight(
+      [{ ...MEDIC, actions: ['surge'] }],
+      [{ id: 'wight', actions: ['wight-claw'], hp: 1, initiativeBonus: 0 }],
+    );
+    fight.declare('surge');
+    expect(fight.state.phase).toBe('combat-over');
+    const count = events.length;
+    const sink: RuntimeEvent[] = [];
+    fight.runtime.events.on((event) => {
+      sink.push(event);
+    });
+    expect(() => fight.use('field-dose')).toThrow('combat is over');
+    expect(sink).toEqual([]);
+    expect(events).toHaveLength(count);
+    expect(fight.state.combatants['brynn']!.itemsUsed).toEqual({});
+  });
+
+  it('the maxHp fallback floors at 0 (R-9): no profile maxHp and hp −3 → maxHp 0', () => {
+    const runtime = new Runtime(emberMarchesPack());
+    const base = profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'brynn');
+    const uncapped: CombatantProfile = { ...base, hp: -3 };
+    delete (uncapped as { maxHp?: number }).maxHp;
+    const fight = startCombat(runtime, {
+      allies: [{ id: 'brynn', profile: uncapped }],
+      enemies: [{ id: 'wight', profile: { ...base, maxHp: undefined, hp: 7 } }],
+    });
+    expect(fight.state.combatants['brynn']!.maxHp).toBe(0);
+    expect(fight.state.combatants['wight']!.maxHp).toBe(7);
+  });
+
+  it('charge exhaustion → no-charges; no item:used, no heal, ledger unchanged', () => {
+    const { fight, events } = itemFight([{ ...MEDIC, hp: 3, items: { 'field-dose': 1 } }]);
+    fight.use('field-dose');
+    const hp = fight.state.combatants['brynn']!.hp.current;
+    const count = events.length;
+    const rejected = fight.use('field-dose');
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0]!.type).toBe('declare:rejected');
+    expect(rejected[0]!.payload['kind']).toBe('no-charges');
+    expect(rejected[0]!.payload['resource']).toBe('field-dose');
+    expect(events.slice(count).map((event) => event.type)).toEqual(['declare:rejected']);
+    expect(fight.state.combatants['brynn']!.hp.current).toBe(hp);
+    expect(fight.state.combatants['brynn']!.itemsUsed).toEqual({ 'field-dose': 1 });
+    // An item the host never stated has no charges either.
+    expect(
+      itemFight([{ id: 'brynn', initiativeBonus: 100 }]).fight.use('field-dose')[0]!.payload['kind'],
+    ).toBe('no-charges');
+  });
+
+  it('not-consumable and unknown-item reject with no change', () => {
+    const { fight } = itemFight([MEDIC]);
+    const before = fight.serialize();
+    const worn = fight.use('scale-coat');
+    expect(worn.map((event) => [event.type, event.payload['kind']])).toEqual([
+      ['declare:rejected', 'not-consumable'],
+    ]);
+    const unknown = fight.use('moon-rock');
+    expect(unknown.map((event) => [event.type, event.payload['kind']])).toEqual([
+      ['declare:rejected', 'unknown-item'],
+    ]);
+    const lost = fight.use('field-dose', { target: 'nobody' });
+    expect(lost[0]!.payload['kind']).toBe('unknown-target');
+    expect(fight.serialize()).toEqual(before);
+  });
+
+  it('provenance: why.rule content.items.<id>, why.rolls carry the negated heal roll; no slot spent, turn kept', () => {
+    const { fight } = itemFight([{ ...MEDIC, hp: 1, maxHp: 30 }]);
+    const slots = { ...fight.state.combatants['brynn']!.slots.remaining };
+    const [used, healed] = fight.use('mend-salve');
+    expect(used!.why).toEqual({ rule: 'content.items.mend-salve', rolls: [] });
+    expect(healed!.why.rule).toBe('content.items.mend-salve');
+    expect(healed!.why.rolls).toHaveLength(1);
+    const amount = healed!.payload['amount'] as number;
+    expect(amount).toBeLessThanOrEqual(-3);
+    expect(amount).toBeGreaterThanOrEqual(-8);
+    expect(healed!.why.rolls[0]).toBe(`d6[${amount + 2}]-2=${amount}`);
+    expect(healed!.payload['hp']).toBe(`1→${1 - amount}`);
+    expect(fight.state.phase).toBe('awaiting-declare');
+    expect(fight.state.active).toBe('brynn');
+    expect(fight.state.combatants['brynn']!.slots.remaining).toEqual(slots);
+    expect(fight.declare('withdraw').some((event) => event.type === 'declare:rejected')).toBe(false);
+  });
+
+  it('regression: an attack’s damage display is unchanged (positive amount, before→before−amount)', () => {
+    const { fight, events } = journeyFight();
+    stepToDeclare(fight, 'wight');
+    fight.step();
+    const before = fight.state.combatants['brynn']!.hp.current;
+    fight.declare('wight-claw');
+    const damage = events.find((event) => event.type === 'damage:applied');
+    expect(damage).toBeDefined(); // the journey seed's claw hits (see the first journey test)
+    const amount = damage!.payload['amount'] as number;
+    expect(amount).toBeGreaterThan(0);
+    expect(damage!.payload['hp']).toBe(`${before}→${before - amount}`);
+    expect(damage!.why.rolls[0]).toMatch(/^d6\[\d+\]=\d+$/);
+  });
+});

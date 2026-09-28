@@ -444,12 +444,15 @@ export function deserializeCombat(
       side: entry.side,
       name: entry.id,
       hp: { current: frozenState.hp },
+      maxHp: entry.profile.maxHp ?? Math.max(0, entry.profile.hp),
       conditions:
         frozenState.conditions?.map((active) => ({ conditionId: active.id, duration: active.remaining })) ??
         [],
       slots: { remaining: { ...frozenState.slotsUsed } },
       pools: { ...(entry.balances?.pools ?? {}) },
       boundSlots: { ...(entry.balances?.boundSlots ?? {}) },
+      itemBalances: { ...(entry.balances?.items ?? {}) },
+      itemsUsed: {},
       abilities: { ...entry.profile.abilities },
       saves: { ...entry.profile.saves },
       level: entry.profile.level,

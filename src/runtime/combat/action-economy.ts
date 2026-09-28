@@ -71,6 +71,8 @@ export interface EconomyBalances {
   readonly pools?: Readonly<Record<string, number>>;
   /** Spell level -> remaining bound slots (each binding holds a memorized spell id; casting consumes one). */
   readonly boundSlots?: Readonly<Record<string, number>>;
+  /** Item id -> held count of a consumable at fight start (CA-EG5): the fight's item charges, fixed for the fight. */
+  readonly items?: Readonly<Record<string, number>>;
 }
 
 /** Why an unaffordable action cannot fire: the exact resource and how much is missing. */
