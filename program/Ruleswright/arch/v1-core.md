@@ -555,3 +555,16 @@ this pass; original text recoverable at `b671a37`.) -->
 - `ThemeTemplate.equipSlots?: readonly string[]` (`src/compiler/theme.ts`) — v1.4 (CA-EG1): the optional equip-slot vocabulary, section-keyed like the pack's root `equipSlots`, no theme-side renaming.
 - `runPipeline` (`src/compiler/pipeline.ts`): `STAGE_INPUT_SECTIONS` gains `'equipSlots'` (after `'spatial'`, so `#knob/` tokens resolve uniformly); after the spatial pass-through, `themeView.equipSlots` is `structuredClone`d into `pack.equipSlots`. Absent in the theme ⇒ the pack carries no `equipSlots` key. The theme object is never mutated (spatial precedent).
 - Bundled themes (all three) now declare root `equipSlots` and reference `gear-hp` / `gear-ac` / `gear-initiative` in their reserved formulas (descending AC: `… - gear-ac`). Unequipped values are byte-identical to pre-v1.4.
+
+<!-- equipment-consumables SESSION-05 -->
+## equipment-consumables SESSION-05 — M03 Runtime public API delta
+
+- `CombatantProfile.maxHp?: number` (`combat/resolve.ts`) — the heal cap. `profileFromStatblock` sets it to its evaluated `hp`; `profileFromCharacter` sets it to `derived().hp`.
+- `profileFromCharacter` (`character-profile.ts`) now composes over `equipmentView`: `abilities`/`saves` = view values (grants added); initiative base = `{...view.abilities, ...view.saves, level, ...view.gear}`; `balances.items` = held qty of every consumable (items in `runtime.index.itemEffects`).
+- `EconomyBalances.items?: Record<string, number>` (`combat/action-economy.ts`) — host-stated item charges, like `pools`/`boundSlots`.
+- `CombatantState` gains `maxHp: number` (`profile.maxHp ?? max(0, profile.hp)`), `itemBalances: Record<string, number>` (fixed for the fight) and `itemsUsed: Record<string, number>` (units spent).
+- `Combat.use(itemId: string, options?: UseOptions): readonly RuntimeEvent[]`, with `UseOptions { target?: string }` (exported). Gates: `combat-over` throws `combat is over` → `unknown-item` → `not-consumable` → restriction (synthetic item-only action) → `unknown-target` → `no-charges`. Each rejection is one `declare:rejected` event. On success it emits `item:used` `{itemId, remaining}` and runs the effect with `why.rule` `content.items.<id>`. It consumes no slot and does not end the turn. `DeclareRejection` kinds gain `unknown-item` | `not-consumable` | `no-charges`.
+- Combat `applyMutation`: a negative-amount damage (heal) clamps per R-2. `hpBefore` is captured before the mutation. The private `resolve` is split into `execute` (the shared executor path), which is used by `declare`, `respond` and `use`.
+- `settleItemUses(runtime, character, fight, combatantId?): readonly RuntimeEvent[]` (`character-profile.ts`, barrel-exported) — the host-called inverse of `profileFromCharacter`.
+- `checkPackDsl` also checks `content.items.<id>.use` (kind `effect`).
+- Snapshots: `SnapshotCharacterState.equipped?: readonly SnapshotEquippedEntry[]` (new exported type `{slot, itemId}`, presence-preserving, restore-validated); `SnapshotCombatant.itemsUsed?` (spent, emitted when non-empty) and `maxHp?` (always emitted). Restore precedence: `maxHp` = snapshot → `profile.maxHp` → `max(0, profile.hp)`.
