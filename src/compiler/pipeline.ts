@@ -53,6 +53,7 @@ const STAGE_INPUT_SECTIONS: readonly string[] = [
   'stats',
   'economy',
   'spatial',
+  'equipSlots',
   'actions',
   'formulas',
   'content',
@@ -147,6 +148,11 @@ export function runPipeline(
   // by generation. Absent = theater of mind — the pack carries no spatial key.
   if (themeView.spatial !== undefined) {
     pack['spatial'] = structuredClone(themeView.spatial);
+  }
+  // The optional equip-slot vocabulary (v1.4) passes through the same way; absent = the
+  // pack carries no equipSlots key.
+  if (themeView.equipSlots !== undefined) {
+    pack['equipSlots'] = structuredClone(themeView.equipSlots);
   }
 
   for (const stage of stages) {

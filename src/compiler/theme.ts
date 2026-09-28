@@ -48,7 +48,7 @@ export interface ThemeTemplate {
   knobs?: Readonly<Record<string, KnobDecl>>;
   /** The theme's authoring notes: the documented example override (FR-19 anchor) lives here. */
   readme?: string;
-  /** Stage inputs, section-keyed like the pack (stats/actions/economy?/spatial?/formulas/content/progression/bestiary/tables). */
+  /** Stage inputs, section-keyed like the pack (stats/actions/economy?/spatial?/equipSlots?/formulas/content/progression/bestiary/tables). */
   stats: PackStats;
   economy?: PackEconomy;
   /**
@@ -57,6 +57,12 @@ export interface ThemeTemplate {
    * `{model: 'grid', reach: {default, <id>: n}, shapes?}` (spatial.html's anatomy; FR-11).
    */
   spatial?: SpatialDef;
+  /**
+   * The optional equip-slot vocabulary (v1.4, CA-EG1) — section-keyed like the pack, the
+   * same list the pack's root `equipSlots` carries (no theme-side renaming); items' `slots`
+   * resolve here.
+   */
+  equipSlots?: readonly string[];
   actions?: Record<string, ActionDef>;
   formulas?: Record<string, FormulaDef>;
   content?: PackContent;

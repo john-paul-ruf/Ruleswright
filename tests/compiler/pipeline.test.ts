@@ -394,6 +394,36 @@ describe('spatial pass-through (v1.3, FR-11) — theme input to pack section (CA
   });
 });
 
+describe('equipSlots pass-through (v1.4, CA-EG1) — theme input to pack root', () => {
+  it('a theme with equipSlots: the generated pack.equipSlots deep-equals the declaration and slotted items clear stage 8', () => {
+    const theme = microTheme();
+    theme.equipSlots = ['body', 'main-hand'];
+    theme.content!.items!['ember-oil'] = {
+      name: 'Ember Oil',
+      kind: 'mail',
+      slots: ['body'],
+      grants: { ac: 1, armor: 1 },
+    };
+    const pack = runPipeline(theme, 42);
+    expect(pack.equipSlots).toEqual(['body', 'main-hand']);
+    expect(pack.content.items?.['ember-oil']?.slots).toEqual(['body']);
+    expect(validatePack(pack, packDslChecker)).toEqual([]);
+  });
+
+  it('a theme without equipSlots: the generated pack carries no equipSlots key', () => {
+    const pack = runPipeline(microTheme(), 42);
+    expect('equipSlots' in pack).toBe(false);
+  });
+
+  it('generation never mutates the theme’s equipSlots declaration (the clone discipline)', () => {
+    const theme = microTheme();
+    theme.equipSlots = ['body', 'main-hand'];
+    const pack = runPipeline(theme, 42);
+    pack.equipSlots!.push('charm');
+    expect(theme.equipSlots).toEqual(['body', 'main-hand']);
+  });
+});
+
 describe('the bundled themes ship spatial (CAP-G6)', () => {
   it('each generated pack carries model grid with an integer >= 1 at every reach key', () => {
     for (const theme of [DARK_FANTASY, ZOMBIE_URBAN, WYLDWOOD]) {
