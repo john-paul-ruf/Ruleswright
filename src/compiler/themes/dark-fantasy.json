@@ -39,6 +39,7 @@
     "reach": { "default": 1, "barrow-wight": 2 },
     "shapes": ["single", "burst"]
   },
+  "equipSlots": ["body", "main-hand"],
   "actions": {
     "strike": {
       "cost": { "slots": { "main": 1 } },
@@ -102,9 +103,9 @@
     }
   },
   "formulas": {
-    "hp": { "expr": "6 + level + vigor * 2" },
-    "ac": { "expr": "12 - floor(level / 3)" },
-    "initiative": { "expr": "d20 + grace" },
+    "hp": { "expr": "6 + level + vigor * 2 + gear-hp" },
+    "ac": { "expr": "12 - floor(level / 3) - gear-ac" },
+    "initiative": { "expr": "d20 + grace + gear-initiative" },
     "ember": { "expr": "8 + insight" }
   },
   "content": {
@@ -444,8 +445,18 @@
       "hexsight": { "name": "Hexsight", "duration": 5, "stacking": "ignore" }
     },
     "items": {
-      "oaken-cudgel": { "name": "Oaken Cudgel", "kind": "weapon" },
-      "warded-mail": { "name": "Warded Mail", "kind": "armor" },
+      "oaken-cudgel": {
+        "name": "Oaken Cudgel",
+        "kind": "weapon",
+        "slots": ["main-hand"],
+        "grants": { "might": 1 }
+      },
+      "warded-mail": {
+        "name": "Warded Mail",
+        "kind": "mail",
+        "slots": ["body"],
+        "grants": { "ac": 2, "armor": 1 }
+      },
       "grave-ward": { "name": "Grave Ward", "kind": "charm" },
       "tallow-lantern": { "name": "Tallow Lantern", "kind": "gear" },
       "hearth-bread": { "name": "Hearth Bread", "kind": "provision" },
