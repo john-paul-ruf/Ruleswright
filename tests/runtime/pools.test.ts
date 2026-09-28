@@ -146,3 +146,73 @@ describe('pool capacities over the equipment view (CA-EG2)', () => {
     expect(vex.state.pools.stamina).toBe(22);
   });
 });
+
+describe('CAP-E3 — armorCasting gates the slot cast (CA-EG3)', () => {
+  function hexerIn(pack = cloneRuntimePack()) {
+    const runtime = new Runtime(pack);
+    const hexer = runtime.createCharacter({
+      name: 'Vex',
+      race: 'ashkin',
+      classes: [{ id: 'hexer', level: 2 }],
+    });
+    hexer.grant('chain-shirt'); // kind mail, grants.armor — the armor marker
+    prepareSpell(runtime, hexer.state, 'grave-light');
+    return { runtime, hexer };
+  }
+
+  it('a class lacking the kind is rejected armor-not-castable, the slot still bound, no event', () => {
+    const { runtime, hexer } = hexerIn();
+    hexer.equip('chain-shirt', 'body');
+    const before = JSON.stringify(hexer.state);
+    const eventsBefore = runtime.events.sinceRound(0).length;
+    try {
+      castSpell(runtime, hexer.state, 'grave-light');
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(RuntimeRuleError);
+      expect((error as RuntimeRuleError).errors[0]!.rule).toBe('armor-not-castable');
+    }
+    expect(hexer.state.slots['1']).toEqual(['grave-light']);
+    expect(JSON.stringify(hexer.state)).toBe(before);
+    expect(runtime.events.sinceRound(0).length).toBe(eventsBefore);
+  });
+
+  it('the same character casts after unequipping the armor', () => {
+    const { runtime, hexer } = hexerIn();
+    hexer.equip('chain-shirt', 'body');
+    expect(() => hexer.cast('grave-light')).toThrow(/armorCasting/);
+    hexer.unequip('body');
+    const event = castSpell(runtime, hexer.state, 'grave-light');
+    expect(event.type).toBe('spell:cast');
+    expect(hexer.state.slots['1']).toEqual([null]);
+  });
+
+  it('a class listing the kind casts while the armor is equipped', () => {
+    const pack = cloneRuntimePack();
+    pack.content.classes!['hexer']!.armorCasting = ['mail'];
+    const { runtime, hexer } = hexerIn(pack);
+    hexer.equip('chain-shirt', 'body');
+    expect(castSpell(runtime, hexer.state, 'grave-light').type).toBe('spell:cast');
+  });
+
+  it("non-armor gear never blocks, and any one of the character's classes listing the kind suffices", () => {
+    const { runtime, hexer } = hexerIn();
+    hexer.grant('ashwood-blade');
+    hexer.equip('ashwood-blade', 'main-hand');
+    expect(castSpell(runtime, hexer.state, 'grave-light').type).toBe('spell:cast');
+
+    const multi = new Runtime(cloneRuntimePack());
+    const sela = multi.createCharacter({
+      name: 'Sela',
+      race: 'ashkin',
+      classes: [
+        { id: 'warden', level: 1 },
+        { id: 'hexer', level: 2 },
+      ],
+    });
+    sela.grant('chain-shirt');
+    sela.equip('chain-shirt', 'body'); // warden lists mail
+    prepareSpell(multi, sela.state, 'grave-light');
+    expect(castSpell(multi, sela.state, 'grave-light').type).toBe('spell:cast');
+  });
+});

@@ -36,9 +36,11 @@ import {
 import {
   equipItem as equipItemFn,
   unequipItem as unequipItemFn,
+  useItem as useItemFn,
   equipmentView,
   equipmentScope,
   type EquippedEntry,
+  type UseItemOptions,
 } from './equipment';
 import type { RuntimeEvent } from './events';
 import { validateBuild, buildCharacter, CharacterBuildError } from './progression';
@@ -178,6 +180,11 @@ export class Character {
   /** CAP-E2 — free a slot (equipment.ts). */
   unequip(slot: string): void {
     unequipItemFn(this.runtime, this.state, slot);
+  }
+
+  /** CAP-E4 — use one unit of a consumable out of combat; returns item:used + the effect's events (equipment.ts). */
+  useItem(itemId: string, opts?: UseItemOptions): readonly RuntimeEvent[] {
+    return useItemFn(this.runtime, this.state, itemId, opts);
   }
 
   /** CAP-02 — roll a pack loot table through the one table engine into inventory (inventory.ts). */

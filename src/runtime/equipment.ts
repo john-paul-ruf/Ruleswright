@@ -12,14 +12,25 @@
  * `equippedUnits` is the ONE equipped-unit rule (R-5): the equip held check,
  * `dropItem`'s guard, `useItem`'s guard and combat settlement all call it.
  *
+ * Out-of-combat consumables (CAP-E4/CA-EG5): `useItem` consumes one unit and
+ * runs the item's parse-once `use` effect against the character itself. A
+ * heal (a negative-amount damage request, CA-EG4) follows the R-2 rule:
+ * `after = current >= cap ? current : min(cap, current + heal)` with cap = the
+ * with-grants `hp` formula — never above the cap, never lowering hp already
+ * above it (legal after an unequip).
+ *
  * Runtime leaf (R-11): value imports are core, `./errors` and `./conditions`
  * only — character/pools/inventory import this module, never the reverse.
  */
-import { EQUIPMENT_SCALARS } from '../core/dsl/formula';
+import type { RollResult } from '../core/dice';
+import { executeEffect, type EffectApply } from '../core/dsl/effect';
+import { EQUIPMENT_SCALARS, evalFormula, valueOfFormula } from '../core/dsl/formula';
+import { Rng, type RandomSource } from '../core/rng';
 import type { Runtime } from './runtime';
 import type { CharacterState } from './character';
 import { RuntimeRuleError, ruleCard } from './errors';
 import type { RuntimeEvent } from './events';
+import { applyCondition } from './conditions';
 
 /** One occupied slot: plain data; one item per slot; the slot is a pack `equipSlots` id. */
 export interface EquippedEntry {
@@ -192,4 +203,153 @@ export function unequipItem(runtime: Runtime, state: CharacterState, slot: strin
     payload: { itemId: removed!.itemId, slot },
     why: { rule: `content.items.${removed!.itemId}`, rolls: [] },
   });
+}
+
+/** The use call's optional entropy steering: an injected source wins over the seed (FR-1, the grantLoot precedent). */
+export interface UseItemOptions {
+  readonly seed?: number | string;
+  readonly rng?: RandomSource;
+}
+
+/**
+ * CAP-E4/CA-EG5 — use one unit of a consumable out of combat. Gates, in order:
+ * `unknown-item`, `not-consumable`, `item-not-held`, `insufficient-qty`,
+ * `item-equipped` (the `dropItem` rule, R-5) — no state change on rejection.
+ * Then one unit leaves the inventory (the entry at 0), `item:used` is emitted,
+ * and the effect executes against the character; its own events follow
+ * (`damage:applied` per damage/heal request, `condition:applied` per condition).
+ */
+export function useItem(
+  runtime: Runtime,
+  state: CharacterState,
+  itemId: string,
+  opts?: UseItemOptions,
+): readonly RuntimeEvent[] {
+  if (runtime.pack.content.items?.[itemId] === undefined) throw unknownItem(runtime, itemId);
+  const effect = runtime.index.itemEffects[itemId];
+  if (effect === undefined) {
+    throw new RuntimeRuleError([
+      ruleCard(
+        'not-consumable',
+        itemId,
+        `content.items.${itemId}.use`,
+        `"${itemId}" declares no use effect — it cannot be used.`,
+      ),
+    ]);
+  }
+  const index = state.inventory.findIndex((entry) => entry.id === itemId);
+  if (index === -1) {
+    throw new RuntimeRuleError([
+      ruleCard('item-not-held', itemId, 'inventory', `"${state.id}" holds no "${itemId}" — nothing to use.`),
+    ]);
+  }
+  const held = state.inventory[index]!.qty;
+  if (held < 1) {
+    throw new RuntimeRuleError([
+      ruleCard(
+        'insufficient-qty',
+        itemId,
+        'inventory',
+        `"${itemId}" is held x${held}; using 1 would overdraw — rejected, no state changed.`,
+      ),
+    ]);
+  }
+  const worn = equippedUnits(state, itemId);
+  if (held - 1 < worn) {
+    throw new RuntimeRuleError([
+      ruleCard(
+        'item-equipped',
+        itemId,
+        'equipped',
+        `"${itemId}" is held x${held} with ${worn} equipped; using 1 would strand an equipped unit — unequip first.`,
+      ),
+    ]);
+  }
+
+  const view = equipmentView(runtime, state);
+  const scope = equipmentScope(view, state.level);
+  const cap = scopedFormula(runtime, 'hp', scope);
+  const vars: Record<string, number> = {
+    ...view.abilities,
+    ...view.saves,
+    level: state.level,
+    hp: state.hp.current,
+    ac: scopedFormula(runtime, 'ac', scope),
+    initiative:
+      runtime.index.formulaAsts['initiative'] === undefined ? 0 : scopedFormula(runtime, 'initiative', scope),
+  };
+  const rule = `content.items.${itemId}`;
+
+  if (held === 1) state.inventory.splice(index, 1);
+  else state.inventory[index]!.qty = held - 1;
+  const events: RuntimeEvent[] = [
+    runtime.events.emit({
+      type: 'item:used',
+      actor: state.id,
+      payload: { itemId, remaining: held - 1 },
+      why: { rule, rolls: [] },
+    }),
+  ];
+
+  const self = { id: state.id };
+  const apply: EffectApply = {
+    resolveTargets: () => [self],
+    damage: (_target, roll, type) => {
+      const before = state.hp.current;
+      const after =
+        roll.total < 0
+          ? before >= cap
+            ? before
+            : Math.min(cap, before - roll.total)
+          : Math.max(0, before - roll.total);
+      state.hp.current = after;
+      events.push(
+        runtime.events.emit({
+          type: 'damage:applied',
+          actor: state.id,
+          target: state.id,
+          payload: { amount: roll.total, type, hp: `${before}→${after}` },
+          why: { rule, rolls: [rollText(roll)] },
+        }),
+      );
+    },
+    condition: (_target, conditionId, duration) => {
+      const count = state.conditions.length;
+      events.push(applyCondition(runtime, state, conditionId));
+      // The effect's evaluated duration overrides the pack default on the entry
+      // this application created (stack/new) or refreshed; `ignore` touches none.
+      const touched =
+        state.conditions.length > count
+          ? state.conditions[state.conditions.length - 1]
+          : runtime.pack.content.conditions?.[conditionId]?.stacking === 'refresh'
+            ? state.conditions.find((active) => active.conditionId === conditionId)
+            : undefined;
+      if (touched !== undefined) touched.duration = duration;
+    },
+  };
+  executeEffect(effect, {
+    actor: state.id,
+    targets: [self],
+    rng: opts?.rng ?? new Rng(opts?.seed ?? itemId),
+    apply,
+    vars,
+  });
+  return events;
+}
+
+/** A pack formula over the character's equipment scope with the zero RNG — the scope and RNG `derived()` uses (CA-EG2). */
+function scopedFormula(runtime: Runtime, formulaId: string, scope: Readonly<Record<string, number>>): number {
+  const ast = runtime.index.formulaAsts[formulaId];
+  if (ast === undefined) {
+    throw new Error(
+      `formula "${formulaId}" missing at play time — Runtime load should have rejected the pack (E-REF-01)`,
+    );
+  }
+  return valueOfFormula(evalFormula(ast, scope, new Rng(0)));
+}
+
+/** The `why.rolls` display string (combat's `d<sides>[values]±mod=total` anatomy; combat.ts is not importable from this leaf, R-11). */
+function rollText(roll: RollResult): string {
+  const modifier = roll.modifier === 0 ? '' : roll.modifier > 0 ? `+${roll.modifier}` : `${roll.modifier}`;
+  return `d${roll.sides}[${roll.values.join(',')}]${modifier}=${roll.total}`;
 }

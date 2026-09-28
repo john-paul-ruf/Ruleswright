@@ -201,10 +201,31 @@ export function prepareSpell(
 }
 
 /**
+ * CA-EG3 — the first equipped armor item (armor marker: `grants.armor`) whose
+ * `kind` no class of the character lists in `armorCasting`, or undefined when
+ * the character may cast. A class without `armorCasting` casts in no armor.
+ */
+function armorBlockingCast(runtime: Runtime, character: CharacterState): string | undefined {
+  for (const entry of character.equipped ?? []) {
+    const item = runtime.pack.content.items?.[entry.itemId];
+    if (item?.grants?.['armor'] === undefined) continue;
+    const permitted = character.classes.some(
+      (cls) =>
+        item.kind !== undefined &&
+        (runtime.pack.content.classes?.[cls.id]?.armorCasting ?? []).includes(item.kind),
+    );
+    if (!permitted) return entry.itemId;
+  }
+  return undefined;
+}
+
+/**
  * FR-8 — casting consumes a BOUND slot of the spell's level: the slot must be
  * bound to this spell. An empty slot cannot cast; a slot bound to another
- * spell cannot cast this one. Rejections leave no durable change; success
- * empties the slot and emits `spell:cast`.
+ * spell cannot cast this one. Equipped armor whose kind no class lists in
+ * `armorCasting` blocks the cast (`armor-not-castable`, CA-EG3) before any
+ * slot is looked up. Rejections leave no durable change; success empties the
+ * slot and emits `spell:cast`.
  */
 export function castSpell(
   runtime: Runtime,
@@ -220,6 +241,18 @@ export function castSpell(
         spellId,
         'spells',
         `unknown spell "${spellId}" — not declared in content.spells.`,
+      ),
+    ]);
+  }
+  const blockingArmor = armorBlockingCast(runtime, character);
+  if (blockingArmor !== undefined) {
+    throw new RuntimeRuleError([
+      ruleCard(
+        'armor-not-castable',
+        spellId,
+        `content.items.${blockingArmor}`,
+        `"${blockingArmor}" is equipped armor of a kind none of the character's classes lists in armorCasting — no slot cast (FR-9).`,
+        'unequip the armor, or cast as a class whose armorCasting lists its kind',
       ),
     ]);
   }
