@@ -201,6 +201,92 @@ dark-fantasy pack (seed 42); this example is executed by that test (NFR-DX).
   ⇒ identical rolls on Node, browsers, Electron (FR-1, FR-17; the Node matrix is
   verified in CI, the browser leg is a tracked v1.1 follow-up).
 
+## Equipment & consumables
+
+Equipment is pack data too. A pack declares its own slot vocabulary
+(`equipSlots`), and each item says which slots it may occupy, what it grants
+while equipped, and — for a consumable — what using it does. From the generated
+zombie-urban pack (seed 42):
+
+```json
+{
+  "equipSlots": ["body", "main-hand"],
+  "formulas": { "ac": "11 - floor(level / 3) - gear-ac" },
+  "content": {
+    "items": {
+      "riot-plate": { "kind": "armor", "slots": ["body"], "grants": { "ac": 1, "armor": 1 } },
+      "fire-axe": { "kind": "weapon", "slots": ["main-hand"], "grants": { "might": 1 } },
+      "med-kit": { "kind": "consumable", "use": "heal(2 + vigor)" }
+    }
+  }
+}
+```
+
+- **Equip / unequip.** `character.equip(itemId, slot)` places one held unit in one
+  declared slot; `character.unequip(slot)` frees it. One item per slot, and a
+  refusal is named (`not-equippable`, `unknown-slot`, `slot-not-allowed`,
+  `slot-occupied`, `item-not-held`). An equipped unit cannot be dropped
+  (`item-equipped`).
+- **Grants.** Ability and save grants add to the base stat while equipped. The
+  reserved keys `hp` / `ac` / `initiative` / `armor` never touch a stat directly:
+  they are summed over equipped items and exposed to the pack's `formulas` as
+  `gear-hp` / `gear-ac` / `gear-initiative` / `gear-armor` (0 when nothing is
+  equipped). The formula decides the direction — all three bundled themes use
+  descending AC, so riot-plate moves ac 11 → 10. Equipping never heals and
+  unequipping never clamps.
+- **armorCasting.** An item is armor when it grants `armor`. A slot (vancian)
+  cast while wearing armor needs a class whose `armorCasting` lists the armor's
+  `kind`; otherwise it is refused `armor-not-castable` with the slot still bound.
+  In dark-fantasy the warden (`["mail"]`) casts in warded-mail and the hexer
+  (`["leather"]`) must unequip first. armorCasting covers slot casting only:
+  point-pool spells have no cast verb in v1, so the gate never applies to them.
+- **Consumables.** `character.useItem(itemId)` (or `useItem(rt, state, itemId)`)
+  spends one unit out of combat; `fight.use(itemId, { target })` spends one charge
+  in combat (the active combatant, default target itself). Charges are the held
+  quantity at `profileFromCharacter`; `no-charges` refuses the next one. After
+  `combat-over`, `fight.use` throws like `declare`. A heal never raises hp above
+  the cap (`derived().hp`, or the combatant's `maxHp` in a fight) and never
+  lowers hp already above it. `item:used` precedes the effect's
+  `damage:applied`, whose negative `amount` and `before→after` show the heal.
+- **Settlement.** The fight never writes to the character. Once the fight is
+  `combat-over`, `settleItemUses(rt, character, fight)` drops the units spent in
+  it from the inventory (`item:dropped` + `item:settled`); a second call returns
+  `[]`.
+- **Snapshots.** A character snapshot carries `equipped` (restore refuses an
+  unknown item, slot, or ineligible entry with E-SNAP-01 and applies nothing); a
+  combat snapshot carries each combatant's `maxHp` and `itemsUsed` (units spent),
+  and the host re-states fight-start balances on restore.
+
+Expected output of the journey (zombie-urban, seed 42, a level-1 mile-born
+scavenger holding riot-plate, fire-axe and 3 med-kits). At level 1 `med-kit`
+heals 2: in an effect, the `vigor` save (0 at level 1) shadows the same-named
+ability.
+
+```
+base                     hp 27 · ac 11 · might 10
+riot-plate + fire-axe    ac 10 · might 11 · maxHp 27
+useItem('med-kit')       item:used { remaining: 2 } → damage:applied { amount: -2, hp: '23→25' }
+                         why.rolls ['d0[]-2=-2'] · why.rule 'content.items.med-kit'
+fight.use('med-kit')     damage:applied { amount: -2, hp: '26→27' }   (clamped at maxHp 27)
+snapshot → restore       itemsUsed { 'med-kit': 1 } · maxHp 27
+second use / third use   hp '27→27' / declare:rejected { kind: 'no-charges' }
+settleItemUses           item:dropped + item:settled { qty: 2 } → med-kit gone (3 − 1 − 2)
+```
+
+v1 limits:
+
+- **Settle each fight once.** Settlement is idempotent per live fight object
+  only: a combat snapshot taken before settlement still carries the spend, so
+  restoring it and settling again drops the same units twice.
+- **An abandoned fight does not settle.** `settleItemUses` requires
+  `combat-over`; for a fight abandoned earlier, the host drops the units itself.
+
+The whole journey — generate → equip → heal → `fight.use` → mid-fight snapshot →
+`no-charges` → settlement → character snapshot and tamper refusal, plus the
+dark-fantasy armorCasting leg — runs in `tests/proofs/equipment-journey.test.ts`
+against the built package and the real generated packs (seed 42); the values
+above are the ones it asserts (NFR-DX).
+
 ## Development
 
 ```sh
