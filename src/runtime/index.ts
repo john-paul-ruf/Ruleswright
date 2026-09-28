@@ -29,6 +29,18 @@ export { CharacterBuildError, validateBuild, levelForXp, xpSplit, levelSet, awar
 export { spendPool, prepareSpell, castSpell, knownSpells, poolVocabulary, initPools, rest } from './pools';
 export { grantItem, dropItem, countItem, rollLoot, grantLoot, type LootOptions } from './inventory';
 export {
+  equipItem,
+  unequipItem,
+  useItem,
+  equippedUnits,
+  equippedGrants,
+  equipmentView,
+  equipmentScope,
+  type EquippedEntry,
+  type EquipmentView,
+  type UseItemOptions,
+} from './equipment';
+export {
   matchesRestriction,
   declaredTags,
   isLivePattern,
