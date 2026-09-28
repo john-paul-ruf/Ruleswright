@@ -524,3 +524,27 @@ this pass; original text recoverable at `b671a37`.) -->
   - `checkFormula` admits these names only for `kind === 'formula'`.
   - `evalFormula` returns 0 for an unbound `EQUIPMENT_SCALARS` name; every other unknown name still throws.
 - M02→M01 stays type-only.
+
+<!-- equipment-consumables SESSION-03 -->
+## SESSION-03 (equipment-consumables) — M03 Runtime delta
+
+**New module file:** `src/runtime/equipment.ts`. It is a runtime leaf (R-11). Its value imports are `../core/{dice(type),dsl/effect,dsl/formula,rng}`, `./errors` and `./conditions`. `./runtime`, `./character` and `./events` are type-only imports. New realized M03 edges: `character.ts → equipment.ts`, `pools.ts → equipment.ts`, `inventory.ts → equipment.ts`. No new cycle.
+
+**Public API (barrel `src/runtime/index.ts`):**
+- `equippedUnits(state, itemId): number`: pure; the one equipped-unit rule (R-5).
+- `equippedGrants(runtime, state): Record<string, number>`
+- `equipmentView(runtime, state): EquipmentView`. The shape is `{abilities, saves, gear}`, where `gear` holds exactly the `EQUIPMENT_SCALARS` keys.
+- `equipmentScope(view, level): Record<string, number>`, which returns `{...abilities, level, ...gear}`.
+- `equipItem(runtime, state, itemId, slot): RuntimeEvent` (`item:equipped`)
+- `unequipItem(runtime, state, slot): RuntimeEvent` (`item:unequipped`)
+- `useItem(runtime, state, itemId, opts?: UseItemOptions): readonly RuntimeEvent[]`, which returns `item:used` followed by the effect's events.
+- Types: `EquippedEntry {slot, itemId}`, `EquipmentView`, `UseItemOptions {seed?, rng?}`.
+
+**Changed signatures and fields:**
+- `CharacterState.equipped?: EquippedEntry[]` stays absent until the first equip.
+- `formulaValue(…, rng, gear?)` and `reserveValue(…, rng, gear?)` gain an optional trailing `gear` parameter.
+- `Character` gains `equip(itemId, slot)`, `unequip(slot)` and `useItem(itemId, opts?)`.
+- `PackIndex.itemEffects: Readonly<Record<string, EffectAst>>` holds only items that declare `use`, parsed once at load.
+- `castSpell` gains the `armor-not-castable` gate (CA-EG3).
+- `dropItem` gains the `item-equipped` guard.
+- `rest` pool caps now evaluate over the equipment view.
