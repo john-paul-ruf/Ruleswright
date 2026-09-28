@@ -68,6 +68,7 @@ export {
   type SnapshotClassEntry,
   type SnapshotActiveCondition,
   type SnapshotInventoryEntry,
+  type SnapshotEquippedEntry,
   type SnapshotCombatant,
   type CombatRestoreRequest,
 } from './snapshots';
@@ -81,6 +82,7 @@ export {
   type PendingAction,
   type PendingTrigger,
   type DeclareOptions,
+  type UseOptions,
   type DeclareRejection,
   type StepOutcome,
   type StartCombatRequest,
