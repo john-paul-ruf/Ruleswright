@@ -506,3 +506,21 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
 Orchestrator-integrated markers — `<!-- loot-inventory SESSION-01 -->` through
 `<!-- grid-combat SESSION-05 -->` — were collapsed into the module-ordered sections above at
 this pass; original text recoverable at `b671a37`.) -->
+<!-- equipment-consumables SESSION-02 -->
+## SESSION-02 (equipment-consumables) — public API delta, contract v1.4
+
+**M01 Schema surface**
+- `Pack.equipSlots?: KebabId[]` (root, after `spatial`; 8 required + 3 optional sections).
+- `ItemDef` gains `slots?: KebabId[]`, `grants?: Record<string, number>`, `use?: DslString`.
+- New export `RESERVED_GRANT_KEYS = ['hp', 'ac', 'initiative', 'armor']` (`src/schema/artifacts.ts`).
+- Validator: `Ctx.equipSlotNames: Set<string> | null`. Absent `equipSlots` → empty Set; readable → the names; unreadable → null, and item slot references are skipped (R-8).
+- New pass `checkEquipSlots` (root.ts, dispatched after `checkSpatial`). `checkStats` rejects `gear-*` ids (E-SCHEMA-01). `checkItems` gains `checkItemSlots` (E-SCHEMA-01 structure / E-REF-01 resolution), `checkItemGrants` (E-REF-01 key / E-SCHEMA-01 value, `armor` ≥ 1), and `use` routed as an `effect` DSL field.
+- Slot ids never enter the global id namespace (no `registerId`).
+
+**M02 Core mechanics**
+- `REGISTRY` 12 → 13: `heal: { arity: 1, kind: 'effect', signature: ['formula'] }` (after `damage`). `EFFECT_VOCABULARY` is unchanged.
+- `executeEffect` executes `heal(formula)` as `apply.damage(target, negatedRoll)`. The RollResult is negated whole (values, modifier, total) with purpose `'heal'`. It yields `DamageOutcome { roll: negatedRoll, halved: false }`.
+- New export `EQUIPMENT_SCALARS = ['gear-hp', 'gear-ac', 'gear-initiative', 'gear-armor']` (`src/core/dsl/formula.ts`).
+  - `checkFormula` admits these names only for `kind === 'formula'`.
+  - `evalFormula` returns 0 for an unbound `EQUIPMENT_SCALARS` name; every other unknown name still throws.
+- M02→M01 stays type-only.
