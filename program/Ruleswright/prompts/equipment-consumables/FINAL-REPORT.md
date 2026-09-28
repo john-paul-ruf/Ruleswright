@@ -24,7 +24,7 @@ This run adds slot-based equipment and consumables, one engine mechanism behind 
 
 ## Architecture impact
 
-- **No new module IDs.** M03 gains the leaf file `equipment.ts`. Its value imports are core, `./errors` and `./conditions`, so no new cycle is created. New realized edges: `character`, `pools` and `inventory` → `equipment`.
+- **No new module IDs.** M03 gains the leaf file `equipment.ts`. Its value imports are core, `./errors` and `./conditions`, so no new cycle is created. New realized edges: `character`, `pools`, `inventory` and `character-profile` → `equipment`, plus `character-profile` → `inventory` (S05). *(Corrected after the final Archivist pass, finding C9: the first version of this report listed only three of these links.)*
 - **Public API deltas** are recorded in `arch/v1-core.md`, in the markers `<!-- equipment-consumables SESSION-02..05 -->` (commits `f1563b1`, `643fd76`, `7c3db75`, `7a479e6`).
 - **Contract v1.4** is additive-optional. `schemaVersion` and `snapshotVersion` are both still 1, and no rule id was added.
 
@@ -165,4 +165,85 @@ CA-EG1..EG6: every producer landed and every proof passed. No required capabilit
 | grid-combat inherited | Movement verb, DD17a burst/spells bridge, parse-once C6, browser CI leg | **carried**: unchanged; none was owed by this feature |
 
 ### Archivist's Note
-_(appended below after the final Archivist pass)_
+
+## Archivist Note
+
+The final pass for equipment-consumables is done and committed as `2e73640`: `arch/`, the module registry and the log now match the tree at `c39ef87`. One real correction came out of it: the Final Report misses two new module links (details below). I didn't edit the Final Report or STATE.md.
+
+I re-ran part of the gates after a fresh build: typecheck 0, build 0, `check:isolation` 0, `pnpm test` 661/661 across 37 files, and proofs 38/38 across 6 files. Lint, format and security are taken from your receive at `e5e4846`; I didn't re-run them.
+
+- **role:** archivist
+- **registryUpdated:** true
+- **reconciled:**
+  - `program/Ruleswright/arch/v1-core.md`
+    - The four delta sections for SESSION-02..05 (commits `f1563b1`, `643fd76`, `7c3db75`, `7a479e6`) are folded into the M01–M05 sections.
+    - There is a new **M03 — Equipment** section for the `equipment.ts` leaf file. DD-EG1..9 are added under Cross-cutting decisions.
+    - Updated to `c39ef87`: the header, module map, surfaces, M05 (the equipment journey, the README section, the CI build gap) and the drift notes (`rollText`, effect-scope shadowing, the useItem condition-duration display).
+    - Wording from the last pass that said "this pass" now names the grid-combat pass.
+    - The provenance comment at the end no longer nests `<!-- -->` markers. Nesting them had closed the comment early.
+  - `program/Ruleswright/PROGRAM-CONFIG.MD`
+    - The module registry and realized-state note now describe `c39ef87`. I derived the module links from value imports in the source; M02→M01 is still type-only, and M01 imports nothing from core.
+    - The Factual-premise convention's evidence note now covers three cycles. The rule text itself is unchanged.
+    - Custom Rules 1, 2 and 4 now record the v1.4 contract, the `gear-*` reserved scalars, and that armorCasting is checked at slot cast time only.
+    - Four "2025-09-27" dates are corrected to 2026 (git shows 2026).
+    - Verification Commands, Git Config, Session Defaults, Stack and Author Sources are unchanged. Author Sources still mentions only v1.2/v1.3. That section belongs to Planner, so I flagged it in the log instead of editing it.
+  - `program/Ruleswright/ARCHIVIST-LOG.md`: new entry appended.
+- **Finding for Orchestrator (report accuracy, cleanup ledger C9):** the Final Report's *Architecture impact* lists only `character`/`pools`/`inventory` → `equipment`. Reading the imports at `c39ef87` also shows `character-profile.ts → equipment.ts` and `character-profile.ts → inventory.ts` (S05 ck1/ck3, `14c01dc`/`31540b0`). Neither creates a cycle. `arch/` and the registry now include both links.
+- **Contract agreements CA-EG1..EG6:** I checked each producer and consumer path at `c39ef87` (`validate/index.ts:72`, `content.ts:652-688`, `pools.ts:208/247`, `registry.ts:17`, `combat.ts:243/471/517`, `snapshots.ts:168/319-357`). Nothing disagrees with the record. Capability readiness for CAP-E1..E8 and the Current Blockers list are consistent too.
+- **conventionsAdded:**
+  - None newly minted.
+  - Factual-premise verification at planning time: already promoted, and now seen in 3 cycles. This cycle the pre-dispatch review and its recheck caught 7 premise defects (F-E1/2/3/4/7/14 and R-7). One harmless wrong premise still reached a session: S03's `VALID_PACK` fixture claim.
+  - Whole-repo fast gates at role-scoped receives: still working. The format fix `8668c53` is its 4th cycle and 4th instance.
+  - Pin-lease ownership: still working; every pin had a named owner.
+  - R-1 (a session gate hard-coded a SHA): **not promoted.** It happened once, in one cycle, so it goes to the framework channel below.
+- **proposedForFramework:**
+  - PLANNER/ORCHESTRATOR: write session gates against a dispatch base that Orchestrator puts in the envelope, or in a worktree-relative form, never a SHA fixed at planning time. Evidence: R-1; 1 cycle, 1 instance.
+  - ORCHESTRATOR's native binding: document that the 300-second idle timeout on awaiting a subagent is recovered by awaiting the same handle again, so it isn't mistaken for a crash. 1 cycle, at least 2 instances (the exact count wasn't recorded).
+  - ORCHESTRATOR's Final Report step: derive test counts and module links from the tree, or cite the command that produced them, instead of copying them from handoffs. 2 cycles, 2 instances (v1-core C5 and this cycle's C9).
+  - Carried over: CODER.md:186 and ORCHESTRATOR.md:368 still say `npx vitest run <path>` is the working narrow form. In this program that form fails, and the working one is `pnpm exec vitest run` (DD14e). 2 cycles, 3 instances; no new ones this cycle.
+  - Carried over with no recurrence: rows b32fc8d0, f57dbe4d, b85c8f3e, c1ed872b, 3658f327, 17f4803c, 1d910de1.
+  - Nothing counts as adopted. The role docs are gitignored, their last-modified time (2026-09-25 16:37) is older than the previous pass, and I checked their current text against each recommendation.
+- **logEntry:** dated entry "2026-09-28 — final pass, cycle `equipment-consumables`" appended to ARCHIVIST-LOG.md.
+
+### cleanupBriefs
+
+- **title:** Single-source the duplicated logic (C8 `rollText`/`displayRoll`, C1 restricts matcher, C2 `MAX_TABLE_DEPTH`)
+- **targetArea:**
+  - `src/runtime/equipment.ts`
+  - `src/runtime/combat/combat.ts`
+  - `src/runtime/conditions.ts`
+  - `src/core/tables.ts`
+  - `src/schema/validate/helpers.ts`
+- **confidence:** high (C8); medium (C1, C2)
+- **proposedPlannerTask:** build a cleanup program with one serial session per finding:
+  - move `displayRoll` into a leaf file that both `combat.ts` and `equipment.ts` import, keeping the barrel export;
+  - decide what happens to the restricts matcher as public API: either combat calls `matchesRestriction`, or the helpers are removed from the barrel;
+  - single-source `MAX_TABLE_DEPTH` without giving schema a value import from core.
+- **requiredChecks:**
+  - `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` (661 or more), then `pnpm build` followed by `pnpm check:isolation`
+  - `why.rolls` strings stay byte-identical in `tests/runtime/equipment.test.ts` and `tests/runtime/combat/**`
+  - a grep shows one definition per symbol
+  - a mechanical import derivation shows M01 still imports nothing internal
+- **risks:**
+  - `displayRoll` is exported from the runtime barrel, so its export path must be kept.
+  - The restricts helpers are public and pinned by `conditions.test.ts`, so this is an API decision, not just cleanup.
+  - The M01/M02 sibling rule rules out simply re-exporting core's `MAX_TABLE_DEPTH` from schema.
+
+### standingRecommendations
+
+| id | pattern | cycles | in-cycle instances | first seen | status |
+|---|---|---:|---:|---|---|
+| b32fc8d0c8c92d52 | Large single-session builds exhaust context on exhaustive checkpoint-0 read sweeps | 2 | 2 | v1-core | open |
+| f57dbe4d010638fe | Subagent model fabricates tool inputs under long-recovery prompts | 2 | 8 | v1-core | open |
+| b85c8f3e113a6764 | Public surface/barrel completeness gaps discovered at integration | 2 | 3 | v1-core | open |
+| c1ed872bea557b96 | run tool drops/misroutes argv | 2 | 3 | v1-core | open |
+| 3658f327cc9cff2f | commit_pathspec-style single-command commits fail on deleted files | 1 | 1 | v1-core | open |
+| 1cc46f93038f1d9a | Cross-suite pinning tests land without a named owner in the plan | 2 | 3 | loot-inventory | promoted (held this cycle) |
+| 576a281656f83b23 | Envelope factual premises reach sessions unverified; verify them at planning time | 3 | 11 | loot-inventory | promoted (third-cycle evidence recorded) |
+| 854ceecd39d4b0d3 | Whole-repo fast gates go red at role-scoped receives; cleared by format-only owner corrections | 4 | 4 | v1-core | promoted (held, `8668c53`) |
+| 17f4803c1b08da77 | Provider stream aborts / capacity failures kill subagents mid-session with zero commits | 2 | 4 | loot-inventory | open |
+| 6f6b491bdbe37bf0 | Bare npx misresolves in this runtime; the working gate forms are `pnpm exec vitest run <path>` and `node_modules/.bin/vitest` | 2 | 3 | loot-inventory | open |
+| 1d910de11732c6c4 | Final Archivist pass aborts leave the next cycle a double synthesis | 2 | 2 | loot-inventory | open |
+| c172cd30e8dfc756 | Session commit gates hard-code a plan-time base SHA that a later replan makes stale | 1 | 1 | equipment-consumables | open |
+| cecd211504587426 | Host await idle timeout (300 s) interrupts long subagent waits; re-awaiting the same handle reattaches with no work lost | 1 | 2 | equipment-consumables | open |
+| f68c42a3f6224eb1 | Final Report mechanical facts (test-file counts, realized module edges) transcribed from handoffs rather than derived from the tree | 2 | 2 | v1-core | open |
