@@ -23,7 +23,7 @@
 |---|---------|---------|------|--------|-----------|-----------|-------|
 | 01 | Contract gate — schema v1.4 (DB re-entry) | M01 contracts | `src/schema/contracts/pack.schema.json`, `src/schema/contracts/snapshots.schema.json`, `program/Ruleswright/specs/database.md` | **done** | 3/3 (`a6a3334`, `c32d2d2`, `a409ef4`; Orchestrator format residual `8668c53`) | 2026-09-28 | Author role; grid S01 precedent; now owns the snapshots contract too (F-E4). Receive gates: typecheck 0, lint 0, format 0 (after residual), 564/564 |
 | 02 | TS mirror + validator + heal registry + `gear-*` DSL | M01, M02 | `src/schema/pack.ts`, `src/schema/artifacts.ts`, `src/schema/validate/sections/content.ts`, `src/schema/validate/sections/root.ts`, `src/schema/validate/index.ts`, `src/schema/validate/context.ts`, `src/schema/validate/collect.ts`, `src/core/dsl/registry.ts`, `src/core/dsl/effect.ts`, `src/core/dsl/formula.ts`, `tests/schema/validate.test.ts`, `tests/core/dsl/checker.test.ts`, `tests/core/dsl/effect.test.ts`, `tests/core/dsl/formula.test.ts` | **done** | 2/2 (`0f1ff65`, `52df545`) | 2026-09-28 | Receive (after `pnpm build`): typecheck 0, lint 0, format 0, build 0, isolation 0, security 0, **584/584**; arch delta `f1563b1`. Serial after S1; owns the registry membership re-key (checker.test.ts:13-26) |
-| 03 | Character verbs: equip/unequip/use + grants + armorCasting gate | M03 | `src/runtime/equipment.ts`, `src/runtime/character.ts`, `src/runtime/pools.ts`, `src/runtime/inventory.ts`, `src/runtime/runtime.ts`, `src/runtime/index.ts`, `tests/runtime/fixtures/**`, `tests/runtime/equipment.test.ts`, `tests/runtime/character.test.ts`, `tests/runtime/pools.test.ts`, `tests/runtime/inventory.test.ts` | pending | — | — | Concurrent with S04 (disjoint); owns the shared runtime fixtures; must not run `pnpm build`; exports the pure `equippedUnits` helper (R-5) |
+| 03 | Character verbs: equip/unequip/use + grants + armorCasting gate | M03 | `src/runtime/equipment.ts`, `src/runtime/character.ts`, `src/runtime/pools.ts`, `src/runtime/inventory.ts`, `src/runtime/runtime.ts`, `src/runtime/index.ts`, `tests/runtime/fixtures/**`, `tests/runtime/equipment.test.ts`, `tests/runtime/character.test.ts`, `tests/runtime/pools.test.ts`, `tests/runtime/inventory.test.ts` | **done** | 4/4 (`09fb6a7`, `8dcfe41`, `960ee39`, `d9f2be6`) | 2026-09-28 | Receive: lease gates tests/runtime+tests/snapshots 223/223, typecheck 0, lease lint/format 0; arch `643fd76`; whole-repo at W3 close. | Concurrent with S04 (disjoint); owns the shared runtime fixtures; must not run `pnpm build`; exports the pure `equippedUnits` helper (R-5) |
 | 04 | Themes + equipSlots pipeline pass-through | M04 | `src/compiler/theme.ts`, `src/compiler/pipeline.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `tests/compiler/pipeline.test.ts`, `tests/compiler/coverage-floor.test.ts` | pending | — | — | Concurrent with S03 (disjoint); must not run `pnpm build` |
 | 05 | Combat integration: profiles, fight.use, clamp, settlement, snapshots | M03 | `src/runtime/combat/combat.ts`, `src/runtime/combat/resolve.ts`, `src/runtime/combat/action-economy.ts`, `src/runtime/character-profile.ts`, `src/runtime/snapshots.ts`, `src/runtime/runtime.ts`, `src/runtime/index.ts`, `tests/runtime/combat/**`, `tests/snapshots/combat.test.ts`, `tests/snapshots/character.test.ts` | pending | — | — | After S03 and S04; re-key owner for `tests/snapshots/combat.test.ts:102`; re-verifies loot-journey:126 at ck5; `checkPackDsl` item-`use` check (R-7) |
 | 06 | Journey + README | proofs, docs | `tests/proofs/equipment-journey.test.ts`, `tests/proofs/docs-run.test.ts`, `README.md` | pending | — | — | Last; journey first, docs pin inside the README checkpoint |
@@ -164,13 +164,13 @@ S01 ──> S02 ──┬──> S03 ──┐
 | ID | Approved behavior / entry point | Required facts + producer owners | CA IDs / prerequisites | Integration owner / checkpoint | Status | Proof / checked sources | Open gaps + correction owners |
 |----|--------------------------------|---------------------------------|------------------------|--------------------------------|--------|-------------------------|-------------------------------|
 | CAP-E1 | A pack declares equipment/consumable items and equip slots; bad declarations are rejected at load | ItemDef v1.4 fields, `equipSlots` (S01 ck1); mirror + validator (S02 ck2) | CA-EG1 | S02 ck2 | **verified** (S02 ck2 `52df545`) | `tests/schema/validate.test.ts` 12 new validator tests (isolated pack, real `packDslChecker`), R-8 negative control; whole suite 584/584 at receive | Runtime re-check of item `use` in `checkPackDsl`: S05 ck1 (R-7) |
-| CAP-E2 | Equip/unequip over slot state; grants compose into `derived()` (ability/save add; `gear-*` via the pack's formulas) | `gear-*` admission + unbound-is-0 (S02 ck1); `equipmentView` + composition (S03 ck2); theme formulas (S04 ck2–4) | CA-EG1, CA-EG2 | S03 ck2 (fixtures); S06 ck1 (generated pack) | planned | planned: ascending and descending fixtures move by exactly the grant | — |
-| CAP-E3 | armorCasting enforced at **slot** cast time | armor marker (S01); gate (S03 ck3); dark-fantasy warden/mail + hexer/leather (S04 ck2) | CA-EG3 | S03 ck3; S06 ck1 (dark-fantasy leg) | planned | planned | Point-pool casting is out of scope (DD-EG5) |
-| CAP-E4 | A consumable heals out of combat (`useItem`) and in combat (`fight.use`), capped at max hp and never lowering hp already above it (R-2); `fight.use` only while the fight is live, by the active combatant (R-3) | `heal` (S02 ck1); `itemEffects` + `useItem` (S03 ck3); `maxHp` + heal rule + `use()` gate 0 (S05 ck1–2); med-kit (S04 ck3) | CA-EG4, CA-EG5 | S03 ck3 (character side, incl. over-cap); S05 ck2 (combat, incl. over-cap and use-after-over); S06 ck1 | planned | planned | — |
+| CAP-E2 | Equip/unequip over slot state; grants compose into `derived()` (ability/save add; `gear-*` via the pack's formulas) | `gear-*` admission + unbound-is-0 (S02 ck1); `equipmentView` + composition (S03 ck2); theme formulas (S04 ck2–4) | CA-EG1, CA-EG2 | S03 ck2 (fixtures); S06 ck1 (generated pack) | **verified (fixture leg)** S03 ck2 `8dcfe41`; generated-pack leg planned (S06 ck1) | `tests/runtime/character.test.ts` "CAP-E2 closing proof": ascending 10→12→base, descending 11→9→base, gear-hp 20→22, ability add 4→5; nothing-equipped identical; runtime+snapshots 223/223 at receive | — |
+| CAP-E3 | armorCasting enforced at **slot** cast time | armor marker (S01); gate (S03 ck3); dark-fantasy warden/mail + hexer/leather (S04 ck2) | CA-EG3 | S03 ck3; S06 ck1 (dark-fantasy leg) | **verified (unit leg)** S03 ck3 `960ee39`; journey leg planned (S06 ck1, dark-fantasy) | `tests/runtime/pools.test.ts`: rejection with no state/event change, cast after unequip, listed kind casts, non-armor never blocks; negative control failed as expected | Point-pool casting is out of scope (DD-EG5) |
+| CAP-E4 | A consumable heals out of combat (`useItem`) and in combat (`fight.use`), capped at max hp and never lowering hp already above it (R-2); `fight.use` only while the fight is live, by the active combatant (R-3) | `heal` (S02 ck1); `itemEffects` + `useItem` (S03 ck3); `maxHp` + heal rule + `use()` gate 0 (S05 ck1–2); med-kit (S04 ck3) | CA-EG4, CA-EG5 | S03 ck3 (character side, incl. over-cap); S05 ck2 (combat, incl. over-cap and use-after-over); S06 ck1 | **partial** — character leg verified S03 ck3 `960ee39`; combat leg planned (S05 ck2); journey (S06) | `tests/runtime/equipment.test.ts`: 16→20 at cap, cap = derived().hp (22), over-cap `22→22` with unit consumed; negative control failed as expected | — |
 | CAP-E5 | Snapshots carry `equipped`, `itemsUsed`, `maxHp`; restore fails closed | contract (S01 ck2); serializer/restore (S05 ck4) | CA-EG6 | S05 ck4; S06 ck1 | planned | planned | — |
 | CAP-E6 | All three themes carry the new content and gear formulas; `equipSlots` reaches the pack; packs validate; floor green | pass-through (S04 ck1); themes (S04 ck2–4) | CA-EG1, CA-EG2, CA-EG3 | S04 ck4 | planned | planned | — |
 | CAP-E7 | **First narrow journey** end to end (DD-EG9) | all above | all | S06 ck1 | planned | planned | — |
-| CAP-E8 | A combat use ends with exactly one unit removed from the character's inventory | ledger (S05 ck2); `settleItemUses` (S05 ck3); drop guard + pure `equippedUnits` (S03 ck1, R-5) | CA-EG5 | S05 ck3; S06 ck1 (inventory asserted after the fight) | planned | planned | Documented v1 limit (R-4): idempotent per live fight object; settle once per fight (DD-EG6a, README) |
+| CAP-E8 | A combat use ends with exactly one unit removed from the character's inventory | ledger (S05 ck2); `settleItemUses` (S05 ck3); drop guard + pure `equippedUnits` (S03 ck1, R-5) | CA-EG5 | S05 ck3; S06 ck1 (inventory asserted after the fight) | planned — pieces landed S03 ck1 `09fb6a7` (`equippedUnits`, `dropItem` `item-equipped` guard); settlement S05 ck3 | planned (S05 ck3; S06 ck1) | Documented v1 limit (R-4): idempotent per live fight object; settle once per fight (DD-EG6a, README) |
 
 **Production paths:**
 - **CAP-E2:** `Character.derived()` → `equipmentView` → `reserveValue(…, gear)` → pack `formulas`.
@@ -184,10 +184,10 @@ S01 ──> S02 ──┬──> S03 ──┐
 | ID | Required meaning / authority | Producer → boundary → consumer | Mapping / constraints | Correction + proof owners / checkpoints | Agreement | Producer | Proof / evidence / checked sources |
 |----|------------------------------|--------------------------------|-----------------------|------------------------------------------|-----------|----------|------------------------------------|
 | CA-EG1 | ItemDef admits `grants` (keys ∈ abilities ∪ saves ∪ {hp, ac, initiative, armor}; integer values; `armor` ≥ 1), `slots` (non-empty unique, each ∈ `equipSlots`), `use` (effect DSL). Root optional `equipSlots` (≥1, unique, kebab; not global ids). `stats` ids ≠ `gear-*` | pack.schema.json (S01) → validator/context/collect (S02) → mirror (S02) → themes (S04) → runtime verbs (S03) → runtime re-check `checkPackDsl` item `use` (S05 ck1, R-7) | Additive-optional; schemaVersion 1; structural → E-SCHEMA-01, reference → E-REF-01. Validator context keeps **absent** `equipSlots` (empty set → slotted items get E-REF-01) distinct from **unreadable** (null → item slot refs skipped, no cascade) (R-8) | S01 ck1 → S02 ck2 (tests, incl. malformed-vs-absent); S05 ck1 (`checkPackDsl`) | agreed | contract **landed** S01 ck1 `a6a3334` (fmt `8668c53`), incl. `grants.properties.armor {integer, minimum 1}`; mirror/validator **landed** S02 ck2 `52df545` | **passed** S02 ck2 (`tests/schema/validate.test.ts`); consumer legs: S04 themes, S03 verbs, S05 `checkPackDsl` planned |
-| CA-EG2 | **Grant semantics (F-E2 (b)):** ability/save grants ADD; reserved grants are exposed only to `formulas` as `gear-hp/ac/initiative/armor` (sum over equipped; 0 when none or unbound). The engine applies no direction. Equipping never heals; unequip never clamps | contract (S01) → formula checker/eval (S02 ck1) → `equipmentView` + `derived()`/pool caps (S03 ck2) → theme formulas (S04) → `profileFromCharacter` abilities/saves/initiative/maxHp (S05 ck1) | One composition site (`equipment.ts`). Build/level-set/restore hp init stays at base (gear not passed) | S02 ck1; S03 ck2 (both AC directions); S05 ck1 (profile); S06 ck1 (generated pack) | agreed | contract leg **landed** S01 ck1 `a6a3334` (`gear-hp/ac/initiative/armor` in formulas/stats descriptions); DSL leg **landed** S02 ck1 `0f1ff65` (`EQUIPMENT_SCALARS`, formulas-only admission, unbound→0); composition planned (S03 ck2) | DSL proof **passed** S02 ck1 (`formula.test.ts`: 12/10/12/8, E-FORM-03 outside formulas, `level-gear-ac`); composition proof planned (S03 ck2) |
-| CA-EG3 | Armor marker: an item is armor iff `grants` has `armor`. A **slot** cast while armor-equipped requires a character class listing the item's `kind` in `armorCasting` | `pools.ts` `castSpell` → RuntimeRuleError | `armor-not-castable`, no state change, gate before the slot lookup; monsters and point-pool spells unaffected | S03 ck3; S06 ck1 (dark-fantasy) | agreed | planned (S03 ck3) | planned |
-| CA-EG4 | `heal(formula)` = an effect statement → a negative-amount `damage` request; `why.rolls` carry the roll; `damage:applied` anatomy unchanged. Cap: character = derived hp with grants; combat = `maxHp`. **Rule (R-2):** `after = current >= cap ? current : min(cap, current + heal)`, never above the cap and never lowering hp already above it. `hp` display shows the actual values (`X→X` when unchanged; `hpBefore` captured before the mutation) | registry/`execHeal` (S02) → `useItem` (S03) / `applyMutation` (S05) | Registry 12→13; membership pin re-keyed by S02. **No E-FORM-01 message change** (F-E1). Combat `maxHp` fallback floored at 0 (R-9) | S02 ck1 → S03 ck3 (over-cap test) → S05 ck2 (over-cap test) | agreed | registry note **landed** S01 ck3 `a409ef4` (database.md §formulas, row 5); executor **landed** S02 ck1 `0f1ff65` (`REGISTRY.heal`, `execHeal` negates whole RollResult — values/modifier/total, purpose `heal`) | DSL proof **passed** S02 ck1 (`effect.test.ts`); clamp proofs planned (S03 ck3, S05 ck2) |
-| CA-EG5 | `useItem` and `fight.use` each consume exactly one unit/charge; the last unit removes the entry. A combat use ends with the inventory reduced by exactly the units used (settlement). Rejections: `unknown-item`, `item-not-held`, `insufficient-qty`, `not-consumable`, `no-charges`, `combat-not-over`, `item-equipped`; `fight.use` after `combat-over` throws like `declare` (gate 0, R-3) | `useItem` (S03) · `balances.items` → `itemBalances`/`itemsUsed` → `Combat.use` (S05) → `settleItemUses` → `equippedUnits` pre-check → `dropItem` (S05) | Balances are host-stated (the pools/boundSlots precedent); the fight never touches character state; settlement is host-called, all-or-nothing, idempotent **per live fight object** (R-4 v1 limit). One equipped-unit rule, `equippedUnits` (S03), shared by `dropItem`, `useItem` and settlement (R-5) | S03 ck1 (`equippedUnits`), ck3; S05 ck2 (use-after-over test), ck3; S06 ck1 | agreed | planned (S03 ck1/ck3, S05 ck3) | planned |
+| CA-EG2 | **Grant semantics (F-E2 (b)):** ability/save grants ADD; reserved grants are exposed only to `formulas` as `gear-hp/ac/initiative/armor` (sum over equipped; 0 when none or unbound). The engine applies no direction. Equipping never heals; unequip never clamps | contract (S01) → formula checker/eval (S02 ck1) → `equipmentView` + `derived()`/pool caps (S03 ck2) → theme formulas (S04) → `profileFromCharacter` abilities/saves/initiative/maxHp (S05 ck1) | One composition site (`equipment.ts`). Build/level-set/restore hp init stays at base (gear not passed) | S02 ck1; S03 ck2 (both AC directions); S05 ck1 (profile); S06 ck1 (generated pack) | agreed | contract S01 `a6a3334`; DSL S02 `0f1ff65`; composition **landed** S03 ck2 `8dcfe41` (`equipmentView`/`equipmentScope`, one site in `equipment.ts`); profile leg planned (S05 ck1) | DSL **passed** S02 ck1; composition **passed** S03 ck2 (both AC directions); profile planned (S05 ck1); generated pack (S06) |
+| CA-EG3 | Armor marker: an item is armor iff `grants` has `armor`. A **slot** cast while armor-equipped requires a character class listing the item's `kind` in `armorCasting` | `pools.ts` `castSpell` → RuntimeRuleError | `armor-not-castable`, no state change, gate before the slot lookup; monsters and point-pool spells unaffected | S03 ck3; S06 ck1 (dark-fantasy) | agreed | **landed** S03 ck3 `960ee39` (`armorBlockingCast` in `pools.ts`, gate after `unknown-spell`, before slot lookup); content pairing S04 ck2 `926f4c6` | **passed** S03 ck3 (`pools.test.ts`); journey planned (S06 ck1) |
+| CA-EG4 | `heal(formula)` = an effect statement → a negative-amount `damage` request; `why.rolls` carry the roll; `damage:applied` anatomy unchanged. Cap: character = derived hp with grants; combat = `maxHp`. **Rule (R-2):** `after = current >= cap ? current : min(cap, current + heal)`, never above the cap and never lowering hp already above it. `hp` display shows the actual values (`X→X` when unchanged; `hpBefore` captured before the mutation) | registry/`execHeal` (S02) → `useItem` (S03) / `applyMutation` (S05) | Registry 12→13; membership pin re-keyed by S02. **No E-FORM-01 message change** (F-E1). Combat `maxHp` fallback floored at 0 (R-9) | S02 ck1 → S03 ck3 (over-cap test) → S05 ck2 (over-cap test) | agreed | registry note **landed** S01 ck3 `a409ef4` (database.md §formulas, row 5); executor **landed** S02 ck1 `0f1ff65` (`REGISTRY.heal`, `execHeal` negates whole RollResult — values/modifier/total, purpose `heal`) | DSL **passed** S02 ck1; character clamp **passed** S03 ck3 (over-cap `X→X`); combat clamp planned (S05 ck2) |
+| CA-EG5 | `useItem` and `fight.use` each consume exactly one unit/charge; the last unit removes the entry. A combat use ends with the inventory reduced by exactly the units used (settlement). Rejections: `unknown-item`, `item-not-held`, `insufficient-qty`, `not-consumable`, `no-charges`, `combat-not-over`, `item-equipped`; `fight.use` after `combat-over` throws like `declare` (gate 0, R-3) | `useItem` (S03) · `balances.items` → `itemBalances`/`itemsUsed` → `Combat.use` (S05) → `settleItemUses` → `equippedUnits` pre-check → `dropItem` (S05) | Balances are host-stated (the pools/boundSlots precedent); the fight never touches character state; settlement is host-called, all-or-nothing, idempotent **per live fight object** (R-4 v1 limit). One equipped-unit rule, `equippedUnits` (S03), shared by `dropItem`, `useItem` and settlement (R-5) | S03 ck1 (`equippedUnits`), ck3; S05 ck2 (use-after-over test), ck3; S06 ck1 | agreed | character side **landed** S03 ck1/ck3 (`equippedUnits`, `useItem`, `dropItem` guard; rejections as landed: equip `unknown-item`/`not-equippable`/`unknown-slot`/`slot-not-allowed`/`slot-occupied`/`item-not-held`; use `unknown-item`/`not-consumable`/`item-not-held`/`insufficient-qty`/`item-equipped`); combat side planned (S05 ck2/ck3) | character side **passed** S03 ck3; combat + settlement planned (S05 ck2/ck3) |
 | CA-EG6 | Character snapshot `equipped` (presence-preserving; validated restore; slot uniqueness enforced by S05's restore, not the schema, R-9a). Combatant `itemsUsed` = spent (host balances + snapshot spend; snapshot wins for spend) and `maxHp` (snapshot → profile.maxHp → max(0, profile.hp), R-9) | snapshots.schema.json (S01 ck2) → `snapshots.ts` (S05 ck4) | Additive-optional; all refusal cards before any application; inventory verbatim (CA-01 divergence) | S01 ck2 → S05 ck4 (+ ck5 loot-journey re-verify) → S06 ck1 | agreed | contract **landed** S01 ck2 `c32d2d2` (fmt `8668c53`; R-9a/R-9b descriptions verified by Orchestrator); serializer/restore planned (S05 ck4) | planned |
 
 **Provisional-producer rule (applies to every CA row above):** all producers land inside this feature, so every mapping is provisional against its named producer checkpoint. Orchestrator re-checks each mapping against the actual landed producer before dispatching the dependent session:
@@ -414,3 +414,113 @@ The burst-shape/spells-as-actions bridge is future-program debt (DD17a), *not* s
   - `src/schema/validate/sections/content.ts`
   - `src/schema/validate/sections/root.ts`
   - `tests/schema/validate.test.ts`
+
+### SESSION-03 — received 2026-09-28 (Orchestrator receive: accepted; lease-scoped gates green; arch `643fd76`)
+
+- **session:** 03
+- **status:** done
+- **checkpoint:** 4
+- **notes:** CAP-E2 proven (ck2). CAP-E3 proven (ck3). CAP-E4 character leg proven (ck3), including the R-2 over-cap `X→X` case. CAP-E8 pieces landed at ck1: the pure `equippedUnits` and the `dropItem` guard. The CAP-E4 combat leg, the CAP-E8 settlement and the user capabilities stay with S05/S06. Contract producer legs landed: CA-EG2 composition, CA-EG3 gate, CA-EG4 character-side clamp, CA-EG5 character-side `useItem`, and `PackIndex.itemEffects` (F-E11). Commits: ck1 `09fb6a7`, ck2 `8dcfe41`, ck3 `960ee39`, ck4 `d9f2be6`. Lease revision 1.
+- **delivered:**
+  - **New module `src/runtime/equipment.ts`** (runtime leaf, R-11). Exact exported signatures:
+    - `equippedUnits(state: CharacterState, itemId: string): number`. This is the pure R-5 helper.
+    - `equippedGrants(runtime: Runtime, state: CharacterState): Record<string, number>`
+    - `equipmentView(runtime: Runtime, state: CharacterState): EquipmentView`, with shape `{ readonly abilities: Record<string, number>; readonly saves: Record<string, number>; readonly gear: Record<string, number> }`. `gear` holds exactly the `gear-hp`, `gear-ac`, `gear-initiative` and `gear-armor` keys, each 0 when nothing is equipped.
+    - `equipmentScope(view: EquipmentView, level: number): Record<string, number>`
+    - `equipItem(runtime, state, itemId: string, slot: string): RuntimeEvent`
+    - `unequipItem(runtime, state, slot: string): RuntimeEvent`
+    - `useItem(runtime, state, itemId: string, opts?: UseItemOptions): readonly RuntimeEvent[]`
+    - Types: `EquippedEntry { readonly slot: string; itemId: string }` and `UseItemOptions { readonly seed?: number | string; readonly rng?: RandomSource }`.
+  - **Rejection names as landed:**
+    - Equip, in order: `unknown-item`, `not-equippable`, `unknown-slot`, `slot-not-allowed`, `slot-occupied`, `item-not-held`.
+    - Unequip: `not-equipped`.
+    - `useItem`, in order: `unknown-item`, `not-consumable`, `item-not-held`, `insufficient-qty`, `item-equipped`.
+    - `dropItem`: `item-equipped`, when `held − qty < equippedUnits`.
+    - `castSpell`: `armor-not-castable`, placed after `unknown-spell` and before the slot lookup.
+  - **Events:**
+    - `item:equipped` / `item:unequipped`: payload `{itemId, slot}`, `why.rule` `content.items.<id>`.
+    - `item:used`: payload `{itemId, remaining}`, emitted before the effect's own events.
+    - `damage:applied`: payload `{amount, type, hp: "before→after"}`, `why.rolls` = `["d0[]-10=-10"]`-style strings.
+  - **`character.ts` changes:**
+    - `CharacterState.equipped?: EquippedEntry[]` stays absent until the first equip. An emptied array stays `[]`.
+    - `derived()` composes over `equipmentView`, and `saves` returns `view.saves`.
+    - `formulaValue(runtime, id, abilities, level, rng, gear?)` and `reserveValue(runtime, id, abilities, level, rng, gear?)` gain the optional trailing `gear`. Build, level-set and restore callers pass nothing, so they keep the base value.
+    - The facade gains `equip(itemId, slot)`, `unequip(slot)` and `useItem(itemId, opts?)`.
+  - **Heal rule as landed:** `after = current >= cap ? current : min(cap, current + heal)`, where cap is the pack `hp` formula over `equipmentScope`, evaluated with `Rng(0)`. That equals `derived().hp`. Positive damage floors at 0. Equipping never heals and unequipping never clamps.
+  - **Condition effects** in `useItem` route through `applyCondition`. The effect's duration then overrides the entry that call created or refreshed.
+  - **Pools:** `rest` evaluates pool caps over the view. `initPools` is unchanged because no character state exists at build time.
+  - **Runtime index:** `PackIndex.itemEffects` holds only items that declare `use`, parsed once at load. The barrel exports everything above.
+  - **Fixture extensions (additive; existing formulas and items untouched):**
+    - `RUNTIME_PACK`:
+      - `equipSlots: ['body','main-hand','off-hand','ring']`
+      - `chain-shirt`: kind `mail`, slots `body`, grants `{ac: 2, armor: 1}`. Warden lists `mail` in armorCasting; hexer has none.
+      - `ashwood-blade`: kind `weapon`, slots `main-hand`/`off-hand`, grants `{might: 1}`
+      - `ward-ring`: slots `ring`, grants `{hp: 2, luck: 1}`
+      - `mend-draught`: use `heal(10)`
+    - `emberMarchesPack`:
+      - `equipSlots: ['body','main-hand']`
+      - `scale-coat`: kind `mail`, slots `body`, grants `{ac: 2, armor: 1}`
+      - `ember-brand`: slots `main-hand`, grants `{might: 1}`
+      - `mend-salve`: use `heal(1d6 + 2)`
+- **verification:**
+  - `pnpm typecheck` 0 at every checkpoint. Lint 0 on lease files and for the whole repo. Prettier check clean on all lease files.
+  - **Per-checkpoint gates:**
+
+    | Checkpoint | Command | Result |
+    |---|---|---|
+    | ck1 | `pnpm exec vitest run tests/runtime/equipment.test.ts tests/runtime/inventory.test.ts` | 2 files, 42/42 |
+    | ck2 | `pnpm exec vitest run tests/runtime/character.test.ts tests/runtime/equipment.test.ts tests/runtime/pools.test.ts` | 3 files, 31/31 |
+    | ck3 | same three files | 3 files, 42/42 |
+    | ck4 | `pnpm exec vitest run tests/runtime/ tests/snapshots/` | 16 files, 223/223 |
+
+    Selected counts matched intent in both directions. The snapshot suites were unaffected, which confirms the absent-`equipped` choice.
+  - Whole repo for information: `pnpm test` 36 files, 623/623 (baseline 584 + 39 new); `pnpm lint` 0. No `pnpm build`.
+  - **Proofs:**
+    - **CAP-E2** (`character.test.ts`, "CAP-E2 closing proof"):
+      - ascending `10 + gear-ac`: 10 → 12 → base byte-exact;
+      - descending `12 - floor(level / 3) - gear-ac` at level 3: 11 → 9 → base;
+      - `gear-hp`: 20 → 22 with `hp.current` unchanged;
+      - might 3 + 1 inside `floor(level / 2) + might`: 4 → 5;
+      - a save grant, and a key that is both ability and save;
+      - nothing equipped: the fixture's `derived()` values are identical, with all four `gear-*` = 0.
+    - **CAP-E3** (`pools.test.ts`): rejection with slots, state JSON and event count unchanged; cast succeeds after unequip; a class listing `mail` casts while equipped; non-armor never blocks; one class of a multiclass character is enough.
+    - **CAP-E4 / CA-EG5** (`equipment.test.ts`): heal from 16 lands exactly at 20 with event `16→20`; cap equals `derived().hp` with grants (22); over-cap stays at `22→22` and the unit is still consumed; one unit per use and the last unit removes the entry; every rejection leaves no change and no event.
+  - **Negative controls:** I temporarily disabled the R-2 over-cap branch and the armor gate. Three tests failed as expected (over-cap 20≠22, and both gate tests). The code was restored before the ck3 commit.
+  - **Boundary greps:**
+    - R-11: `equipment.ts` has no value import from character, pools or inventory.
+    - R-5: `inventory.ts` only calls `equippedUnits`.
+    - CA-EG2: grants are summed only in `equipment.ts`.
+    - No compiler import anywhere in the runtime.
+- **surprises:**
+  1. `why.rolls` formatting is a small private copy (`rollText`) of combat's `displayRoll` anatomy, because `equipment.ts` may not import `combat.ts` (R-11). If S05 moves `displayRoll` to a leaf, this copy can go.
+  2. The `castSpell` gate (`armorBlockingCast` in `pools.ts`) walks `state.equipped` to read the armor marker. That is neither a grant sum nor a unit count, so CA-EG2 and R-5 still hold.
+  3. A save grant for a save the character has no base value for starts from 0 in `view.saves`. Membership is decided by the pack's `stats` lists.
+  4. When a condition effect with `ignore` stacking hits an already-active condition, `useItem` changes nothing. The `condition:applied` event reports the pack-default duration even when the effect's duration overrode it.
+  5. The SESSION prompt says `tests/runtime/fixtures/pack.ts` builds on `VALID_PACK`. In fact it is a standalone literal; this changed nothing.
+  6. S04 landed ck1–4 (up to `90dbfc7`) during this session. No shared-tree red was observed in either direction.
+- **followUp:** S05 consumers:
+  - `equipmentView` for the profile's abilities, saves, initiative base and `maxHp`. Profile `maxHp` should equal `derived().hp`.
+  - `runtime.index.itemEffects` for `fight.use`.
+  - `equippedUnits(state, itemId)` as settlement's pure pre-check.
+  - `dropItem` (with its `item-equipped` guard) for settlement's mutation.
+  - Mirror the heal rule exactly as landed in `applyMutation`.
+  - The serializer must keep `equipped` absent when absent (build never writes it).
+
+  Proofs still owned elsewhere: CAP-E2 generated-pack leg (S06), CAP-E4 combat leg (S05 ck2), CAP-E8 settlement (S05 ck3), CA-EG6 snapshots (S05 ck4). Orchestrator's build and whole-repo battery run at receive.
+- **needsOwnerCorrection:** —
+- **needsDesignSource:** —
+- **blockedReason:** —
+- **filesTouched:**
+  - `src/runtime/equipment.ts`
+  - `src/runtime/character.ts`
+  - `src/runtime/pools.ts`
+  - `src/runtime/inventory.ts`
+  - `src/runtime/runtime.ts`
+  - `src/runtime/index.ts`
+  - `tests/runtime/fixtures/pack.ts`
+  - `tests/runtime/fixtures/packs.ts`
+  - `tests/runtime/equipment.test.ts`
+  - `tests/runtime/character.test.ts`
+  - `tests/runtime/pools.test.ts`
+  - `tests/runtime/inventory.test.ts`
+  - `.program/signal/SESSION-03.arch.md` (arch fragment; uncommitted, for Orchestrator)
