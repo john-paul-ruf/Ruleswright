@@ -548,3 +548,10 @@ this pass; original text recoverable at `b671a37`.) -->
 - `castSpell` gains the `armor-not-castable` gate (CA-EG3).
 - `dropItem` gains the `item-equipped` guard.
 - `rest` pool caps now evaluate over the equipment view.
+
+<!-- equipment-consumables SESSION-04 -->
+### M04 Compiler — equipment-consumables SESSION-04 delta
+
+- `ThemeTemplate.equipSlots?: readonly string[]` (`src/compiler/theme.ts`) — v1.4 (CA-EG1): the optional equip-slot vocabulary, section-keyed like the pack's root `equipSlots`, no theme-side renaming.
+- `runPipeline` (`src/compiler/pipeline.ts`): `STAGE_INPUT_SECTIONS` gains `'equipSlots'` (after `'spatial'`, so `#knob/` tokens resolve uniformly); after the spatial pass-through, `themeView.equipSlots` is `structuredClone`d into `pack.equipSlots`. Absent in the theme ⇒ the pack carries no `equipSlots` key. The theme object is never mutated (spatial precedent).
+- Bundled themes (all three) now declare root `equipSlots` and reference `gear-hp` / `gear-ac` / `gear-initiative` in their reserved formulas (descending AC: `… - gear-ac`). Unequipped values are byte-identical to pre-v1.4.
