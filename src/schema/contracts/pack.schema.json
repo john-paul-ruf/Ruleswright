@@ -394,7 +394,11 @@
               "grants": {
                 "type": "object",
                 "properties": {
-                  "armor": { "type": "integer", "minimum": 1, "description": "The armor marker (CA-EG3); exposed to formulas as gear-armor" }
+                  "armor": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "The armor marker (CA-EG3); exposed to formulas as gear-armor"
+                  }
                 },
                 "additionalProperties": { "type": "integer" },
                 "description": "v1.4 — grant key -> integer, applied while the item is equipped. No dice (FR-1 determinism). Keys: (1) an ability id or a save id — the value is ADDED to that stat, never a replacement; a key naming both an ability and a save adds to both. (2) a reserved key hp | ac | initiative | armor — summed over every equipped item and exposed ONLY to formulas entries as gear-hp | gear-ac | gear-initiative | gear-armor (0 when nothing is equipped); the pack's formula decides direction, the engine adds nothing on its own. Armor marker: an item is armor iff its grants include the key armor, whose value must be an integer >= 1. Any other key is a dangling reference (E-REF-01); a non-integer value or armor < 1 is structural (E-SCHEMA-01)"

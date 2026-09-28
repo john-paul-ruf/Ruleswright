@@ -113,8 +113,16 @@
             "additionalProperties": false,
             "required": ["slot", "itemId"],
             "properties": {
-              "slot": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$", "description": "A slot id declared in the pack's equipSlots" },
-              "itemId": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$", "description": "A content.items id whose slots list admits this slot" }
+              "slot": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]*$",
+                "description": "A slot id declared in the pack's equipSlots"
+              },
+              "itemId": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]*$",
+                "description": "A content.items id whose slots list admits this slot"
+              }
             }
           },
           "description": "v1.4 — optional equipment state: one {slot, itemId} entry per occupied slot (one item per slot). Absent = nothing equipped (equivalent to []). The runtime emits the key only when the character's state carries it, preserving the byte-exact round-trip of characters that never equipped. Slot uniqueness across entries cannot be expressed in JSON Schema (uniqueItems compares whole objects), so runtime restore enforces it fail-closed, together with item/slot existence, slot eligibility and held quantity — any violation = E-SNAP-01, all refusals collected before any application. Inventory still restores verbatim."
