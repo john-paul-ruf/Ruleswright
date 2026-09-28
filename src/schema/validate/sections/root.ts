@@ -1,9 +1,10 @@
 /**
  * The pack document's root and its first sections: root shape, manifest,
- * stats, formulas, and the optional spatial model (v1.3). Root-level
+ * stats, formulas, the optional spatial model (v1.3) and equip slots (v1.4). Root-level
  * discipline lives here — required sections, the closed top-level key set,
  * manifest provenance, and the reserved formula ids every pack must define.
  */
+import { RESERVED_GRANT_KEYS } from '../../artifacts';
 import { makeErrorCard } from '../../error-card';
 import type { Ctx } from '../context';
 import {
@@ -22,6 +23,9 @@ import {
 /** Reserved formula ids: `initiative` is optional (engine fallback: plain d20); `hp` and `ac` are not. */
 const RESERVED_FORMULA_IDS: readonly string[] = ['hp', 'ac'];
 
+/** v1.4 equipment formula variables (CA-EG2): no ability or save may take one of these names. */
+const EQUIPMENT_VARIABLE_NAMES: readonly string[] = RESERVED_GRANT_KEYS.map((key) => `gear-${key}`);
+
 export function checkRootSections(ctx: Ctx, doc: Record<string, unknown>): void {
   const required = [
     'manifest',
@@ -39,7 +43,7 @@ export function checkRootSections(ctx: Ctx, doc: Record<string, unknown>): void 
     }
   }
   for (const key of Object.keys(doc)) {
-    if (!required.includes(key) && key !== 'economy' && key !== 'spatial') {
+    if (!required.includes(key) && !['economy', 'spatial', 'equipSlots'].includes(key)) {
       add(
         ctx,
         makeErrorCard(
@@ -167,6 +171,33 @@ export function checkStats(ctx: Ctx, value: unknown): void {
   forbidUnknown(ctx, value, ['abilities', 'saves'], 'stats', 'stats');
   checkIdList(ctx, value['abilities'], 'stats', 'stats.abilities');
   checkIdList(ctx, value['saves'], 'stats', 'stats.saves');
+  for (const field of ['abilities', 'saves'] as const) {
+    const ids = value[field];
+    if (!Array.isArray(ids)) continue;
+    for (const [index, id] of ids.entries()) {
+      if (typeof id !== 'string' || !EQUIPMENT_VARIABLE_NAMES.includes(id)) continue;
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          'stats',
+          `stats.${field}[${index}]`,
+          `"${id}" is a reserved formula variable name (v1.4 equipment: ${EQUIPMENT_VARIABLE_NAMES.join(', ')}) — a stat of that name would make formulas ambiguous.`,
+        ),
+      );
+    }
+  }
+}
+
+/**
+ * The optional equip-slot vocabulary (v1.4): ≥ 1 unique kebab names. Slot ids
+ * are their own vocabulary (the economy slot-name precedent) — never
+ * registered as artifact ids. Defects here are E-SCHEMA-01; pass 1 then records
+ * the vocabulary as unreadable, so item slot references stay silent (R-8).
+ */
+export function checkEquipSlots(ctx: Ctx, value: unknown): void {
+  if (value === undefined) return;
+  checkIdList(ctx, value, 'equipSlots', 'equipSlots');
 }
 
 export function checkFormulas(ctx: Ctx, value: unknown): void {

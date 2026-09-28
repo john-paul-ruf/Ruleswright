@@ -61,6 +61,7 @@ export function collectContext(doc: Record<string, unknown>, ctx: Ctx): void {
       ctx.economySlotNames = names;
     }
   }
+  ctx.equipSlotNames = collectEquipSlots(doc['equipSlots']);
   const progression = doc['progression'];
   if (progression === undefined) {
     ctx.progressionIds = new Set(); // absent section = empty namespace: E-REF-03 fires per declared class
@@ -90,6 +91,18 @@ function collectKebabList(value: unknown): Set<string> | null {
     set.add(entry);
   }
   return set;
+}
+
+/** Absent → empty namespace; readable (array, ≥ 1, kebab, unique) → the names; anything else → null (R-8). */
+function collectEquipSlots(value: unknown): Set<string> | null {
+  if (value === undefined) return new Set();
+  if (!Array.isArray(value) || value.length < 1) return null;
+  const names = new Set<string>();
+  for (const entry of value) {
+    if (typeof entry !== 'string' || !ID_PATTERN.test(entry) || names.has(entry)) return null;
+    names.add(entry);
+  }
+  return names;
 }
 
 function collectTagsInto(ctx: Ctx, value: unknown): void {

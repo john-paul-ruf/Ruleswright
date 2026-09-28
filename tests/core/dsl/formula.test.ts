@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { checkFormula, EQUIPMENT_SCALARS, evalFormula, parseFormula } from '../../../src/core/dsl/formula';
 import { REGISTRY } from '../../../src/core/dsl/registry';
+import { RESERVED_GRANT_KEYS } from '../../../src/schema/artifacts';
 import type { DslCheckRequest } from '../../../src/schema/validate';
 import type { RollResult } from '../../../src/core/dice';
 import { Rng } from '../../../src/core/rng';
@@ -244,6 +245,10 @@ describe('checkFormula — the S01 seam (E-FORM-01/02/03)', () => {
 });
 
 describe('equipment variables (v1.4, CA-EG2)', () => {
+  it('EQUIPMENT_SCALARS corresponds to the schema RESERVED_GRANT_KEYS', () => {
+    expect(EQUIPMENT_SCALARS).toEqual(RESERVED_GRANT_KEYS.map((key) => `gear-${key}`));
+  });
+
   it('gear-* names are admitted in formula-kind checks only', () => {
     for (const name of EQUIPMENT_SCALARS) {
       expect(checkFormula(request(`10 + ${name}`)), name).toEqual([]);

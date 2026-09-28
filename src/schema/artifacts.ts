@@ -1,5 +1,5 @@
 /**
- * Per-artifact types mirroring pack.schema.json $defs 1:1 (schemaVersion 1, v1.1).
+ * Per-artifact types mirroring pack.schema.json $defs 1:1 (schemaVersion 1, v1.4).
  * Normative source: src/schema/contracts/pack.schema.json (DB-owned, read-only).
  * Closed shapes: `additionalProperties: false` is enforced by the validator
  * (validate.ts), not by these types.
@@ -119,10 +119,27 @@ export interface ConditionDef {
   restricts?: string[];
 }
 
+/**
+ * Reserved grant keys (v1.4, CA-EG1/EG2): summed over equipped items and
+ * exposed only to `formulas` entries as `gear-<key>`. Core's `EQUIPMENT_SCALARS`
+ * is this list prefixed — declared there separately (schema imports no core value).
+ */
+export const RESERVED_GRANT_KEYS: readonly string[] = ['hp', 'ac', 'initiative', 'armor'];
+
 /** $defs/content/properties/items/additionalProperties */
 export interface ItemDef {
   name: string;
   kind?: string;
+  /** v1.4 (CA-EG1) — the declared `equipSlots` this item may be equipped into (one at a time). Presence makes it equippable. */
+  slots?: KebabId[];
+  /**
+   * v1.4 (CA-EG1/EG2) — key -> integer, applied while equipped. An ability or
+   * save key ADDS to that stat; a `RESERVED_GRANT_KEYS` key feeds `gear-<key>`
+   * in formulas. Armor marker (CA-EG3): the item is armor iff `armor` (>= 1) is present.
+   */
+  grants?: Record<string, number>;
+  /** v1.4 (CA-EG4) — effect-DSL string (e.g. `heal(2 + vigor)`). Presence makes it consumable; one use consumes one unit. */
+  use?: DslString;
 }
 
 /** One row of a classic class attack table — defense keys are pack convention (FR-3). */

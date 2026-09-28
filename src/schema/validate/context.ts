@@ -26,5 +26,13 @@ export interface Ctx {
   tablesDoc: Record<string, unknown>;
   /** Set only when the optional economy section is present and readable (v1.1: cost slot keys must resolve to these). */
   economySlotNames: Set<string> | null;
+  /**
+   * v1.4 equip-slot vocabulary (R-8 — absent and unreadable stay distinct):
+   * absent root `equipSlots` → empty Set (an item declaring `slots` then gets
+   * E-REF-01, the pack declares no equipSlots); readable → the declared names;
+   * unreadable (non-array, empty, bad entry, duplicate) → null (item slot
+   * reference checks are skipped — checkEquipSlots reports the defect, no cascade).
+   */
+  equipSlotNames: Set<string> | null;
   dslChecker: DslChecker;
 }

@@ -8,6 +8,7 @@ import {
 } from '../../src/schema/validate';
 import { RULE_IDS } from '../../src/schema/error-card';
 import type { Pack } from '../../src/schema/pack';
+import { packDslChecker } from '../../src/core/dsl/checker';
 
 /** Accepts only expressions that mention "might" — used to prove the checker is invoked with the right context. */
 const pickyChecker: DslChecker = (request) =>
@@ -551,5 +552,143 @@ describe('all-at-once, never partial (FR-2)', () => {
       expect(card.message.length).toBeGreaterThan(0);
       expect(card.severity).toBe('error');
     }
+  });
+});
+
+describe('equipment + consumables (v1.4, CA-EG1) — isolated pack, real DSL checker', () => {
+  /** Self-contained: VALID_PACK carries non-registry effect words that the real checker rejects (F-E14). */
+  function equipmentPack(): Record<string, unknown> {
+    return {
+      manifest: { id: 'gear-pack', schemaVersion: 1, title: 'Gear Pack' },
+      stats: { abilities: ['vigor', 'might'], saves: ['reason', 'grit'] },
+      actions: { strike: { cost: { slots: { action: 1 } }, effect: 'attack(ac, might)', tags: ['melee'] } },
+      economy: { turnSlots: { action: 1 } },
+      equipSlots: ['body', 'main-hand'],
+      formulas: { hp: { expr: '8 + vigor * 2 + gear-hp' }, ac: { expr: '10 - gear-ac' } },
+      content: {
+        classes: { warden: { name: 'Warden' } },
+        items: {
+          'mail-coat': { name: 'Mail Coat', kind: 'mail', slots: ['body'], grants: { ac: 2, armor: 1 } },
+          'iron-maul': {
+            name: 'Iron Maul',
+            slots: ['main-hand'],
+            grants: { might: 1, grit: 1, initiative: -1 },
+          },
+          'med-kit': { name: 'Med Kit', use: 'heal(2 + vigor)' },
+        },
+      },
+      progression: { warden: { hd: 'd8', attackBonus: 'level / 2', saves: { reason: [2, 3, 4] } } },
+      bestiary: { 'grave-shambles': { name: 'Grave Shambles', threat: 1, actions: ['strike'] } },
+      tables: { 'loot-table': { kind: 'weighted', entries: [{ weight: 1, value: 'nothing' }] } },
+    };
+  }
+
+  function validateWith(mutate: (pack: Record<string, unknown>) => void) {
+    const pack = equipmentPack();
+    mutate(pack);
+    return validatePack(pack, packDslChecker);
+  }
+
+  function items(pack: Record<string, unknown>): Record<string, Record<string, unknown>> {
+    return (pack['content'] as Record<string, unknown>)['items'] as Record<string, Record<string, unknown>>;
+  }
+
+  it('equipment and consumable items load with zero cards', () => {
+    expect(validateWith(() => {})).toEqual([]);
+  });
+
+  it('a non-integer grant value is E-SCHEMA-01', () => {
+    const cards = validateWith((pack) => (items(pack)['mail-coat']!['grants'] = { ac: 1.5 }));
+    expect(cards).toMatchObject([{ rule: 'E-SCHEMA-01', jsonPath: 'content.items.mail-coat.grants.ac' }]);
+  });
+
+  it('an unknown grant key is E-REF-01 with a did-you-mean hint', () => {
+    const cards = validateWith((pack) => (items(pack)['iron-maul']!['grants'] = { migth: 1 }));
+    expect(cards).toMatchObject([
+      {
+        rule: 'E-REF-01',
+        artifactId: 'iron-maul',
+        jsonPath: 'content.items.iron-maul.grants.migth',
+        hint: 'did you mean "might"?',
+      },
+    ]);
+  });
+
+  it('armor: 0 is E-SCHEMA-01 (the armor marker is >= 1)', () => {
+    const cards = validateWith((pack) => (items(pack)['mail-coat']!['grants'] = { ac: 2, armor: 0 }));
+    expect(cards).toMatchObject([{ rule: 'E-SCHEMA-01', jsonPath: 'content.items.mail-coat.grants.armor' }]);
+  });
+
+  it('an unknown slot id is E-REF-01 with a hint', () => {
+    const cards = validateWith((pack) => (items(pack)['mail-coat']!['slots'] = ['bodyy']));
+    expect(cards).toMatchObject([
+      { rule: 'E-REF-01', jsonPath: 'content.items.mail-coat.slots[0]', hint: 'did you mean "body"?' },
+    ]);
+  });
+
+  it('slots declared while the pack has no equipSlots (absent) is E-REF-01 per slotted item', () => {
+    const cards = validateWith((pack) => delete pack['equipSlots']);
+    expect(cards.map((card) => [card.rule, card.jsonPath])).toEqual([
+      ['E-REF-01', 'content.items.mail-coat.slots[0]'],
+      ['E-REF-01', 'content.items.iron-maul.slots[0]'],
+    ]);
+    expect(cards[0]!.message).toMatch(/declares no equipSlots/);
+  });
+
+  it('malformed equipSlots yields only its own E-SCHEMA-01 cards — no item E-REF-01 cascade (R-8)', () => {
+    const badEntry = validateWith((pack) => (pack['equipSlots'] = ['body', 'Bad Slot']));
+    expect(badEntry.map((card) => [card.rule, card.jsonPath])).toEqual([['E-SCHEMA-01', 'equipSlots[1]']]);
+    const notArray = validateWith((pack) => (pack['equipSlots'] = 'body'));
+    expect(notArray.map((card) => [card.rule, card.jsonPath])).toEqual([['E-SCHEMA-01', 'equipSlots']]);
+  });
+
+  it('an empty equipSlots is E-SCHEMA-01', () => {
+    const cards = validateWith((pack) => {
+      pack['equipSlots'] = [];
+      items(pack)['mail-coat']!['slots'] = undefined;
+      items(pack)['iron-maul']!['slots'] = undefined;
+    });
+    expect(cards.map((card) => [card.rule, card.jsonPath])).toEqual([['E-SCHEMA-01', 'equipSlots']]);
+  });
+
+  it('a duplicate equipSlots entry is E-SCHEMA-01', () => {
+    const cards = validateWith((pack) => (pack['equipSlots'] = ['body', 'main-hand', 'body']));
+    expect(cards.map((card) => [card.rule, card.jsonPath])).toEqual([['E-SCHEMA-01', 'equipSlots[2]']]);
+  });
+
+  it('an ability named gear-ac is E-SCHEMA-01 (reserved formula variable)', () => {
+    const cards = validateWith(
+      (pack) => (pack['stats'] = { abilities: ['vigor', 'might', 'gear-ac'], saves: ['reason', 'grit'] }),
+    );
+    expect(cards).toMatchObject([{ rule: 'E-SCHEMA-01', jsonPath: 'stats.abilities[2]' }]);
+  });
+
+  it('an item use is checked as an effect: parse failure E-FORM-01, unknown function E-FORM-02', () => {
+    const unparsed = validateWith((pack) => (items(pack)['med-kit']!['use'] = 'heal(2 + might'));
+    expect(unparsed).toMatchObject([{ rule: 'E-FORM-01', jsonPath: 'content.items.med-kit.use' }]);
+    const unknown = validateWith((pack) => (items(pack)['med-kit']!['use'] = 'mend(2)'));
+    expect(unknown).toMatchObject([{ rule: 'E-FORM-02', jsonPath: 'content.items.med-kit.use' }]);
+  });
+
+  it('gear-* reads cleanly in formulas and is E-FORM-03 in an attackBonus', () => {
+    expect(
+      validateWith(
+        (pack) => ((pack['formulas'] as Record<string, unknown>)['ac'] = { expr: '10 - gear-ac' }),
+      ),
+    ).toEqual([]);
+    const cards = validateWith(
+      (pack) =>
+        (pack['progression'] = {
+          warden: { hd: 'd8', attackBonus: 'level / 2 + gear-ac', saves: { reason: [2, 3, 4] } },
+        }),
+    );
+    expect(cards).toMatchObject([{ rule: 'E-FORM-03', jsonPath: 'progression.warden.attackBonus' }]);
+    const inAttack = validateWith(
+      (pack) =>
+        (pack['actions'] = {
+          strike: { cost: { slots: { action: 1 } }, effect: 'attack(ac, might + gear-ac)', tags: ['melee'] },
+        }),
+    );
+    expect(inAttack).toMatchObject([{ rule: 'E-FORM-03', jsonPath: 'actions.strike.effect' }]);
   });
 });

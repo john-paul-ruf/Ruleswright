@@ -19,7 +19,14 @@ import { checkActions } from './sections/actions';
 import { checkBestiary } from './sections/bestiary';
 import { checkContent } from './sections/content';
 import { checkEconomy } from './sections/economy';
-import { checkFormulas, checkManifest, checkRootSections, checkSpatial, checkStats } from './sections/root';
+import {
+  checkEquipSlots,
+  checkFormulas,
+  checkManifest,
+  checkRootSections,
+  checkSpatial,
+  checkStats,
+} from './sections/root';
 import { checkProgression } from './sections/progression';
 import { checkTables } from './sections/tables';
 import { checkProgressionPairing, checkRestrictsTags } from './sections/cross';
@@ -48,6 +55,7 @@ export function validatePack(json: unknown, dslChecker: DslChecker = deferredDsl
     tagsTrusted: true,
     tablesDoc: {},
     economySlotNames: null,
+    equipSlotNames: null,
     dslChecker,
   };
   if (!isPlainObject(json)) {
@@ -61,6 +69,7 @@ export function validatePack(json: unknown, dslChecker: DslChecker = deferredDsl
   checkActions(ctx, json['actions']);
   checkEconomy(ctx, json['economy']);
   checkSpatial(ctx, json['spatial']);
+  checkEquipSlots(ctx, json['equipSlots']);
   checkFormulas(ctx, json['formulas']);
   checkContent(ctx, json['content']);
   checkProgression(ctx, json['progression']);

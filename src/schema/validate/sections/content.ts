@@ -5,6 +5,7 @@
  * checks resolve against the pass-1 namespaces.
  */
 import type { Ctx } from '../context';
+import { RESERVED_GRANT_KEYS } from '../../artifacts';
 import { makeErrorCard } from '../../error-card';
 import {
   ID_PATTERN,
@@ -21,6 +22,7 @@ import {
   checkTagsField,
   checkTrigger,
   checkCost,
+  checkIdList,
 } from '../helpers';
 
 export function checkContent(ctx: Ctx, value: unknown): void {
@@ -644,8 +646,81 @@ function checkItems(ctx: Ctx, value: unknown): void {
       continue;
     }
     reqFields(ctx, def, ['name'], id, basePath);
-    forbidUnknown(ctx, def, ['name', 'kind'], id, basePath);
+    forbidUnknown(ctx, def, ['name', 'kind', 'slots', 'grants', 'use'], id, basePath);
     checkStringField(ctx, def, 'name', id, basePath, 1);
     checkStringField(ctx, def, 'kind', id, basePath);
+    checkItemSlots(ctx, def['slots'], id, `${basePath}.slots`);
+    checkItemGrants(ctx, def['grants'], id, `${basePath}.grants`);
+    checkDslField(ctx, def['use'], 'effect', id, `${basePath}.use`);
+  }
+}
+
+/** v1.4 item slots: non-empty unique kebab list (E-SCHEMA-01); each id resolves in the root equipSlots (E-REF-01). */
+function checkItemSlots(ctx: Ctx, value: unknown, id: string, path: string): void {
+  if (value === undefined) return;
+  checkIdList(ctx, value, id, path);
+  const declared = ctx.equipSlotNames;
+  if (declared === null || !Array.isArray(value)) return; // equipSlots unreadable — already flagged (R-8)
+  for (const [index, slot] of value.entries()) {
+    if (typeof slot !== 'string' || !ID_PATTERN.test(slot) || declared.has(slot)) continue;
+    const near = nearestId(slot, declared);
+    add(
+      ctx,
+      makeErrorCard(
+        'E-REF-01',
+        id,
+        `${path}[${index}]`,
+        declared.size === 0
+          ? `item "${id}" declares slot "${slot}", but the pack declares no equipSlots.`
+          : `item "${id}" declares slot "${slot}", which is not declared in equipSlots.`,
+        near === undefined ? 'declare the slot in the root equipSlots array.' : `did you mean "${near}"?`,
+      ),
+    );
+  }
+}
+
+/**
+ * v1.4 item grants (CA-EG1): keys are an ability id, a save id, or a reserved
+ * key (hp | ac | initiative | armor) — anything else is a dangling reference
+ * (E-REF-01). Values are integers (no dice); `armor`, the armor marker, is >= 1
+ * (E-SCHEMA-01).
+ */
+function checkItemGrants(ctx: Ctx, value: unknown, id: string, path: string): void {
+  if (value === undefined) return;
+  if (!isPlainObject(value)) {
+    add(ctx, makeErrorCard('E-SCHEMA-01', id, path, 'grants must be an object of key -> integer.'));
+    return;
+  }
+  const statsReadable = ctx.abilityIds !== null && ctx.saveIds !== null;
+  const keys = new Set([...(ctx.abilityIds ?? []), ...(ctx.saveIds ?? []), ...RESERVED_GRANT_KEYS]);
+  for (const [key, amount] of Object.entries(value)) {
+    if (!isInteger(amount)) {
+      add(
+        ctx,
+        makeErrorCard('E-SCHEMA-01', id, `${path}.${key}`, `grants.${key} must be an integer (no dice).`),
+      );
+    } else if (key === 'armor' && amount < 1) {
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          id,
+          `${path}.armor`,
+          'grants.armor is the armor marker and must be an integer >= 1.',
+        ),
+      );
+    }
+    if (!statsReadable || keys.has(key)) continue; // stats unreadable — already flagged structurally
+    const near = nearestId(key, keys);
+    add(
+      ctx,
+      makeErrorCard(
+        'E-REF-01',
+        id,
+        `${path}.${key}`,
+        `item "${id}" grants "${key}", which is not an ability, a save, or a reserved key (${RESERVED_GRANT_KEYS.join(', ')}).`,
+        near === undefined ? undefined : `did you mean "${near}"?`,
+      ),
+    );
   }
 }

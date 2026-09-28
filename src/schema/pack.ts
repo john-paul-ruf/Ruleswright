@@ -1,6 +1,7 @@
 /**
  * The pack document type — mirrors the top level of pack.schema.json
- * (8 required + 2 optional sections, schemaVersion 1: economy v1.1, spatial v1.3).
+ * (8 required + 3 optional sections, schemaVersion 1: economy v1.1, spatial v1.3,
+ * equipSlots v1.4).
  */
 import type {
   ActionDef,
@@ -91,6 +92,8 @@ export interface Pack {
   actions: Record<string, ActionDef>;
   economy?: PackEconomy;
   spatial?: SpatialDef;
+  /** v1.4 — the declared equip-slot vocabulary (own namespace, not artifact ids); items' `slots` resolve here. */
+  equipSlots?: KebabId[];
   formulas: Record<string, FormulaDef>;
   content: PackContent;
   progression: Record<string, ClassProgression>;
