@@ -64,6 +64,16 @@ export interface FormulaCheckContext {
 /** Names every formula may reference without declaring: the actor's level (FR-3/FR-5). */
 export const BUILTIN_SCALARS: readonly string[] = ['level'];
 
+/**
+ * v1.4 equipment variables (CA-EG2): each the sum of one reserved grant key
+ * over the equipped items. Readable only in `formulas` entries (check kind
+ * `formula`); every other DSL field keeps its vocabulary. Unbound = 0 at eval
+ * (nothing equipped, or a context with no equipment, e.g. statblocks). The
+ * schema's `RESERVED_GRANT_KEYS` lists the same keys unprefixed — core takes no
+ * schema value import, so the two lists are declared separately.
+ */
+export const EQUIPMENT_SCALARS: readonly string[] = ['gear-hp', 'gear-ac', 'gear-initiative', 'gear-armor'];
+
 export type FormulaParse = DslParse<FormulaAst>;
 
 const OP_PRECEDENCE: Readonly<Record<string, number>> = { '*': 3, '/': 3, '+': 2, '-': 2 };
@@ -275,8 +285,9 @@ class FormulaParser {
 /**
  * Evaluate a parsed AST against a caller-supplied context and RNG. Dice terms
  * roll through S02's `rollRecipe`; everything else is pure arithmetic over the
- * context map. Unknown names throw — load-time checking (E-FORM-03) rejects
- * them; a play-time hit means a caller skipped validation.
+ * context map. An `EQUIPMENT_SCALARS` name the context does not bind is 0
+ * (nothing equipped); any other unknown name throws — load-time checking
+ * (E-FORM-03) rejects them; a play-time hit means a caller skipped validation.
  */
 export function evalFormula(ast: FormulaAst, ctx: FormulaContext, rng: RandomSource): FormulaValue {
   switch (ast.kind) {
@@ -284,6 +295,7 @@ export function evalFormula(ast: FormulaAst, ctx: FormulaContext, rng: RandomSou
       return ast.value ?? 0;
     case 'name': {
       const value = ctx[ast.text ?? ''];
+      if (value === undefined && EQUIPMENT_SCALARS.includes(ast.text ?? '')) return 0;
       if (value === undefined)
         throw new Error(`unknown name "${ast.text}" — validate the formula before evaluation (E-FORM-03)`);
       return value;
@@ -545,7 +557,8 @@ function nameCandidates(ctx: FormulaCheckContext): readonly string[] {
  * The S01 seam for formula-shaped fields (`formula`, `valid`, `passive`,
  * `attackBonus`): parse + semantic check → ErrorCards. `valid` expressions
  * speak the validity vocabulary (`hasTarget`); everything else speaks the
- * formula vocabulary.
+ * formula vocabulary. `formula` expressions (the `formulas` section) may also
+ * read the `EQUIPMENT_SCALARS`.
  */
 export function checkFormula(request: DslCheckRequest): ErrorCard[] {
   const parsed = parseFormula(request.expr);
@@ -561,7 +574,9 @@ export function checkFormula(request: DslCheckRequest): ErrorCard[] {
   const ctx: FormulaCheckContext =
     request.kind === 'valid'
       ? { abilities: request.abilities, saves: request.saves, allow: 'validity' }
-      : { abilities: request.abilities, saves: request.saves };
+      : request.kind === 'formula'
+        ? { abilities: request.abilities, saves: request.saves, scalars: EQUIPMENT_SCALARS }
+        : { abilities: request.abilities, saves: request.saves };
   const failure = checkFormulaAst(parsed.value, ctx);
   if (failure === undefined) return [];
   return [dslCard(failure.rule, request, failure.message, failure.hint)];

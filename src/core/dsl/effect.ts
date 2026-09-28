@@ -17,6 +17,12 @@
  * legal only as `damage(half)` inside a save's pass branch; it re-rolls the
  * fail branch's first damage expression and halves the total (rounded up —
  * mock: 3d6 → 10 → "half · 5 fire").
+ *
+ * `heal(formula)` (v1.4, CA-EG4) is not a new mutation: it is a damage request
+ * with a negative amount. The rolled heal is negated whole (values, modifier,
+ * total — the RollResult total invariant survives) and requested through
+ * `apply.damage`; the host clamps at the target's max hp. The executor never
+ * caps a heal itself.
  */
 import { parseRecipe, rollRecipe, type DiceRecipe, type RollResult } from '../dice';
 import type { RandomSource } from '../rng';
@@ -209,6 +215,8 @@ function execStatement(
       return execSave(node, args, ctx, scope);
     case 'damage':
       return execDamage(node, args, ctx, scope, halveFrom);
+    case 'heal':
+      return execHeal(args, ctx, scope);
     case 'applyCondition':
       return execCondition(args, ctx, scope);
     case 'target':
@@ -317,6 +325,27 @@ function execDamage(
   return outcomes;
 }
 
+/** heal(formula) → one negative-amount damage request per target (CA-EG4); the outcome records the request as made. */
+function execHeal(
+  args: readonly FormulaAst[],
+  ctx: EffectContext,
+  scope: readonly EffectTargetRef[],
+): readonly EffectResolution[] {
+  const outcomes: DamageOutcome[] = [];
+  for (const target of scope) {
+    const healed = toRoll(evalFormula(args[0]!, ctx.vars, ctx.rng), 'heal');
+    const roll: RollResult = {
+      ...healed,
+      values: healed.values.map((value) => 0 - value),
+      modifier: 0 - healed.modifier,
+      total: 0 - healed.total,
+    };
+    ctx.apply.damage(target, roll);
+    outcomes.push({ kind: 'damage', targetId: target.id, roll, halved: false });
+  }
+  return outcomes;
+}
+
 function execCondition(
   args: readonly FormulaAst[],
   ctx: EffectContext,
@@ -389,6 +418,7 @@ const ARG_CATEGORIES: Readonly<Record<string, readonly string[]>> = {
   attack: ['formula', 'formula'],
   save: ['save-name', 'formula', 'effect', 'effect'],
   damage: ['formula', 'type'],
+  heal: ['formula'],
   applyCondition: ['condition-id', 'formula'],
   target: ['shape', 'effect'],
   sequence: [],

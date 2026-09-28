@@ -242,6 +242,48 @@ describe('executeEffect', () => {
     expect(save.perTarget[0]!.roll.total).toBe(12); // 9 + grit 3 → tie passes (total >= dc)
   });
 
+  it('heal(formula) is a negative-amount damage request (CA-EG4): negated total, halved false', () => {
+    const requested: RollResult[] = [];
+    const { apply, calls } = recordingApply();
+    const outcomes = executeEffect(mustParse('heal(2 + might)'), {
+      actor: null,
+      targets: [brynn],
+      rng: new Rng(1),
+      apply: {
+        ...apply,
+        damage(target, roll, type) {
+          requested.push(roll);
+          apply.damage(target, roll, type);
+        },
+      },
+      vars: { might: 3 },
+    });
+    expect(calls).toEqual([{ op: 'damage', targetId: 'brynn', total: -5 }]);
+    expect(outcomes).toEqual([{ kind: 'damage', targetId: 'brynn', roll: requested[0], halved: false }]);
+    expect(requested[0]).toMatchObject({ purpose: 'heal', total: -5 });
+  });
+
+  it('heal carries its dice roll into the request, negated whole (RollResult invariant holds)', () => {
+    const requested: RollResult[] = [];
+    const { apply } = recordingApply();
+    executeEffect(mustParse('heal(1d4 + might)'), {
+      actor: null,
+      targets: [brynn],
+      rng: scripted([3]),
+      apply: {
+        ...apply,
+        damage(_target, roll) {
+          requested.push(roll);
+        },
+      },
+      vars: { might: 2 },
+    });
+    expect(requested).toHaveLength(1);
+    const roll = requested[0]!;
+    expect(roll).toMatchObject({ purpose: 'heal', sides: 4, values: [-3], modifier: -2, total: -5 });
+    expect(roll.total).toBe(roll.values.reduce((a, b) => a + b, 0) + roll.modifier);
+  });
+
   it('throws on unvalidated ASTs: unknown statement and missing recipes', () => {
     const bogus = { kind: 'call', text: 'smash', args: [], pos: { start: 0, length: 5 } } as never;
     expect(() =>
@@ -287,6 +329,14 @@ describe('checkEffect — the S01 seam for effect fields', () => {
     expect(checkEffect(request('save(reason, 14, damage(3d6))'))[0]!.rule).toBe('E-FORM-02');
     expect(checkEffect(request('damage(half)'))[0]!.rule).toBe('E-FORM-02');
     expect(checkEffect(request('8'))[0]!.rule).toBe('E-FORM-01');
+  });
+
+  it('heal is in the closed vocabulary (v1.4); an unknown function is still E-FORM-02', () => {
+    expect(checkEffect(request('heal(2 + might)'))).toEqual([]);
+    expect(checkEffect(request('sequence(heal(1d4), applyCondition(prone, 1))'))).toEqual([]);
+    expect(checkEffect(request('mend(2)'))[0]!.rule).toBe('E-FORM-02');
+    expect(checkEffect(request('heal(1, 2)'))[0]!.rule).toBe('E-FORM-02');
+    expect(checkEffect(request('heal(2 + vigor)'))[0]!.rule).toBe('E-FORM-03');
   });
 
   it('E-FORM-03: unknown save name with did-you-mean', () => {

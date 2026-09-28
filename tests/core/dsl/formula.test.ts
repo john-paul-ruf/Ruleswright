@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { checkFormula, evalFormula, parseFormula } from '../../../src/core/dsl/formula';
+import { checkFormula, EQUIPMENT_SCALARS, evalFormula, parseFormula } from '../../../src/core/dsl/formula';
 import { REGISTRY } from '../../../src/core/dsl/registry';
 import type { DslCheckRequest } from '../../../src/schema/validate';
 import type { RollResult } from '../../../src/core/dice';
@@ -240,6 +240,41 @@ describe('checkFormula — the S01 seam (E-FORM-01/02/03)', () => {
   it('validity functions are rejected in plain formula fields', () => {
     const cards = checkFormula(request('hasTarget(adjacent)'));
     expect(cards[0]!.rule).toBe('E-FORM-02');
+  });
+});
+
+describe('equipment variables (v1.4, CA-EG2)', () => {
+  it('gear-* names are admitted in formula-kind checks only', () => {
+    for (const name of EQUIPMENT_SCALARS) {
+      expect(checkFormula(request(`10 + ${name}`)), name).toEqual([]);
+    }
+    expect(checkFormula(request('12 - floor(level / 3) - gear-ac'))).toEqual([]);
+    for (const kind of ['attackBonus', 'effect', 'valid', 'passive'] as const) {
+      const cards = checkFormula(request('level >= gear-ac', kind));
+      expect(cards, kind).toHaveLength(1);
+      expect(cards[0]!.rule, kind).toBe('E-FORM-03');
+    }
+  });
+
+  it('an unbound gear-* name evaluates to 0; a bound one reads its value in either direction', () => {
+    const rng = new Rng(1);
+    expect(evalFormula(mustParse('12 - gear-ac'), {}, rng)).toBe(12);
+    expect(evalFormula(mustParse('12 - gear-ac'), { 'gear-ac': 2 }, rng)).toBe(10);
+    expect(evalFormula(mustParse('10 + gear-ac'), { 'gear-ac': 2 }, rng)).toBe(12);
+    expect(evalFormula(mustParse('10 + gear-ac'), {}, rng)).toBe(10);
+    for (const name of EQUIPMENT_SCALARS) expect(evalFormula(mustParse(name), {}, rng), name).toBe(0);
+  });
+
+  it('any other unbound name still throws', () => {
+    expect(() => evalFormula(mustParse('10 + gear-shield'), {}, new Rng(1))).toThrow(/gear-shield/);
+  });
+
+  it('lexing edge cases (R-11): digit-led 10-gear-ac subtracts; level-gear-ac is one unknown name', () => {
+    expect(evalFormula(mustParse('10-gear-ac'), { 'gear-ac': 2 }, new Rng(1))).toBe(8);
+    const cards = checkFormula(request('level-gear-ac'));
+    expect(cards).toHaveLength(1);
+    expect(cards[0]!.rule).toBe('E-FORM-03');
+    expect(cards[0]!.message).toMatch(/"level-gear-ac"/);
   });
 });
 

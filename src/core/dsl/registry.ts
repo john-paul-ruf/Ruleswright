@@ -5,11 +5,16 @@
  * functions produce actions/resolutions, comparator words gate validity
  * expressions. `half` is not a call — it is the reserved save-for-half marker
  * grammar accepts inside damage() (magic.html perTarget anatomy).
+ *
+ * v1.4 (contract schema event, database.md §formulas): 12 → 13 with
+ * `heal(formula)` — an effect statement executed as a negative-amount damage
+ * request. No new rule id: an unknown function remains E-FORM-02.
  */
 export const REGISTRY: Readonly<Record<string, FunctionSpec>> = Object.freeze({
   attack: { arity: 2, kind: 'effect', signature: ['formula', 'formula'] },
   save: { arity: 4, kind: 'effect', signature: ['save-name', 'formula', 'effect', 'effect'] },
   damage: { arity: [1, 2], kind: 'effect', signature: ['formula', 'type?'] },
+  heal: { arity: 1, kind: 'effect', signature: ['formula'] },
   applyCondition: { arity: 2, kind: 'effect', signature: ['condition-id', 'formula'] },
   target: { arity: 2, kind: 'effect', signature: ['shape', 'effect'] },
   sequence: { arity: [2, 8], kind: 'effect', signature: ['effect', 'effect'] },

@@ -9,7 +9,7 @@ import {
 import { validatePack } from '../../../src/schema/validate';
 
 describe('registry freeze (CA-2: extension is a schema event, never a code change)', () => {
-  it('asserts the exact v1 membership — additive id check, mirroring CA-1 discipline', () => {
+  it('asserts the exact v1.4 membership (13: heal joined as the v1.4 schema event) — additive id check, mirroring CA-1 discipline', () => {
     expect(Object.keys(REGISTRY).sort()).toEqual([
       'applyCondition',
       'attack',
@@ -18,6 +18,7 @@ describe('registry freeze (CA-2: extension is a schema event, never a code chang
       'floor',
       'half',
       'hasTarget',
+      'heal',
       'max',
       'min',
       'save',
