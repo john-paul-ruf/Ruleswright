@@ -18,8 +18,16 @@
       "$ref": "#/$defs/spatial",
       "description": "Optional spatial model (FR-11): positions/adjacency/reach for packs that want geometry. Absent = theater of mind; nothing else changes."
     },
+    "equipSlots": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/idPattern" },
+      "description": "v1.4 — optional declared equip-slot vocabulary (e.g. [\"body\", \"main-hand\", \"charm\"]). Slot ids are their own vocabulary, like economy slot names: they are NOT artifact ids and do not enter the global-uniqueness namespace (E-DUP-01). Every content.items.<id>.slots entry must resolve here (E-REF-01). Structural defects (empty, duplicate, non-kebab) = E-SCHEMA-01. Absent = the pack declares no equipment slots."
+    },
     "formulas": {
       "type": "object",
+      "description": "formulaId -> {params?, expr}. v1.4: expressions in this section (and only this section) may read the four equipment variables gear-hp, gear-ac, gear-initiative, gear-armor — each the sum of the matching reserved grant key over every equipped item; 0 when nothing is equipped and 0 wherever unbound (e.g. statblocks). The pack's formula decides what the value does; the engine applies no direction (ascending AC: \"10 + gear-ac\"; descending AC: \"12 - floor(level / 3) - gear-ac\"). Every other DSL field keeps its v1.3 vocabulary.",
       "additionalProperties": {
         "type": "object",
         "additionalProperties": false,
@@ -82,6 +90,7 @@
     "stats": {
       "type": "object",
       "additionalProperties": false,
+      "description": "Name-keyed abilities and named saves. v1.4: no ability or save id may equal a reserved formula variable name — gear-hp, gear-ac, gear-initiative, gear-armor (E-SCHEMA-01) — otherwise a formula name would be ambiguous.",
       "required": ["abilities", "saves"],
       "properties": {
         "abilities": {
@@ -372,7 +381,29 @@
             "type": "object",
             "additionalProperties": false,
             "required": ["name"],
-            "properties": { "name": { "type": "string" }, "kind": { "type": "string" } }
+            "properties": {
+              "name": { "type": "string" },
+              "kind": { "type": "string" },
+              "slots": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/idPattern" },
+                "description": "v1.4 — the declared equip slots this item MAY be equipped into; one equip places it in exactly one of them. Presence makes the item equippable. Each id must resolve in the root equipSlots (E-REF-01)"
+              },
+              "grants": {
+                "type": "object",
+                "properties": {
+                  "armor": { "type": "integer", "minimum": 1, "description": "The armor marker (CA-EG3); exposed to formulas as gear-armor" }
+                },
+                "additionalProperties": { "type": "integer" },
+                "description": "v1.4 — grant key -> integer, applied while the item is equipped. No dice (FR-1 determinism). Keys: (1) an ability id or a save id — the value is ADDED to that stat, never a replacement; a key naming both an ability and a save adds to both. (2) a reserved key hp | ac | initiative | armor — summed over every equipped item and exposed ONLY to formulas entries as gear-hp | gear-ac | gear-initiative | gear-armor (0 when nothing is equipped); the pack's formula decides direction, the engine adds nothing on its own. Armor marker: an item is armor iff its grants include the key armor, whose value must be an integer >= 1. Any other key is a dangling reference (E-REF-01); a non-integer value or armor < 1 is structural (E-SCHEMA-01)"
+              },
+              "use": {
+                "$ref": "#/$defs/dslString",
+                "description": "v1.4 — effect-DSL string (same grammar actions and spells use; e.g. \"heal(2 + vigor)\"), parsed once at load. Presence makes the item consumable; one use consumes one unit. Parse failure = E-FORM-01; unknown function = E-FORM-02; unknown ability/save = E-FORM-03"
+              }
+            }
           }
         }
       }
