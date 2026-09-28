@@ -14,6 +14,7 @@ import {
   knownSpells,
   profileFromCharacter,
   profileFromStatblock,
+  settleItemUses,
   spawnMonster,
   startCombat,
   type Character,
@@ -335,3 +336,153 @@ function startCombatWith(rt: Runtime, profile: CombatantProfile) {
     positions: { hero: { x: 0, y: 0 }, foe: { x: 1, y: 0 } },
   });
 }
+
+/**
+ * CA-EG5 settlement / CAP-E8 (S05 ck3): a finished fight's item spend is written
+ * back to the character's inventory by the host-called `settleItemUses`. Real
+ * zombie-urban pack (seed 42, `med-kit` = heal(2 + vigor)) plus two in-test
+ * items: `field-dose` (consumable) and `stim-belt` (equippable AND consumable).
+ */
+describe('CA-EG5 — settleItemUses writes the fight’s spend back to the inventory', () => {
+  function settlementRuntime(): Runtime {
+    const pack = packFor('zombie-urban');
+    pack.content.items!['field-dose'] = { name: 'Field Dose', kind: 'consumable', use: 'heal(1)' };
+    pack.content.items!['stim-belt'] = { name: 'Stim Belt', kind: 'gear', slots: ['body'], use: 'heal(1)' };
+    return new Runtime(pack);
+  }
+
+  /** Hero uses `uses` on its first turn, then both sides fight to combat-over. */
+  function settledFight(prepare: (character: Character) => void, uses: readonly string[], finish = true) {
+    const rt = settlementRuntime();
+    const classId = Object.keys(rt.pack.content.classes ?? {})[0]!;
+    const character = hero(rt, 'mile-born', [{ id: classId, level: 1 }]);
+    prepare(character);
+    const fight = startCombat(rt, {
+      allies: [{ id: character.state.id, ...profileFromCharacter(rt, character) }],
+      enemies: [{ id: 'foe', profile: spawnMonster(rt, bestiaryIds(rt)[0]!, 'foe') }],
+      positions: { [character.state.id]: { x: 0, y: 0 }, foe: { x: 1, y: 0 } },
+    });
+    let used = false;
+    for (let steps = 0; finish && fight.state.phase !== 'combat-over' && steps < 500; steps += 1) {
+      for (const offer of [...fight.pendingTriggers]) fight.respond(offer.triggerId, 'decline');
+      if (fight.step().kind !== 'turn-started') continue;
+      const active = fight.state.combatants[fight.state.active]!;
+      if (active.id === character.state.id && !used) {
+        used = true;
+        for (const itemId of uses) expect(fight.use(itemId)[0]!.type).toBe('item:used');
+      }
+      for (const actionId of active.actions) {
+        fight.declare(actionId);
+        if (fight.state.phase !== 'awaiting-declare') break;
+      }
+    }
+    if (finish) expect(fight.state.phase).toBe('combat-over');
+    return { rt, character, fight };
+  }
+
+  function rejection(run: () => unknown): { rule: string; artifactId: string }[] {
+    try {
+      run();
+    } catch (error) {
+      expect(error).toBeInstanceOf(RuntimeRuleError);
+      return (error as RuntimeRuleError).errors.map((card) => ({
+        rule: card.rule,
+        artifactId: card.artifactId,
+      }));
+    }
+    throw new Error('expected a RuntimeRuleError');
+  }
+
+  it('two uses → the inventory drops by exactly 2, with item:dropped + item:settled; itemsUsed cleared', () => {
+    const { rt, character, fight } = settledFight((c) => c.grant('med-kit', 3), ['med-kit', 'med-kit']);
+    const id = character.state.id;
+    expect(fight.state.combatants[id]!.itemsUsed).toEqual({ 'med-kit': 2 });
+    expect(character.count('med-kit')).toBe(3);
+    const events = settleItemUses(rt, character, fight);
+    expect(events.map((event) => event.type)).toEqual(['item:dropped', 'item:settled']);
+    expect(events[1]!.payload).toEqual({ combatantId: id, itemId: 'med-kit', qty: 2 });
+    expect(events[1]!.why).toEqual({ rule: 'content.items.med-kit', rolls: [] });
+    expect(character.state.inventory).toEqual([{ id: 'med-kit', qty: 1 }]);
+    expect(fight.state.combatants[id]!.itemsUsed).toEqual({});
+
+    // A second call settles nothing.
+    expect(settleItemUses(rt, character, fight)).toEqual([]);
+    expect(character.state.inventory).toEqual([{ id: 'med-kit', qty: 1 }]);
+  });
+
+  it('several items settle in id order; the last unit removes the entry', () => {
+    const { rt, character, fight } = settledFight(
+      (c) => {
+        c.grant('med-kit', 1);
+        c.grant('field-dose', 2);
+      },
+      ['med-kit', 'field-dose'],
+    );
+    const settled = settleItemUses(rt, character, fight).filter((event) => event.type === 'item:settled');
+    expect(settled.map((event) => event.payload['itemId'])).toEqual(['field-dose', 'med-kit']);
+    expect(character.state.inventory).toEqual([{ id: 'field-dose', qty: 1 }]);
+  });
+
+  it('a live fight → combat-not-over, no change', () => {
+    const { rt, character, fight } = settledFight((c) => c.grant('med-kit', 2), [], false);
+    const id = character.state.id;
+    fight.step();
+    if (fight.state.active === id) fight.use('med-kit');
+    const before = JSON.stringify({ state: character.state, fight: fight.state });
+    expect(rejection(() => settleItemUses(rt, character, fight))).toEqual([
+      { rule: 'combat-not-over', artifactId: id },
+    ]);
+    expect(JSON.stringify({ state: character.state, fight: fight.state })).toBe(before);
+  });
+
+  it('items no longer held → every card at once, no change', () => {
+    const { rt, character, fight } = settledFight(
+      (c) => {
+        c.grant('med-kit', 2);
+        c.grant('field-dose', 2);
+      },
+      ['med-kit', 'med-kit', 'field-dose'],
+    );
+    character.drop('med-kit', 2); // none left
+    character.drop('field-dose', 2); // none left
+    character.grant('med-kit', 1); // one left, two used
+    const before = JSON.stringify({ state: character.state, fight: fight.state });
+    expect(rejection(() => settleItemUses(rt, character, fight))).toEqual([
+      { rule: 'item-not-held', artifactId: 'field-dose' },
+      { rule: 'insufficient-qty', artifactId: 'med-kit' },
+    ]);
+    expect(JSON.stringify({ state: character.state, fight: fight.state })).toBe(before);
+  });
+
+  it('a used unit that is also equipped (held − used < equippedUnits) → item-equipped, no change (R-5)', () => {
+    const { rt, character, fight } = settledFight(
+      (c) => {
+        c.grant('stim-belt', 2);
+        c.equip('stim-belt', 'body');
+      },
+      ['stim-belt', 'stim-belt'],
+    );
+    const before = JSON.stringify({ state: character.state, fight: fight.state });
+    expect(rejection(() => settleItemUses(rt, character, fight))).toEqual([
+      { rule: 'item-equipped', artifactId: 'stim-belt' },
+    ]);
+    expect(JSON.stringify({ state: character.state, fight: fight.state })).toBe(before);
+    // The same rule as dropItem's guard: dropping the two units is refused too.
+    expect(rejection(() => character.drop('stim-belt', 2))).toEqual([
+      { rule: 'item-equipped', artifactId: 'stim-belt' },
+    ]);
+    character.unequip('body');
+    expect(settleItemUses(rt, character, fight).map((event) => event.type)).toEqual([
+      'item:dropped',
+      'item:settled',
+    ]);
+    expect(character.state.inventory).toEqual([]);
+  });
+
+  it('an unknown combatant id is refused', () => {
+    const { rt, character, fight } = settledFight((c) => c.grant('med-kit', 1), ['med-kit']);
+    expect(rejection(() => settleItemUses(rt, character, fight, 'nobody'))).toEqual([
+      { rule: 'unknown-target', artifactId: 'nobody' },
+    ]);
+  });
+});

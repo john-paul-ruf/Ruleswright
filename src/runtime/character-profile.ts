@@ -6,6 +6,10 @@
  * formulas, CA-6), or pack data; actions are the class-granted
  * `content.classes.<id>.actions` lists (v1.2).
  *
+ * The inverse direction is `settleItemUses` (CA-EG5): the fight never touches
+ * character state, so the host settles a finished fight's item spend back into
+ * the inventory explicitly.
+ *
  * v1 limits (documented, not silent): active conditions are not carried into
  * the fight — `StartCombatRequest` has no conditions field — and a multiclass
  * character on the table convention uses one class's row (see
@@ -16,7 +20,11 @@ import type { Runtime } from './runtime';
 import type { Character, CharacterState } from './character';
 import { evalPackFormula, type CombatantProfile } from './combat/resolve';
 import type { EconomyBalances } from './combat/action-economy';
-import { equipmentView } from './equipment';
+import type { Combat } from './combat/combat';
+import { equipmentView, equippedUnits } from './equipment';
+import { dropItem } from './inventory';
+import type { RuntimeEvent } from './events';
+import type { ErrorCard } from '../schema/error-card';
 import { RuntimeRuleError, ruleCard } from './errors';
 
 /** A character ready for `startCombat`: spread it into an ally/enemy entry (`{ id, ...pair }`). */
@@ -123,4 +131,103 @@ function characterAttackTable(runtime: Runtime, state: CharacterState): ClassAtt
   }
   const row = chosenRows.find((candidate) => candidate.level === chosenLevel);
   return row === undefined ? undefined : [{ level: state.level, byDefense: { ...row.byDefense } }];
+}
+
+/**
+ * CA-EG5 — write a finished fight's item spend back to the character (inverse
+ * of profileFromCharacter). The combatant (`combatantId`, default the
+ * character's id) must be in `fight`, and the fight must be `combat-over`
+ * (`combat-not-over` otherwise). Every used item is validated before anything
+ * changes, all cards at once: still held (`item-not-held`), held qty ≥ used
+ * (`insufficient-qty`), and the drop would strand no equipped unit
+ * (`item-equipped`, the one `equippedUnits` rule `dropItem` uses, R-5). Then,
+ * per item in id order, the used units leave the inventory through `dropItem`
+ * (`item:dropped`) and `item:settled` `{combatantId, itemId, qty}` follows.
+ * Finally the combatant's `itemsUsed` is cleared, so a second call settles
+ * nothing and returns `[]`.
+ *
+ * v1 limits (documented):
+ * - a fight abandoned before `combat-over` does not settle; the host may `drop`
+ *   the units itself;
+ * - idempotence is per live fight object, not across snapshots (R-4): the
+ *   "already settled" marker is only the cleared `itemsUsed` on this `Combat`.
+ *   A snapshot taken before settling still carries the spend, and restoring it
+ *   and settling again drops the same units twice. Settle each fight once.
+ */
+export function settleItemUses(
+  runtime: Runtime,
+  character: Character,
+  fight: Combat,
+  combatantId?: string,
+): readonly RuntimeEvent[] {
+  const state = character.state;
+  const id = combatantId ?? state.id;
+  if (fight.state.phase !== 'combat-over') {
+    throw new RuntimeRuleError([
+      ruleCard(
+        'combat-not-over',
+        id,
+        'phase',
+        `the fight is in phase "${fight.state.phase}" — item use settles only once the fight is combat-over.`,
+      ),
+    ]);
+  }
+  const combatant = fight.state.combatants[id];
+  if (combatant === undefined) {
+    throw new RuntimeRuleError([
+      ruleCard('unknown-target', id, 'combatants', `combatant "${id}" is not in this fight.`),
+    ]);
+  }
+  const spent = Object.entries(combatant.itemsUsed)
+    .filter(([, qty]) => qty > 0)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  const cards: ErrorCard[] = [];
+  for (const [itemId, qty] of spent) {
+    const held = state.inventory.find((entry) => entry.id === itemId)?.qty ?? 0;
+    const worn = equippedUnits(state, itemId);
+    if (held === 0) {
+      cards.push(
+        ruleCard(
+          'item-not-held',
+          itemId,
+          'inventory',
+          `"${state.id}" holds no "${itemId}" — ${qty} used in the fight.`,
+        ),
+      );
+    } else if (held < qty) {
+      cards.push(
+        ruleCard(
+          'insufficient-qty',
+          itemId,
+          'inventory',
+          `"${itemId}" is held x${held}, but ${qty} were used in the fight.`,
+        ),
+      );
+    } else if (held - qty < worn) {
+      cards.push(
+        ruleCard(
+          'item-equipped',
+          itemId,
+          'equipped',
+          `"${itemId}" is held x${held} with ${worn} equipped; settling ${qty} would strand an equipped unit — unequip first.`,
+        ),
+      );
+    }
+  }
+  if (cards.length > 0) throw new RuntimeRuleError(cards);
+
+  const events: RuntimeEvent[] = [];
+  for (const [itemId, qty] of spent) {
+    events.push(dropItem(runtime, state, itemId, qty));
+    events.push(
+      runtime.events.emit({
+        type: 'item:settled',
+        actor: state.id,
+        payload: { combatantId: id, itemId, qty },
+        why: { rule: `content.items.${itemId}`, rolls: [] },
+      }),
+    );
+  }
+  combatant.itemsUsed = {};
+  return events;
 }
