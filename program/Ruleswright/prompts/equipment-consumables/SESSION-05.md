@@ -47,8 +47,8 @@ S03 landed the character-side verbs, `equipmentView` and `runtime.index.itemEffe
 
   `CombatantProfile` (`resolve.ts:76-91`) gains optional `maxHp?: number`. It is additive, so hand-built host profiles keep compiling. `profileFromStatblock` (`resolve.ts:192`) sets `maxHp` equal to its evaluated `hp`. The unbound `gear-*` names evaluate to 0 (S02), so statblocks are unchanged.
 - **CA-EG4 (ck2).** A `heal` arrives as a negative-amount damage mutation.
-  - `CombatantState` gains `maxHp: number` = `profile.maxHp ?? profile.hp` at start.
-  - `applyMutation` clamps a negative amount: `hp.current = min(maxHp, hp.current - amount)`. Positive damage is unchanged; no floor, today's semantics.
+  - `CombatantState` gains `maxHp: number` = `profile.maxHp ?? Math.max(0, profile.hp)` at start. The fallback is **floored at 0** (R-9): a hand-built host profile with `hp ≤ 0` must not serialize a negative `maxHp`, which the S01 contract forbids (integer ≥ 0).
+  - `applyMutation` handles a negative amount (R-2): `heal = −amount`; `after = current >= maxHp ? current : Math.min(maxHp, current + heal)`. A heal never raises hp above `maxHp` **and never lowers it**. hp above `maxHp` is legal: `profileFromCharacter` sets `hp = state.hp.current`, which can exceed `derived().hp` after an unequip (CA-EG2). Positive damage is unchanged; no floor, today's semantics.
   - The `damage:applied` event keeps its anatomy: `amount` stays the executor's honest negative total, and `hp: "before→after"` shows the real clamped values.
 - **CA-EG5 (ck2/ck3).** Combat side:
   - `EconomyBalances` gains `items?: Record<string, number>`, the host-stated held count per consumable, mirroring `pools`/`boundSlots`.
@@ -57,7 +57,7 @@ S03 landed the character-side verbs, `equipmentView` and `runtime.index.itemEffe
   - Remaining = balance − used.
 
   `Combat.use(itemId, options?: { target?: string })`. Gate order mirrors declare minus slots, with named `declare:rejected`-style rejections:
-  1. `unknown-item`
+  0. **Phase and turn (R-3), exactly as `declare` does it** (`combat.ts:357-360`): if `this.state.phase === 'combat-over'`, throw the same `Error('combat is over')` `declare` throws, with no event and no ledger change; the user is always `this.state.active` (only the active combatant can use an item, as only it can declare). `declare` has no other phase gate, and `use` adds none. If ck0 finds that `declare` has gained another phase or turn gate, `use` copies it.
   2. `not-consumable`
   3. the restriction gate (as declare applies it)
   4. target (default: the actor itself)
@@ -75,11 +75,12 @@ S03 landed the character-side verbs, `equipmentView` and `runtime.index.itemEffe
   export function settleItemUses(runtime: Runtime, character: Character, fight: Combat, combatantId?: string): readonly RuntimeEvent[];
   ```
   - Refuse `combat-not-over` unless `fight.state.phase === 'combat-over'`. Settling a live fight would desync with the re-stated-balances restore discipline.
-  - Validate all at once before any mutation: every used item must still be held with qty ≥ used, and must pass `dropItem`'s equipped-unit guard. Otherwise throw `RuntimeRuleError` with every card, and change nothing.
+  - Validate all at once before any mutation: every used item must still be held with qty ≥ used, and must pass the equipped-unit guard, checked with S03's pure **`equippedUnits(character.state, itemId)`** from `equipment.ts` (R-5): `held − used < equippedUnits(…)` → `item-equipped`. Do **not** re-derive the equipped count in `character-profile.ts`; the pre-check and `dropItem`'s guard must be the same rule. Otherwise throw `RuntimeRuleError` with every card, and change nothing.
   - Then, per item in id order: decrement the inventory by the used count (via `inventory.ts` `dropItem`, which emits `item:dropped`) and emit `item:settled` `{combatantId, itemId, qty}` (`why.rule: content.items.<id>`).
   - Finally set that combatant's `itemsUsed` to `{}`, so a second call settles nothing and returns `[]`.
   - `combatantId` defaults to `character.state.id`.
   - Documented v1 limit: a fight abandoned before `combat-over` does not settle; the host may `drop` manually.
+  - **Documented v1 limit (R-4): settlement is idempotent per live fight object, not across snapshots.** The "already settled" marker is only that combatant's `itemsUsed = {}` on the live `Combat`. A snapshot taken at `combat-over` **before** settling still carries the spend; restoring it and settling again drops the same units a second time. The host must settle each fight **once**. No contract field is added, and restored fights are **not** refused: the journey legitimately resumes a fight from a snapshot and then settles it. State the limit in the `settleItemUses` docstring.
 - **CA-EG6 (ck4).** Serializer and restore follow S01's contract:
   - **Character.** `SnapshotCharacterState.equipped?` is emitted **only when `state.equipped !== undefined`** (presence-preserving; F-E5). Restore sets it only when the snapshot carries it. That keeps `tests/snapshots/character.test.ts:87,165` and `loot-journey.test.ts:126` equal for never-equipped characters. Restore cross-validates every `equipped` entry, all at once and before any application, with E-SNAP-01 cards:
     - `itemId` is in `content.items`;
@@ -93,7 +94,7 @@ S03 landed the character-side verbs, `equipmentView` and `runtime.index.itemEffe
     - fight-start balances come from `restore.<side>[].balances.items` (the host re-states its original request, `CombatRestoreRequest` doc);
     - the snapshot's `itemsUsed` wins for the spend;
     - `itemsUsed[id]` greater than the restated balance, or an unknown item id → E-SNAP-01 refusal, all cards before any rebuild;
-    - `maxHp` = snapshot value, else `profile.maxHp`, else `profile.hp`.
+    - `maxHp` = snapshot value, else `profile.maxHp`, else `Math.max(0, profile.hp)` (R-9, same floor as start).
 
     Key pins: `tests/snapshots/combat.test.ts:102` pins combatant keys `['conditions','hp','id','slotsUsed']`. You own it and re-key it to include `maxHp`. `tests/snapshots/character.test.ts:45` stays unchanged for a never-equipped character (the key is absent).
 
@@ -101,14 +102,14 @@ S03 landed the character-side verbs, `equipmentView` and `runtime.index.itemEffe
 
 | File | Action | What Changes |
 |---|---|---|
-| `src/runtime/combat/resolve.ts` | modify | `CombatantProfile.maxHp?`; `profileFromStatblock` sets `maxHp` |
+| `src/runtime/combat/resolve.ts` | modify | `CombatantProfile.maxHp?`; `profileFromStatblock` sets `maxHp`; **`checkPackDsl` (`:145`) also checks every `content.items.<id>.use` as kind `effect`** (jsonPath `content.items.<id>.use`), after the feats loop (R-7) |
 | `src/runtime/combat/action-economy.ts` | modify | `EconomyBalances.items?` |
 | `src/runtime/combat/combat.ts` | modify | `CombatantState.maxHp/itemBalances/itemsUsed`; start + clamp + captured `hpBefore`; `use()` |
 | `src/runtime/character-profile.ts` | modify | profile composition (CA-EG2), `maxHp`, `balances.items`; `settleItemUses` |
 | `src/runtime/snapshots.ts` | modify | `equipped` / `itemsUsed` / `maxHp` serialize + restore + refusals (restore's `CombatantState` literal gains the new fields) |
 | `src/runtime/runtime.ts` | modify | only if a facade method is needed (e.g. none expected); keep any change additive. S03 already added `itemEffects` |
 | `src/runtime/index.ts` | modify | export `settleItemUses` and any new public type |
-| `tests/runtime/combat/**` | modify | profile grant cases (`character-profile.test.ts`); use/clamp/charges/rejections/provenance (`combat.test.ts`); settlement cases |
+| `tests/runtime/combat/**` | modify | profile grant cases (`character-profile.test.ts`); use/clamp/charges/rejections/provenance (`combat.test.ts`); settlement cases; `checkPackDsl` item-`use` cases (`action-economy.test.ts`, next to the existing `checkPackDsl(pack)` assertion at `:35`, R-7) |
 | `tests/snapshots/combat.test.ts` | modify | re-key `:102`; `itemsUsed`/`maxHp` round-trip; the restore ledger; refusal cases |
 | `tests/snapshots/character.test.ts` | modify | `equipped` round-trip; never-equipped stays keyless; dangling/illegal equipped entry → loud refusal, state untouched |
 
@@ -118,15 +119,19 @@ S03 landed the character-side verbs, `equipmentView` and `runtime.index.itemEffe
 Read the landed `equipment.ts`/`character.ts`/`inventory.ts`/`runtime.ts` (S03), `zombie-urban.json` (S04), and `snapshots.schema.json` (S01). Verify:
 - CA-EG5's verb and rejection names;
 - `equipmentView`'s shape;
+- the name and signature of S03's pure equipped-unit helper (planned `equippedUnits(state, itemId)`, R-5), and S03's landed heal rule (R-2);
+- `declare`'s phase/turn gate as it stands (R-3);
 - that `itemEffects` exists and holds `med-kit`;
 - the contract's `itemsUsed`/`maxHp`/`equipped` definitions.
 
 Any mismatch → report a plan correction and amend the CA text before coding.
 
 ### Checkpoint 1 — Profiles carry grants + maxHp
-Make the `resolve.ts` profile field and statblock change and the `character-profile.ts` composition.
+Make the `resolve.ts` profile field and statblock change, the `checkPackDsl` item-`use` check (R-7), and the `character-profile.ts` composition.
 
 Tests: an equipped armor shifts the combatant's `ac` by exactly the pack formula's response; a `might` grant raises `profile.abilities.might` by 1; `maxHp` = `derived().hp`; statblock `maxHp` = its hp; nothing equipped → the profile is byte-identical to plan HEAD apart from the new `maxHp` field.
+
+`checkPackDsl` tests (`action-economy.test.ts`): a pack whose item declares `use: 'heal(2 + might)'` → `[]`; an item `use: 'mend(2)'` → one E-FORM-02 card whose jsonPath is `content.items.<id>.use`; the existing fixture assertion at `:35` stays `[]`.
 
 **Commit when:** typecheck is 0; `pnpm exec vitest run tests/runtime/combat/` is green.
 
@@ -136,6 +141,9 @@ Make the `action-economy.ts` balances change and the `combat.ts` state, clamp, `
 Tests:
 - heal a damaged ally: hp rises by the roll, clamped at `maxHp`, and the event shows `before→after` exactly;
 - heal at full hp → `before→after` equal;
+- **over-cap (R-2 closing check):** a combatant whose `hp` exceeds `maxHp` (a character profiled after unequipping an `{hp: 2}` item at full hp, or a hand-built profile with `hp > maxHp`) is healed → hp unchanged, and the event shows `hp: "X→X"`;
+- **use after the fight (R-3 closing check):** drive the fight to `combat-over`, then `use(...)` throws `combat is over`, emits no event (fresh sink) and leaves `itemsUsed` unchanged;
+- the `maxHp` fallback floors at 0 (R-9): a hand-built profile with no `maxHp` and `hp: -3` starts with `maxHp: 0`;
 - charge exhaustion → `no-charges` with no event;
 - `not-consumable`;
 - `unknown-item`;
@@ -149,7 +157,8 @@ Implement `settleItemUses` and its tests:
 - after a fight with two uses → the inventory qty drops by 2 exactly, with `item:settled` events;
 - a second call → `[]` and no change;
 - a live fight → `combat-not-over`, no change;
-- an item no longer held → all cards, no change.
+- an item no longer held → all cards, no change;
+- a used unit that is also equipped (held − used < `equippedUnits`) → `item-equipped` card, no change (the R-5 shared rule).
 
 **Commit when:** typecheck is 0; `pnpm exec vitest run tests/runtime/` is green.
 
@@ -173,9 +182,10 @@ Barrel exports. Then `pnpm build` and `pnpm exec vitest run tests/runtime/ tests
 ## State Update
 
 Report:
-- the `use()` gate order as landed;
-- the clamp mechanics;
-- settlement semantics;
+- the `use()` gate order as landed, including gate 0;
+- the clamp mechanics (never lowers hp);
+- settlement semantics, including the per-fight-object idempotence limit (R-4) for S06's README;
+- the `checkPackDsl` item-`use` coverage;
 - the snapshot fields and restore precedence;
 - the `combat.test.ts:102` re-key;
 - the loot-journey re-verify result;

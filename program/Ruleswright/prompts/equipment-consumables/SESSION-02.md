@@ -36,7 +36,8 @@ This is the session every later session types against, so the mirror must be exa
 
 **Why `formula.ts` is in this lease (F-E2 option (b)):** themes (S04) will reference `gear-ac`/`gear-hp`/`gear-initiative` inside their `formulas` entries. Two things follow.
 
-1. **Checking.** `checkFormula` (`formula.ts:550`) builds its context from `request.abilities` and `request.saves` only, so an unknown name → E-FORM-03. For `request.kind === 'formula'` — the only `kind:'formula'` caller is `root.ts:192`, the `formulas` section — the context must also admit the four `gear-*` names through `FormulaCheckContext.scalars`. Every other kind keeps its current vocabulary.
+1. **Checking.** `checkFormula` (`formula.ts:550`) builds its context from `request.abilities` and `request.saves` only, so an unknown name → E-FORM-03. For `request.kind === 'formula'` the context must also admit the four `gear-*` names through `FormulaCheckContext.scalars`. Every other kind keeps its current vocabulary.
+   - **There are two `kind:'formula'` callers** (corrected by REPLAN-EC-02, R-7): the validator's `formulas` section (`root.ts:192`) and the runtime re-check `checkPackDsl` (`resolve.ts:145`, its `pack.formulas` loop at `:171-172`). Both pass `kind:'formula'` only for `formulas` entries, so the admission behaves identically at both and you change neither caller. (`checkPackDsl` gains an item `use` check in S05; that is not yours.)
 2. **Evaluation.** Many play-time sites evaluate `formulas` entries against contexts that carry no equipment:
    - `character.ts:220-248`, via `formulaValue`/`reserveValue`, from `progression.ts:152,206` and `snapshots.ts:328`;
    - `pools.ts:42`;
@@ -78,17 +79,17 @@ This is the session every later session types against, so the mirror must be exa
 |---|---|---|
 | `src/schema/artifacts.ts` | modify | `ItemDef` (`:123`) gains `slots?: string[]`, `grants?: Record<string, number>`, `use?: DslString`; export `RESERVED_GRANT_KEYS`; docstrings carry CA-EG1/EG2/EG3 |
 | `src/schema/pack.ts` | modify | `Pack` gains `equipSlots?: string[]` after `spatial?` (`:93`); header (`:3`) becomes "8 required + 3 optional … equipSlots v1.4" |
-| `src/schema/validate/context.ts` | modify | `Ctx` gains `equipSlotNames: Set<string> \| null`: set only when root `equipSlots` is present and readable (the `economySlotNames` precedent) |
-| `src/schema/validate/collect.ts` | modify | pass 1 collects `equipSlots` into `ctx.equipSlotNames` (kebab items only) |
-| `src/schema/validate/index.ts` | modify | the ctx literal gains `equipSlotNames: null` (the file's own "keep in sync" note); dispatch calls `checkEquipSlots(ctx, json['equipSlots'])` after `checkSpatial` |
+| `src/schema/validate/context.ts` | modify | `Ctx` gains `equipSlotNames: Set<string> \| null` with **absent and unreadable kept distinct** (R-8; the `progressionIds` precedent, `collect.ts:65-66`, not the `economySlotNames` one, whose null conflates both): **absent** root `equipSlots` → an **empty `Set`** (an item declaring `slots` then gets E-REF-01, "the pack declares no equipSlots"); **readable** → the declared names; **unreadable** → `null` (dependent item-slot reference checks are skipped, so no cascade). Docstring states the three cases |
+| `src/schema/validate/collect.ts` | modify | pass 1 sets `ctx.equipSlotNames` for all three cases. **Readable** means: an array, ≥1 entry, every entry a string matching `ID_PATTERN`, no duplicates. Anything else (non-array, empty, a bad entry, a duplicate) is **unreadable** → `null`; `checkEquipSlots` reports those defects as E-SCHEMA-01 |
+| `src/schema/validate/index.ts` | modify | the ctx literal gains `equipSlotNames: null` (the file's own "keep in sync" note; pass 1 overwrites it in every case); dispatch calls `checkEquipSlots(ctx, json['equipSlots'])` after `checkSpatial` |
 | `src/schema/validate/sections/root.ts` | modify | `checkRootSections` (`:42`) admits `equipSlots`; new `checkEquipSlots`: array, ≥1, unique, idPattern (E-SCHEMA-01); `checkStats` rejects `gear-*` ids (E-SCHEMA-01) |
-| `src/schema/validate/sections/content.ts` | modify | `checkItems` (`:618`): `forbidUnknown` list gains `slots`/`grants`/`use`; `checkItemGrants` (keys, integer values, `armor` ≥ 1, E-REF-01 with nearestId); `checkItemSlots` (non-empty unique array; each id in `ctx.equipSlotNames`; slots declared while the pack has no `equipSlots` → E-REF-01); `use` → `checkDslField(ctx, def['use'], 'effect', id, \`${basePath}.use\`)` |
+| `src/schema/validate/sections/content.ts` | modify | `checkItems` (`:618`): `forbidUnknown` list gains `slots`/`grants`/`use`; `checkItemGrants` (keys, integer values, `armor` ≥ 1, E-REF-01 with nearestId); `checkItemSlots` (non-empty unique array; each id in `ctx.equipSlotNames`; slots declared while the pack has no `equipSlots` (empty set) → E-REF-01; **skipped entirely when `ctx.equipSlotNames` is `null`**, i.e. `equipSlots` is unreadable, R-8); `use` → `checkDslField(ctx, def['use'], 'effect', id, \`${basePath}.use\`)` |
 | `src/core/dsl/registry.ts` | modify | `heal` entry; docstring notes the v1.4 schema event |
 | `src/core/dsl/effect.ts` | modify | `execHeal`; `ARG_CATEGORIES.heal`; module docstring notes the negative-amount discipline |
 | `src/core/dsl/formula.ts` | modify | `EQUIPMENT_SCALARS`; `checkFormula` admits them for `kind === 'formula'` via `scalars`; `evalFormula`'s name case returns 0 for an unbound `EQUIPMENT_SCALARS` name (docstring updated; all other unknown names still throw) |
 | `tests/core/dsl/checker.test.ts` | modify | **Pin re-key (named duty):** the membership list at `:13-26` gains `heal` (13 names). Nothing else changes |
 | `tests/core/dsl/effect.test.ts` | modify | `heal(2 + might)` executes as a damage request with the negated total; `halved: false`; `why` rolls carried; an unknown function still → E-FORM-02 |
-| `tests/core/dsl/formula.test.ts` | modify | `gear-ac` admitted in a `formula`-kind check, rejected (E-FORM-03) in an `attackBonus`/`effect`/`valid` check; `evalFormula('12 - gear-ac', {})` = 12, and with `{'gear-ac': 2}` = 10; `'10 + gear-ac'` with 2 = 12 (both directions); an unbound non-gear name still throws; lists correspond |
+| `tests/core/dsl/formula.test.ts` | modify | `gear-ac` admitted in a `formula`-kind check, rejected (E-FORM-03) in an `attackBonus`/`effect`/`valid` check; `evalFormula('12 - gear-ac', {})` = 12, and with `{'gear-ac': 2}` = 10; `'10 + gear-ac'` with 2 = 12 (both directions); an unbound non-gear name still throws; lists correspond. **Lexing edge cases (R-11):** `'10-gear-ac'` with `{'gear-ac': 2}` = 8 (a digit-led term ends at the `-`, so it subtracts); `'level-gear-ac'` in a `formula`-kind check → E-FORM-03 (one unknown name, `shared.ts:106-120`) |
 | `tests/schema/validate.test.ts` | modify | new coverage (below) built on an **isolated minimal pack** in the test file, **not** `VALID_PACK` (F-E14: `tests/schema/fixtures.ts` uses non-registry words `shift(1)`/`soak(1)` at `:40`/`:69`, which add E-FORM-02 cards under the real checker) |
 
 **Not changed:** `tests/schema/fixtures.ts`. `tests/runtime/fixtures/pack.ts` imports it, so an edit would ripple into S03's lease.
@@ -105,7 +106,7 @@ Read S01's committed `pack.schema.json` and `database.md`. Confirm:
 Any mismatch with CA-EG1/EG2 → report a plan correction before writing code.
 
 ### Checkpoint 1 — Core DSL: heal + equipment variables + registry pin
-Make the registry, `effect.ts` and `formula.ts` changes and write their tests.
+Make the registry, `effect.ts` and `formula.ts` changes and write their tests, including the two lexing edge cases in the `formula.test.ts` row (`10-gear-ac` subtracts; `level-gear-ac` → E-FORM-03).
 
 **Valid state:** everything compiles, and the freeze test is re-keyed in the same commit. Never land a 12/13 mismatch.
 
@@ -123,7 +124,8 @@ Make the registry, `effect.ts` and `formula.ts` changes and write their tests.
    - an unknown grant key → E-REF-01 with a hint;
    - `armor: 0` → E-SCHEMA-01;
    - an unknown slot id → E-REF-01;
-   - `slots` declared with no `equipSlots` → E-REF-01;
+   - `slots` declared with no `equipSlots` (absent) → E-REF-01;
+   - **malformed `equipSlots` (R-8 closing check):** `equipSlots: ['body', 'Bad Slot']` with an item declaring `slots: ['body']` → only the `equipSlots` E-SCHEMA-01 card(s); **no** E-REF-01 card for the item. Repeat with `equipSlots: 'body'` (not an array): same result;
    - `equipSlots: []` → E-SCHEMA-01;
    - a duplicate `equipSlots` entry → E-SCHEMA-01;
    - an ability named `gear-ac` → E-SCHEMA-01;
@@ -143,6 +145,7 @@ Report the CAP-E1 proof result in the handoff.
 
 - Lease-scoped gates: `pnpm typecheck` and `pnpm exec vitest run tests/schema/ tests/core/dsl/` (the exact form; DD14e).
 - Whole-repo fast gates are Orchestrator's at receive (promoted convention). Expected-unchanged evidence: `tests/runtime/`, `tests/compiler/` and `tests/proofs/` stay green, because no eval site changed behavior (the `gear-*` fallback returns 0 only for names no current pack uses).
+- **Dist freshness (R-10):** this session changes `src/core/**`, which is bundled into `dist/runtime.*` and `dist/compiler.*`. `tests/proofs/loot-journey.test.ts` imports `dist/`, so Orchestrator runs `pnpm build` before the whole-suite receive (Verification Baseline). You need not build; if you run `tests/proofs/` yourself, build first.
 - CA-EG1 boundary assertion: every contract field from S01 has exactly one TS mirror type and one validator pass. A contract field with neither is a blocked condition: return it, do not improvise.
 - CA-EG4 proof (your leg): the freeze test names `heal` among 13 entries; the effect test proves the negative-amount mutation request.
 

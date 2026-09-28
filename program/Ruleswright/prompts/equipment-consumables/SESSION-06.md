@@ -52,7 +52,7 @@ There is no mocked boundary anywhere. Generated packs (seed 42) supply real cont
 |---|---|---|
 | `tests/proofs/equipment-journey.test.ts` | create | The journey (below) |
 | `tests/proofs/docs-run.test.ts` | modify | Only if the README's ```ts block count changes. Adding a fifth block → re-key `:49` from 4 to 5 in the same commit (pin owner). No new block → the file is untouched. Preferred: fence discipline (```json output + journey citation), which leaves the pin at 4 (grid F-G3 precedent) |
-| `README.md` | modify | New short section after *Grid combat*: **Equipment & consumables**. It covers: equip/unequip over declared slots; grants (abilities/saves add, reserved `gear-*` formula variables with the pack's direction); armorCasting on slot casting (point-pool spells have no cast verb in v1); `useItem` / `fight.use` / `settleItemUses`; snapshot fields; journey cited |
+| `README.md` | modify | New short section after *Grid combat*: **Equipment & consumables**. It covers: equip/unequip over declared slots; grants (abilities/saves add, reserved `gear-*` formula variables with the pack's direction); armorCasting on slot casting (point-pool spells have no cast verb in v1); `useItem` / `fight.use` / `settleItemUses`; heals never raise hp above the cap and never lower hp already above it; snapshot fields; **the settlement v1 limit (R-4): settle each fight once — settlement is idempotent per live fight object, and restoring a snapshot taken before settlement and settling again drops the same units twice**; journey cited |
 
 ## Implementation
 
@@ -88,7 +88,8 @@ Also assert that `generateCampaign({ theme: loadTheme('zombie-urban'), seed: 42 
 7. Finish the fight (to `combat-over`), then call `settleItemUses(rt, character, fight)`:
    - `character.state.inventory` med-kit qty is 0, so the entry is gone: 3 granted − 1 out-of-combat − 2 in combat;
    - `item:settled` is present;
-   - a second settlement returns `[]`.
+   - a second settlement returns `[]`;
+   - `fight.use('med-kit')` after `combat-over` throws `combat is over` and emits nothing (S05 gate 0, R-3).
 8. Serialize the character → restore on a fresh runtime → `equipped` is intact. Tamper the envelope's equipped `itemId` to an unknown id → a loud refusal, with the target runtime's state unchanged.
 
 **dark-fantasy leg** (seed 42; the armorCasting teeth):

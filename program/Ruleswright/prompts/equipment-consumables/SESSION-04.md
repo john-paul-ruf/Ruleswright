@@ -129,7 +129,10 @@ Report the stage-8 zero-card result ×3.
 
 - `pnpm exec vitest run tests/compiler/ tests/proofs/docs-run.test.ts tests/proofs/grid-journey.test.ts` (DD14e form).
 - **Do not run `pnpm build`.** S03 edits `src/runtime/**` in the same working tree concurrently. `tests/proofs/loot-journey.test.ts` imports `dist/`, so it is stale until Orchestrator's receive build; it is not your evidence.
-- A failure traced to a sibling's in-progress `src/runtime/**` file is reported, not fixed.
+- **Shared-tree hazard (e), both directions (R-6).**
+  - **Into your gates:** your proofs (`docs-run`, `grid-journey`) import `src/runtime/**`, which S03 edits concurrently. A red you trace to `src/runtime/**` or `tests/runtime/**` is **reported, not fixed**: re-run once S03's checkpoint commit lands (`git log --oneline -- src/runtime`), and name it in the handoff if it persists.
+  - **Out of your edits:** S03's gates run `tests/runtime/combat/{combat,character-profile}.test.ts`, which generate packs from your theme files. Keep each theme edit a single complete write that you validate (stage 8, zero cards) before moving on, so a half-edited theme is on disk for as short a time as possible. S03 reports such a red to Orchestrator; it does not fix it.
+  - Never edit S03's files, and do not weaken or skip a test to get green.
 - Coined-content audit: no new ids; the ids used already exist in the tree.
 - CA-EG1 consumer assertion: every field you declare exists in S02's mirror under the same name.
 - No existing count is re-keyed; `themes.test.ts` is untouched.

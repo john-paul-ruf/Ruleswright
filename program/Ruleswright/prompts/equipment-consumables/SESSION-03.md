@@ -53,6 +53,11 @@ S05 reads them. `tests/runtime/fixtures/pack.ts` builds on `tests/schema/fixture
 
 - **CA-EG2 (producer):** composition exists in exactly one place, `equipment.ts`:
   ```ts
+  /** CA-EG1/DD-EG1 — how many slots currently hold `itemId` (absent `equipped` = 0). Pure: reads state only,
+   *  no runtime, no mutation. The ONE equipped-unit rule: `dropItem`'s guard, `equipItem`'s held check,
+   *  `useItem`'s guard and S05's `settleItemUses` all call it (R-5). */
+  export function equippedUnits(state: CharacterState, itemId: string): number;
+
   /** CA-EG2 — sum of every equipped item's grants, by grant key (absent `equipped` = none). */
   export function equippedGrants(runtime: Runtime, state: CharacterState): Record<string, number>;
 
@@ -64,13 +69,17 @@ S05 reads them. `tests/runtime/fixtures/pack.ts` builds on `tests/schema/fixture
     readonly gear: Record<string, number>; // exactly the EQUIPMENT_SCALARS keys
   }
   export function equipmentView(runtime: Runtime, state: CharacterState): EquipmentView;
+
+  /** CA-EG2 — the formula scope for the character's reserved stats: `{...view.abilities, level, ...view.gear}`. */
+  export function equipmentScope(view: EquipmentView, level: number): Record<string, number>;
   ```
+  - **Module placement (R-11; no new import cycle).** `equipment.ts` is a runtime **leaf**: its only **value** imports are `../core/**`, `./errors` and `./conditions`. Everything from `./runtime`, `./character`, `./events` and `../schema/**` is `import type`. It never value-imports `character.ts`, `pools.ts` or `inventory.ts`. Verified at plan HEAD: `character.ts:16-35` value-imports `pools.ts` and `inventory.ts`, and `progression.ts:28` value-imports `character.ts`; `inventory.ts:23-28` and `conditions.ts:30-33` value-import only core and `./errors`. So `pools.ts` and `inventory.ts` may value-import `equipment.ts` without a cycle. Update `pools.ts`'s header docstring (`:14-15`, "imports only core + types") to name the equipment leaf as its one runtime value import.
   - A key naming both an ability and a save adds to both.
   - `character.ts` `derived()` evaluates hp/ac over `{...view.abilities, level, ...view.gear}`, and each class's attackBonus over `{...view.abilities, level: entry.level, ...view.gear}`.
   - `derived().saves` returns `view.saves`.
   - `formulaValue`/`reserveValue` gain an optional trailing `gear?: Readonly<Record<string, number>>` parameter, spread into the context. Existing callers (`progression.ts`, `snapshots.ts`) pass nothing and keep base values: level-set and restore reset hp from the unequipped formula, and that existing behavior is preserved.
   - Pool capacities (`pools.ts:24-42`) evaluate over the same view when a character state is at hand (FR-3 lists pool capacities among the equipment-derived stats). With nothing equipped they are byte-identical.
-  - Equipping never heals. Unequipping never clamps: hp may exceed the base cap after an unequip, and death checks hp ≤ 0 only.
+  - Equipping never heals. Unequipping never clamps: hp may exceed the base cap after an unequip, and death checks hp ≤ 0 only. Build, level-set and restore also set hp from the formula without gear. So **hp above the cap is a legal state**, and the heal rule below never lowers it (R-2).
 - **CA-EG3 (producer):**
   - The armor marker means `grants` includes `armor`.
   - The gate is in `castSpell` only (`pools.ts:201`), placed after the `unknown-spell` check and **before** the slot lookup, so a blocked cast consumes nothing.
@@ -86,12 +95,12 @@ S05 reads them. `tests/runtime/fixtures/pack.ts` builds on `tests/schema/fixture
 
 | File | Action | What Changes |
 |---|---|---|
-| `src/runtime/equipment.ts` | create | `EquippedEntry`, `equippedGrants`, `equipmentView`, `equipItem`, `unequipItem`, `useItem` (mirror `inventory.ts`'s shape and doc discipline) |
+| `src/runtime/equipment.ts` | create | `EquippedEntry`, `equippedUnits` (pure, R-5), `equippedGrants`, `equipmentView`, `equipmentScope`, `equipItem`, `unequipItem`, `useItem` (mirror `inventory.ts`'s shape and doc discipline). Runtime leaf: value imports only core, `./errors`, `./conditions` (R-11) |
 | `src/runtime/character.ts` | modify | `CharacterState.equipped?: EquippedEntry[]`; `derived()` composes per CA-EG2; `formulaValue`/`reserveValue` accept optional `gear`; the `Character` facade gains `equip(itemId, slot)`, `unequip(slot)`, `useItem(itemId, opts?)` delegates |
-| `src/runtime/pools.ts` | modify | the armorCasting gate in `castSpell`; capacity evaluation over `equipmentView` |
-| `src/runtime/inventory.ts` | modify | the equipped-unit guard: `dropItem` rejects `item-equipped` (no state change) when dropping would leave held qty below the number of slots holding that id. A consumable use or settlement of an equipped unit hits the same guard |
+| `src/runtime/pools.ts` | modify | the armorCasting gate in `castSpell`; capacity evaluation over `equipmentView`; header docstring (`:14-15`) names the equipment leaf import |
+| `src/runtime/inventory.ts` | modify | the equipped-unit guard: `dropItem` rejects `item-equipped` (no state change) when `held − qty < equippedUnits(character, itemId)`. It calls `equippedUnits` from `equipment.ts`; it does not re-derive the count (R-5). `useItem` and S05's settlement use the same helper |
 | `src/runtime/runtime.ts` | modify | `PackIndex` (`:35-49`) gains `itemEffects: Readonly<Record<string, EffectAst>>`, built next to `spellEffects` (`:125`) by pre-filtering `content.items` to the entries that declare `use`, mapped to `{ effect: use }`, then `compileEffects(filtered, (def) => def.effect)`. `compileEffects` (`:149`) requires `effect: string` and throws on parse failure, so items without `use` get no entry. Parse once at load (CA-2; F-E11) |
-| `src/runtime/index.ts` | modify | barrel: `equipItem`, `unequipItem`, `useItem`, `equippedGrants`, `equipmentView`, types `EquippedEntry`, `EquipmentView` (the barrel checkpoint lives in the creating session; grid DD14a) |
+| `src/runtime/index.ts` | modify | barrel: `equipItem`, `unequipItem`, `useItem`, `equippedUnits`, `equippedGrants`, `equipmentView`, types `EquippedEntry`, `EquipmentView` (the barrel checkpoint lives in the creating session; grid DD14a) |
 | `tests/runtime/fixtures/**` | modify | additive equipment and consumable content (see Fixture duty) |
 | `tests/runtime/equipment.test.ts` | create | verb suite (ck1, ck3) |
 | `tests/runtime/character.test.ts` | modify | derived-with-grants cases, both AC directions (ck2) |
@@ -118,15 +127,16 @@ export function unequipItem(runtime: Runtime, state: CharacterState, slot: strin
 3. `unknown-slot`: the slot is not in `pack.equipSlots`.
 4. `slot-not-allowed`: the slot is not in the item's `slots`.
 5. `slot-occupied`: an entry already holds the slot. The caller must unequip first (fail-closed).
-6. `item-not-held`: the held qty ≤ the number of slots already holding this id.
+6. `item-not-held`: the held qty ≤ `equippedUnits(state, itemId)`.
 
 On success, push `{slot, itemId}` (creating `state.equipped` if absent) and emit `item:equipped` with payload `{itemId, slot}` and `why.rule: 'content.items.<id>'`.
 
 `unequipItem` rejects `not-equipped` when the slot is empty. Otherwise it removes the entry. An emptied array stays as `[]`; do not delete the key.
 
-The inventory guard goes in `dropItem`.
+The inventory guard goes in `dropItem`, calling `equippedUnits` (R-5). Export `equippedUnits` at this checkpoint; it is the pure check S05's settlement validates with before it mutates anything.
 
 Tests:
+- `equippedUnits`: 0 for a fresh character (absent `equipped`), 1 after one equip, 2 when the same id sits in two slots, 0 again after unequipping both; it never mutates state;
 - every rejection name;
 - event payloads;
 - two grants stacking across two slots;
@@ -164,13 +174,16 @@ Tests (character.test.ts), using in-test packs cloned from the fixture with assi
    3. `item-not-held`.
    4. The equipped-unit guard.
 
+   The equipped-unit guard is `held − 1 < equippedUnits(state, itemId)` → `item-equipped`, the same rule and card as `dropItem` (R-5).
+
    Then:
-   1. Decrement qty by 1; the entry leaves at 0.
+   1. Decrement qty by 1 directly on `state.inventory`; the entry leaves at 0. (Do not call `dropItem`: `equipment.ts` stays a leaf, R-11. The gates above already cover every `dropItem` rejection that can apply to one unit.)
    2. Emit `item:used` with `why.rule: 'content.items.<id>'`. It is emitted **before** the effect's own events (the loot ordering precedent: the consuming verb announces, then the effect speaks).
    3. Execute the parse-once AST via `executeEffect`. The vars mirror the actor block `executeAgainst` builds (`resolve.ts:~333-340`), taken from the character's effective numbers: view abilities/saves, level, `hp` = current, `ac` = derived ac, `initiative` = 0-RNG initiative value or 0.
+      - `cap` and `ac` are the pack's `hp`/`ac` formulas (`runtime.index.formulaAsts`) evaluated through core `evalFormula`/`valueOfFormula` over `equipmentScope(view, state.level)` with `new Rng(0)`: the same scope and RNG that `derived()` uses. A test asserts `cap === character.derived().hp` with grants equipped.
 
    The `EffectApply`:
-   - **`damage` with a negative total (heal):** `hp.current = min(cap, current − amount)`, where cap = `derived().hp` with grants. It never goes above the cap.
+   - **`damage` with a negative total (heal)** (R-2): `heal = −amount`; `after = current >= cap ? current : Math.min(cap, current + heal)`, where cap = `derived().hp` with grants. A heal never raises hp above the cap **and never lowers it**: a character already at or above the cap (legal after an unequip, CA-EG2) keeps its hp.
    - **`damage` with a positive total:** subtracts honestly, flooring at 0.
    - **`condition`:** routes through `conditions.ts` `applyCondition` (same events and stacking). The effect's evaluated duration overrides the pack default on the entry it created.
    - **`resolveTargets`:** `[{ id: state.id }]`.
@@ -179,6 +192,8 @@ Tests (character.test.ts), using in-test packs cloned from the fixture with assi
 
 Tests:
 - a consumable `heal(10)` into a character missing 4 → current = cap exactly (the clamp proof);
+- **over-cap (R-2 closing check):** equip an `{hp: 2}` item, set `hp.current` to the with-grants cap, unequip (now current = base cap + 2 > cap), then `useItem` a heal → `hp.current` unchanged, the unit is still consumed, and the `damage:applied` event shows `hp: "X→X"` with X = that current value;
+- `cap` equals `character.derived().hp` with grants equipped;
 - `not-consumable` on a weapon;
 - the last unit removes the entry;
 - a cast in armor by a class lacking the kind → `armor-not-castable`, with the slot still bound;
@@ -196,8 +211,11 @@ Add the surface exports to `src/runtime/index.ts` as one additive block.
 
 - Lease-scoped gates: `pnpm typecheck` and `pnpm exec vitest run tests/runtime/ tests/snapshots/` (DD14e form).
 - Do **not** run `pnpm build` in this session. S04 shares the working tree concurrently. Orchestrator builds at receive (Verification Baseline F-E13 note).
+- **Shared-tree hazard (e), both directions (R-6).** Your `tests/runtime/` gates include `tests/runtime/combat/{combat,character-profile}.test.ts`, which generate packs from the theme files S04 is editing (`src/compiler/themes/*.json`) in the same working tree. S04's values are unchanged by design, but a half-edited theme can go red mid-checkpoint. A red you trace to `src/compiler/**` or `tests/compiler/**` is **reported, not fixed**: re-run once S04's checkpoint commit lands (`git log --oneline -- src/compiler`), and name it in the handoff if it persists. Never edit S04's files, and do not weaken or skip the test.
 - Architecture: `src/runtime/**` imports only `../schema`, `../core` and sibling runtime files; no compiler import.
 - CA-EG2 boundary assertion: composition is built only in `equipment.ts`. Grep to confirm no other site adds grants.
+- R-5 boundary assertion: `equippedUnits` is the only place the equipped-unit count is computed (grep `equipped` in `inventory.ts`: it calls the helper, it does not iterate `state.equipped`).
+- R-11 boundary assertion: `grep -n "^import" src/runtime/equipment.ts` shows no value import from `./character`, `./pools` or `./inventory`.
 - CA-EG3 boundary assertion: the gate sits before any slot mutation in `castSpell`. Read the final file to confirm the order.
 
 ## State Update
@@ -212,5 +230,7 @@ Report:
 The handoff names S05's consumers:
 - `equipmentView` for the profile's abilities, saves, initiative base and `maxHp`;
 - `runtime.index.itemEffects` for `fight.use`;
-- `dropItem`, and its guard, for settlement;
+- **`equippedUnits(state, itemId)`** (exact name and signature as landed; R-5): settlement's pure pre-check;
+- `dropItem`, and its guard, for settlement's mutation;
+- the heal rule as landed (`after = current >= cap ? current : min(cap, current + heal)`), which S05 mirrors in `applyMutation`;
 - the absent-`equipped` convention for the serializer.
