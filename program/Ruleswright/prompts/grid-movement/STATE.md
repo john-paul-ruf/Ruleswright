@@ -14,8 +14,13 @@
   **confirmed by the human on 2026-09-30 ("confirmed", no edits)**. That answer authorizes
   SESSION-01's Author re-entry (requirements-change, design-change and schema-change
   classes) exactly as written in DD-M1…DD-M13.
+- **Orchestrator auto-decisions (2026-09-30, `.program/decisions.md` grid-movement
+  preflight rows):** F-P1, F-P2 (derived phase), F-P4, F-P10a/b and F-P11 amend DD-M10 and
+  DD-M12 *within* the approved DD-M1…M13 meaning. No schema scope changed. They were
+  applied by REPLAN-GM-01 (see "Planning completeness review (2026-09-30)").
 - **Plan HEAD:** `02f8196` (clean tree; `pnpm test` 661/661 across 37 files, run by Planner
-  2026-09-29).
+  2026-09-29). **Replan HEAD:** `67f383b` (REPLAN-GM-01; Orchestrator re-ran all gates at
+  `67f383b`: 661/661).
 - **Sessions:** 4. They run serially:
   S01 Author re-entry → S02 schema + core DSL → S03 runtime movement engine →
   S04 content + journey + docs.
@@ -24,10 +29,14 @@
 
 | # | Session | Modules | Owns | Status | Checkpoint | Completed | Notes |
 |---|---------|---------|------|--------|------------|-----------|-------|
-| 01 | Author re-entry: FR-11 movement amendment, spatial/api-map design, contract v1.5 | — (Author: Spec, Designer, DB) | `program/Ruleswright/specs/requirements.md`, `program/Ruleswright/mocks/spatial.html`, `program/Ruleswright/mocks/api-map.html`, `program/Ruleswright/specs/database.md`, `src/schema/contracts/pack.schema.json`, `src/schema/contracts/snapshots.schema.json` | pending (ready — DD-M2..M13 confirmed 2026-09-30) | — | — | Author roles, not Coder |
-| 02 | Schema mirror + validator + core `move`/`speed` DSL | M01, M02 | see SESSION-02 | pending | — | — | |
-| 03 | Runtime movement engine: hex geometry, terrain, pathing, provoke pause, snapshots | M03 | see SESSION-03 | pending | — | — | first narrow journey at ck2 |
-| 04 | Generated content moves: themes, movement journey, README, CI | M04 (+ tests/docs/CI) | see SESSION-04 | pending | — | — | |
+| 01 | Author re-entry: FR-11 movement amendment, spatial/api-map design, contract v1.5 | — (Author: Spec, Designer, DB) | `program/Ruleswright/specs/requirements.md`, `program/Ruleswright/mocks/spatial.html`, `program/Ruleswright/mocks/api-map.html`, `program/Ruleswright/specs/database.md`, `src/schema/contracts/pack.schema.json`, `src/schema/contracts/snapshots.schema.json` | pending (ready — DD-M2..M13 confirmed 2026-09-30; REPLAN-GM-01 applied) | — | — | Author roles, not Coder. 3 checkpoints |
+| 02 | Schema mirror + validator + core `move`/`speed` DSL | M01, M02 | `src/schema/pack.ts`, `src/schema/validate/sections/root.ts`, `src/schema/validate/sections/cross.ts`, `src/schema/validate/index.ts`, `src/core/dsl/registry.ts`, `src/core/dsl/effect.ts`, `tests/schema/validate.test.ts`, `tests/core/dsl/effect.test.ts`, `tests/core/dsl/checker.test.ts` | pending | — | — | 3 checkpoints |
+| 03 | Runtime movement engine: hex geometry, terrain, pathing, provoke pause, snapshots | M03 | `src/runtime/combat/spatial.ts`, `src/runtime/combat/combat.ts`, `src/runtime/combat/resolve.ts`, `src/runtime/character-profile.ts`, `src/runtime/snapshots.ts`, `src/runtime/equipment.ts`, `src/runtime/display-roll.ts`, `src/runtime/index.ts`, `tests/runtime/combat/movement-geometry.test.ts`, `tests/runtime/combat/movement.test.ts`, `tests/runtime/fixtures/packs.ts`, `tests/snapshots/combat.test.ts` | pending | — | — | 5 checkpoints; first narrow journey at ck2 |
+| 04 | Generated content moves: themes, movement journey, README, CI | M04 (+ tests/docs/CI) | `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `tests/compiler/coverage-floor.test.ts`, `tests/compiler/pipeline.test.ts`, `tests/proofs/grid-journey.test.ts`, `tests/proofs/docs-run.test.ts`, `tests/runtime/combat/character-profile.test.ts`, `tests/proofs/movement-journey.test.ts`, `README.md`, `.github/workflows/ci.yml` | pending | — | — | 3 checkpoints |
+
+The leases are pairwise disjoint (checked path by path by REPLAN-GM-01). REPLAN-GM-01 did
+not widen any lease. Every new task and every pin it assigned falls inside an existing lease
+(see Verification Baseline → Pins).
 
 ## Wave Plan
 
@@ -49,6 +58,12 @@ until S03 ck1. No shipped theme declares hex before S04, so only a hand-built pa
 reach this state. **S03 ck1 closes the window.** It is its first task, and the window is
 listed in S03's Context.
 
+**Recorded pin window (S03 → S04), `character-profile.test.ts:309-329`:** S03 adds
+`speed` to profiles *only when `formulas.speed` is declared*, so this whole-profile pin
+stays green at S03 (no shipped theme declares `speed` yet). S04 ck1 adds
+`formulas.speed` to every theme and re-keys the pin in the same checkpoint. **S04 closes
+it** (the file is in S04's lease).
+
 ## Dependency Graph
 
 ```
@@ -67,6 +82,17 @@ S01 (Author: FR-11 + spatial.html/api-map.html + contract v1.5)
 - **One shape/geometry authority:** `src/runtime/combat/spatial.ts` gains `hexGeometry`,
   `neighbors`, `findPath`, and a model-dispatching `spatialFromPack`. `combat.ts` consults
   geometry only through `runtime.spatial`.
+- **Where the executor callbacks are built:** the `apply` object (`resolveTargets`,
+  `damage`, `condition`, and the new `move`) is built in `resolve.ts` `executeAgainst`
+  (`:332`, `apply` at `:350-365`). `combat.ts` `execute` (`:752`, sink/shape callbacks at
+  `:768-797`) supplies the mutation sink and the shape callback, and will supply the
+  move callback.
+- **Offer surfacing becomes per-call (F-P1, DD-M10):** `resolve()` still *returns* the
+  round window (`combat.ts:743`, unchanged public behavior of `declare`/`respond`'s return
+  value). But `surfaceOffers` is fed only the events the current call emitted, collected
+  with a per-call sink (the `execute()` idiom, `combat.ts:758-763`). **Arch delta:** the
+  `arch/v1-core.md:163` record notes the round-window return but not this change. S03
+  writes the delta into its arch fragment; Orchestrator folds it in.
 - **No new module, no new cross-module edge, no new rule id.** `E-SPAT-01` grows its
   documented scope to cover movement rejections.
 
@@ -74,38 +100,42 @@ S01 (Author: FR-11 + spatial.html/api-map.html + contract v1.5)
 
 | ID | Module | Change |
 |----|--------|--------|
-| — | Author | `requirements.md` FR-11 amendment; `spatial.html` movement/hex/terrain/provoke sections; `api-map.html` `declare(actionId, {targetId?, to?})` + `startCombat` `terrain`; `database.md` v1.5; `pack.schema.json` + `snapshots.schema.json` v1.5 |
-| M01 | `src/schema/` | `SpatialDef.model: 'grid' \| 'hex'`, `SpatialDef.terrain?`, `TerrainKind`; validator: hex accepted, terrain kinds, `move` placement rule, `speed` reference rule |
-| M02 | `src/core/` | registry `move` (13 → 14); `EFFECT_SCALARS` + `speed`; executor `move` → `apply.move?`; checker: root-only, dice-free |
-| M03 | `src/runtime/` | hex geometry, neighbors, pathing, movement gate, `declare({to})`, `startCombat({terrain})`, provoke pause/resume, `move:*` events, `CombatantProfile.speed`, snapshot `pendingMove`, `displayRoll` leaf, barrel |
-| M04 | `src/compiler/themes/*.json` | `formulas.speed`, `stride` (move), `opportunist` (reaction), `spatial.terrain`; wyldwood → `hex` |
+| — | Author | `requirements.md` FR-11 amendment; `spatial.html` movement/hex/terrain/provoke sections; `api-map.html` `declare(actionId, {targetId?, to?})` + `startCombat` `terrain`; `database.md` v1.5 (with the `speed` compatibility note); `pack.schema.json` + `snapshots.schema.json` v1.5 |
+| M01 | `src/schema/` | `SpatialDef.model: 'grid' \| 'hex'`, `SpatialDef.terrain?`, `TerrainKind`; validator: hex accepted, terrain kinds, `move` placement rule, `speed` reference rule (formula-position tokens only) |
+| M02 | `src/core/` | registry `move` (13 → 14); `EFFECT_SCALARS` + `speed`; executor `move` → `apply.move?`; `checkEffectAst`: root-only, dice-free (`checker.ts` unchanged — F-P8) |
+| M03 | `src/runtime/` | hex geometry, neighbors, pathing (region-bounded exact search), movement gate, `declare({to})`, `startCombat({terrain})`, restore terrain (ck2), provoke pause/resume, per-call offer surfacing, `move:*` events, `CombatantProfile.speed`, out-of-combat `useItem` binds `speed`, snapshot `pendingMove` + derived restore phase + restored offer `on` = event type, `displayRoll` leaf, barrel |
+| M04 | `src/compiler/themes/*.json` | `formulas.speed`, move action, reaction (on every class **and every statblock**), `spatial.terrain`; wyldwood → `hex` |
 | — | tests/docs/CI | `tests/proofs/movement-journey.test.ts`; README "Grid combat" movement text; ci.yml `pnpm build` before `pnpm test` |
 
 **Inherited findings, with dispositions** (sources inspected:
 `prompts/grid-combat/{STATE,FINAL-REPORT}.md` and
 `prompts/equipment-consumables/FINAL-REPORT.md` follow-up closure ledger at `02f8196`;
 `ARCHIVIST-LOG.md` header entries; `program/Ruleswright/STATE.md` is empty apart from its
-header; `.program/` holds no ledger or blockers file in the tree):
+header; `.program/` holds no ledger or blockers file in the tree). The planning-completeness
+review findings F-P1…F-P12 have their own section below.
 
 | Finding | Source | Disposition |
 |---------|--------|-------------|
 | Move verb open question | grid-combat DD1 / S05 followUp (b) | **Resolved by this feature.** The human chose Option B (movement as pack data). The restore-with-updated-positions seam stays valid. |
 | Spells not combat-declarable (burst bridge) | grid-combat DD17a / S05 followUp (a) | **Carried** (unchanged; engine design event). Not needed here: movement is an action, not a spell. |
-| `displayRoll` duplicate `rollText` in `equipment.ts` | equipment-consumables S03/S05/S06 | **Assigned: S03 ck5** (move `displayRoll` into the leaf `src/runtime/display-roll.ts`; the barrel export is kept). |
+| `displayRoll` duplicate `rollText` in `equipment.ts` | equipment-consumables S03/S05/S06 | **Assigned: S03 ck5** (move `displayRoll` (`combat.ts:1002`) into the leaf `src/runtime/display-roll.ts`; `rollText` is `equipment.ts:352`; the barrel export at `index.ts:77` is kept). |
 | CI `test` job lacks `pnpm build` (loot/equipment journeys read `dist/`) | equipment-consumables S06 followUp | **Assigned: S04 ck3** (ci.yml). |
 | `evalPackFormula` parse-once debt | grid-combat DD10 | **Carried.** S03 adds one more `evalPackFormula` call (for `speed`) using the same idiom, with zero behavior change. The debt grows by one call site, which is recorded. |
 | Per-target save modifiers | grid-combat S03 | **Carried** (not touched). |
 | Browser determinism CI leg | Custom Rule 5 | **Carried** (tracked v1.1). |
 | `useItem` condition duration display; restricts-matcher public API; item tags; med-kit vigor; wyldwood charm armor | equipment-consumables ledger | **Carried** (none is touched by movement). |
-| **F-M1 (new):** theme feat triggers written `condition:applied[self]` never match the `eventMatches` grammar (`[key=value]`). Feat triggers are also never registered by `reactiveActionsFor` (actions only). | Planner source read: `triggers.ts:37-46`, `dark-fantasy.json:170` | **Carried** (out of scope; no movement behavior depends on it). Owner: planning for the next feature that touches triggers. The new `opportunist` content uses the working `[target=self]` form. |
-| **F-M2 (new):** `gridGeometry.canReach` compares against `max(reach, model.defaultReach)`, so a per-id override **smaller** than the default never applies | `spatial.ts:57-58` | **Preserved** (DD-M14). The hex geometry mirrors it, and the provoke check reuses the same `canReach`. Carried as a separate decision. |
+| **F-M1 (new):** theme feat triggers written `condition:applied[self]` never match the `eventMatches` grammar (`[key=value]`). Feat triggers are also never registered by `reactiveActionsFor` (actions only). | Planner source read: `triggers.ts:31-41` (`eventMatches`), `triggers.ts:44-54` (`reactiveActionsFor`), `dark-fantasy.json:170` | **Carried** (out of scope; no movement behavior depends on it). Owner: planning for the next feature that touches triggers. The new reaction content uses the working `[target=self]` form. |
+| **F-M2 (new):** `gridGeometry.canReach` compares against `max(reach, model.defaultReach)`, so a per-id override **smaller** than the default never applies | `spatial.ts:60-61` | **Preserved** (DD-M14). The hex geometry mirrors it, and the provoke check reuses the same `canReach`. Carried as a separate decision. |
 
 ## Design Decisions
 
 DD-M1 was stated by the human. **DD-M2…DD-M13 were Planner defaults, confirmed unchanged by
-the human on 2026-09-30.** S01 writes them into the Author artifacts. If S01's
-Author roles or the human change one, the matching CA row and the affected session
-prompts are amended before S02 dispatch.
+the human on 2026-09-30.** DD-M10 and DD-M12 were then amended by Orchestrator
+auto-decisions (2026-09-30), which refine behavior the confirmed text leaves undefined or
+contradicts in source. They do not change product direction. Each amendment is marked
+**[F-P…]**. S01 writes the amended text into the Author artifacts. If S01's Author roles or
+the human change one, the matching CA row and the affected session prompts are amended
+before S02 dispatch.
 
 1. **DD-M1: movement is pack data** (human, Option B). The engine adds one effect statement
    `move(<formula>)` and a movement gate. There is no new combat verb. A move is
@@ -120,9 +150,9 @@ prompts are amended before S02 dispatch.
    hex distance on a hex pack.
 3. **DD-M3: sample themes.** **wyldwood switches to `hex`.** dark-fantasy and zombie-urban
    stay `grid`. This way both geometries are dogfooded and grid-combat's verified
-   dark-fantasy journey is not re-keyed. *(Human may prefer all themes hex; that is a
-   one-line theme change per file in S04, plus re-keyed grid-journey dark-fantasy
-   assertions.)*
+   dark-fantasy journey is not re-keyed beyond its `spatial` pins (terrain added, F-P6a).
+   *(Human may prefer all themes hex; that is a one-line theme change per file in S04,
+   plus re-keyed grid-journey dark-fantasy assertions.)*
 4. **DD-M4: square movement** uses 8 neighbors. A diagonal step costs 1, the same as the
    existing Chebyshev distance.
 5. **DD-M5: terrain.** The pack declares the terrain *vocabulary* in
@@ -131,17 +161,26 @@ prompts are amended before S02 dispatch.
    The engine never invents a map (the same discipline as positions). Entering a cell of
    kind `k` costs `terrain[k].cost` (plain cells cost 1). A `blocks` cell can never be
    entered. startCombat refuses (`E-SPAT-01` aggregate, nothing built) when a kind is
-   unknown, a cell is placed twice, or a combatant starts on a blocking cell. Terrain given to a pack with
-   no spatial section rides along and is never consulted. This matches the documented
-   theater-of-mind treatment of positions (README "Grid combat").
+   unknown, a cell is placed twice, or a combatant starts on a blocking cell. Terrain given
+   to a pack with no spatial section rides along and is never consulted. This matches the
+   documented theater-of-mind treatment of positions (README "Grid combat").
 6. **DD-M6: occupancy (engine rule, documented).** A move cannot end on a cell held by a
-   standing combatant. It may pass through standing allies but not standing enemies.
-   Downed combatants (hp ≤ 0) never block.
+   standing combatant. **This includes the mover itself** [F-P10a]. It may pass through
+   standing allies but not standing enemies. Downed combatants (hp ≤ 0) never block.
 7. **DD-M7: speed.** `formulas.speed` is an optional **reserved formula id**, evaluated like
-   `initiative` into `CombatantProfile.speed` for characters and statblocks. `speed` is an
-   engine-derived effect scalar (added to `EFFECT_SCALARS`). As with `hp`/`ac`, it shadows
-   a same-named ability inside effect vars. An effect that references `speed` in a pack
-   with no `formulas.speed` → `E-REF-01` at load.
+   `initiative` into `CombatantProfile.speed` for characters and statblocks. The profile
+   carries `speed` **only when `formulas.speed` is declared**; it is omitted otherwise
+   [F-P6b]. `speed` is an engine-derived effect scalar (added to `EFFECT_SCALARS`). As with
+   `hp`/`ac`, it shadows a same-named ability inside effect vars. In combat it binds to
+   `profile.speed ?? 0`. **Out of combat, `useItem` binds it too**, through
+   `scopedFormula(runtime, 'speed', scope)` when `formulas.speed` is declared, otherwise
+   `0` [F-P5]. An effect that references `speed` **at a formula position** in a pack with
+   no `formulas.speed` → `E-REF-01` at load. A token `speed` at a non-formula position
+   (a damage type, a condition id, a shape, a save name) is not a reference [F-P11].
+   **Compatibility [F-P11]:** a pack that uses a token `speed` at a formula position in an
+   effect without declaring `formulas.speed` loaded before v1.5 (for example, through an
+   ability named `speed`) and now fails `E-REF-01`. No shipped theme is affected. The
+   v1.5 row therefore does not claim to be "purely additive" without this caveat.
 8. **DD-M8: `move(formula)` placement.** Registry 13 → 14. It is legal **only as the root
    statement** of a **non-triggered `actions.<id>.effect`**. Nested inside
    sequence/target/save, or used in spells, feats, items' `use`, or triggered actions →
@@ -152,24 +191,50 @@ prompts are amended before S02 dispatch.
    move up to the budget. Unspent budget is lost. Rejections are `declare:rejected`, rule
    `E-SPAT-01`, with no state, RNG or ledger change. Kinds: `no-destination` (move action
    without `to`); `blocked` (destination is a blocking cell); `occupied` (a standing
-   combatant is there); `unreachable` (no legal path); `out-of-range` (cheapest path cost >
-   budget). The movement gate runs where the reach gate runs, before cost. A move action
-   targets its actor (no opponent resolution, no reach gate).
+   combatant is there, **including the mover itself** [F-P10a]); `unreachable` (no legal
+   path exists at any cost); `out-of-range` (a legal path exists, but its cheapest cost >
+   budget). **A reachable destination is never reported `unreachable`, whatever its
+   cost** [F-P9]. The movement gate runs where the reach gate runs, before cost. A move
+   action targets its actor (no opponent resolution, no reach gate).
 10. **DD-M10: provoke.**
     - **Trigger:** before each step, if the mover's current cell is within reach of a
       standing opposing combatant and the next cell is not, the engine emits
       **`move:leaving-reach`** (actor = mover, target = threatener, payload `{at, next}`).
       Packs react with `trigger.on: "move:leaving-reach[target=self]"`.
+    - **Offers are per call [F-P1]:** a call (`declare`, `respond`, `use`) offers
+      reactions only for the events *that call* emitted, collected with a per-call sink
+      (the `execute()` idiom). It never replays the round window. Each matching
+      (reactor, event) pair is offered **exactly once**. After the only offer is taken or
+      declined, `pendingTriggers` is `[]`. There is exactly one `trigger:fired` per matching
+      event and at most one `trigger:declined` per offer. The *return value* of
+      `declare`/`respond` is unchanged (it is still the round window from `resolve()`).
     - **Pause:** if ≥ 1 offer surfaces, the move **pauses** at the current cell, and the
       mover's state carries `pendingMove {actionId, to, remaining}`.
+    - **Offers are not filtered by affordability [F-P10b]:** existing trigger semantics are
+      kept (`triggers.ts:62-81` `offersForEvent` checks no cost). A threatener whose
+      reaction slot is already spent still gets an offer, and the offer still pauses the
+      move. The host answers it:
+      - `respond(id, 'decline')` removes the offer and emits one `trigger:declined`
+        (`combat.ts:547-556`);
+      - `respond(id, 'take', moverId)` removes the offer first (`combat.ts:551`). Then
+        `resolveReactive` (`:850-877`) refuses at `spend` (`action-economy.ts:166-191`;
+        `checkCost` passes, because it compares against the *grant*, not what remains).
+        The result is exactly one `declare:rejected {kind: 'slot-exhausted',
+        resource: 'reaction'}`, rule `E-ECON-01`. No slot, pool, hp or RNG changes, and no
+        `trigger:declined` is emitted.
+
+      Both answers count as answered: the offer has left the queue.
     - **Resume:** when the offer queue empties (every offer answered by `respond`, take or
-      decline), the move resumes automatically. On resume:
+      decline, including a refused take), the move resumes automatically. On resume:
       - mover downed → end, reason `downed`;
       - an active condition now restricts the action's tags → end, reason `restricted`;
       - otherwise re-plan from the current cell with `remaining` budget; no path → end,
         reason `blocked`.
     - **Forfeit:** `step()` while paused forfeits the move (reason `forfeited`) before its
       usual effect.
+    - **Own cell [F-P10a]:** a declare whose `to` is the mover's own cell is rejected as
+      `E-SPAT-01` kind `occupied` (DD-M6). There is no new kind, no slot is spent, and
+      nothing changes.
     - **Events:** `move:advanced {from, to, path, cost, remaining}` per contiguous segment,
       and `move:ended {reason: arrived|downed|restricted|blocked|forfeited, at}`.
     - Packs without matching reactions never pause.
@@ -180,14 +245,26 @@ prompts are amended before S02 dispatch.
 12. **DD-M12: snapshots.** The combat envelope's combatant item gains optional
     **`pendingMove {actionId, to:{x,y}, remaining}`**. Positions and terrain keep the
     CAP-G5 discipline: the host re-states them on restore (`CombatRestoreRequest.terrain?`
-    mirrors `startCombat`). Restore precedence is unchanged. A `pendingMove` naming an
-    unknown action or a non-move action → `E-SNAP-01`. No new rule id.
+    mirrors `startCombat`, with the same refusals). Restore precedence is unchanged. A
+    `pendingMove` naming an unknown action or a non-move action → `E-SNAP-01`. No new rule
+    id.
+    - **Derived restore phase [F-P2]:** the envelope carries no phase, and none is added.
+      Restore sets the phase to **`resolved`** when any restored combatant carries
+      `pendingMove` or `pendingTrigger`. Otherwise it keeps today's rule
+      (`awaiting-declare`, or `combat-over` when a side is defeated; `snapshots.ts:554`).
+      A restored paused fight's `step()` therefore forfeits the move and ends the turn,
+      exactly as the uninterrupted fight does.
+    - **Restored offer `on` [F-P2]:** a restored offer's `matchingEvent` is the live
+      **event type**: the trigger pattern's base before `[` (the `eventMatches` base,
+      `triggers.ts:32-34`). Live offers store `event.type` (`triggers.ts:75`). This fixes
+      the pattern-string divergence at `snapshots.ts:565`.
+    - Schema scope is unchanged by these two points (description text only).
 13. **DD-M13: `respond` default target unchanged.** To take an opportunity reaction with
     several opponents, the host passes the mover as `targetId`. `respond` keeps its current
     target resolution (no default-to-event-actor), so existing trigger behavior is
     unchanged.
 14. **DD-M14: reach semantics preserved** (F-M2). Hex `canReach` mirrors grid's
-    `≤ max(reach, defaultReach)`. It is not fixed here.
+    `≤ max(reach, defaultReach)` (`spatial.ts:60-61`). It is not fixed here.
 15. **DD-M15: carried items folded in.** `displayRoll` leaf → S03 ck5. CI build step → S04
     ck3. Nothing else is folded.
 16. **DD-M16: Author artifacts** are revised by S01, run by the Author roles (Spec →
@@ -198,57 +275,145 @@ prompts are amended before S02 dispatch.
     the M02 → M03 boundary because of context size (validator + DSL + a 1015-line
     `combat.ts` + 744-line `snapshots.ts` is too much for one working set). That split is
     forced, not principled.
+18. **DD-M18 (REPLAN-GM-01): path search is region-bounded and exact [F-P9].** `findPath`
+    runs Dijkstra *without* a cost cutoff over a finite region. The region is the
+    axis-aligned `(x, y)` bounding box of `from`, `to`, every placed terrain cell and every
+    combatant position, expanded by one cell on every side. **Why it is sound:** outside
+    the original box every cell is plain, unoccupied and unblocked. Clamping coordinates
+    into the expanded box maps neighbors to neighbors (or to the same cell) for both the
+    8-neighbor square set and the 6-neighbor axial hex set, and it never raises a step's
+    cost. So some cheapest path always lies inside the region. The search is therefore
+    exact for both reachability and cheapest cost.
+19. **DD-M19 (REPLAN-GM-01): `speed` reference detection is position-aware [F-P11].** The
+    matcher is new code in S02's lease (`src/schema/validate/sections/cross.ts`
+    `checkMovementDsl`; no `speed` matcher exists at `67f383b`). S02 narrows it to
+    formula identifiers. It is a text-level call/argument-index scan. A token counts only
+    when it is **not** the argument at a non-formula position: `damage` arg 2 (type),
+    `applyCondition` arg 1 (condition id), `target` arg 1 (shape), `save` arg 1 (save
+    name). These positions mirror `effect.ts` `ARG_CATEGORIES` (`:417-425`). M01 still
+    imports no core value. Owner: S02 ck3.
+
+## Planning completeness review (2026-09-30)
+
+Source: `.program/results/ARCHIVIST-PREFLIGHT.grid-movement.result.md` (Archivist
+planning-completeness pass at `67f383b`). Every finding was re-verified against committed
+source by REPLAN-GM-01 before being applied. Orchestrator decisions:
+`.program/decisions.md` § grid-movement preflight.
+
+| Finding | Verified? | Disposition |
+|---------|-----------|-------------|
+| **F-P1** duplicate offers (blocking) | **Confirmed.** `resolve()` returns `sinceRound` (`combat.ts:743`); `declare` (`:456`) and `resolveReactive` (`:875`) pass it to `surfaceOffers` (`:837-847`). `respond` splices the offer (`:551`), and the take path re-surfaces the round, so the same `triggerId` (`${reactor}.${action}`, `triggers.ts:72`) returns. | **Applied.** DD-M10 and CA-M4 amended (per-call sink). Work assigned to **S03 ck3**, which runs the whole suite and returns `blocked` naming any outside-lease test that depends on repeat offers. The arch delta for `v1-core.md:163` goes into S03's arch fragment. |
+| **F-P2** restore phase (blocking) | **Confirmed.** `snapshots.ts:554` always sets `awaiting-declare`; `step()` then starts a turn (`combat.ts:347-367`). Restored `matchingEvent` = pattern (`snapshots.ts:565`) vs `event.type` live (`triggers.ts:75`). | **Applied (derived phase, no schema change).** DD-M12, CA-M5 and **S03 ck4** amended; S01 schema scope unchanged (description text only). Residuals recorded below (R-GM-1, R-GM-2). |
+| **F-P3** terrain restore scheduled after use (blocking) | **Confirmed.** `snapshots.ts:549-557` builds `CombatState`; `CombatRestoreRequest` (`:435-440`) has no `terrain`. | **Applied.** `CombatRestoreRequest.terrain`, its refusals and the `CombatState.terrain` rebuild moved to **S03 ck2**. `pendingMove` stays at ck4. |
+| **F-P4** monsters lack the reaction (blocking) | **Confirmed** in SESSION-04 CA-M6 text (statblocks got only the move action). | **Applied.** S04 appends the move action **and** the reaction to every class and every statblock. CA-M6 row amended. Journey steps 1/4/6 unchanged. |
+| **F-P5** `useItem` throws on `speed` (blocking) | **Confirmed.** `equipment.ts:272-280` binds `level/hp/ac/initiative` only; `formula.ts:296-300` throws "unknown name". | **Applied.** S03 ck2 task (equipment.ts already leased), with its closing assertion in `movement.test.ts`. |
+| **F-P6** pins | **Confirmed** at source (a: `grid-journey.test.ts:211-227`, all three theme `spatial` deep-equals; b: `character-profile.test.ts:309-329`; c: `:206-226`, pinned list `:212-222`; d: `checker.test.ts:12-29`; e: `effect.test.ts:355` title only; f: none; g: `equipment-journey.test.ts:72-81`). | **Applied.** See Verification Baseline → Pins. a → S04 ck1; b → S03 (omit when absent) + S04 ck1 re-key; c → S04 ck1 insertion; d → S02 ck2; g → S04 ck0 staged whole-suite run kept. |
+| **F-P7** line drift | **Confirmed.** `spatial.ts` 131 lines, `canReach` `:60-61`; `startCombat` `:173`; `declare` `:385`; `executeAgainst` `resolve.ts:332`, `apply` `:350-365`. | **Applied.** References corrected in STATE, S03 and S04. |
+| **F-P8** lease leads | **Confirmed not gaps.** `checker.ts` needs no change; root-only/dice-free checks live in `effect.ts` `checkEffectAst` (S02); `EFFECT_SCALARS` is `effect.ts:57`; `runtime.ts`, `triggers.ts`, `action-economy.ts`, `events.ts`, `bestiary.ts` need no edits. | **Recorded** (no lease change). |
+| **F-P9** out-of-range bound | **Confirmed** (the planned `distance × maxCost` bound can miss a wall detour). | **Applied.** DD-M18; S03 ck1 search amended; closing assertion: a wall detour costing more than the budget reports `out-of-range`. |
+| **F-P10** own cell; spent reaction slot | **Confirmed** (a: undefined in the plan; b: `offersForEvent` `triggers.ts:62-81` has no cost check). The take/decline behavior was verified in source (see DD-M10). | **Applied.** DD-M6/M9/M10 and S01 ck2/ck3 text; S03 ck2/ck3 tests. |
+| **F-P11** `speed` not purely additive | **Confirmed.** The matcher is planned new code inside S02's lease (`cross.ts`). | **Applied.** S01 ck3 compatibility note + Version Registry row 6 reworded; S02 ck3 narrows the matcher to formula positions (DD-M19). No debt carried. |
+| **F-P12** `displayRoll` vs `rollText` | **Confirmed.** The output is the same for rolls without a verdict. | **Applied.** S03 ck5 must keep `tests/runtime/equipment.test.ts` green (explicit selector). |
+
+**Recovery pass (REPLAN-GM-01 attempt 2, 2026-09-30):** the uncommitted draft of the
+aborted attempt was re-checked against committed source at `67f383b`. Pin lines corrected:
+the whole-profile pin is `character-profile.test.ts:309-329` (the `it` at `:309`, the
+deep-equal at `:317-329`), not `:312-329`; the grid-journey `spatial` deep-equals are
+`:211-215` / `:218-222` / `:223-227` (not `:210-214` / `:217-221` / `:222-226`). S04's
+`formulas.speed` values were restated in the themes' `{ "expr": ... }` form; all three
+themes declare `grace` and `vigor`. The F-P10b take/decline semantics, the `endTurn` path
+(no `turn:began` after a forfeit), `checkCost` comparing against the grant, and the
+planned (not yet committed) `speed` regex in S02's lease were re-confirmed.
+
+**Residuals recorded (not blocking, carried):**
+- **R-GM-1 (F-P2):** `trigger:fired.payload.offerIndex` comes from the private
+  `Combat.offeredCount` (`combat.ts:320`). It is not in the snapshot, so a restored fight
+  restarts it at 0 (pre-existing). The CA-M5 parity assertion therefore compares the
+  `move:*`, `attack:rolled`, `damage:applied`, `move:ended{forfeited}` and `turn:ended`
+  payloads, plus final positions. Any `trigger:fired` emitted *after* restore is compared
+  without `offerIndex`. Owner: a future snapshot revision (DB); not this feature.
+- **R-GM-2 (F-P2):** the derived phase is exact for `pendingMove`. It is also exact for
+  offers raised by `declare`/`respond`, where the live phase is `resolved`. But an offer
+  raised by `fight.use` leaves the live phase at `awaiting-declare` (`use` does not end the
+  turn). Restoring such a fight derives `resolved`, so `step()` ends the turn, while the
+  uninterrupted fight's `step()` re-begins it. Only an envelope phase could distinguish the
+  two cases (the option Orchestrator declined). Owner: a future snapshot revision (DB);
+  recorded in S03's handoff. No journey in this feature restores a `use`-raised offer.
 
 ## Verification Baseline
 
 | Item | Effective command / config | Evidence | Notes / owner |
 |------|---------------------------|----------|---------------|
-| Whole suite | `pnpm test` → `vitest run` (include `tests/**`) | **actual:** 661/661, 37 files, 2.0 s at `02f8196` (Planner, 2026-09-29) | New files expected: S03 `tests/runtime/combat/movement.test.ts`, `tests/runtime/combat/movement-geometry.test.ts`; S04 `tests/proofs/movement-journey.test.ts` |
+| Whole suite | `pnpm test` → `vitest run` (include `tests/**`) | **actual:** 661/661, 37 files, 2.0 s at `02f8196` (Planner, 2026-09-29); **actual:** 661/661 at `67f383b` (Orchestrator startup, 2026-09-30) | New files expected: S03 `tests/runtime/combat/movement.test.ts`, `tests/runtime/combat/movement-geometry.test.ts`; S04 `tests/proofs/movement-journey.test.ts` |
 | Narrow gate | `pnpm exec vitest run <path>` | inherited (DD14e) | `pnpm test -- <pattern>` does NOT filter; `npx vitest` fails here |
-| typecheck / lint / format:check | `pnpm typecheck` · `pnpm lint` · `pnpm format:check` | inherited green at `02f8196` (equipment-consumables final); not re-run by Planner | Whole-repo fast gates at every receive (promoted convention) |
-| build / isolation / security | `pnpm build` · `pnpm check:isolation` · `pnpm check:security` | inherited green at `02f8196` | S03 must keep runtime free of compiler strings |
+| typecheck / lint / format:check | `pnpm typecheck` · `pnpm lint` · `pnpm format:check` | actual green at `67f383b` (Orchestrator startup) | Whole-repo fast gates at every receive (promoted convention) |
+| build / isolation / security | `pnpm build` · `pnpm check:isolation` · `pnpm check:security` | actual green at `67f383b` (Orchestrator startup) | S03 must keep runtime free of compiler strings |
 | Journeys needing `dist/` | `tests/proofs/{loot,equipment}-journey.test.ts` read `dist/` | **hazard:** CI `test` job never builds | S04 ck3 adds `pnpm build` before `pnpm test` in ci.yml. Locally, run `pnpm build` before the whole suite |
-| Pins touched by this feature | `docs-run.test.ts:49` (4 ```ts blocks); `docs-run.test.ts:195` (warden action list); `character-profile.test.ts:215-217` (action list); `grid-journey.test.ts:223` (wyldwood `model:'grid'`); `pipeline.test.ts:428-432` and `coverage-floor.test.ts:166-173` (every theme `model 'grid'`); `effect.test.ts:355` (EFFECT_SCALARS list); `registry.test.ts`/`validate.test.ts` RULE_IDS 15 (**unchanged**: no new id) | source-read by Planner | **Re-key owners:** S02 owns `effect.test.ts`; S04 owns docs-run, character-profile, grid-journey, pipeline and coverage-floor re-keys. README edits in S04 must add **no** ```ts block. |
 | CI proofs job | `pnpm exec vitest run tests/proofs/` (package job, after build) | inherited | The new movement journey is discovered automatically |
+| Probe (review) | Archivist `/tmp` script against `dist/` built after HEAD | observed duplicate re-offer after `respond('b.parry','take')` (F-P1) | Not repo evidence; S03 ck3's closing assertion replaces it |
+
+### Pins touched by this feature (pin-lease ownership; source-read by REPLAN-GM-01 at `67f383b`)
+
+Every assertion is preserved except the pinned value itself. Each pin has one re-key owner
+whose lease covers the file.
+
+| Pin (file:line) | What it pins | Changed by | Re-key owner / checkpoint |
+|---|---|---|---|
+| `tests/schema/validate.test.ts:473-481` | uses `'hex'` as the *unshipped* model → E-SPAT-01 | S02 ck1 (hex accepted) | **S02 ck1**: switch to `'isometric'`; assertion kept |
+| `tests/core/dsl/checker.test.ts:12-29` | exact 13-entry `REGISTRY` membership (title "v1.4 membership (13…)") | S02 ck2 (`move` added) | **S02 ck2**: 14 entries incl. `'move'` (sorted between `min` and `save`); title → v1.5 / 14 [F-P6d] |
+| `tests/core/dsl/effect.test.ts:355` | test **title** names `hp/ac/initiative/level`; no list assertion [F-P6e] | — (harmless) | **S02 ck2** may retitle to add `speed`; no assertion change required |
+| `tests/runtime/combat/character-profile.test.ts:309-329` (deep-equal `:317-329`) | whole zombie-urban profile deep-equal (`rest`) | S03 would break it only if `speed` were always emitted; S04 ck1 (`formulas.speed` added) | **S03**: emit `speed` only when `formulas.speed` is declared (keeps it green). **S04 ck1**: add `speed: evalPackFormula(rt.pack, 'speed', base)` to the expected object [F-P6b] |
+| `tests/runtime/combat/character-profile.test.ts:212-222` (test `:206-226`) | warden/hexer class-action **union**, first occurrence wins | S04 ck1 | **S04 ck1**: **insert** the theme's move action and reaction after `'parry'` (they are appended to each class, and the union keeps first occurrence). Result: `strike, cut-down, withdraw, brace, parry, stride, opportunist, hurl, long-shot, ward-glint, ember-surge`. This is not an append [F-P6c] |
+| `tests/proofs/docs-run.test.ts:195` | warden actions (`strike…parry`) | S04 ck1 | **S04 ck1**: append `'stride', 'opportunist'` |
+| `tests/proofs/docs-run.test.ts:49` | exactly 4 ```ts blocks in README | — | **unchanged**: S04 README additions use ```json / ```text only |
+| `tests/proofs/grid-journey.test.ts:211-215` | dark-fantasy `rt.pack.spatial` deep-equal | S04 ck1 (terrain added) | **S04 ck1**: add `terrain: {rubble:{cost:2}, pillar:{blocks:true}}` [F-P6a] |
+| `tests/proofs/grid-journey.test.ts:218-222` | zombie-urban `spatial` deep-equal | S04 ck1 (terrain added) | **S04 ck1**: add `terrain: {debris:{cost:2}, 'barricade-wall':{blocks:true}}` [F-P6a] |
+| `tests/proofs/grid-journey.test.ts:223-227` | wyldwood `spatial` deep-equal (`model:'grid'` at `:224`) | S04 ck1 (hex + terrain) | **S04 ck1**: `model:'hex'` + `terrain: {bramble:{cost:2}, 'standing-stone':{blocks:true}}` |
+| `tests/compiler/pipeline.test.ts:430-432` | "each generated pack carries model grid" | S04 ck1 | **S04 ck1**: per-theme expectation (`hex` for wyldwood). `pipeline.test.ts:340-356` uses a hand-set theme spatial and is **unaffected** |
+| `tests/compiler/coverage-floor.test.ts:167`, `:173`, header `:9` | `model === 'grid'` per theme | S04 ck1 | **S04 ck1**: per-theme model; header comment |
+| `tests/schema/registry.test.ts` / `validate.test.ts` RULE_IDS 15 | rule-id count | — | **unchanged**: no new id |
+| Fight loops `equipment-journey.test.ts:72-81` (and similar) | try each action in order | S04 ck1 (new actions appended last) | not a pin; covered by **S04 ck0 staged whole-suite run** with `blocked` return [F-P6g] |
+| No hash/byte-count pins on generated content; `stages`/`encounter`/`overrides` tests use fixture or micro themes [F-P6f] | — | — | — |
 
 ## Capability Readiness
 
 | ID | Approved behavior / entry point | Required facts + producer owners | CA IDs / prerequisites | Integration owner / checkpoint | Status | Proof / checked sources | Open gaps + correction owners |
 |----|--------------------------------|---------------------------------|------------------------|--------------------------------|--------|-------------------------|-------------------------------|
 | CAP-M1 | A pack may declare `spatial.model: "hex"`; reach, `adjacent` and burst use hex distance | model value (S01 contract; S02 mirror + validator); geometry (S03 ck1) | CA-M1 | S03/ck1 (unit); S04/ck2 (generated wyldwood) | planned | — | coverage window S02→S03 (closed by S03 ck1) |
-| CAP-M2 | **First narrow journey:** `declare(moveAction, {to})` moves the actor along the cheapest legal path within `speed`; the position survives serialize/restore; rejections change nothing | speed (S01 → S02 scalar → S03 profile); move statement (S02); path/gate (S03 ck2) | CA-M2, CA-M3 | S03/ck2 | planned | — | — |
-| CAP-M3 | Pack-declared blocking and difficult terrain, placed by the host per fight | terrain vocabulary (S01/S02); placement + costs (S03 ck1/ck2) | CA-M1, CA-M3 | S03/ck2 | planned | — | — |
-| CAP-M4 | Pack-declared opportunity reactions fire when a mover leaves reach; the move pauses and resumes | provoke event + pause (S03 ck3); reaction content (S04 ck1) | CA-M4 | S03/ck3 (fixture pack); S04/ck2 (generated) | planned | — | — |
-| CAP-M5 | A mid-move pause snapshots and resumes losslessly | `pendingMove` contract (S01); serializer/restore (S03 ck4) | CA-M5 | S03/ck4 | planned | — | — |
-| CAP-M6 | Generated themes can move: `speed`, `stride`, `opportunist`, terrain kinds; wyldwood hex | theme content (S04 ck1) | CA-M6 | S04/ck2 | planned | — | — |
+| CAP-M2 | **First narrow journey:** `declare(moveAction, {to})` moves the actor along the cheapest legal path within `speed`; the position survives serialize/restore (terrain re-stated); rejections change nothing; out-of-combat `useItem` can read `speed` | speed (S01 → S02 scalar → S03 ck2 profile + vars + `useItem`); move statement (S02); path/gate (S03 ck1/ck2); restore terrain (S03 ck2) | CA-M2, CA-M3 | S03/ck2 | planned | — | — |
+| CAP-M3 | Pack-declared blocking and difficult terrain, placed by the host per fight and re-stated on restore | terrain vocabulary (S01/S02); placement + costs + restore terrain (S03 ck1/ck2) | CA-M1, CA-M3, CA-M5 (terrain leg) | S03/ck2 | planned | — | — |
+| CAP-M4 | Pack-declared opportunity reactions fire when a mover leaves reach; the move pauses and resumes; each offer surfaces once | provoke event + pause + per-call offers (S03 ck3); reaction content on classes and statblocks (S04 ck1) | CA-M4, CA-M6 | S03/ck3 (fixture pack); S04/ck2 (generated) | planned | — | — |
+| CAP-M5 | A mid-move pause snapshots and resumes losslessly: derived `resolved` phase; restored offer `on` = event type | `pendingMove` contract (S01); serializer/restore/phase/`on` (S03 ck4) | CA-M5 | S03/ck4; S04/ck2 step 4 | planned | — | R-GM-1 (`offerIndex`), R-GM-2 (`use`-raised offer phase): carried, owner future DB revision |
+| CAP-M6 | Generated themes can move: `speed`, move action, reaction (classes + statblocks), terrain kinds; wyldwood hex | theme content (S04 ck1) | CA-M6 | S04/ck2 | planned | — | — |
 | CAP-M7 | Theater-of-mind packs pay nothing: move content loads and moves are no-op successes | S02 validator (no spatial requirement); S03 no-op branch | CA-M7 | S03/ck2 (unit); S04/ck2 (wyldwood minus spatial) | planned | — | — |
 
 **Production path, for every CAP:** `generateCampaign` (or a validated fixture pack) →
 `new Runtime(pack)` (stage-8 `validatePack` + `checkPackDsl`) → `profileFromCharacter` /
-`spawnMonster` (profiles carry `speed`) → `startCombat({allies, enemies, positions,
-terrain})` → `fight.step()` → `fight.declare('stride', {to})` → movement gate → `spend` →
-`executeAgainst` → `move` statement → `apply.move` → path walk with `move:*` events →
-`surfaceOffers` → `fight.respond(...)` → resume → `serializeCombat` →
-`deserializeCombat(..., {positions, terrain})`. This library has no durable storage beyond
-the snapshot envelope. "Restart" = serialize → JSON → restore.
+`spawnMonster` (profiles carry `speed` when declared) → `startCombat({allies, enemies,
+positions, terrain})` → `fight.step()` → `fight.declare('stride', {to})` → movement gate →
+`spend` → `executeAgainst` (`resolve.ts:332`) → `move` statement → `apply.move` → path walk
+with `move:*` events → per-call `surfaceOffers` → `fight.respond(...)` → resume →
+`serializeCombat` → `deserializeCombat(..., {positions, terrain})` (derived phase). This
+library has no durable storage beyond the snapshot envelope. "Restart" = serialize → JSON →
+restore.
 
 ## Contract Agreements
 
 | ID | Required meaning / authority | Producer → boundary → consumer | Mapping / constraints | Correction + proof owners / checkpoints | Agreement | Producer | Proof / evidence / checked sources |
 |----|------------------------------|--------------------------------|-----------------------|----------------------------------------|-----------|----------|------------------------------------|
-| CA-M1 | Spatial model vocabulary: `grid` = square/Chebyshev (unchanged); `hex` = axial `{x:q, y:r}`, hex distance; `terrain` kinds `{cost ≥ 1}` xor `{blocks: true}` | `pack.schema.json $defs/spatial` (S01) → `SpatialDef` + `checkSpatial` (S02) → `spatialFromPack`/`hexGeometry` (S03) → theme JSON (S04) | `model` enum `["grid","hex"]` (was const); `terrain` optional; kind ids kebab; exactly one of `cost`/`blocks`; unknown model → `E-SPAT-01` (unchanged mapping); malformed terrain → `E-SCHEMA-01` | S01 ck3 · S02 ck1 · S03 ck1 · S04 ck1 | agreed (DD-M2/M5 confirmed 2026-09-30) | planned | planned: S02 validate tests; S03 `movement-geometry.test.ts` |
-| CA-M2 | `move(formula)`: root-only, dice-free, non-triggered action effects only; `speed` reserved formula + effect scalar | `database.md §formulas` + registry doc (S01) → `REGISTRY.move`, `EFFECT_SCALARS`, `checkEffect`, executor (S02) → `executeAgainst` vars + `apply.move` + `CombatantProfile.speed` (S03) | registry 13 → 14; misuse → `E-FORM-02`; `speed` referenced without `formulas.speed` → `E-REF-01`; executor without `apply.move` throws (fail-closed) | S01 ck3 · S02 ck2 · S03 ck2 | agreed (DD-M7/M8 confirmed 2026-09-30) | planned | planned: S02 effect/checker/validate tests; S03 movement test |
-| CA-M3 | Move declare semantics: `DeclareOptions.to`; terrain placement; path legality; rejection kinds with no change | `spatial.html` + `api-map.html` (S01) → `Combat.declare` movement gate + `startCombat` terrain (S03) → journey (S04) | kinds `no-destination` / `blocked` / `occupied` / `unreachable` / `out-of-range`, all rule `E-SPAT-01`; no state/rng/ledger change (compare `serialize()` before and after); startCombat terrain refusals aggregate | S01 ck2 · S03 ck2 · S04 ck2 | agreed (DD-M5/M6/M9 confirmed 2026-09-30) | planned | planned |
-| CA-M4 | Provoke: `move:leaving-reach` (actor mover, target threatener); pause iff offers; resume on empty queue; resume re-checks; forfeit on `step()`; `move:advanced` / `move:ended` | `spatial.html` provoke section (S01) → `combat.ts` walk + `respond` + `step` (S03) → `opportunist` content (S04) | pattern `move:leaving-reach[target=self]` matches through the existing `eventMatches` (no grammar change); reasons are the closed set in DD-M10 | S01 ck2 · S03 ck3 · S04 ck1/ck2 | agreed (DD-M10 confirmed 2026-09-30) | planned | planned |
-| CA-M5 | Snapshot: combatant `pendingMove?` round-trips; positions and terrain re-stated by the host | `snapshots.schema.json` (S01) → `serializeCombat` / `deserializeCombat` / `CombatRestoreRequest.terrain` (S03) | serialize only when set; restore refuses an unknown or non-move `actionId` → `E-SNAP-01`; spatial restore gate (CAP-G5) unchanged | S01 ck3 · S03 ck4 | agreed (DD-M12 confirmed 2026-09-30) | planned | planned: `tests/snapshots/combat.test.ts` round-trip mid-pause |
-| CA-M6 | Theme content: `formulas.speed`, `stride` (tag `move`, `move` slot, `move(speed)`), `opportunist` (reaction slot, `move:leaving-reach[target=self]`, attack), terrain kinds; wyldwood `hex` | theme JSON (S04) → pipeline pass-through (existing) → `validatePack` (S02) → runtime (S03) | `rooted` already restricts `actions.tagged:move`, so it applies to `stride` without new code | S04 ck1/ck2 | agreed (DD-M3 confirmed 2026-09-30) | planned | planned: coverage-floor + movement journey |
+| CA-M1 | Spatial model vocabulary: `grid` = square/Chebyshev (unchanged); `hex` = axial `{x:q, y:r}`, hex distance; `terrain` kinds `{cost ≥ 1}` xor `{blocks: true}` | `pack.schema.json $defs/spatial` (S01) → `SpatialDef` + `checkSpatial` (S02) → `spatialFromPack`/`hexGeometry`/`findPath` (S03) → theme JSON (S04) | `model` enum `["grid","hex"]` (was const); `terrain` optional; kind ids kebab; exactly one of `cost`/`blocks`; unknown model → `E-SPAT-01` (unchanged mapping); malformed terrain → `E-SCHEMA-01`; search region-bounded exact (DD-M18) | S01 ck3 · S02 ck1 · S03 ck1 · S04 ck1 | agreed (DD-M2/M5 confirmed 2026-09-30) | planned | planned: S02 validate tests; S03 `movement-geometry.test.ts` (incl. wall-detour `out-of-range`) |
+| CA-M2 | `move(formula)`: root-only, dice-free, non-triggered action effects only; `speed` reserved formula + effect scalar, bound in combat and in `useItem` | `database.md §formulas` + registry doc (S01) → `REGISTRY.move`, `EFFECT_SCALARS`, `checkEffectAst`, executor (S02) → `executeAgainst` vars + `apply.move` + `CombatantProfile.speed` + `useItem` vars (S03) | registry 13 → 14; misuse → `E-FORM-02`; `speed` at a formula position without `formulas.speed` → `E-REF-01` (non-formula positions ignored, DD-M19); executor without `apply.move` throws (fail-closed); `useItem` `speed` = `scopedFormula` or 0; compatibility note in database.md (F-P11) | S01 ck3 · S02 ck2/ck3 · S03 ck2 | agreed (DD-M7/M8 confirmed 2026-09-30; F-P5/F-P11 amendments) | planned | planned: S02 effect/checker/validate tests; S03 `movement.test.ts` (incl. `useItem` `heal(speed)`) |
+| CA-M3 | Move declare semantics: `DeclareOptions.to`; terrain placement; path legality; rejection kinds with no change | `spatial.html` + `api-map.html` (S01) → `Combat.declare` movement gate + `startCombat` terrain (S03) → journey (S04) | kinds `no-destination` / `blocked` / `occupied` (incl. `to` = own cell) / `unreachable` (no path at any cost) / `out-of-range` (reachable, cost > budget), all rule `E-SPAT-01`; no state/rng/ledger change (compare `serialize()` before and after); startCombat terrain refusals aggregate | S01 ck2 · S03 ck1/ck2 · S04 ck2 | agreed (DD-M5/M6/M9 confirmed 2026-09-30; F-P9/F-P10a amendments) | planned | planned |
+| CA-M4 | Provoke: `move:leaving-reach` (actor mover, target threatener); **offers only for events emitted by the current call, each exactly once**; offers not filtered by affordability; pause iff offers; resume on empty queue (a refused take counts as answered); resume re-checks; forfeit on `step()`; `move:advanced` / `move:ended` | `spatial.html` provoke section + database.md (S01) → `combat.ts` walk + per-call `surfaceOffers` + `respond` + `step` (S03) → reaction content on classes and statblocks (S04) | pattern `move:leaving-reach[target=self]` matches through the existing `eventMatches` (no grammar change); reasons are the closed set in DD-M10; after the only offer is taken or declined, `pendingTriggers` is `[]` and exactly one `trigger:fired`/`trigger:declined` exists per matching event; spent-slot take → one `declare:rejected {slot-exhausted, reaction}` E-ECON-01, no change | S01 ck2/ck3 · S03 ck3 · S04 ck1/ck2 | agreed (DD-M10 confirmed 2026-09-30; F-P1/F-P10b amendments) | planned | planned: S03 `movement.test.ts` + whole suite at ck3 |
+| CA-M5 | Snapshot: combatant `pendingMove?` round-trips; positions and terrain re-stated by the host; restore derives phase `resolved` when any `pendingMove`/`pendingTrigger`; restored offer `on` = event type | `snapshots.schema.json` (S01) → `serializeCombat` / `deserializeCombat` / `CombatRestoreRequest.terrain` (S03 ck2) / `pendingMove` + phase + `on` (S03 ck4) | serialize only when set; restore refuses an unknown or non-move `actionId` → `E-SNAP-01`; terrain refusals = startCombat's; spatial restore gate (CAP-G5) unchanged; parity: restored paused fight's `step()` yields the same `move:ended{forfeited}` → `turn:ended` (identical payloads) as uninterrupted; `respond` resume parity on `move:*` payloads + positions (R-GM-1 scope) | S01 ck3 · S03 ck2 (terrain) · S03 ck4 | agreed (DD-M12 confirmed 2026-09-30; F-P2/F-P3 amendments) | planned | planned: `tests/snapshots/combat.test.ts` round-trip mid-pause + forfeit parity |
+| CA-M6 | Theme content: `formulas.speed`, move action (tag `move`, `move` slot, `move(speed)`), reaction (reaction slot, `move:leaving-reach[target=self]`, the theme's melee attack), terrain kinds; wyldwood `hex`. **Move action and reaction are appended to every class `actions` list and every bestiary statblock `actions` list** | theme JSON (S04) → pipeline pass-through (existing) → `validatePack` (S02) → runtime (S03) | `rooted` already restricts `actions.tagged:move`, so it applies to the move action without new code | S04 ck1/ck2 | agreed (DD-M3 confirmed 2026-09-30; F-P4 amendment) | planned | planned: coverage-floor + movement journey steps 1/4/6 |
 | CA-M7 | Theater of mind: move no-op success; move content loads without `spatial`; terrain rides along unconsulted, like positions | S01 text → S02 (no spatial requirement on `move`) → S03 no-op branch | no positions and no `move:*` events in theater packs | S02 ck2 · S03 ck2 · S04 ck2 | agreed (DD-M11 confirmed 2026-09-30) | planned | planned |
 
 **Provisional:** every CA's producer is built inside this feature. All rows are provisional
 against their named producer checkpoints. **Orchestrator re-checks each mapping against
 the landed producer before dispatching the dependent session:**
-- CA-M1/M2 against S01's committed contract before S02;
-- CA-M1/M2 against S02's committed types before S03;
+- CA-M1/M2/M4/M5 against S01's committed contract and database.md before S02;
+- CA-M1/M2 against S02's committed types (and the DD-M19 matcher) before S03;
 - CA-M3/M4/M5 against S03 before S04.
 
 Dependents are dispatched against the amended CA text, not the planned text.
@@ -257,7 +422,7 @@ Dependents are dispatched against the amended CA text, not the planned text.
 
 | ID | Affects | Next action | Owner | Evidence to clear |
 |----|---------|-------------|-------|-------------------|
-| — | — | None open. B-M1 (human confirmation of DD-M2…DD-M13) **cleared 2026-09-30**: the human answered "confirmed" with no edits. | — | Recorded in Program/Authorization and Design Decisions |
+| — | — | None open. B-M1 (human confirmation of DD-M2…DD-M13) **cleared 2026-09-30**: the human answered "confirmed" with no edits. F-P1…F-P5 (blocking review findings) **cleared 2026-09-30** by REPLAN-GM-01 (prompt corrections; implementations remain planned in S03/S04). | — | Recorded in Program/Authorization, Design Decisions and "Planning completeness review (2026-09-30)" |
 
 ## Handoff Notes
 

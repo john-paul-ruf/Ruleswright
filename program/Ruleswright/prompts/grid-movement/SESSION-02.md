@@ -14,8 +14,14 @@
 
 | ID | Module | Read | Why |
 |----|--------|------|-----|
-| M01 | Schema | `pack.ts` (`SpatialDef` l.54-58), `validate/sections/root.ts` (`checkSpatial` l.286-383, reserved formulas l.23 + l.267-281), `validate/sections/cross.ts`, `validate/index.ts` (l.71 dispatch) | Type mirror + validator |
-| M02 | Core DSL | `dsl/registry.ts`, `dsl/effect.ts` (executor switch l.199-218, `ARG_CATEGORIES` l.425, `checkEffectAst` l.453) | `move` statement, `speed` scalar |
+| M01 | Schema | `pack.ts` (`SpatialDef` l.65-69), `validate/sections/root.ts` (`checkSpatial` l.295, reserved formulas l.23 + l.267-281), `validate/sections/cross.ts`, `validate/index.ts` (section dispatch l.66-79; `checkSpatial` l.71; cross checks `checkProgressionPairing`/`checkRestrictsTags` l.78-79) | Type mirror + validator |
+| M02 | Core DSL | `dsl/registry.ts`, `dsl/effect.ts` (`EFFECT_SCALARS` l.57, executor switch l.211, `ARG_CATEGORIES` l.417-425, `checkEffect` l.433, `checkEffectAst` l.453) | `move` statement, `speed` scalar |
+
+**Lease audit (F-P8, confirmed at `67f383b`):** `src/core/dsl/checker.ts` is a 12-line
+dispatcher and needs no change. The root-only and dice-free checks belong in `effect.ts`
+`checkEffectAst`. The placement and `speed` rules are a cross check dispatched from
+`validate/index.ts`. `validate/dsl.ts` and `sections/actions.ts` need no change. If you
+find otherwise, return `blocked` naming the path; do not widen the lease.
 
 ## Context
 
@@ -71,10 +77,15 @@ Integration owners are S03 and S04.
     This is M01's cross check. It uses a leading-token test, `/^\s*move\s*\(/`, which is
     exact because core has already made `move` root-only; M01 still imports no core
     value.
-  - `speed` referenced as a bare name token in any effect-bearing field (actions,
-    spells, feats, items `use`) while `formulas.speed` is absent → `E-REF-01` at
-    `formulas`. This is M01's cross check. Token test:
-    `/(^|[^a-z0-9-])speed([^a-z0-9-]|$)/`.
+  - `speed` referenced **at a formula position** in any effect-bearing field (actions,
+    spells, feats, items `use`) while `formulas.speed` is absent → `E-REF-01`. This is
+    M01's cross check, and it is **narrowed to formula identifiers** (STATE DD-M19,
+    F-P11). A bare-token regex alone is not enough. It would also match a damage type,
+    condition id, shape or save name spelled `speed`, which is not a reference. See ck3
+    for the position-aware scan.
+  - Compatibility (F-P11, recorded by S01 in database.md): a pack that used such a token
+    without `formulas.speed` loaded before v1.5 and now fails. No bundled theme is
+    affected. Do not add a waiver.
   - `EFFECT_SCALARS` gains `'speed'`.
 - **CA-M7 leg:** nothing requires `spatial` for `move` content.
 
@@ -88,9 +99,9 @@ Integration owners are S03 and S04.
 | `src/schema/validate/index.ts` | modify | dispatch `checkMovementDsl` after the existing cross checks |
 | `src/core/dsl/registry.ts` | modify | `move` entry; `EFFECT_VOCABULARY` + `move`; header comment v1.5 (13 → 14) |
 | `src/core/dsl/effect.ts` | modify | `EFFECT_SCALARS` + `speed`; `EffectApply.move?`; `MoveOutcome`; `execMove`; `ARG_CATEGORIES.move`; root-only + dice-free checks |
-| `tests/schema/validate.test.ts` | modify | **re-key l.472-478** (it uses `'hex'` as the *unshipped* model; switch to `'isometric'` and keep the assertion); new hex/terrain/move-placement/speed tests |
-| `tests/core/dsl/effect.test.ts` | modify | re-key l.355 (the EFFECT_SCALARS title and assertion now include `speed`); `move` executor tests |
-| `tests/core/dsl/checker.test.ts` | modify | vocabulary coverage includes `move`; root-only/dice-free rejections |
+| `tests/schema/validate.test.ts` | modify | **re-key l.473-481** (it uses `'hex'` at l.475 as the *unshipped* model; switch to `'isometric'` and keep the assertion); new hex/terrain/move-placement/speed tests |
+| `tests/core/dsl/effect.test.ts` | modify | l.355 is a test **title** naming `hp/ac/initiative/level`; there is no list assertion to re-key (F-P6e). Optionally retitle it to add `speed`. `move` executor tests |
+| `tests/core/dsl/checker.test.ts` | modify | **re-key the registry-freeze pin l.12-29** (exact 13-entry sorted `REGISTRY` membership, title "v1.4 membership (13…)") → 14 entries with `'move'` between `'min'` and `'save'`, title v1.5 / 14 (F-P6d); vocabulary coverage includes `move`; root-only/dice-free rejections |
 
 ## Implementation
 
@@ -118,7 +129,7 @@ In `checkSpatial`:
 
 **Commit when:** `pnpm typecheck` is 0, and `pnpm exec vitest run tests/schema` is green,
 including:
-- the re-keyed l.472 test (`'isometric'` → E-SPAT-01);
+- the re-keyed l.473 test (`'isometric'` → E-SPAT-01);
 - a hex pack accepted;
 - a terrain map accepted;
 - `{cost: 0}`, `{cost: 2, blocks: true}`, `{blocks: false}`, and a non-kebab kind each
@@ -155,7 +166,9 @@ export interface MoveOutcome { readonly kind: 'move'; readonly budget: number; }
   E-FORM-02 "move's budget must be dice-free (evaluated at declare time, before cost)".
 
 **Commit when:** `pnpm typecheck` is 0 (the runtime still compiles unchanged, which proves
-the optional seam), and `pnpm exec vitest run tests/core` is green. New tests:
+the optional seam), and `pnpm exec vitest run tests/core` is green, including the
+re-keyed registry-freeze pin `checker.test.ts:12-29` (14 entries, `move` included). New
+tests:
 - `move(speed)` / `move(3)` / `move(speed * 2)` check clean with `speed` in scalars;
 - `sequence(move(3), damage(1))` → E-FORM-02;
 - `move(1d6)` → E-FORM-02;
@@ -178,9 +191,28 @@ export function checkMovementDsl(ctx: Ctx, doc: Record<string, unknown>): void
   structural cards.
 - **`move` placement:** a root `move(` where it is not allowed → E-FORM-02 at the field's
   jsonPath (artifactId = the id).
-- **`speed` reference:** if `formulas.speed` is absent and any of those fields matches the
-  token regex → one E-REF-01 per field, at the field's jsonPath, with a hint to declare
-  `formulas.speed`.
+- **`speed` reference (position-aware, DD-M19 / F-P11):** if `formulas.speed` is absent
+  and any of those fields has `speed` **at a formula position** → one E-REF-01 per field,
+  at the field's jsonPath, with a hint to declare `formulas.speed`. Detection is a small
+  text-level scan, not a regex over the whole string:
+  - tokenize identifiers (`[a-z][a-z0-9-]*`), `(`, `)` and `,`;
+  - keep a stack of `{callName, argIndex}`;
+  - an identifier `speed` counts only when it is not the whole argument at one of these
+    non-formula positions:
+
+    ```ts
+    /** Mirrors core effect.ts ARG_CATEGORIES (l.417-425): positions whose argument is a name, not a formula. M01 imports no core value. */
+    const NON_FORMULA_ARGS: Readonly<Record<string, readonly number[]>> = {
+      damage: [1],          // type
+      applyCondition: [0],  // condition-id
+      target: [0],          // shape
+      save: [0],            // save-name
+    };
+    ```
+  - `speedy` and `half-speed` are different tokens, so they never count.
+
+  The core parser has already rejected malformed text through the DSL seam. If the scan
+  meets unbalanced input, it reports nothing; it never throws.
 
 Dispatch it from `validate/index.ts` after the existing cross checks. Place it where the
 other cross checks run. Read the file first; all-at-once ordering must be preserved.
@@ -191,6 +223,11 @@ other cross checks run. Read the file first; all-at-once ordering must be preser
   with `move(3)` → E-FORM-02; a spell with `move(3)` → E-FORM-02; an item `use: "move(2)"`
   → E-FORM-02; `move(speed)` without `formulas.speed` → E-REF-01; the same with
   `formulas.speed` → clean; an ability named `speedy` does not trigger the speed rule;
+  **non-formula positions do not count** (F-P11): with no `formulas.speed`,
+  `applyCondition(speed, 2)` (a condition id `speed`), `damage(1d6, speed)` (a damage type)
+  and `target(speed, damage(1))` (a shape) each produce **no** speed E-REF-01 card (other
+  reference rules may still apply to the unknown ids; assert only the absence of the
+  `formulas`-hint card), while `heal(speed)` and `damage(speed, fire)` each produce one;
 - **whole suite `pnpm test` green** (661 + new). The generated themes carry no `move` yet,
   so compiler stage-8 must be unaffected.
 
@@ -209,6 +246,9 @@ Report:
 - the exact exported symbols: `TerrainKind`, `SpatialDef.terrain`, `MoveOutcome`,
   `EffectApply.move`, `EFFECT_SCALARS`, `checkMovementDsl`;
 - the E-FORM-02 / E-REF-01 message texts;
+- the `NON_FORMULA_ARGS` table as landed, and confirmation that it matches
+  `ARG_CATEGORIES`;
+- the re-keyed pins (`validate.test.ts:473-481`, `checker.test.ts:12-29`), old → new;
 - any contract delta found at ck0;
 - confirmation that the S02 → S03 coverage window is open (hex accepted, runtime not yet
   hex-aware).

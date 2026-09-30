@@ -6,7 +6,7 @@
 > **Depends on:** SESSION-03
 > **Concurrent with:** —
 > **Owns:** `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `tests/compiler/coverage-floor.test.ts`, `tests/compiler/pipeline.test.ts`, `tests/proofs/grid-journey.test.ts`, `tests/proofs/docs-run.test.ts`, `tests/runtime/combat/character-profile.test.ts`, `tests/proofs/movement-journey.test.ts`, `README.md`, `.github/workflows/ci.yml`
-> **Reads:** `src/compiler/theme.ts`, `src/compiler/pipeline.ts`, `src/compiler/theme-loader.ts`, `src/runtime/index.ts`, `src/runtime/combat/combat.ts`, `src/runtime/combat/spatial.ts`, `program/Ruleswright/mocks/spatial.html`, `program/Ruleswright/specs/database.md`, `tests/runtime/combat/movement.test.ts` (S03 harness patterns), `tests/proofs/equipment-journey.test.ts`
+> **Reads:** `tests/proofs/equipment-journey.test.ts` (fight loop l.72-81), `src/compiler/theme.ts`, `src/compiler/pipeline.ts`, `src/compiler/theme-loader.ts`, `src/runtime/index.ts`, `src/runtime/combat/combat.ts`, `src/runtime/combat/spatial.ts`, `program/Ruleswright/mocks/spatial.html`, `program/Ruleswright/specs/database.md`, `tests/runtime/combat/movement.test.ts` (S03 harness patterns)
 > **Resources:** —
 > **Checkpoints:** 3
 
@@ -15,7 +15,7 @@
 | ID | Module | Read | Why |
 |----|--------|------|-----|
 | M04 | Compiler themes | the three theme JSONs (`spatial` l.37/37/51; `actions`; class `actions` l.121-134 / 124-136 / 215-237; bestiary `actions` l.604-632 / 324-353 / 754-789; `formulas`; `rooted` restricts `actions.tagged:move`) | Content |
-| M03 | Runtime (read) | S03's landed surface: `declare(id, {to})`, `startCombat({terrain})`, `move:*` events, `pendingMove` | What the journey drives |
+| M03 | Runtime (read) | S03's landed surface: `declare(id, {to})`, `startCombat({terrain})`, `deserializeCombat(..., {positions, terrain})`, `move:*` events, `pendingMove`, per-call offers, the derived `resolved` restore phase | What the journey drives |
 
 ## Context
 
@@ -49,19 +49,23 @@ The journey is the capability's acceptance proof. Unit legs were proven at S03.
 
   | Artifact | dark-fantasy | zombie-urban | wyldwood |
   |---|---|---|---|
-  | `formulas.speed` | `"4 + floor(grace / 4)"` | `"4 + floor(vigor / 4)"` | `"5 + floor(grace / 4)"` |
+  | `formulas.speed` | `{ "expr": "4 + floor(grace / 4)" }` | `{ "expr": "4 + floor(vigor / 4)" }` | `{ "expr": "5 + floor(grace / 4)" }` |
   | move action (tag `move`, cost `{slots:{move:1}}`, effect `move(speed)`) | `stride` | `hustle` | `glide` |
   | reaction (cost `{slots:{reaction:1}}`, `trigger.on` `move:leaving-reach[target=self]`, `effect` = that theme's basic melee attack sequence) | `opportunist` | `cheap-shot` | `bramble-snap` |
   | `spatial.terrain` | `rubble {cost:2}`, `pillar {blocks:true}` | `debris {cost:2}`, `barricade-wall {blocks:true}` | `bramble {cost:2}`, `standing-stone {blocks:true}` |
   | `spatial.model` | `grid` (unchanged) | `grid` (unchanged) | **`hex`** |
 
-  - Verify every ability name you reference (`grace`, `vigor`) against that theme's
-    `stats.abilities` at ck0. zombie-urban's list may differ; use one of its abilities.
+  - REPLAN-GM-01 verified at `67f383b`: all three themes declare the abilities
+    `might, grace, vigor, reason, insight, presence` (`stats.abilities[].id`), and theme
+    formulas use the `{ "expr": ... }` object form (e.g. `initiative`). Keep the `speed`
+    formulas exactly as tabled. Re-check at ck0; committed source wins.
   - Copy the reaction effect from the theme's own melee action. Do not invent new
     mechanics.
-  - Append the move action and the reaction at the **end** of every class `actions` list,
-    and append the move action to every bestiary statblock's `actions`. Monsters must be
-    able to close distance (the DD16 stalemate lesson).
+  - Append the move action and then the reaction at the **end** of every class `actions`
+    list **and of every bestiary statblock's `actions` list** (F-P4, CA-M6 amended
+    2026-09-30). Monsters must be able to close distance (the DD16 stalemate lesson), and
+    they must hold the reaction. Journey step 1 asserts it on statblocks, step 4 needs the
+    monster's `bramble-snap` offered, and step 6 needs a monster's `opportunist`.
 - **CA-M7 leg:** grid-journey's `stripSpatial` wyldwood parity leg must still load and pass
   now that wyldwood carries `glide` (move content without `spatial` = no-op, CA-M7).
 
@@ -71,28 +75,40 @@ Verification Baseline). Every assertion is preserved except the pinned value its
 | Pin | Re-key |
 |---|---|
 | `tests/proofs/docs-run.test.ts:195` warden actions | append `'stride', 'opportunist'` |
-| `tests/runtime/combat/character-profile.test.ts:215-217` action list | append the same |
-| `tests/proofs/grid-journey.test.ts:223` wyldwood `spatial` | `model: 'hex'` + `terrain` |
-| `tests/compiler/pipeline.test.ts:428-432` "every generated pack carries model grid" | `['grid','hex']` membership + per-theme expectation |
-| `tests/compiler/coverage-floor.test.ts:166-173` `theme.spatial?.model === 'grid'` | per-theme model (`hex` for wyldwood); the header comment l.9 |
+| `tests/runtime/combat/character-profile.test.ts:212-222` (test l.206-226) warden/hexer class-action **union**, first occurrence wins | **insert** `'stride', 'opportunist'` **after `'parry'`**, not at the end (F-P6c): `strike, cut-down, withdraw, brace, parry, stride, opportunist, hurl, long-shot, ward-glint, ember-surge`. Both classes end with the pair, and the union keeps the first occurrence |
+| `tests/runtime/combat/character-profile.test.ts:309-329` whole zombie-urban profile deep-equal | add `speed: evalPackFormula(rt.pack, 'speed', base)` to the expected object (F-P6b). S03 emits `speed` only when `formulas.speed` is declared, so this pin goes red exactly when your content lands |
+| `tests/proofs/grid-journey.test.ts:211-215` dark-fantasy `rt.pack.spatial` deep-equal | add `terrain: { rubble: { cost: 2 }, pillar: { blocks: true } }` (F-P6a) |
+| `tests/proofs/grid-journey.test.ts:218-222` zombie-urban `spatial` deep-equal | add `terrain: { debris: { cost: 2 }, 'barricade-wall': { blocks: true } }` (F-P6a) |
+| `tests/proofs/grid-journey.test.ts:223-227` wyldwood `spatial` deep-equal (`model` l.224) | `model: 'hex'` + `terrain: { bramble: { cost: 2 }, 'standing-stone': { blocks: true } }` |
+| `tests/compiler/pipeline.test.ts:430-432` "each generated pack carries model grid" | per-theme expectation (`hex` for wyldwood); keep the reach assertions. `pipeline.test.ts:340-356` uses a hand-set theme spatial and is **unaffected** |
+| `tests/compiler/coverage-floor.test.ts:167`, `:173` `model === 'grid'` | per-theme model (`hex` for wyldwood); the header comment l.9 |
 | `docs-run.test.ts:49` exactly 4 ```ts blocks | **unchanged**: README additions use ```json / ```text fences only |
 
-Run `pnpm test` at ck0 with the content change staged locally, to discover any **other**
-pin. An unlisted pin inside this lease → re-key it and report it. An unlisted pin outside
-the lease → return `blocked` naming it (Orchestrator uses Controlled Lease Revision).
+The terrain values above are the CA-M6 table's. If you coin different ids at ck0 (for
+example, because of an id collision), the pins follow your content. Report it.
+
+Run `pnpm build && pnpm test` at ck0 with the content change applied locally (not
+committed), to discover any **other** pin. An unlisted pin inside this lease → re-key it
+and report it. An unlisted pin outside the lease → return `blocked` naming it
+(Orchestrator uses Controlled Lease Revision). This staged run also covers **F-P6g**:
+fight loops outside the lease (e.g. `equipment-journey.test.ts:72-81`) try each of a
+combatant's actions in order. The new actions are appended last, so they are only reached
+when every earlier action fails. A move declared without `to` is a `no-destination`
+rejection that changes nothing, so the loop moves on. If such a loop's outcome changes
+anyway, return `blocked` naming it.
 
 ## Files to Create/Modify
 
 | File | Action | What Changes |
 |------|--------|--------------|
-| `src/compiler/themes/dark-fantasy.json` | modify | `speed`, `stride`, `opportunist`, terrain; class + bestiary action lists |
-| `src/compiler/themes/zombie-urban.json` | modify | `speed`, `hustle`, `cheap-shot`, terrain; lists |
-| `src/compiler/themes/wyldwood.json` | modify | `model: "hex"`, `speed`, `glide`, `bramble-snap`, terrain; lists |
+| `src/compiler/themes/dark-fantasy.json` | modify | `speed`, `stride`, `opportunist`, terrain; both appended to every class **and every statblock** action list |
+| `src/compiler/themes/zombie-urban.json` | modify | `speed`, `hustle`, `cheap-shot`, terrain; both appended to every class and every statblock list |
+| `src/compiler/themes/wyldwood.json` | modify | `model: "hex"`, `speed`, `glide`, `bramble-snap`, terrain; both appended to every class and every statblock list |
 | `tests/compiler/coverage-floor.test.ts` | modify | model pins per theme; floor: every theme declares `formulas.speed`, a `move`-tagged `move(...)` action and a `move:leaving-reach` reaction |
 | `tests/compiler/pipeline.test.ts` | modify | model pin re-key |
-| `tests/proofs/grid-journey.test.ts` | modify | wyldwood spatial pin re-key only |
+| `tests/proofs/grid-journey.test.ts` | modify | the three `spatial` pin re-keys (l.211-215, l.218-222, l.223-227) only |
 | `tests/proofs/docs-run.test.ts` | modify | warden actions pin re-key only |
-| `tests/runtime/combat/character-profile.test.ts` | modify | actions pin re-key only |
+| `tests/runtime/combat/character-profile.test.ts` | modify | union pin l.212-222 (insertion after `parry`) + whole-profile pin l.309-329 (`speed`) only |
 | `tests/proofs/movement-journey.test.ts` | create | CAP-M1…M7 on generated content |
 | `README.md` | modify | "Grid combat": the movement/hex/terrain/leaving-reach section replaces the no-move-verb paragraph |
 | `.github/workflows/ci.yml` | modify | `test` job: `- run: pnpm build` between `pnpm typecheck` and `pnpm test` |
@@ -119,7 +135,8 @@ idioms. Use generated packs only (`generateCampaign({theme: loadTheme(...), seed
 `new Runtime(pack)`); no hand-built fixture stands in for production data.
 
 1. **wyldwood (hex) load:** `rt.pack.spatial.model === 'hex'`; terrain kinds present;
-   `formulas.speed` present; `glide`/`bramble-snap` present on classes and statblocks.
+   `formulas.speed` present; `glide`/`bramble-snap` present on **every** class and
+   **every** statblock (F-P4).
 2. **Hex move around terrain:**
    - hero (`profileFromCharacter`) vs a statblock (`spawnMonster`);
    - positions, plus terrain with a `standing-stone` wall and a `bramble` patch;
@@ -132,12 +149,19 @@ idioms. Use generated packs only (`generateCampaign({theme: loadTheme(...), seed
    - the hero starts adjacent to the monster and glides away → `move:leaving-reach` → the
      monster's `bramble-snap` offered → the move is paused (`pendingMove` set);
    - **snapshot here** → JSON → restore (positions from the snapshot, same terrain);
+   - the restored fight is in phase `resolved`, and its offer's `matchingEvent` is
+     `'move:leaving-reach'` (S03 ck4, F-P2);
    - in both fights, `respond(offer, 'take', heroId)` resolves the attack at P, then the
      move resumes to the destination;
-   - payloads are identical across the two fights.
+   - after the answer, `pendingTriggers` is `[]` in both fights, and no offer is
+     re-raised (F-P1);
+   - `move:*`, `attack:rolled` and `damage:applied` payloads and the final positions are
+     identical across the two fights. Compare post-restore `trigger:fired` without
+     `offerIndex` (R-GM-1).
 5. **`rooted`:** a hero with `rooted` applied → `declare('glide')` rejects `restricted`.
-6. **Square grid parity (dark-fantasy):** `stride` diagonal steps cost 1; `opportunist`
-   fires the same way. No change to grid-journey's verified assertions.
+6. **Square grid parity (dark-fantasy):** `stride` diagonal steps cost 1; a monster's
+   `opportunist` fires the same way. grid-journey's verified assertions do not change,
+   apart from the three `spatial` pins re-keyed at ck1.
 7. **Theater parity:** wyldwood minus `spatial` loads; `glide` resolves as a no-op with no
    `move:*` events; terrain given → accepted and never consulted.
 8. **Two-run determinism:** the same seed and script → byte-equal events and state.
@@ -181,7 +205,8 @@ present; otherwise inspect the indentation by eye and say so in the handoff.
 Report:
 - status and checkpoints;
 - the final content ids;
-- every pin re-keyed (file:line, old → new);
+- every pin re-keyed (file:line, old → new), including grid-journey l.211-227 and
+  character-profile l.212-222 / l.309-329;
 - whether README block 03 output held;
 - the journey test list mapped to each CAP/CA;
 - the whole-suite count;

@@ -4,8 +4,10 @@
 
 Planner planned this. Coder builds it (./CODER.md). Orchestrator schedules it
 (./ORCHESTRATOR.md). **SESSION-01 is an Author re-entry session** (Spec → Designer → DB),
-not a Coder session. It is human-gated: dispatch it only after the human confirms
-DD-M2…DD-M13 in STATE.md (blocker B-M1).
+not a Coder session. Its human gate, blocker B-M1 (confirmation of DD-M2…DD-M13), was
+**cleared on 2026-09-30**. The planning-completeness review findings F-P1…F-P12 were applied
+by REPLAN-GM-01 (STATE "Planning completeness review (2026-09-30)"), so SESSION-01 is ready
+to dispatch.
 
 **Solo run:** follow the protocol below. One agent works through the sessions serially.
 
@@ -60,8 +62,8 @@ its own lease at every checkpoint. This plan has no concurrent waves
 - **Blocked** → set the session to blocked and skip to the next eligible one. There are no
   parallel alternatives in this plan.
 - **Context limit** → commit the current checkpoint, update STATE.md, stop cleanly.
-- **User input needed** → only for product design or destructive work (B-M1 is the one
-  planned instance). Otherwise record the conservative default and continue.
+- **User input needed** → only for product design or destructive work. B-M1, the one
+  planned instance, is cleared. Otherwise record the conservative default and continue.
 
 ## Final Report
 
@@ -70,7 +72,9 @@ with an explicit pathspec (force-add: `program/Ruleswright/prompts/` is gitignor
 prior features force-added their records). Never write it to `.program/`.
 
 Contents: summary, sessions done/total, files created/modified, architecture impact,
-verification, residual gaps (F-M1, F-M2, the carried ledger), follow-up. Under
+verification, residual gaps (F-M1, F-M2, R-GM-1 restored `offerIndex`, R-GM-2
+`use`-raised offer restore phase, the carried ledger), follow-up. Include the
+`arch/v1-core.md:163` per-call offer delta from S03's arch fragment. Under
 Orchestrator, append the Orchestration section (concurrency, wall clock, checkpoints
 committed by Coder, lease violations, checkpoint shortfalls, granularity feedback for
 Planner).
