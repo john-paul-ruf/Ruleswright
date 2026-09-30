@@ -161,14 +161,15 @@ theater of mind and the engine pays nothing:
   "spatial": {
     "model": "grid",
     "reach": { "default": 1, "barrow-wight": 2 },
-    "shapes": ["single", "burst"]
+    "shapes": ["single", "burst"],
+    "terrain": { "rubble": { "cost": 2 }, "pillar": { "blocks": true } }
   }
 }
 ```
 
 The host declares a grid position for every combatant at `startCombat`
 (`positions`) — the engine never invents a grid, and a spatial pack refuses a
-positionless fight loudly rather than guessing. The grid is square: distance is
+positionless fight loudly rather than guessing. Dark-fantasy's grid is square: distance is
 Chebyshev, melee reach is measured in grid steps, and a per-id reach override
 (`"barrow-wight": 2`) extends that combatant's adjacency while everyone else
 uses the default. An out-of-reach declare is refused declaratively — one
@@ -180,20 +181,120 @@ sides, each taking its own save; a pool-based theme casts with no binding,
 while a vancian theme (dark-fantasy) must prepare the spell into a slot first —
 an empty slot cannot cast (`E-VANC-01`).
 
-There is no move verb in v1. Movement happens at the host's between-steps
-boundary (FR-10): `serializeCombat` hands you the whole fight as JSON, and
-`deserializeCombat` with updated `positions` re-states everyone where they
-stand — the restored fight re-enforces the same gates (an out-of-reach declare
-still refuses) and resumes mid-round with the snapshot's dice-stream state, so
-the next roll equals the uninterrupted fight's next roll. The engine never
-requires positions on a non-spatial pack: there, positions ride along but are
-never consulted, `hasTarget(adjacent)` passes, and a burst resolves to its
-bound target only.
+### Movement, hex and terrain
+
+Movement is pack data, not an engine verb. A pack declares a move action whose
+effect is `move(<formula>)`, budgeted by the optional reserved `speed` formula
+(evaluated like `initiative` onto every combatant profile). Every bundled theme
+ships one — dark-fantasy's `stride`, zombie-urban's `hustle`, wyldwood's
+`glide` — at the end of every class and every statblock action list, so heroes
+and monsters alike can close distance:
+
+```json
+{
+  "actions": {
+    "stride": { "cost": { "slots": { "move": 1 } }, "effect": "move(speed)", "tags": ["move"] }
+  },
+  "formulas": { "speed": { "expr": "4 + floor(grace / 4)" } }
+}
+```
+
+A move is declared like any action, with a destination:
+`fight.declare('stride', { to: { x: 3, y: 3 } })`. The engine walks the
+cheapest legal path within the budget (deterministic: a fixed neighbor order
+breaks ties), spends the move slot, and emits `move:advanced {from, to, path,
+cost, remaining}` then `move:ended {reason, at}`; unspent budget is lost. The
+`rooted` condition restricts `actions.tagged:move`, so a rooted combatant's
+move is refused (`restricted`) with no engine special case.
+
+**Geometry.** `grid` is the square grid: Chebyshev distance, 8 neighbors, a
+diagonal step costs 1. `hex` (wyldwood) reuses the same `{x, y}` positions as
+axial `{q, r}`: distance is `(|dq| + |dr| + |dq + dr|) / 2`, with 6 neighbors.
+Reach, `adjacent` and burst all use the pack's distance.
+
+**Terrain.** The pack declares the vocabulary; the host places cells per fight
+(`startCombat({ …, positions, terrain: [{ at: { x, y }, kind }] })`) and
+re-states them on restore — the engine never invents a map. From the generated
+wyldwood pack (seed 42):
+
+```json
+{
+  "spatial": {
+    "model": "hex",
+    "reach": { "default": 1, "hollow-wight": 2 },
+    "shapes": ["single", "burst"],
+    "terrain": { "bramble": { "cost": 2 }, "standing-stone": { "blocks": true } }
+  }
+}
+```
+
+Entering a cell costs its kind's `cost` (plain cells cost 1); a `blocks` cell
+can never be entered. `startCombat` refuses an unknown kind, a cell placed
+twice, or a combatant standing on a blocking cell — one `E-SPAT-01` aggregate,
+nothing built — and restore applies the same refusals.
+
+**Occupancy and rejections.** A move cannot end on a cell held by a standing
+combatant, the mover's own cell included; it may pass through standing allies
+but not standing enemies, and downed combatants never block. A move that
+cannot be made is one `declare:rejected`, rule `E-SPAT-01`, and nothing changes
+— no slot spent, no dice drawn, no ledger entry:
+
+```text
+no-destination   a move action declared without `to`
+blocked          the destination is a blocking terrain cell
+occupied         a standing combatant holds the destination (the mover included)
+unreachable      no legal path exists at any cost
+out-of-range     a legal path exists, but its cheapest cost exceeds the budget
+```
+
+**Leaving reach.** Before each step, if the mover stands within reach of a
+standing opponent and the next cell does not, the engine emits
+`move:leaving-reach` (actor = the mover, target = the threatener, payload
+`{at, next}`). Opportunity attacks are pack data: each theme ships a reaction on
+`move:leaving-reach[target=self]` — `opportunist`, `cheap-shot`, `bramble-snap`
+— whose effect is the theme's own melee attack. An offer pauses the move: the
+mover carries `pendingMove {actionId, to, remaining}` until the host has
+answered every open offer, then the move re-plans from where it stands with the
+remaining budget:
+
+```text
+fight.declare('glide', { to: { x: -3, y: 0 } })
+  move:leaving-reach  hero ← foe · at (0,0) next (-1,0)
+  // offer foe.bramble-snap — the move pauses at (0,0)
+fight.respond('foe.bramble-snap', 'take', 'hero')   // pass the mover as the target
+  trigger:fired · attack:rolled · damage:applied
+  // every offer answered (take or decline) → the move resumes
+  move:advanced · move:ended arrived @ (-3,0)
+```
+
+Offers are per call: a `declare`, `respond` or `use` raises offers only for the
+events it emitted, and each matching (reactor, event) pair is offered exactly
+once. `step()` while a move is paused forfeits it (`move:ended` reason
+`forfeited`). A paused move survives a snapshot: `pendingMove` rides in the
+combat envelope, and a restore (positions and terrain re-stated) resumes in the
+`resolved` phase, so the restored fight answers — or forfeits — exactly as the
+uninterrupted one would.
+
+Moves outside the rules stay the host's: at the between-steps boundary (FR-10)
+`serializeCombat` hands you the whole fight as JSON, and `deserializeCombat`
+with updated `positions` re-states everyone where they stand — the restored
+fight re-enforces the same gates (an out-of-reach declare still refuses) and
+resumes mid-round with the snapshot's dice-stream state, so the next roll
+equals the uninterrupted fight's next roll. The engine never requires positions
+on a non-spatial pack: there, positions and terrain ride along but are never
+consulted, `hasTarget(adjacent)` passes, a burst resolves to its bound target
+only, and a move action is a no-op success.
 
 The whole journey — generate → load → position → the reach gate's rejection →
 restore-close distance → a burst with per-target saves → snapshot round-trip —
 runs in `tests/proofs/grid-journey.test.ts` against the real generated
 dark-fantasy pack (seed 42); this example is executed by that test (NFR-DX).
+The movement journey — a hex glide around a standing-stone wall and through
+bramble, the five rejection kinds, an opportunity attack that pauses a move
+across a JSON snapshot and resumes identically, square-grid parity, the
+theater-of-mind no-op, and a 2-vs-2 fight in which monsters close the gap —
+runs in `tests/proofs/movement-journey.test.ts` against the generated wyldwood
+and dark-fantasy packs (seed 42).
 
 - The engine performed **no I/O** anywhere above — `serialize()` hands you JSON;
   your app owns storage (FR-14).

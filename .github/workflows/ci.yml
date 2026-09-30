@@ -42,6 +42,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
+      - run: pnpm build
+        # The loot/equipment journeys read dist/, so the suite needs a fresh build first.
       - run: pnpm test
         # Whole suite on all three Node lines = the v1 determinism proof:
         # same seed ⇒ identical results across engines (FR-1).
