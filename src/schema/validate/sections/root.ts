@@ -284,10 +284,14 @@ export function checkFormulas(ctx: Ctx, value: unknown): void {
 /** The v1 shape vocabulary (FR-11) — cone/line are deferred engine geometry, never faked in data. */
 const V1_SHAPES: readonly string[] = ['single', 'burst'];
 
+/** The shipped spatial models: grid (v1.3, Chebyshev) and hex (v1.5, axial). */
+const V1_MODELS: readonly string[] = ['grid', 'hex'];
+
 /**
- * The optional spatial section (v1.3, FR-11): the grid model's reach table and
- * documented shape set. Structural violations (missing/mistyped fields) are
- * E-SCHEMA-01; declared-but-unshippable geometry (a model other than 'grid',
+ * The optional spatial section (v1.3, FR-11; v1.5 hex + terrain): the model,
+ * reach table, documented shape set and terrain vocabulary. Structural
+ * violations (missing/mistyped fields, malformed terrain kinds) are
+ * E-SCHEMA-01; declared-but-unshippable geometry (a model outside {grid, hex},
  * shape values outside the v1 set) is semantic — E-SPAT-01 (Design Decision 6).
  * Reach overrides are free-form sibling keys of `default` (spatial.html
  * verbatim); absent section = theater of mind, nothing else changes.
@@ -301,25 +305,26 @@ export function checkSpatial(ctx: Ctx, value: unknown): void {
         'E-SCHEMA-01',
         'spatial',
         'spatial',
-        'spatial must be an object {model, reach, shapes?}.',
+        'spatial must be an object {model, reach, shapes?, terrain?}.',
       ),
     );
     return;
   }
   reqFields(ctx, value, ['model', 'reach'], 'spatial', 'spatial');
-  forbidUnknown(ctx, value, ['model', 'reach', 'shapes'], 'spatial', 'spatial');
+  forbidUnknown(ctx, value, ['model', 'reach', 'shapes', 'terrain'], 'spatial', 'spatial');
   const model = value['model'];
-  if (model !== undefined && (typeof model !== 'string' || model !== 'grid')) {
+  if (model !== undefined && (typeof model !== 'string' || !V1_MODELS.includes(model))) {
     add(
       ctx,
       makeErrorCard(
         'E-SPAT-01',
         'spatial',
         'spatial.model',
-        `pack declares a spatial model the engine does not ship ("${String(model)}") — v1 ships exactly {grid} (square grid, Chebyshev distance); other models are future additive revisions, never silent aliases.`,
+        `pack declares a spatial model the engine does not ship ("${String(model)}") — the engine ships exactly {${V1_MODELS.join(', ')}} (grid: square, Chebyshev distance; hex: axial coordinates); other models are future additive revisions, never silent aliases.`,
       ),
     );
   }
+  checkTerrain(ctx, value['terrain']);
   const reach = value['reach'];
   if (isPlainObject(reach)) {
     reqFields(ctx, reach, ['default'], 'spatial', 'spatial.reach');
@@ -379,5 +384,47 @@ export function checkSpatial(ctx: Ctx, value: unknown): void {
       );
     }
     seen.add(shape);
+  }
+}
+
+/** v1.5 terrain vocabulary: kebab kind id -> exactly {cost: integer >= 1} or {blocks: true}. */
+function checkTerrain(ctx: Ctx, terrain: unknown): void {
+  if (terrain === undefined) return;
+  if (!isPlainObject(terrain)) {
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        'spatial',
+        'spatial.terrain',
+        'spatial.terrain must be an object keyed by terrain kind id.',
+      ),
+    );
+    return;
+  }
+  for (const [kind, def] of Object.entries(terrain)) {
+    const path = `spatial.terrain.${kind}`;
+    if (!ID_PATTERN.test(kind)) {
+      add(
+        ctx,
+        makeErrorCard('E-SCHEMA-01', 'spatial', path, `terrain kind "${kind}" must match ^[a-z][a-z0-9-]*$.`),
+      );
+      continue;
+    }
+    const entry = isPlainObject(def) ? Object.entries(def) : [];
+    const [key, setting] = entry.length === 1 ? entry[0]! : [];
+    const isCost = key === 'cost' && isInteger(setting) && setting >= 1;
+    const isBlocking = key === 'blocks' && setting === true;
+    if (!isCost && !isBlocking) {
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          'spatial',
+          path,
+          `terrain kind "${kind}" must be exactly {cost: integer >= 1} (entering costs that many movement points) or {blocks: true} (never enterable).`,
+        ),
+      );
+    }
   }
 }

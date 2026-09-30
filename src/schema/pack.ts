@@ -62,10 +62,16 @@ export interface SpatialReach {
   [overrideKey: string]: number;
 }
 
+/** $defs/spatial/properties/terrain entry (v1.5): an entry cost, or never enterable. */
+export type TerrainKind = { cost: number } | { blocks: true };
+
 export interface SpatialDef {
-  model: 'grid';
+  /** grid = square, Chebyshev (v1.3); hex = axial {x: q, y: r} (v1.5). */
+  model: 'grid' | 'hex';
   reach: SpatialReach;
   shapes?: readonly ('single' | 'burst')[];
+  /** v1.5 — terrain vocabulary; cells are host-placed per fight. */
+  terrain?: Readonly<Record<string, TerrainKind>>;
 }
 
 /** formulas map entry — pure data; the function registry is closed (NFR-Security). */

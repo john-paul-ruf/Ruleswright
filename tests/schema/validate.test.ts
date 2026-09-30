@@ -472,7 +472,10 @@ describe('spatial section (v1.3) — CAP-G1/CA-G1, structural vs semantic split'
   it('a model the engine does not ship is semantic (E-SPAT-01) and names the shipped set', () => {
     const cards = errorsFor(
       (pack) =>
-        ((pack as unknown as Record<string, unknown>).spatial = { model: 'hex', reach: { default: 1 } }),
+        ((pack as unknown as Record<string, unknown>).spatial = {
+          model: 'isometric',
+          reach: { default: 1 },
+        }),
     );
     const card = firstRule(cards, 'E-SPAT-01');
     expect(card?.jsonPath).toBe('spatial.model');
@@ -520,6 +523,47 @@ describe('spatial section (v1.3) — CAP-G1/CA-G1, structural vs semantic split'
     expect(RULE_IDS).toContain('E-SPAT-01');
     expect(RULE_IDS[RULE_IDS.length - 1]).toBe('E-SPAT-01');
     expect(RULE_IDS).toHaveLength(15);
+  });
+});
+
+describe('spatial v1.5 — hex model + terrain vocabulary (CA-M1)', () => {
+  function withSpatial(spatial: Record<string, unknown>) {
+    return errorsFor((pack) => ((pack as unknown as Record<string, unknown>).spatial = spatial));
+  }
+
+  it('accepts a hex pack', () => {
+    expect(withSpatial({ model: 'hex', reach: { default: 1 } })).toEqual([]);
+  });
+
+  it('the E-SPAT-01 model message names both shipped models', () => {
+    const card = firstRule(withSpatial({ model: 'isometric', reach: { default: 1 } }), 'E-SPAT-01');
+    expect(card?.message).toContain('{grid, hex}');
+  });
+
+  it('accepts a terrain map of cost and blocking kinds', () => {
+    expect(
+      withSpatial({
+        model: 'hex',
+        reach: { default: 1 },
+        terrain: { bramble: { cost: 2 }, 'standing-stone': { blocks: true } },
+      }),
+    ).toEqual([]);
+  });
+
+  it.each([
+    ['cost below 1', { mud: { cost: 0 } }, 'spatial.terrain.mud'],
+    ['cost and blocks together', { mud: { cost: 2, blocks: true } }, 'spatial.terrain.mud'],
+    ['blocks false', { wall: { blocks: false } }, 'spatial.terrain.wall'],
+    ['non-integer cost', { mud: { cost: 1.5 } }, 'spatial.terrain.mud'],
+    ['non-kebab kind id', { Mud: { cost: 2 } }, 'spatial.terrain.Mud'],
+  ])('rejects %s as E-SCHEMA-01 at the kind path', (_label, terrain, jsonPath) => {
+    const cards = withSpatial({ model: 'grid', reach: { default: 1 }, terrain });
+    expect(cards.map((card) => [card.rule, card.jsonPath])).toEqual([['E-SCHEMA-01', jsonPath]]);
+  });
+
+  it('a non-object terrain is E-SCHEMA-01 at spatial.terrain', () => {
+    const cards = withSpatial({ model: 'grid', reach: { default: 1 }, terrain: ['mud'] });
+    expect(cards.map((card) => [card.rule, card.jsonPath])).toEqual([['E-SCHEMA-01', 'spatial.terrain']]);
   });
 });
 
