@@ -774,3 +774,15 @@ After the only offer is taken or declined, `pendingTriggers` is `[]`.
   (equipment stays a leaf apart from this leaf). Intra-module helper exports not in the
   barrel: `copyTerrain`, `terrainRefusals`, `moveBudgetAst` (combat.ts → snapshots.ts),
   `effectVars` (resolve.ts → combat.ts).
+
+<!-- grid-movement SESSION-04 -->
+## grid-movement SESSION-04 delta (Orchestrator mid-run append; commits 40c4492..c23d563)
+
+
+- **M04 theme content (CA-M6):** all three bundled themes declare `formulas.speed` (`{expr}` form), a move action (tag `move`, cost `{slots:{move:1}}`, effect `move(speed)`) and a leaving-reach reaction (cost `{slots:{reaction:1}}`, trigger `move:leaving-reach[target=self]`, effect = the theme's own melee sequence), appended in that order to **every** class `actions` list and **every** bestiary statblock `actions` list, plus a `spatial.terrain` vocabulary (one `cost: 2` kind, one `blocks: true` kind).
+  - dark-fantasy: `stride` / `opportunist`; terrain `rubble {cost:2}`, `pillar {blocks:true}`; model `grid`.
+  - zombie-urban: `hustle` / `cheap-shot`; terrain `debris {cost:2}`, `barricade-wall {blocks:true}`; model `grid`.
+  - wyldwood: `glide` / `bramble-snap`; terrain `bramble {cost:2}`, `standing-stone {blocks:true}`; model **`hex`** (DD-M3).
+  - No compiler source change: `pipeline.ts` passes `spatial`/`formulas` through verbatim; stages copy actions, classes and statblocks. Adding actions consumes no generation RNG (README quickstart block 03 output unchanged).
+- **README "Grid combat" (documented surface):** the "There is no move verb in v1" paragraph is replaced by a "Movement, hex and terrain" subsection: move actions as pack data, `speed`, `declare(id, {to})`, grid vs hex geometry, host-placed terrain + refusals, occupancy, the five `E-SPAT-01` rejection kinds, leaving reach with pause/resume/forfeit, snapshot `pendingMove` + derived `resolved` restore phase. The restore-with-updated-positions seam is kept as the host's out-of-rules teleport. The dark-fantasy spatial example now shows its `terrain`. The movement journey `tests/proofs/movement-journey.test.ts` is cited. Still exactly 4 ```ts blocks.
+- **CI:** the `test` job runs `pnpm build` before `pnpm test` (the loot/equipment journeys read `dist/`).
