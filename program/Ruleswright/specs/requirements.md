@@ -117,6 +117,12 @@ expands theme templates into packs deterministically from a seed.
   - [ ] Melee attacks may require adjacency; reach extends it — all pack-declared.
   - [ ] Area shapes in v1: **single-target** and **radius burst**. Cone and line are explicitly deferred (they are engine geometry and cannot be faked in data).
   - [ ] AoE resolution uses the targeting DSL (FR-9): all entities in shape, per-target saves, mixed outcomes.
+  - [ ] Packs may declare a **hex** spatial model beside the square grid. Hex positions are axial coordinates, and distance, reach and burst use hex distance.
+  - [ ] **Movement is pack data:** a pack declares move actions whose effect is `move(<formula>)`, budgeted by the pack's optional `speed` formula. A move is declared like any action, with a destination. It spends the pack's declared slots and is restricted by conditions like any tagged action (e.g. `rooted` restricts `actions.tagged:move`).
+  - [ ] The engine moves along the cheapest legal path. A move that cannot reach its destination within budget is rejected declaratively, with no state change.
+  - [ ] **Terrain is pack-declared:** kinds are either blocking or cost-per-cell (difficult). The host places terrain per fight, just as it places positions. The engine never invents a map.
+  - [ ] **Leaving reach is an event** (`move:leaving-reach`). Packs may declare reactions to it (opportunity attacks). A move pauses while such offers are open and resumes when they are answered.
+  - [ ] Theater-of-mind packs pay nothing: move actions resolve as no-ops, and packs with move content still load without a spatial model.
 
 ### FR-12: Rules-are-data proof
 - **User story:** As the builder, I want hard proof that new rules don't require engine changes so v2 combat reaches stay cheap.
@@ -287,3 +293,4 @@ expands theme templates into packs deterministically from a seed.
 | Q6 | **Rename to Ruleswright** (legal: "d20 System" is WotC-adjacent; Ruleswright verified available on npm). Final name cleared before public release; `d20-rpg-system` remains internal codename only | Headers, NFR-Legal |
 | Q7 | **Expression policy:** original content only; coined terminology for edition-specific mechanics; optional pack `license`/`attribution` metadata (carried, not enforced) | FR-2, NFR-Legal, Constraints |
 | Q8 | Legal hardening: coined-names rule bites at the authoring floor, not just globally; clearance scope = existing marks in tabletop gaming and developer tooling; USPTO search required (npm availability ≠ clearance) | FR-21, NFR-Legal |
+| 2026-09-29 | grid-movement: movement as pack data (Option B); hex model additive; terrain pack-declared + host-placed; provoke via pack reactions (human) | FR-11 |
