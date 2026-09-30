@@ -98,6 +98,15 @@ export interface CombatantState {
   readonly attackBonus?: number;
   /** The host-declared grid position (FR-11); absent in theater-of-mind packs. */
   readonly position?: Position;
+  /** v1.5 — a move paused by open leaving-reach offers; absent = no paused move (DD-M10). */
+  readonly pendingMove?: PendingMove;
+}
+
+/** A paused move (DD-M10/DD-M12): it resumes toward `to` with `remaining` budget once the offer queue empties. */
+export interface PendingMove {
+  readonly actionId: string;
+  readonly to: Position;
+  readonly remaining: number;
 }
 
 /** The one combat state object — plain JSON end to end (FR-14). */
@@ -427,6 +436,8 @@ export class Combat {
   /** Open trigger offers (triggers.html): the host answers each via respond(). */
   readonly pendingTriggers: PendingTrigger[] = [];
   private offeredCount = 0;
+  /** Events already offered against — each (reactor, event) pair is offered once (F-P1). */
+  private readonly surfaced = new WeakSet<RuntimeEvent>();
 
   private readonly grants: SlotGrants;
   /** The fight's own dice stream — snapshot-resumable via state.rng (FR-14). */
@@ -478,9 +489,18 @@ export class Combat {
       };
     }
     if (this.state.phase === 'resolved' || this.state.phase === 'awaiting-trigger-response') {
+      this.forfeitMove();
       return this.endTurn();
     }
     return { kind: 'awaiting-declare', combatantId: this.state.active };
+  }
+
+  /** `step()` while a move is paused forfeits it (`move:ended {reason: 'forfeited'}`) before its usual effect (DD-M10). */
+  private forfeitMove(): void {
+    const pending = this.state.combatants[this.state.active]?.pendingMove;
+    if (pending === undefined) return;
+    this.setClock();
+    this.endMove(this.state.active, pending.actionId, 'forfeited');
   }
 
   /**
@@ -573,8 +593,10 @@ export class Combat {
       return [this.rejectionEvent(actorId, spendRejection)];
     }
     this.applyNonSlotCosts(actor, def.cost);
-    const events = this.resolve(actor, actionId, def, target.combatant, move);
-    this.surfaceOffers(events);
+    const { result: events, emitted } = this.collect(() =>
+      this.resolve(actor, actionId, def, target.combatant, move),
+    );
+    this.surfaceOffers(emitted);
     return events;
   }
 
@@ -671,12 +693,17 @@ export class Combat {
     }
     const [offer] = this.pendingTriggers.splice(index, 1);
     if (offer === undefined) return [];
+    let events: readonly RuntimeEvent[];
     if (choice === 'decline') {
       emitDeclined(this.runtime, offer);
       const declined = this.runtime.events.sinceRound(this.state.round);
-      return [declined[declined.length - 1]!];
+      events = [declined[declined.length - 1]!];
+    } else {
+      events = this.resolveReactive(offer, targetId);
     }
-    return this.resolveReactive(offer, targetId);
+    // Every answer — a decline, a take, even a refused take — leaves the queue;
+    // once it is empty a paused move resumes (DD-M10).
+    return this.pendingTriggers.length === 0 ? [...events, ...this.resumeMove()] : events;
   }
 
   /**
@@ -842,7 +869,7 @@ export class Combat {
         },
       };
     }
-    return { move: (walked) => this.walk(actor.id, actionId, plan.path, walked) };
+    return { move: (walked) => this.walk(actor.id, actionId, to, plan.path, walked) };
   }
 
   /** The path request for a mover, against the fight's current occupancy and terrain. */
@@ -867,36 +894,154 @@ export class Combat {
   }
 
   /**
-   * `apply.move`: walk the planned path and land the mover on its last cell,
-   * emitting `move:advanced {from, to, path, cost, remaining}` then
-   * `move:ended {reason: 'arrived', at}` (both `why.rule` = the action).
+   * `apply.move`: walk the planned path cell by cell. Before each step from P
+   * to Q, every standing opponent T whose reach covers P but not Q raises
+   * `move:leaving-reach {actor: mover, target: T, payload: {at: P, next: Q}}`,
+   * surfaced as offers at once (no affordability filter, F-P10b). Any offer
+   * pauses the move at P: `move:advanced` for the segment walked (omitted when
+   * empty) and `pendingMove {actionId, to, remaining}`. Otherwise the walk
+   * lands on `to`: `move:advanced` then `move:ended {reason: 'arrived'}`.
+   * A resumed walk (`resumed`) does not re-check its first step out of the
+   * paused cell: that step's leaving-reach offers were already raised and
+   * answered (spatial.html: the move resumes straight to its destination).
    */
-  private walk(moverId: string, actionId: string, path: readonly Position[], budget: number): void {
-    const mover = this.state.combatants[moverId]!;
-    const from = mover.position!;
+  private walk(
+    moverId: string,
+    actionId: string,
+    to: Position,
+    path: readonly Position[],
+    budget: number,
+    resumed = false,
+  ): void {
+    const from = this.state.combatants[moverId]!.position!;
     const kindAt = terrainAt(this.runtime.pack.spatial?.terrain ?? {}, this.state.terrain);
-    const cost = path.reduce((sum, cell) => sum + entryCost(kindAt(cell))!, 0);
-    const at = path[path.length - 1] ?? from;
-    this.place(moverId, at);
     const why = { rule: this.ruleBaseOf(actionId), rolls: [] };
-    this.runtime.events.emit({
-      type: 'move:advanced',
-      actor: moverId,
-      payload: {
-        from: { ...from },
-        to: { ...at },
-        path: path.map((cell) => ({ ...cell })),
-        cost,
-        remaining: budget - cost,
-      },
-      why,
+    const walked: Position[] = [];
+    let cost = 0;
+    let at = from;
+    const advanced = () => {
+      if (walked.length === 0) return;
+      this.runtime.events.emit({
+        type: 'move:advanced',
+        actor: moverId,
+        payload: {
+          from: { ...from },
+          to: { ...at },
+          path: walked.map((cell) => ({ ...cell })),
+          cost,
+          remaining: budget - cost,
+        },
+        why,
+      });
+    };
+    for (const [index, next] of path.entries()) {
+      let offers = 0;
+      const threateners = resumed && index === 0 ? [] : this.threatenersLeft(moverId, at, next);
+      for (const threatener of threateners) {
+        const leaving = this.runtime.events.emit({
+          type: 'move:leaving-reach',
+          actor: moverId,
+          target: threatener,
+          payload: { at: { ...at }, next: { ...next } },
+          why,
+        });
+        offers += this.surfaceOffers([leaving]);
+      }
+      if (offers > 0) {
+        this.place(moverId, at);
+        advanced();
+        this.setPendingMove(moverId, { actionId, to: { x: to.x, y: to.y }, remaining: budget - cost });
+        return;
+      }
+      cost += entryCost(kindAt(next))!;
+      walked.push(next);
+      at = next;
+    }
+    this.place(moverId, at);
+    advanced();
+    this.endMove(moverId, actionId, 'arrived');
+  }
+
+  /** Standing opponents with a position whose reach covers `at` but not `next` — the leaving-reach threateners, in initiative order. */
+  private threatenersLeft(moverId: string, at: Position, next: Position): readonly string[] {
+    const geometry = this.runtime.spatial;
+    const mover = this.state.combatants[moverId]!;
+    return this.state.order.filter((id) => {
+      const other = this.state.combatants[id]!;
+      if (other.side === mover.side || isDowned(other) || other.position === undefined) return false;
+      const reach = this.reachOf(id) ?? 1;
+      return geometry.canReach(other.position, at, reach) && !geometry.canReach(other.position, next, reach);
     });
+  }
+
+  /**
+   * Resume the active combatant's paused move once the offer queue is empty
+   * (DD-M10). Re-checks, in order: downed → `downed`; an active condition now
+   * restricts the action → `restricted`; otherwise re-plan from the current
+   * cell with the remaining budget against current occupancy — no path →
+   * `blocked`, else walk again (which may pause again). Offers raised here are
+   * surfaced per call.
+   */
+  private resumeMove(): readonly RuntimeEvent[] {
+    const moverId = this.state.active;
+    const mover = this.state.combatants[moverId];
+    const pending = mover?.pendingMove;
+    if (mover === undefined || pending === undefined) return [];
+    this.setClock();
+    const { emitted } = this.collect(() => {
+      if (isDowned(mover)) return this.endMove(moverId, pending.actionId, 'downed');
+      const def = this.runtime.pack.actions[pending.actionId]!;
+      if (this.restrictionRejection(mover, def) !== undefined) {
+        return this.endMove(moverId, pending.actionId, 'restricted');
+      }
+      const from = mover.position!;
+      const plan = findPath(this.runtime.spatial, this.pathQuery(mover, from, pending.to, pending.remaining));
+      if (!plan.ok) return this.endMove(moverId, pending.actionId, 'blocked');
+      this.setPendingMove(moverId, undefined);
+      this.walk(moverId, pending.actionId, pending.to, plan.path, pending.remaining, true);
+    });
+    this.surfaceOffers(emitted);
+    return emitted;
+  }
+
+  /** End a move: clear any `pendingMove` and emit `move:ended {reason, at}`. */
+  private endMove(
+    moverId: string,
+    actionId: string,
+    reason: 'arrived' | 'downed' | 'restricted' | 'blocked' | 'forfeited',
+  ): void {
+    this.setPendingMove(moverId, undefined);
+    const at = this.state.combatants[moverId]!.position!;
     this.runtime.events.emit({
       type: 'move:ended',
       actor: moverId,
-      payload: { reason: 'arrived', at: { ...at } },
-      why,
+      payload: { reason, at: { ...at } },
+      why: { rule: this.ruleBaseOf(actionId), rolls: [] },
     });
+  }
+
+  /** Set or clear a combatant's `pendingMove` — the combatant entry is replaced, like `place`. */
+  private setPendingMove(id: string, pending: PendingMove | undefined): void {
+    const combatant: { -readonly [K in keyof CombatantState]: CombatantState[K] } = {
+      ...this.state.combatants[id]!,
+    };
+    if (pending === undefined) delete combatant.pendingMove;
+    else combatant.pendingMove = pending;
+    this.state = { ...this.state, combatants: { ...this.state.combatants, [id]: combatant } };
+  }
+
+  /** Run `work`, collecting every event it emits — the per-call sink (the `execute()` idiom, F-P1). */
+  private collect<T>(work: () => T): { result: T; emitted: RuntimeEvent[] } {
+    const emitted: RuntimeEvent[] = [];
+    const sink = (event: RuntimeEvent) => {
+      emitted.push(event);
+    };
+    this.runtime.events.on(sink);
+    try {
+      return { result: work(), emitted };
+    } finally {
+      this.runtime.events.off(sink);
+    }
   }
 
   /** Move a combatant — `position` is readonly, so the combatant entry is replaced. */
@@ -1080,17 +1225,28 @@ export class Combat {
     });
   }
 
-  /** After any mutation event, offer every matching reactive action to standing combatants (FR-13 substrate); none once the fight is over. */
-  private surfaceOffers(events: readonly RuntimeEvent[]): void {
-    if (this.state.phase === 'combat-over') return;
+  /**
+   * Offer every matching reactive action to standing combatants (FR-13
+   * substrate); none once the fight is over. Callers pass only the events
+   * their own call emitted (per-call surfacing, F-P1), and an event already
+   * surfaced is skipped, so each (reactor, event) pair is offered once.
+   * Returns how many offers were raised.
+   */
+  private surfaceOffers(events: readonly RuntimeEvent[]): number {
+    if (this.state.phase === 'combat-over') return 0;
+    let raised = 0;
     for (const event of events) {
+      if (this.surfaced.has(event)) continue;
+      this.surfaced.add(event);
       for (const offer of offersForEvent(this.runtime, this.state.combatants, event)) {
         if (isDowned(this.state.combatants[offer.actorId]!)) continue;
         this.pendingTriggers.push(offer);
         emitOffer(this.runtime, offer, this.offeredCount);
         this.offeredCount += 1;
+        raised += 1;
       }
     }
+    return raised;
   }
 
   /** Resolve a taken trigger through the same pipeline as a declared action (FR-4, FR-12 proof 2). */
@@ -1118,8 +1274,10 @@ export class Combat {
       return [this.rejectionEvent(reactor.id, spendRejection)];
     }
     this.applyNonSlotCosts(reactor, def.cost);
-    const events = this.resolve(reactor, offer.actionId, def, target.combatant);
-    this.surfaceOffers(events);
+    const { result: events, emitted } = this.collect(() =>
+      this.resolve(reactor, offer.actionId, def, target.combatant),
+    );
+    this.surfaceOffers(emitted);
     return events;
   }
 
