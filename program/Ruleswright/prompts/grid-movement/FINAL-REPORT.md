@@ -160,4 +160,140 @@ CA-M1..M7 have all landed with proofs. CAP-M5 carries R-GM-1 and R-GM-2.
 | S04 followUp | F-M1, F-M2, DD17a, browser leg, parse-once | **carried** (owners as in Residual gaps) |
 
 ### Archivist's Note
-{pending — appended after the final Archivist pass}
+(Final Archivist h-6gAA / ASDFy; synthesis commit 6fb5a76. The return is appended verbatim.)
+
+- **role:** archivist
+- **registryUpdated:** true
+- **reconciled:**
+  - `program/Ruleswright/arch/v1-core.md`: the grid-movement SESSION-02..04 deltas (`08a831b`, `e354139`, `c420843`) are merged into the M01/M02/M03/M04/M05 sections.
+    - The per-call offer change to `v1-core.md:163` (F-P1) is recorded in M03 combat. The old round-window sentence under DD17 now says the return value is unchanged but offers are per call.
+    - DD-M1..DD-M19 are summarised. grid-combat DD1 is marked superseded and DD16 retired.
+    - Drift notes: the movement verb is marked resolved. The `rollText` duplicate and the CI build gap are closed. F-M1, F-M2, R-GM-1..3, `heal` missing from `EFFECT_VOCABULARY`, and the grown `evalPackFormula` debt are added.
+    - Correction checked against source: the `snapshots.ts → combat/{resolve,spatial,action-economy}` imports are type-only, so they are not value edges.
+  - `program/Ruleswright/PROGRAM-CONFIG.MD`:
+    - The Module Registry is re-derived from value imports at `6ab880a`. There is no new module, no new cross-module edge and no rule id. The new edges inside M03 go into the `display-roll.ts` leaf.
+    - Conventions gain one new rule.
+    - Custom Rules 1, 2 and 4 now cover v1.5, `speed`, and movement as pack data.
+    - Author Sources is Planner-owned and flagged, not edited.
+  - `program/Ruleswright/ARCHIVIST-LOG.md`: dated entry appended.
+- **conventionsAdded:**
+  - **Planned Author re-entry sessions carry their authorization in the envelope.** STATE.md records the human's answer, and the envelope quotes it and the prescribed text word for word. This crossed on the cycles axis: grid-combat S01, equipment-consumables S01 and grid-movement S01.
+- **proposedForFramework:**
+  - **New: SPEC.md and AUTHOR.md conflict with authorized re-entry sessions.** Both say Spec is never spawned, and AUTHOR.md says Designer is the only Author role ever spawned. Yet planned, authorized Author re-entry sessions keep running orchestrated. Recommendation: add an explicit "authorized re-entry session" path that names what the envelope must quote. 3 cycles, 3 instances.
+  - **New: key STATE table rows by their first-column ID.** Orchestrator's row matcher also matched the CAP table's CA-ID column, so the S01/S02 receives (`3d52826`, `dfab1d9`) wrote contract-leg notes into the wrong CAP rows. Orchestrator rebuilt both tables in `4ffa236`. Recommendation: match on the first cell and re-read the row after writing. 1 cycle, 2 instances.
+  - **Carried, narrowed: the host's 300 s await idle timeout.** ORCHESTRATOR.md:78 already says to re-await after a crash. What's missing is saying that the idle timeout isn't a crash and doesn't start the recovery ladder. 2 cycles, at least 4 instances.
+  - **Carried, no recurrence:** the `npx vitest` form (CODER.md:186, ORCHESTRATOR.md:368; 2 cycles, 3 instances), SHA-pinned gates, deriving Final Report facts, checkpoint-0 read scope, fabricated tool inputs, barrel lease gaps, argv, deletion commits and double synthesis.
+  - **No adoption since the prior pass.** The role docs are gitignored; their mtimes are still `2026-09-25`, and their content was checked row by row.
+- **logEntry:** dated entry "2026-09-30 — final pass, cycle `grid-movement`" appended to ARCHIVIST-LOG.md.
+
+#### cleanupBriefs
+
+- **title:** Single-source duplicated logic (carried brief; C8 accepted and closed at `27c77f4`, C1/C2 remain)
+- **targetArea:** `src/runtime/conditions.ts` vs `combat.ts` `restrictionRejection`; `src/core/tables.ts` vs `src/schema/validate/helpers.ts` (`MAX_TABLE_DEPTH`)
+- **confidence:** medium
+- **proposedPlannerTask:** build a cleanup program that makes the surface decision on the restricts helpers and single-sources `MAX_TABLE_DEPTH` without giving M01 a value import from core.
+- **requiredChecks:**
+  - `pnpm typecheck`, `pnpm lint`, `pnpm test` (741+), then `pnpm build` and `check:isolation`
+  - a grep proving one definition per symbol
+  - M01 still imports nothing internal, checked by mechanically deriving its imports
+- **risks:**
+  - The restricts helpers are public surface pinned by `conditions.test.ts`, so removing them is a surface change.
+  - `MAX_TABLE_DEPTH` is on the schema surface, and the rule that M01 and M02 are independent siblings rules out a naive re-export.
+
+#### standingRecommendations
+
+- **pattern:** Large single-session builds exhaust context on exhaustive checkpoint-0 read sweeps
+- **cycles:** 2
+- **instances:** 2
+- **firstSeen:** v1-core
+- **status:** open
+
+- **pattern:** Subagent model fabricates tool inputs under long-recovery prompts
+- **cycles:** 2
+- **instances:** 8
+- **firstSeen:** v1-core
+- **status:** open
+
+- **pattern:** Public surface/barrel completeness gaps discovered at integration
+- **cycles:** 2
+- **instances:** 3
+- **firstSeen:** v1-core
+- **status:** open
+
+- **pattern:** run tool drops/misroutes argv; workers pass whole command lines as single argv entries
+- **cycles:** 2
+- **instances:** 3
+- **firstSeen:** v1-core
+- **status:** open
+
+- **pattern:** commit_pathspec-style single-command commits fail on deleted files
+- **cycles:** 1
+- **instances:** 1
+- **firstSeen:** v1-core
+- **status:** open
+
+- **pattern:** Cross-suite pinning tests land without a named owner in the plan
+- **cycles:** 2
+- **instances:** 3
+- **firstSeen:** loot-inventory
+- **status:** promoted
+
+- **pattern:** Envelope factual premises reach sessions unverified; mechanical premise verification at planning time is the fix
+- **cycles:** 4
+- **instances:** 17
+- **firstSeen:** loot-inventory
+- **status:** promoted
+
+- **pattern:** Whole-repo fast gates go red at role-scoped receives
+- **cycles:** 4
+- **instances:** 4
+- **firstSeen:** v1-core
+- **status:** promoted
+
+- **pattern:** Provider stream aborts kill subagents mid-session with zero commits; recovery resumes from the preserved tree
+- **cycles:** 3
+- **instances:** 5
+- **firstSeen:** loot-inventory
+- **status:** open (promotion held: which cycles the carried count covers is unclear)
+
+- **pattern:** Bare npx misresolves in this runtime; the working forms are `pnpm exec vitest run <path>` and `node_modules/.bin/vitest`
+- **cycles:** 2
+- **instances:** 3
+- **firstSeen:** loot-inventory
+- **status:** open
+
+- **pattern:** Final Archivist pass aborts leave the next cycle a double synthesis
+- **cycles:** 2
+- **instances:** 2
+- **firstSeen:** loot-inventory
+- **status:** open
+
+- **pattern:** Session commit gates hard-code a plan-time base SHA that a later replan makes stale
+- **cycles:** 1
+- **instances:** 1
+- **firstSeen:** equipment-consumables
+- **status:** open
+
+- **pattern:** Host await idle timeout (300 s) interrupts long subagent waits; re-awaiting the same handle reattaches with no work lost
+- **cycles:** 2
+- **instances:** 4
+- **firstSeen:** equipment-consumables
+- **status:** open
+
+- **pattern:** Final Report mechanical facts are transcribed from handoffs rather than derived from the tree
+- **cycles:** 2
+- **instances:** 2
+- **firstSeen:** v1-core
+- **status:** open
+
+- **pattern:** Role documents say Spec/DB are never spawned, while plans dispatch orchestrated Author re-entry sessions on recorded human authorization
+- **cycles:** 3
+- **instances:** 3
+- **firstSeen:** grid-combat
+- **status:** promoted (framework wording still open)
+
+- **pattern:** Orchestrator STATE row matcher hits a CA-ID column inside the CAP table and writes contract-leg notes into the wrong rows
+- **cycles:** 1
+- **instances:** 2
+- **firstSeen:** grid-movement
+- **status:** open
