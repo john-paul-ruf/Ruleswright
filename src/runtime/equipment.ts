@@ -277,6 +277,7 @@ export function useItem(
     ac: scopedFormula(runtime, 'ac', scope),
     initiative:
       runtime.index.formulaAsts['initiative'] === undefined ? 0 : scopedFormula(runtime, 'initiative', scope),
+    speed: runtime.index.formulaAsts['speed'] === undefined ? 0 : scopedFormula(runtime, 'speed', scope),
   };
   const rule = `content.items.${itemId}`;
 

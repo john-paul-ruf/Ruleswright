@@ -22,6 +22,13 @@
  * charges and runs the item's parse-once `use` effect through the same
  * executor path as an action. A heal arrives as a negative-amount damage
  * mutation and clamps at the combatant's `maxHp` (CA-EG4, R-2).
+ *
+ * Movement (v1.5, FR-11): a move action — an action whose parse-once effect
+ * root is `move(<formula>)` — targets its actor, passes the movement gate
+ * (destination + cheapest legal path within the budget, DD-M9) where other
+ * actions pass the reach gate, and walks the planned path through
+ * `apply.move`, emitting `move:advanced` / `move:ended`. Theater-of-mind packs
+ * resolve it as a no-op (DD-M11). Terrain is host-placed per fight.
  */
 import type { ActionDef, ActionCost } from '../../schema/artifacts';
 import { Rng, type RandomSource, type RngState } from '../../core/rng';
@@ -40,15 +47,26 @@ import {
   type SlotLedger,
 } from './action-economy';
 import {
+  effectVars,
   executeAgainst,
   type BoundAction,
   type CombatantProfile,
   type MutationRequest,
   type Side,
 } from './resolve';
-import { checkReach, type Position, type SpatialRejection } from './spatial';
-import { evalValidity } from '../../core/dsl/formula';
+import {
+  checkReach,
+  entryCost,
+  findPath,
+  terrainAt,
+  type MoveRejection,
+  type Position,
+  type SpatialRejection,
+  type TerrainCell,
+} from './spatial';
+import { evalFormula, evalValidity, valueOfFormula, type FormulaAst } from '../../core/dsl/formula';
 import { RuntimeRuleError, ruleCard } from '../errors';
+import type { ErrorCard } from '../../schema/error-card';
 
 /** One combatant's live combat state — plain JSON, snapshot-ready (FR-14). */
 export interface CombatantState {
@@ -73,6 +91,8 @@ export interface CombatantState {
   readonly level: number;
   readonly ac: number;
   readonly initiativeBonus: number;
+  /** v1.5 — the profile's movement budget (`formulas.speed`); absent when the pack declares none. */
+  readonly speed?: number;
   readonly actions: readonly string[];
   readonly attackTable?: readonly { level: number; byDefense: Record<string, number> }[];
   readonly attackBonus?: number;
@@ -90,6 +110,8 @@ export interface CombatState {
   readonly phase: CombatPhase;
   readonly combatants: Readonly<Record<string, CombatantState>>;
   readonly rng: RngState;
+  /** v1.5 — host-placed terrain cells for this fight (`[]` when none); never frozen in snapshots. */
+  readonly terrain: readonly TerrainCell[];
 }
 
 export type CombatPhase = 'awaiting-declare' | 'resolved' | 'awaiting-trigger-response' | 'combat-over';
@@ -112,6 +134,8 @@ export interface PendingTrigger {
 export interface DeclareOptions {
   /** Optional explicit target; a single-enemy action resolves to the only opponent otherwise. */
   readonly targetId?: string;
+  /** v1.5 — a move action's destination (FR-11); ignored by theater-of-mind packs. */
+  readonly to?: Position;
 }
 
 /** Why a declare was rejected — one ErrorCard-shaped object, play-time economy family. */
@@ -133,6 +157,7 @@ export type DeclareRejection =
       message: string;
     }
   | SpatialRejection
+  | MoveRejection
   | {
       kind: 'valid';
       rule: 'E-REF-01';
@@ -159,6 +184,8 @@ export interface StartCombatRequest {
   readonly enemies: readonly { id: string; profile: CombatantProfile; balances?: EconomyBalances }[];
   /** Host-declared grid positions (FR-11); every combatant needs one when the pack declares a spatial model. */
   readonly positions?: Readonly<Record<string, Position>>;
+  /** v1.5 — host-placed terrain cells; kinds come from the pack's `spatial.terrain` vocabulary. */
+  readonly terrain?: readonly TerrainCell[];
   /** Initiative roll source; defaults to the injected rng. */
   readonly rng?: RandomSource;
 }
@@ -172,23 +199,30 @@ export interface StartCombatRequest {
  */
 export function startCombat(runtime: Runtime, request: StartCombatRequest): Combat {
   // CAP-G2 fail-closed gate: a spatial pack's fight is refused — all missing
-  // combatants in one aggregate, nothing built — before any state or rolls.
+  // combatants and every bad terrain placement in one aggregate, nothing
+  // built — before any state or rolls.
   if (runtime.pack.spatial !== undefined) {
-    const missing = [...request.allies, ...request.enemies].filter(
-      (member) => request.positions?.[member.id] === undefined,
-    );
-    if (missing.length > 0) {
-      throw new RuntimeRuleError(
-        missing.map((member) =>
-          ruleCard(
-            'E-SPAT-01',
-            member.id,
-            `positions.${member.id}`,
-            `combatant "${member.id}" has no position — this pack declares a spatial model (FR-11), so startCombat requires every combatant's position.`,
-          ),
+    const members = [...request.allies, ...request.enemies];
+    const cards = members
+      .filter((member) => request.positions?.[member.id] === undefined)
+      .map((member) =>
+        ruleCard(
+          'E-SPAT-01',
+          member.id,
+          `positions.${member.id}`,
+          `combatant "${member.id}" has no position — this pack declares a spatial model (FR-11), so startCombat requires every combatant's position.`,
         ),
       );
-    }
+    cards.push(
+      ...terrainRefusals(
+        runtime,
+        request.terrain ?? [],
+        members.map((member) => member.id),
+        request.positions,
+        'start',
+      ),
+    );
+    if (cards.length > 0) throw new RuntimeRuleError(cards);
   }
   const rng = request.rng ?? new Rng(0);
   const grants = resolveSlotGrants(runtime.pack);
@@ -252,6 +286,7 @@ export function startCombat(runtime: Runtime, request: StartCombatRequest): Comb
       level: entry.profile.level,
       ac: entry.profile.ac,
       initiativeBonus: entry.profile.initiativeBonus,
+      ...(entry.profile.speed !== undefined ? { speed: entry.profile.speed } : {}),
       actions: [...entry.profile.actions],
       attackTable: entry.profile.attackTable
         ? entry.profile.attackTable.map((row) => ({ level: row.level, byDefense: { ...row.byDefense } }))
@@ -277,6 +312,7 @@ export function startCombat(runtime: Runtime, request: StartCombatRequest): Comb
     phase: 'awaiting-declare',
     combatants,
     rng: rngStateOf(rng),
+    terrain: copyTerrain(request.terrain ?? []),
   });
   runtime.events.emit({
     type: 'combat:start',
@@ -284,6 +320,79 @@ export function startCombat(runtime: Runtime, request: StartCombatRequest): Comb
     why: { rule: 'combat.startCombat', rolls: whyRolls },
   });
   return fight;
+}
+
+/** Plain-JSON copies of host terrain cells (FR-14: state never aliases host objects). */
+export function copyTerrain(cells: readonly TerrainCell[]): TerrainCell[] {
+  return cells.map((cell) => ({ at: { x: cell.at.x, y: cell.at.y }, kind: cell.kind }));
+}
+
+/**
+ * The terrain placement refusals shared by `startCombat` and restore (DD-M5,
+ * E-SPAT-01), spatial packs only: an unknown kind, a cell placed twice, a
+ * combatant positioned on a blocking cell. Theater packs carry terrain
+ * unconsulted (DD-M11), so they refuse nothing.
+ */
+export function terrainRefusals(
+  runtime: Runtime,
+  terrain: readonly TerrainCell[],
+  combatantIds: readonly string[],
+  positions: Readonly<Record<string, Position>> | undefined,
+  phase: 'start' | 'restore',
+): ErrorCard[] {
+  const vocabulary = runtime.pack.spatial?.terrain;
+  if (runtime.pack.spatial === undefined) return [];
+  const prefix = phase === 'start' ? 'terrain' : 'restore.terrain';
+  const artifact = (id: string) => (phase === 'start' ? id : '(snapshot)');
+  const known = Object.keys(vocabulary ?? {});
+  const cards: ErrorCard[] = [];
+  const placed = new Map<string, number>();
+  terrain.forEach((cell, index) => {
+    if (vocabulary?.[cell.kind] === undefined) {
+      cards.push(
+        ruleCard(
+          'E-SPAT-01',
+          artifact(cell.kind),
+          `${prefix}[${index}].kind`,
+          `terrain kind "${cell.kind}" is not in the pack's spatial.terrain vocabulary (${known.length === 0 ? 'the pack declares none' : known.join(', ')}).`,
+        ),
+      );
+    }
+    const key = `${cell.at.x},${cell.at.y}`;
+    const first = placed.get(key);
+    if (first !== undefined) {
+      cards.push(
+        ruleCard(
+          'E-SPAT-01',
+          artifact(cell.kind),
+          `${prefix}[${index}].at`,
+          `terrain cell (${key}) is placed twice (first at ${prefix}[${first}]) — each cell has one kind.`,
+        ),
+      );
+    } else {
+      placed.set(key, index);
+    }
+  });
+  const kindAt = (p: Position) => {
+    const index = placed.get(`${p.x},${p.y}`);
+    return index === undefined ? undefined : vocabulary?.[terrain[index]!.kind];
+  };
+  for (const id of combatantIds) {
+    const position = positions?.[id];
+    if (position === undefined) continue;
+    const kind = kindAt(position);
+    if (kind !== undefined && entryCost(kind) === undefined) {
+      cards.push(
+        ruleCard(
+          'E-SPAT-01',
+          artifact(id),
+          phase === 'start' ? `positions.${id}` : `restore.${id}.position`,
+          `combatant "${id}" is positioned on a blocking terrain cell (${position.x},${position.y}) — a blocking cell can never be occupied.`,
+        ),
+      );
+    }
+  }
+  return cards;
 }
 
 /** Flatten nested effect resolutions (sequence/target wrappers) for the attack-event loop. */
@@ -413,7 +522,10 @@ export class Combat {
     if (restriction !== undefined) {
       return [this.rejectionEvent(actorId, restriction)];
     }
-    const target = this.resolveTarget(actor, options.targetId);
+    // A move action targets its actor: no opponent resolution, no reach gate (DD-M9).
+    const budgetAst = moveBudgetAst(this.runtime, actionId);
+    const target =
+      budgetAst !== undefined ? { combatant: actor } : this.resolveTarget(actor, options.targetId);
     if ('rejection' in target) {
       return [this.rejectionEvent(actorId, target.rejection)];
     }
@@ -438,9 +550,18 @@ export class Combat {
         ];
       }
     }
-    const spatial = this.spatialGate(actor, target.combatant);
-    if (spatial !== undefined) {
-      return [this.rejectionEvent(actorId, spatial)];
+    let move: ((budget: number) => void) | undefined;
+    if (budgetAst !== undefined) {
+      const gate = this.movementGate(actor, actionId, budgetAst, options.to);
+      if ('rejection' in gate) {
+        return [this.rejectionEvent(actorId, gate.rejection)];
+      }
+      move = gate.move;
+    } else {
+      const spatial = this.spatialGate(actor, target.combatant);
+      if (spatial !== undefined) {
+        return [this.rejectionEvent(actorId, spatial)];
+      }
     }
     const costRejection = checkCost(def.cost, this.grants, this.balancesOf(actor));
     if (costRejection !== undefined) {
@@ -452,7 +573,7 @@ export class Combat {
       return [this.rejectionEvent(actorId, spendRejection)];
     }
     this.applyNonSlotCosts(actor, def.cost);
-    const events = this.resolve(actor, actionId, def, target.combatant);
+    const events = this.resolve(actor, actionId, def, target.combatant, move);
     this.surfaceOffers(events);
     return events;
   }
@@ -665,6 +786,129 @@ export class Combat {
   }
 
   /**
+   * The movement gate (DD-M9), where the reach gate runs for other actions:
+   * the destination, then the cheapest legal path within the budget. The
+   * budget is the move statement's dice-free formula over the same actor vars
+   * the executor binds (`speed` included), evaluated without RNG. A passable
+   * cell holds no standing enemy; an endable cell holds no standing combatant,
+   * the mover included (DD-M6). Theater packs: a no-op walk, no gate (DD-M11).
+   */
+  private movementGate(
+    actor: CombatantState,
+    actionId: string,
+    budgetAst: FormulaAst,
+    to: Position | undefined,
+  ): { move: (budget: number) => void } | { rejection: DeclareRejection } {
+    const geometry = this.runtime.spatial;
+    if (!geometry.enabled) return { move: () => undefined };
+    if (to === undefined) {
+      return {
+        rejection: {
+          kind: 'no-destination',
+          rule: 'E-SPAT-01',
+          resource: actionId,
+          message: `move action "${actionId}" needs a destination — declare it with { to: { x, y } }.`,
+        },
+      };
+    }
+    const from = actor.position;
+    if (from === undefined) {
+      return {
+        rejection: {
+          kind: 'spatial',
+          rule: 'E-SPAT-01',
+          resource: actor.id,
+          message: `this pack declares a spatial model, but the mover's position is missing (${actor.id}: absent).`,
+        },
+      };
+    }
+    const profile = this.profileOf(actor);
+    const budget = valueOfFormula(evalFormula(budgetAst, effectVars(profile, profile), ZERO_RNG));
+    const plan = findPath(geometry, this.pathQuery(actor, from, to, budget));
+    if (!plan.ok) {
+      const cell = `(${to.x},${to.y})`;
+      const messages: Record<typeof plan.kind, string> = {
+        blocked: `destination ${cell} is a blocking terrain cell — it can never be entered (budget ${budget}).`,
+        occupied: `destination ${cell} is held by a standing combatant — a move cannot end on an occupied cell (budget ${budget}).`,
+        unreachable: `no legal path reaches ${cell} at any cost (budget ${budget}).`,
+        'out-of-range': `the cheapest legal path to ${cell} costs ${plan.cost ?? '?'}, but the movement budget is ${budget}.`,
+      };
+      return {
+        rejection: {
+          kind: plan.kind,
+          rule: 'E-SPAT-01',
+          resource: `${to.x},${to.y}`,
+          message: messages[plan.kind],
+        },
+      };
+    }
+    return { move: (walked) => this.walk(actor.id, actionId, plan.path, walked) };
+  }
+
+  /** The path request for a mover, against the fight's current occupancy and terrain. */
+  private pathQuery(mover: CombatantState, from: Position, to: Position, budget: number) {
+    const standing = Object.values(this.state.combatants).filter(
+      (combatant) => !isDowned(combatant) && combatant.position !== undefined,
+    );
+    const at = (p: Position) => (combatant: CombatantState) =>
+      combatant.position!.x === p.x && combatant.position!.y === p.y;
+    return {
+      from,
+      to,
+      budget,
+      terrain: this.runtime.pack.spatial?.terrain ?? {},
+      cells: this.state.terrain,
+      occupied: Object.values(this.state.combatants).flatMap((combatant) =>
+        combatant.position === undefined ? [] : [combatant.position],
+      ),
+      passable: (p: Position) => !standing.some((other) => other.side !== mover.side && at(p)(other)),
+      endable: (p: Position) => !standing.some(at(p)),
+    };
+  }
+
+  /**
+   * `apply.move`: walk the planned path and land the mover on its last cell,
+   * emitting `move:advanced {from, to, path, cost, remaining}` then
+   * `move:ended {reason: 'arrived', at}` (both `why.rule` = the action).
+   */
+  private walk(moverId: string, actionId: string, path: readonly Position[], budget: number): void {
+    const mover = this.state.combatants[moverId]!;
+    const from = mover.position!;
+    const kindAt = terrainAt(this.runtime.pack.spatial?.terrain ?? {}, this.state.terrain);
+    const cost = path.reduce((sum, cell) => sum + entryCost(kindAt(cell))!, 0);
+    const at = path[path.length - 1] ?? from;
+    this.place(moverId, at);
+    const why = { rule: this.ruleBaseOf(actionId), rolls: [] };
+    this.runtime.events.emit({
+      type: 'move:advanced',
+      actor: moverId,
+      payload: {
+        from: { ...from },
+        to: { ...at },
+        path: path.map((cell) => ({ ...cell })),
+        cost,
+        remaining: budget - cost,
+      },
+      why,
+    });
+    this.runtime.events.emit({
+      type: 'move:ended',
+      actor: moverId,
+      payload: { reason: 'arrived', at: { ...at } },
+      why,
+    });
+  }
+
+  /** Move a combatant — `position` is readonly, so the combatant entry is replaced. */
+  private place(id: string, at: Position): void {
+    const combatant = this.state.combatants[id]!;
+    this.state = {
+      ...this.state,
+      combatants: { ...this.state.combatants, [id]: { ...combatant, position: { x: at.x, y: at.y } } },
+    };
+  }
+
+  /**
    * The one shape resolver (CA-G4): the executor's resolveTargets, the
    * validity gate's hasTarget, and target() statements all resolve shapes
    * here — once, combat-side. Theater-of-mind: every shape answers with the
@@ -730,8 +974,9 @@ export class Combat {
     actionId: string,
     def: ActionDef,
     target: CombatantState,
+    move?: (budget: number) => void,
   ): readonly RuntimeEvent[] {
-    this.execute(actor, this.boundActionOf(actionId, def), target, this.ruleBaseOf(actionId));
+    this.execute(actor, this.boundActionOf(actionId, def), target, this.ruleBaseOf(actionId), move);
     this.state = { ...this.state, phase: 'resolved' };
     this.runtime.events.emit({
       type: 'action:resolved',
@@ -754,6 +999,7 @@ export class Combat {
     boundAction: BoundAction,
     target: CombatantState,
     rule: string,
+    move?: (budget: number) => void,
   ): RuntimeEvent[] {
     const emitted: RuntimeEvent[] = [];
     const sink = (event: RuntimeEvent) => {
@@ -794,6 +1040,7 @@ export class Combat {
           });
         },
         (shape) => this.resolveShape(shape, actor, target),
+        move,
       );
       // Attack outcomes are events too (attack:rolled) — one per target, with the verdict.
       // The executor nests statements in sequence/target/save wrappers; flatten first.
@@ -901,6 +1148,7 @@ export class Combat {
       maxHp: state.maxHp,
       ac: state.ac,
       initiativeBonus: state.initiativeBonus,
+      ...(state.speed !== undefined ? { speed: state.speed } : {}),
       actions: state.actions,
       attackTable: state.attackTable,
       attackBonus: state.attackBonus,
@@ -982,6 +1230,15 @@ export class Combat {
     };
     return { kind: 'turn-ended', combatantId: previousId };
   }
+}
+
+/** Move statements evaluate their dice-free budget without consuming the fight's dice (DD-M8). */
+const ZERO_RNG: RandomSource = { int: () => 0 };
+
+/** A move action's budget formula: the argument of a root `move(...)` statement; `undefined` = not a move action. */
+export function moveBudgetAst(runtime: Runtime, actionId: string): FormulaAst | undefined {
+  const ast = runtime.index.actionEffects[actionId];
+  return ast?.kind === 'call' && ast.text === 'move' ? ast.args?.[0] : undefined;
 }
 
 /** A combatant at hp ≤ 0 is down: it takes no turns and is offered no triggers. */

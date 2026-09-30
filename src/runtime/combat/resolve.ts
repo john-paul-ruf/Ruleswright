@@ -84,6 +84,8 @@ export interface CombatantProfile {
   readonly maxHp?: number;
   readonly ac: number;
   readonly initiativeBonus: number;
+  /** v1.5 — the movement budget from the reserved `speed` formula; ABSENT when the pack declares no `formulas.speed` (DD-M7). */
+  readonly speed?: number;
   /** Ids of the actions this combatant may declare (characters and statblocks alike). */
   readonly actions: readonly string[];
   /** The combatant's attack progression table (pack data; descending/ascending convention is the pack's business). */
@@ -225,6 +227,7 @@ export function profileFromStatblock(pack: Pack, block: Statblock, id: string): 
     ac: evalPackFormula(pack, 'ac', base),
     initiativeBonus:
       pack.formulas['initiative'] !== undefined ? evalPackFormula(pack, 'initiative', base) : 0,
+    ...(pack.formulas['speed'] !== undefined ? { speed: evalPackFormula(pack, 'speed', base) } : {}),
     actions: [...block.actions],
     attackTable: progressionTableById(progression?.attackTable),
     attackBonus: attackBonusFromFormula(progression, base),
@@ -248,7 +251,7 @@ function attackBonusFromFormula(
   return evalDslFormula(progression.attackBonus, vars);
 }
 
-/** Evaluate a pack formula by id; reserved ids (hp/ac/initiative, CA-6) resolve only through these. */
+/** Evaluate a pack formula by id; reserved ids (hp/ac/initiative/speed, CA-6) resolve only through these. */
 export function evalPackFormula(pack: Pack, id: string, vars: Readonly<Record<string, number>>): number {
   const def = pack.formulas[id];
   if (def === undefined) {
@@ -328,6 +331,9 @@ export function attackBonusAgainst(attacker: CombatantProfile, defenseValue: num
  * layer resolves the shape — against the primary target's position — to the
  * ids that statement's scope. Callers without the callback (direct executor
  * use) keep the bound-target binding.
+ *
+ * `move` (optional, combat-injected, v1.5) becomes `apply.move`: the host's
+ * movement walk. Without it a `move(...)` statement fails closed (CA-M2).
  */
 export function executeAgainst(
   action: BoundAction,
@@ -336,20 +342,10 @@ export function executeAgainst(
   rng: RandomSource,
   sink: MutationSink,
   resolveShapeTargets?: (shape: string) => readonly string[],
+  move?: (budget: number) => void,
 ): readonly EffectResolution[] {
   const rolls: RollResult[] = [];
-  const vars: Record<string, number> = {
-    ...actor.profile.abilities,
-    ...actor.profile.saves,
-    level: actor.profile.level,
-    hp: actor.profile.hp,
-    ac: actor.profile.ac,
-    initiative: actor.profile.initiativeBonus,
-  };
-  for (const [saveName, value] of Object.entries(target.profile.saves)) {
-    vars[saveName] = value;
-  }
-  vars['ac'] = target.profile.ac;
+  const vars = effectVars(actor.profile, target.profile);
   const apply: EffectApply = {
     resolveTargets: (shape: string) => {
       // CA-G4: the one shape resolver lives in the combat layer; the injected
@@ -364,6 +360,7 @@ export function executeAgainst(
     condition: (ref: EffectTargetRef, conditionId: string, duration: number) => {
       sink({ targetId: ref.id, kind: 'condition', conditionId, duration, rolls: [...rolls] });
     },
+    ...(move !== undefined ? { move } : {}),
   };
   const ctx: EffectContext = { actor: actor.id, targets: [{ id: target.id }], rng, apply, vars };
   const outcomes = executeEffect(action.ast, ctx);
@@ -373,6 +370,29 @@ export function executeAgainst(
     }
   }
   return outcomes;
+}
+
+/**
+ * The per-target effect vars: the actor's abilities/saves, level and the
+ * engine-derived scalars (hp/ac/initiative/speed — they shadow same-named
+ * abilities), then the defender's saves and `ac` under their pack names.
+ * `speed` binds `profile.speed ?? 0` (DD-M7).
+ */
+export function effectVars(actor: CombatantProfile, target: CombatantProfile): Record<string, number> {
+  const vars: Record<string, number> = {
+    ...actor.abilities,
+    ...actor.saves,
+    level: actor.level,
+    hp: actor.hp,
+    ac: actor.ac,
+    initiative: actor.initiativeBonus,
+    speed: actor.speed ?? 0,
+  };
+  for (const [saveName, value] of Object.entries(target.saves)) {
+    vars[saveName] = value;
+  }
+  vars['ac'] = target.ac;
+  return vars;
 }
 
 function flatten(outcomes: readonly EffectResolution[]): readonly EffectResolution[] {

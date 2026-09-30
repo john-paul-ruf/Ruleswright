@@ -40,9 +40,9 @@ import { Rng, type RngState } from '../core/rng';
 import { RuntimeRuleError } from './errors';
 import { buildCharacter, validateBuild } from './progression';
 import { Character, reserveValue } from './character';
-import { Combat, defeatedSide, type CombatantState } from './combat/combat';
+import { Combat, copyTerrain, defeatedSide, terrainRefusals, type CombatantState } from './combat/combat';
 import type { CombatantProfile } from './combat/resolve';
-import type { Position } from './combat/spatial';
+import type { Position, TerrainCell } from './combat/spatial';
 import type { EconomyBalances } from './combat/action-economy';
 import type { Runtime, CharacterState } from './runtime';
 
@@ -437,6 +437,8 @@ export interface CombatRestoreRequest {
   readonly enemies: readonly { id: string; profile: CombatantProfile; balances?: EconomyBalances }[];
   /** The host re-states each combatant's position (FR-10 between-steps: movement = restore with updated positions). */
   readonly positions?: Readonly<Record<string, Position>>;
+  /** v1.5 — the host re-states the fight's terrain cells, like positions (never frozen); same refusals as `startCombat`. */
+  readonly terrain?: readonly TerrainCell[];
 }
 
 /**
@@ -506,6 +508,15 @@ export function deserializeCombat(
     // combatant re-states its position (CA-G3) — all cards at once, before
     // anything is rebuilt.
     cards.push(...spatialRestoreRefusals(runtime, restore));
+    cards.push(
+      ...terrainRefusals(
+        runtime,
+        restore.terrain ?? [],
+        [...restore.allies, ...restore.enemies].map((entry) => entry.id),
+        restore.positions,
+        'restore',
+      ),
+    );
   }
   if (cards.length > 0) throw new RuntimeRuleError(cards);
   validateRngWords(snapshot);
@@ -538,6 +549,7 @@ export function deserializeCombat(
       level: entry.profile.level,
       ac: entry.profile.ac,
       initiativeBonus: entry.profile.initiativeBonus,
+      ...(entry.profile.speed !== undefined ? { speed: entry.profile.speed } : {}),
       actions: [...entry.profile.actions],
       attackTable: entry.profile.attackTable
         ? entry.profile.attackTable.map((row) => ({ level: row.level, byDefense: { ...row.byDefense } }))
@@ -554,6 +566,7 @@ export function deserializeCombat(
     phase: defeatedSide(combatants) === undefined ? 'awaiting-declare' : 'combat-over',
     combatants,
     rng: { ...saved.rng },
+    terrain: copyTerrain(restore.terrain ?? []),
   });
   for (const combatant of saved.combatants) {
     if (combatant.pendingTrigger === undefined || combatant.pendingTrigger === null) continue;

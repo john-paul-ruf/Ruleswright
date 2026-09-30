@@ -230,6 +230,32 @@ function cellKey(p: Position): string {
   return `${p.x},${p.y}`;
 }
 
+/** The host placement as a lookup: the placed kind at `p`, `undefined` = plain. An undeclared kind throws (startCombat/restore refuse it first). */
+export function terrainAt(
+  terrain: Readonly<Record<string, TerrainKind>>,
+  cells: readonly TerrainCell[],
+): (p: Position) => TerrainKind | undefined {
+  const kinds = new Map<string, string>();
+  for (const cell of cells) kinds.set(cellKey(cell.at), cell.kind);
+  return (p) => {
+    const kind = kinds.get(cellKey(p));
+    if (kind === undefined) return undefined;
+    const declared = terrain[kind];
+    if (declared === undefined) {
+      throw new Error(
+        `terrain kind "${kind}" is not declared — startCombat/restore refuse unknown kinds (E-SPAT-01)`,
+      );
+    }
+    return declared;
+  };
+}
+
+/** Movement points to enter a cell of `kind` (plain = 1); `undefined` = a blocking cell, never entered. */
+export function entryCost(kind: TerrainKind | undefined): number | undefined {
+  if (kind === undefined) return 1;
+  return 'cost' in kind ? kind.cost : undefined;
+}
+
 /**
  * The cheapest legal path from `from` to `to` (DD-M9, DD-M18). Entering a cell
  * costs its terrain kind's `cost` (plain = 1); a `blocks` cell is never
@@ -252,27 +278,8 @@ function cellKey(p: Position): string {
  * not reached → `unreachable`; cheapest cost > budget → `out-of-range`.
  */
 export function findPath(geometry: SpatialGeometry, query: PathQuery): PathResult {
-  const kinds = new Map<string, string>();
-  for (const cell of query.cells) kinds.set(cellKey(cell.at), cell.kind);
-  const kindAt = (p: Position): TerrainKind | undefined => {
-    const kind = kinds.get(cellKey(p));
-    if (kind === undefined) return undefined;
-    const declared = query.terrain[kind];
-    if (declared === undefined) {
-      throw new Error(
-        `terrain kind "${kind}" is not declared — startCombat/restore refuse unknown kinds (E-SPAT-01)`,
-      );
-    }
-    return declared;
-  };
-  const blocks = (p: Position): boolean => {
-    const kind = kindAt(p);
-    return kind !== undefined && 'blocks' in kind;
-  };
-  const entryCost = (p: Position): number => {
-    const kind = kindAt(p);
-    return kind !== undefined && 'cost' in kind ? kind.cost : 1;
-  };
+  const kindAt = terrainAt(query.terrain, query.cells);
+  const blocks = (p: Position): boolean => entryCost(kindAt(p)) === undefined;
 
   if (blocks(query.to)) return { ok: false, kind: 'blocked' };
   if (!query.endable(query.to)) return { ok: false, kind: 'occupied' };
@@ -299,7 +306,7 @@ export function findPath(geometry: SpatialGeometry, query: PathQuery): PathResul
       const neighborKey = cellKey(neighbor);
       if (settled.has(neighborKey) || !inRegion(neighbor)) continue;
       if (blocks(neighbor) || !query.passable(neighbor)) continue;
-      const cost = next.cost + entryCost(neighbor);
+      const cost = next.cost + entryCost(kindAt(neighbor))!;
       const known = best.get(neighborKey);
       if (known !== undefined && known <= cost) continue;
       best.set(neighborKey, cost);

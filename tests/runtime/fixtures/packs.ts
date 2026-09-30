@@ -238,6 +238,64 @@ export function emberMarchesSpatialPack(): Pack {
 }
 
 /**
+ * The v1.5 movement fixture (grid-movement S03): hex geometry, a terrain
+ * vocabulary (`bramble` costs 2, `standing-stone` blocks), the reserved
+ * `speed` formula (`3 + level`: a level-1 hero moves 4, the level-2
+ * barrow-wight 5), a `stride` move action, two leaving-reach reactions
+ * (`opportunist` strikes, `root-grasp` roots), the `rooted` condition that
+ * restricts `actions.tagged:move`, and a `stride-tonic` whose use is
+ * `heal(speed)`. The warden class and both statblocks carry the new actions.
+ */
+export function emberMarchesHexPack(): Pack {
+  const pack = emberMarchesPack();
+  const reaction = { cost: { slots: { reaction: 1 } }, trigger: { on: 'move:leaving-reach[target=self]' } };
+  return withSpatial(
+    {
+      ...pack,
+      actions: {
+        ...pack.actions,
+        stride: { cost: { slots: { move: 1 } }, effect: 'move(speed)', tags: ['move'] },
+        opportunist: {
+          ...reaction,
+          effect: 'sequence(attack(ac, might), damage(1d6, sharp))',
+          tags: ['reaction'],
+        },
+        'root-grasp': { ...reaction, effect: 'applyCondition(rooted, 1)', tags: ['reaction'] },
+      },
+      formulas: { ...pack.formulas, speed: { expr: '3 + level' } },
+      content: {
+        ...pack.content,
+        classes: {
+          ...pack.content.classes,
+          warden: { name: 'Warden', spellLists: [], actions: ['strike', 'stride', 'opportunist'] },
+        },
+        conditions: {
+          ...pack.content.conditions,
+          rooted: { name: 'Rooted', duration: 1, stacking: 'refresh', restricts: ['actions.tagged:move'] },
+        },
+        items: {
+          ...pack.content.items,
+          'stride-tonic': { name: 'Stride Tonic', kind: 'consumable', use: 'heal(speed)' },
+        },
+      },
+      bestiary: {
+        'barrow-wight': {
+          ...pack.bestiary['barrow-wight']!,
+          actions: ['wight-claw', 'grave-gaze', 'stride', 'opportunist'],
+        },
+        'grave-shambles': { ...pack.bestiary['grave-shambles']!, actions: ['shamble-swing', 'stride'] },
+      },
+    },
+    {
+      model: 'hex',
+      reach: { default: 1 },
+      shapes: ['single', 'burst'],
+      terrain: { bramble: { cost: 2 }, 'standing-stone': { blocks: true } },
+    },
+  );
+}
+
+/**
  * The default-grant branch: same pack minus the optional `economy` section.
  * The engine default grants 1 of each slot name appearing in any action or
  * spell cost (`main`, `move`, `reaction`) per turn.

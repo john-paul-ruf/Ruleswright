@@ -39,7 +39,9 @@ export interface CharacterCombatant {
  * - Equipment (CA-EG2): `abilities`/`saves` are the equipment view's (grants
  *   added); `initiativeBonus` evaluates the pack's reserved `initiative`
  *   formula (0 when undeclared) over view abilities ∪ view saves ∪ level ∪
- *   `gear-*`, as statblock profiles do over their own numbers.
+ *   `gear-*`, as statblock profiles do over their own numbers. `speed` (v1.5)
+ *   evaluates the reserved `speed` formula over the same scope, and is absent
+ *   when the pack declares no `formulas.speed` (DD-M7).
  * - `hp` is the character's current hp (it may exceed `maxHp` after an
  *   unequip); `maxHp`, `ac` and `attackBonus` come from `character.derived()`.
  * - Table convention (only when no class yields an `attackBonus`): the
@@ -105,6 +107,7 @@ export function profileFromCharacter(
       ac: derived.ac,
       initiativeBonus:
         pack.formulas['initiative'] !== undefined ? evalPackFormula(pack, 'initiative', base) : 0,
+      ...(pack.formulas['speed'] !== undefined ? { speed: evalPackFormula(pack, 'speed', base) } : {}),
       actions,
       ...(derived.attackBonus !== undefined ? { attackBonus: derived.attackBonus } : {}),
       ...(attackTable !== undefined ? { attackTable } : {}),

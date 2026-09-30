@@ -15,7 +15,7 @@ import type { CombatRestoreRequest, CombatSnapshot } from '../../src/runtime/sna
 import { profileFromStatblock, type CombatantProfile } from '../../src/runtime/combat/resolve';
 import { startCombat, Combat, type CombatantState } from '../../src/runtime/combat/combat';
 import type { RuntimeEvent } from '../../src/runtime/events';
-import { emberMarchesPack, withSpatial } from '../runtime/fixtures/packs';
+import { emberMarchesHexPack, emberMarchesPack, withSpatial } from '../runtime/fixtures/packs';
 import type { Position } from '../../src/runtime/combat/spatial';
 import { Rng } from '../../src/core/rng';
 
@@ -448,6 +448,63 @@ describe('spatial snapshots (CAP-G5, CA-G3)', () => {
     const rejected = restored.declare('strike', { targetId: 'wight' });
     expect(rejected[0]!.payload['kind']).toBe('spatial');
     expect(String(rejected[0]!.payload['message'])).toContain('positions are missing');
+  });
+
+  it('v1.5: restore re-states terrain — an unknown kind or a combatant on a blocking cell refuses (E-SPAT-01 aggregate), nothing built', () => {
+    const hexSides = (runtime: Runtime): CombatRestoreRequest => ({
+      allies: [
+        {
+          id: 'brynn',
+          profile: profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'brynn'),
+        },
+      ],
+      enemies: [
+        {
+          id: 'wight',
+          profile: profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'wight'),
+        },
+      ],
+    });
+    const runtime = new Runtime(emberMarchesHexPack());
+    const fight = startCombat(runtime, {
+      ...hexSides(runtime),
+      positions: POSITIONS,
+      rng: new Rng('terrain'),
+    });
+    const snap = JSON.parse(JSON.stringify(serializeCombat(fight, { pairsWith: 'party-1' })));
+
+    const fresh = new Runtime(emberMarchesHexPack());
+    const seen: RuntimeEvent[] = [];
+    fresh.events.on((event) => {
+      seen.push(event);
+    });
+    let cards: readonly { rule: string; jsonPath: string; artifactId: string }[] = [];
+    try {
+      deserializeCombat(fresh, snap, {
+        ...hexSides(fresh),
+        positions: POSITIONS,
+        terrain: [
+          { at: { x: 1, y: 0 }, kind: 'lava' },
+          { at: { x: 3, y: 0 }, kind: 'standing-stone' },
+        ],
+      });
+      throw new Error('expected a refusal');
+    } catch (error) {
+      expect((error as Error).name).toBe('RuntimeRuleError');
+      cards = (error as { errors: typeof cards }).errors;
+    }
+    expect(cards.map((card) => [card.rule, card.artifactId, card.jsonPath])).toEqual([
+      ['E-SPAT-01', '(snapshot)', 'restore.terrain[0].kind'],
+      ['E-SPAT-01', '(snapshot)', 'restore.wight.position'],
+    ]);
+    expect(seen).toEqual([]);
+    expect(fresh.nextCharacterId).toBe(1);
+
+    // The same terrain, legally placed, rebuilds onto the restored state (never frozen in the envelope).
+    const terrain = [{ at: { x: 1, y: 0 }, kind: 'bramble' }];
+    expect(JSON.stringify(snap)).not.toContain('bramble');
+    const restored = deserializeCombat(fresh, snap, { ...hexSides(fresh), positions: POSITIONS, terrain });
+    expect(restored.state.terrain).toEqual(terrain);
   });
 });
 
