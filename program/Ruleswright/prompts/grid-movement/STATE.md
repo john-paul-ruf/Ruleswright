@@ -30,7 +30,7 @@
 | # | Session | Modules | Owns | Status | Checkpoint | Completed | Notes |
 |---|---------|---------|------|--------|------------|-----------|-------|
 | 01 | Author re-entry: FR-11 movement amendment, spatial/api-map design, contract v1.5 | — (Author: Spec, Designer, DB) | `program/Ruleswright/specs/requirements.md`, `program/Ruleswright/mocks/spatial.html`, `program/Ruleswright/mocks/api-map.html`, `program/Ruleswright/specs/database.md`, `src/schema/contracts/pack.schema.json`, `src/schema/contracts/snapshots.schema.json` | **done** | 3/3 (9bc89f6, 5209311, a134054) | 2026-09-30 | Author roles, not Coder. No DD deltas; receive gates green 661/661 |
-| 02 | Schema mirror + validator + core `move`/`speed` DSL | M01, M02 | `src/schema/pack.ts`, `src/schema/validate/sections/root.ts`, `src/schema/validate/sections/cross.ts`, `src/schema/validate/index.ts`, `src/core/dsl/registry.ts`, `src/core/dsl/effect.ts`, `tests/schema/validate.test.ts`, `tests/core/dsl/effect.test.ts`, `tests/core/dsl/checker.test.ts` | pending | — | — | 3 checkpoints |
+| 02 | Schema mirror + validator + core `move`/`speed` DSL | M01, M02 | `src/schema/pack.ts`, `src/schema/validate/sections/root.ts`, `src/schema/validate/sections/cross.ts`, `src/schema/validate/index.ts`, `src/core/dsl/registry.ts`, `src/core/dsl/effect.ts`, `tests/schema/validate.test.ts`, `tests/core/dsl/effect.test.ts`, `tests/core/dsl/checker.test.ts` | **done** | 3/3 (21a0a5f, a2b4db3, 5d76126, corr 933c2fd) | 2026-09-30 | Receive gates green 689/689 (37 files); arch 08a831b |
 | 03 | Runtime movement engine: hex geometry, terrain, pathing, provoke pause, snapshots | M03 | `src/runtime/combat/spatial.ts`, `src/runtime/combat/combat.ts`, `src/runtime/combat/resolve.ts`, `src/runtime/character-profile.ts`, `src/runtime/snapshots.ts`, `src/runtime/equipment.ts`, `src/runtime/display-roll.ts`, `src/runtime/index.ts`, `tests/runtime/combat/movement-geometry.test.ts`, `tests/runtime/combat/movement.test.ts`, `tests/runtime/fixtures/packs.ts`, `tests/snapshots/combat.test.ts` | pending | — | — | 5 checkpoints; first narrow journey at ck2 |
 | 04 | Generated content moves: themes, movement journey, README, CI | M04 (+ tests/docs/CI) | `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `tests/compiler/coverage-floor.test.ts`, `tests/compiler/pipeline.test.ts`, `tests/proofs/grid-journey.test.ts`, `tests/proofs/docs-run.test.ts`, `tests/runtime/combat/character-profile.test.ts`, `tests/proofs/movement-journey.test.ts`, `README.md`, `.github/workflows/ci.yml` | pending | — | — | 3 checkpoints |
 
@@ -379,13 +379,13 @@ whose lease covers the file.
 
 | ID | Approved behavior / entry point | Required facts + producer owners | CA IDs / prerequisites | Integration owner / checkpoint | Status | Proof / checked sources | Open gaps + correction owners |
 |----|--------------------------------|---------------------------------|------------------------|--------------------------------|--------|-------------------------|-------------------------------|
-| CAP-M1 | A pack may declare `spatial.model: "hex"`; reach, `adjacent` and burst use hex distance | model value (S01 contract; S02 mirror + validator); geometry (S03 ck1) | CA-M1 | S03/ck1 (unit); S04/ck2 (generated wyldwood) | contract leg landed: S01 ck3 a134054 (contract leg); runtime producers planned | — | coverage window S02→S03 (closed by S03 ck1) |
+| CAP-M1 | A pack may declare `spatial.model: "hex"`; reach, `adjacent` and burst use hex distance | model value (S01 contract; S02 mirror + validator); geometry (S03 ck1) | CA-M1 | S03/ck1 (unit); S04/ck2 (generated wyldwood) | contract leg landed: S01 ck3 a134054 (contract leg); S02 ck1 21a0a5f (mirror+validator) landed; runtime producers planned | — | coverage window S02→S03 **open since 21a0a5f** (closed by S03 ck1) |
 | CAP-M2 | **First narrow journey:** `declare(moveAction, {to})` moves the actor along the cheapest legal path within `speed`; the position survives serialize/restore (terrain re-stated); rejections change nothing; out-of-combat `useItem` can read `speed` | speed (S01 → S02 scalar → S03 ck2 profile + vars + `useItem`); move statement (S02); path/gate (S03 ck1/ck2); restore terrain (S03 ck2) | CA-M2, CA-M3 | S03/ck2 | planned | — | — |
 | CAP-M3 | Pack-declared blocking and difficult terrain, placed by the host per fight and re-stated on restore | terrain vocabulary (S01/S02); placement + costs + restore terrain (S03 ck1/ck2) | CA-M1, CA-M3, CA-M5 (terrain leg) | S03/ck2 | planned | — | — |
 | CAP-M4 | Pack-declared opportunity reactions fire when a mover leaves reach; the move pauses and resumes; each offer surfaces once | provoke event + pause + per-call offers (S03 ck3); reaction content on classes and statblocks (S04 ck1) | CA-M4, CA-M6 | S03/ck3 (fixture pack); S04/ck2 (generated) | planned | — | — |
 | CAP-M5 | A mid-move pause snapshots and resumes losslessly: derived `resolved` phase; restored offer `on` = event type | `pendingMove` contract (S01); serializer/restore/phase/`on` (S03 ck4) | CA-M5 | S03/ck4; S04/ck2 step 4 | contract leg landed: S01 ck3 a134054 (snapshots contract leg); runtime producers planned | — | R-GM-1 (`offerIndex`), R-GM-2 (`use`-raised offer phase): carried, owner future DB revision |
 | CAP-M6 | Generated themes can move: `speed`, move action, reaction (classes + statblocks), terrain kinds; wyldwood hex | theme content (S04 ck1) | CA-M6 | S04/ck2 | planned | — | — |
-| CAP-M7 | Theater-of-mind packs pay nothing: move content loads and moves are no-op successes | S02 validator (no spatial requirement); S03 no-op branch | CA-M7 | S03/ck2 (unit); S04/ck2 (wyldwood minus spatial) | contract leg landed: S01 ck2/ck3 (doc leg); runtime producers planned | — | — |
+| CAP-M7 | Theater-of-mind packs pay nothing: move content loads and moves are no-op successes | S02 validator (no spatial requirement); S03 no-op branch | CA-M7 | S03/ck2 (unit); S04/ck2 (wyldwood minus spatial) | contract leg landed: S01 ck2/ck3 (doc leg); S02 ck3 5d76126 (validator: no spatial requirement) landed; runtime producers planned | — | — |
 
 **Production path, for every CAP:** `generateCampaign` (or a validated fixture pack) →
 `new Runtime(pack)` (stage-8 `validatePack` + `checkPackDsl`) → `profileFromCharacter` /
@@ -402,7 +402,7 @@ restore.
 | ID | Required meaning / authority | Producer → boundary → consumer | Mapping / constraints | Correction + proof owners / checkpoints | Agreement | Producer | Proof / evidence / checked sources |
 |----|------------------------------|--------------------------------|-----------------------|----------------------------------------|-----------|----------|------------------------------------|
 | CA-M1 | Spatial model vocabulary: `grid` = square/Chebyshev (unchanged); `hex` = axial `{x:q, y:r}`, hex distance; `terrain` kinds `{cost ≥ 1}` xor `{blocks: true}` | `pack.schema.json $defs/spatial` (S01) → `SpatialDef` + `checkSpatial` (S02) → `spatialFromPack`/`hexGeometry`/`findPath` (S03) → theme JSON (S04) | `model` enum `["grid","hex"]` (was const); `terrain` optional; kind ids kebab; exactly one of `cost`/`blocks`; unknown model → `E-SPAT-01` (unchanged mapping); malformed terrain → `E-SCHEMA-01`; search region-bounded exact (DD-M18) | S01 ck3 · S02 ck1 · S03 ck1 · S04 ck1 | agreed (DD-M2/M5 confirmed 2026-09-30) | planned | planned: S02 validate tests; S03 `movement-geometry.test.ts` (incl. wall-detour `out-of-range`) |
-| CA-M2 | `move(formula)`: root-only, dice-free, non-triggered action effects only; `speed` reserved formula + effect scalar, bound in combat and in `useItem` | `database.md §formulas` + registry doc (S01) → `REGISTRY.move`, `EFFECT_SCALARS`, `checkEffectAst`, executor (S02) → `executeAgainst` vars + `apply.move` + `CombatantProfile.speed` + `useItem` vars (S03) | registry 13 → 14; misuse → `E-FORM-02`; `speed` at a formula position without `formulas.speed` → `E-REF-01` (non-formula positions ignored, DD-M19); executor without `apply.move` throws (fail-closed); `useItem` `speed` = `scopedFormula` or 0; compatibility note in database.md (F-P11) | S01 ck3 · S02 ck2/ck3 · S03 ck2 | agreed (DD-M7/M8 confirmed 2026-09-30; F-P5/F-P11 amendments) | contract leg landed: S01 ck3 a134054 (contract/doc leg); runtime producers planned | planned: S02 effect/checker/validate tests; S03 `movement.test.ts` (incl. `useItem` `heal(speed)`) |
+| CA-M2 | `move(formula)`: root-only, dice-free, non-triggered action effects only; `speed` reserved formula + effect scalar, bound in combat and in `useItem` | `database.md §formulas` + registry doc (S01) → `REGISTRY.move`, `EFFECT_SCALARS`, `checkEffectAst`, executor (S02) → `executeAgainst` vars + `apply.move` + `CombatantProfile.speed` + `useItem` vars (S03) | registry 13 → 14; misuse → `E-FORM-02`; `speed` at a formula position without `formulas.speed` → `E-REF-01` (non-formula positions ignored, DD-M19); executor without `apply.move` throws (fail-closed); `useItem` `speed` = `scopedFormula` or 0; compatibility note in database.md (F-P11) | S01 ck3 · S02 ck2/ck3 · S03 ck2 | agreed (DD-M7/M8 confirmed 2026-09-30; F-P5/F-P11 amendments) | contract leg landed: S01 ck3 a134054 (contract/doc leg); S02 ck2 a2b4db3 + ck3 5d76126/933c2fd (registry/executor/checker/validator) landed; runtime producers planned | planned: S02 effect/checker/validate tests; S03 `movement.test.ts` (incl. `useItem` `heal(speed)`) |
 | CA-M3 | Move declare semantics: `DeclareOptions.to`; terrain placement; path legality; rejection kinds with no change | `spatial.html` + `api-map.html` (S01) → `Combat.declare` movement gate + `startCombat` terrain (S03) → journey (S04) | kinds `no-destination` / `blocked` / `occupied` (incl. `to` = own cell) / `unreachable` (no path at any cost) / `out-of-range` (reachable, cost > budget), all rule `E-SPAT-01`; no state/rng/ledger change (compare `serialize()` before and after); startCombat terrain refusals aggregate | S01 ck2 · S03 ck1/ck2 · S04 ck2 | agreed (DD-M5/M6/M9 confirmed 2026-09-30; F-P9/F-P10a amendments) | planned | contract leg landed: S01 ck2 5209311 + ck3 a134054 (doc leg); runtime producers planned |
 | CA-M4 | Provoke: `move:leaving-reach` (actor mover, target threatener); **offers only for events emitted by the current call, each exactly once**; offers not filtered by affordability; pause iff offers; resume on empty queue (a refused take counts as answered); resume re-checks; forfeit on `step()`; `move:advanced` / `move:ended` | `spatial.html` provoke section + database.md (S01) → `combat.ts` walk + per-call `surfaceOffers` + `respond` + `step` (S03) → reaction content on classes and statblocks (S04) | pattern `move:leaving-reach[target=self]` matches through the existing `eventMatches` (no grammar change); reasons are the closed set in DD-M10; after the only offer is taken or declined, `pendingTriggers` is `[]` and exactly one `trigger:fired`/`trigger:declined` exists per matching event; spent-slot take → one `declare:rejected {slot-exhausted, reaction}` E-ECON-01, no change | S01 ck2/ck3 · S03 ck3 · S04 ck1/ck2 | agreed (DD-M10 confirmed 2026-09-30; F-P1/F-P10b amendments) | contract leg landed: S01 ck2 5209311 + ck3 a134054 (doc leg); runtime producers planned | planned: S03 `movement.test.ts` + whole suite at ck3 |
 | CA-M5 | Snapshot: combatant `pendingMove?` round-trips; positions and terrain re-stated by the host; restore derives phase `resolved` when any `pendingMove`/`pendingTrigger`; restored offer `on` = event type | `snapshots.schema.json` (S01) → `serializeCombat` / `deserializeCombat` / `CombatRestoreRequest.terrain` (S03 ck2) / `pendingMove` + phase + `on` (S03 ck4) | serialize only when set; restore refuses an unknown or non-move `actionId` → `E-SNAP-01`; terrain refusals = startCombat's; spatial restore gate (CAP-G5) unchanged; parity: restored paused fight's `step()` yields the same `move:ended{forfeited}` → `turn:ended` (identical payloads) as uninterrupted; `respond` resume parity on `move:*` payloads + positions (R-GM-1 scope) | S01 ck3 · S03 ck2 (terrain) · S03 ck4 | agreed (DD-M12 confirmed 2026-09-30; F-P2/F-P3 amendments) | planned | planned: `tests/snapshots/combat.test.ts` round-trip mid-pause + forfeit parity |
@@ -445,3 +445,65 @@ Orchestrator receive: commits inside the lease; typecheck/lint/format:check/buil
 - **needsDesignSource:** —
 - **blockedReason:** —
 - **filesTouched:** program/Ruleswright/specs/requirements.md, program/Ruleswright/mocks/spatial.html, program/Ruleswright/mocks/api-map.html, program/Ruleswright/specs/database.md, src/schema/contracts/pack.schema.json, src/schema/contracts/snapshots.schema.json
+
+### SESSION-02 — done 2026-09-30 (3/3 + correction: 21a0a5f, a2b4db3, 5d76126, 933c2fd)
+
+Orchestrator receive: all commits inside the lease; typecheck/lint/format:check/build/isolation/security 0; `pnpm test` 689/689 (37 files). Arch delta integrated at 08a831b. CA-M1/M2 rechecked against committed types (`TerrainKind`, `model: grid|hex`, `terrain?`, `EffectApply.move?`, `MoveOutcome`, `REGISTRY.move`, `NON_FORMULA_ARGS` = DD-M19). No mapping change; S03 dispatched against the planned CA text plus S02 followUp.
+
+
+- **session:** 02
+- **status:** done
+- **checkpoint:** 3
+- **notes:** CAP-M1/M2/M3/M7 producer legs landed (M01 mirror + validator, M02 registry/executor/checker); CA-M1, CA-M2 (core + validator leg) and CA-M7 validator leg produced; no user capability proven yet (integration owners S03/S04). Commits: ck1 `21a0a5f`, ck2 `a2b4db3`, ck3 `5d76126`, ck3 correction `933c2fd` (base `3d52826`, lease revision 1). Exported symbols:
+  - `TerrainKind`, `SpatialDef.model: 'grid' | 'hex'` and `SpatialDef.terrain?` (`pack.ts`);
+  - `checkMovementDsl` (`validate/sections/cross.ts`, dispatched in `validate/index.ts` after `checkRestrictsTags`);
+  - `REGISTRY.move = {arity:1, kind:'effect', signature:['formula']}` (13→14), with `EFFECT_VOCABULARY` + `move`;
+  - `EFFECT_SCALARS = ['level','hp','ac','initiative','speed']`;
+  - `EffectApply.move?(budget: number): void` (optional);
+  - `MoveOutcome {kind:'move', budget}` in `EffectResolution`;
+  - `ARG_CATEGORIES.move = ['formula']`.
+
+  Message texts:
+  - E-SPAT-01: `…the engine ships exactly {grid, hex} (grid: square, Chebyshev distance; hex: axial coordinates)…`
+  - Core E-FORM-02 nesting: `move(...) must be the whole effect — it cannot be nested in sequence/target/save.`
+  - Core E-FORM-02 dice: `move's budget must be dice-free (evaluated at declare time, before cost).`
+  - Cross E-FORM-02: `move(...) is legal only as the root statement of a non-triggered actions.<id>.effect — not in {a triggered action | a spell effect | a feat effect | an item's use}.`
+  - E-REF-01: `"speed" is referenced at a formula position, but the pack declares no formulas.speed — speed is a reserved optional formula id (v1.5 movement budget).`, hint `declare formulas.speed to give effects a speed to read.`
+  - Executor throw: `move(...) needs host movement support (EffectApply.move) — combat supplies it; other callers cannot move (FR-11)`
+
+  `NON_FORMULA_ARGS` as landed = `{damage:[1], applyCondition:[0], target:[0], save:[0]}`. It matches `ARG_CATEGORIES`.
+
+  Pins re-keyed:
+  - `validate.test.ts:473-481`: `'hex'` → `'isometric'`; the assertion is kept.
+  - `checker.test.ts:12-29`: 13 → 14 entries, `'move'` between `'min'` and `'save'`, title → "v1.5 membership (14…)".
+  - `effect.test.ts:355`: title only, adds `/speed`.
+
+  The S02→S03 coverage window is open: the validator accepts hex, but `spatialFromPack` still builds square geometry until S03 ck1.
+- **delivered:**
+  - ck1: `SpatialDef` mirror for hex + terrain; `checkSpatial` accepts `{grid, hex}`, closes the key set to include `terrain`, and a private `checkTerrain` enforces the kind rules (E-SCHEMA-01 at `spatial.terrain.<kind>`).
+  - ck2: registry `move`; the `speed` scalar; optional `EffectApply.move`; `MoveOutcome`; a fail-closed `execMove`; the `atRoot` root-only check and the dice-free check in `checkEffectAst`.
+  - ck3: `checkMovementDsl` walks `actions.*.effect`, `content.spells.*.effect`, `content.feats.*.effect` and `content.items.*.use`. It checks root-`move` placement and runs a position-aware `speed` scan. The scan never throws and is silent on unbalanced input. The speed rule is silent when `formulas` is unreadable.
+- **verification:**
+  - Final HEAD `933c2fd`: typecheck, lint, format:check, build, check:isolation and check:security all exit 0.
+  - `pnpm test` → 689/689 across 37 files (661 + 28 new).
+  - `pnpm exec vitest run tests/schema tests/core` → 210/210 across 10 files.
+  - `RULE_IDS` stays 15.
+  - The CA-M1, CA-M2 core, CA-M2 validator and CA-M7 tests are listed in the runtime log.
+  - Negative controls: with `NON_FORMULA_ARGS` emptied, the DD-M19 test failed, then passed once restored; the grouping-paren regression failed before `933c2fd` and passes after.
+  - All boundaries are real production code; the executor tests use a recording `apply` fixture.
+- **surprises:**
+  - Correction commit `933c2fd`: the ck3 speed scan lost argument position across grouping parentheses. Fixed with a group frame plus a regression test, as a new commit; no amend.
+  - Tokenizer deviation: the scan uses the core lexer grammar `[A-Za-z_][A-Za-z0-9_-]*` plus a catch-all operator token instead of the prompt's `[a-z][a-z0-9-]*`. This does not change the DD-M19 mapping.
+  - The speed rule is silent when `formulas` is not an object.
+  - The ck0 recheck against `a134054` found no contract delta.
+  - Pre-existing and left as-is: `heal` is absent from `EFFECT_VOCABULARY`.
+  - Lease revision 1 was used.
+- **followUp:**
+  - S03 must: bind `vars.speed` (`profile.speed ?? 0`) and supply `apply.move` in `executeAgainst`; bind `speed` in `useItem` vars (`scopedFormula` or 0); expect a `{kind:'move', budget}` `MoveOutcome` in effect resolutions (`combat.ts`/`resolve.ts` `if` chains); make runtime geometry hex-aware at ck1 (this closes the coverage window).
+  - Orchestrator: recheck CA-M1/M2 against the committed types and `referencesSpeed`/`NON_FORMULA_ARGS` in `cross.ts` before S03.
+  - Future proof owners: S03 `movement.test.ts` (runtime `apply.move`, `useItem` `heal(speed)`); S04 journey.
+  - Arch fragment written to `.program/signal/SESSION-02.arch.md`.
+- **needsOwnerCorrection:** —
+- **needsDesignSource:** —
+- **blockedReason:** —
+- **filesTouched:** src/schema/pack.ts, src/schema/validate/sections/root.ts, src/schema/validate/sections/cross.ts, src/schema/validate/index.ts, src/core/dsl/registry.ts, src/core/dsl/effect.ts, tests/schema/validate.test.ts, tests/core/dsl/effect.test.ts, tests/core/dsl/checker.test.ts
