@@ -352,8 +352,61 @@ describe('checkEffect — the S01 seam for effect fields', () => {
     expect(cards[0]!.message).toMatch(/offset/);
   });
 
-  it('unknown names in formula arguments resolve against saves + EFFECT_SCALARS (hp/ac/initiative/level)', () => {
+  it('unknown names in formula arguments resolve against saves + EFFECT_SCALARS (hp/ac/initiative/level/speed)', () => {
     expect(checkEffect(request('attack(ac, vigor)'))[0]!.rule).toBe('E-FORM-03');
     expect(checkEffect(request('save(reason, 14 + hp, damage(1d6), damage(half))'))).toEqual([]);
+  });
+});
+
+describe('move(formula) — v1.5 host movement (CA-M2)', () => {
+  it('checks clean with speed as an effect scalar', () => {
+    for (const expr of ['move(speed)', 'move(3)', 'move(speed * 2)']) {
+      expect(checkEffect(request(expr)), expr).toEqual([]);
+    }
+  });
+
+  it('nested inside sequence/target/save is E-FORM-02', () => {
+    for (const expr of [
+      'sequence(move(3), damage(1))',
+      'target(self, move(3))',
+      'save(reason, 12, move(2), damage(1))',
+    ]) {
+      const cards = checkEffect(request(expr));
+      expect(cards[0]?.rule, expr).toBe('E-FORM-02');
+      expect(cards[0]?.message, expr).toMatch(/must be the whole effect/);
+    }
+  });
+
+  it('a dice budget is E-FORM-02', () => {
+    for (const expr of ['move(1d6)', 'move(speed + 1d4)', 'move(max(1d4, 2))']) {
+      const cards = checkEffect(request(expr));
+      expect(cards[0]?.rule, expr).toBe('E-FORM-02');
+      expect(cards[0]?.message, expr).toMatch(/dice-free/);
+    }
+  });
+
+  it('the executor requests apply.move with the evaluated budget once', () => {
+    const budgets: number[] = [];
+    const outcomes = executeEffect(mustParse('move(speed)'), {
+      actor: null,
+      targets: [goblin],
+      rng: new Rng(1),
+      apply: { ...recordingApply().apply, move: (budget: number) => budgets.push(budget) },
+      vars: { speed: 6 },
+    });
+    expect(budgets).toEqual([6]);
+    expect(outcomes).toEqual([{ kind: 'move', budget: 6 }]);
+  });
+
+  it('fails closed when the host supplies no apply.move', () => {
+    expect(() =>
+      executeEffect(mustParse('move(3)'), {
+        actor: null,
+        targets: [],
+        rng: new Rng(1),
+        apply: recordingApply().apply,
+        vars: {},
+      }),
+    ).toThrow(/needs host movement support/);
   });
 });

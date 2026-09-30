@@ -23,6 +23,9 @@
  * total — the RollResult total invariant survives) and requested through
  * `apply.damage`; the host clamps at the target's max hp. The executor never
  * caps a heal itself.
+ *
+ * `move(formula)` (v1.5, CA-M2) evaluates its dice-free budget and hands it to
+ * the host's `apply.move`; a host without movement support fails closed.
  */
 import { parseRecipe, rollRecipe, type DiceRecipe, type RollResult } from '../dice';
 import type { RandomSource } from '../rng';
@@ -53,8 +56,8 @@ export interface EffectNode extends FormulaNode {
 
 export type EffectAst = EffectNode;
 
-/** Scalars an effect's formula arguments may reference at play time: level plus CA-6's engine-resolved derived stats. */
-export const EFFECT_SCALARS: readonly string[] = ['level', 'hp', 'ac', 'initiative'];
+/** Scalars an effect's formula arguments may reference at play time: level plus CA-6's engine-resolved derived stats (v1.5: + speed). */
+export const EFFECT_SCALARS: readonly string[] = ['level', 'hp', 'ac', 'initiative', 'speed'];
 
 /** Host-supplied target handle; identity only — combat state stays host-side. */
 export interface EffectTargetRef {
@@ -67,6 +70,8 @@ export interface EffectApply {
   resolveTargets(shape: string): readonly EffectTargetRef[];
   damage(target: EffectTargetRef, roll: RollResult, type?: string): void;
   condition(target: EffectTargetRef, conditionId: string, duration: number): void;
+  /** v1.5 — host movement (FR-11): spend up to `budget` movement points toward the declared destination. Absent = the host has no movement support. */
+  move?(budget: number): void;
 }
 
 /** Play-time context: actor (opaque, host identity), scope targets, RNG, mutation callbacks, actor-state scalars. */
@@ -126,13 +131,25 @@ export interface TargetOutcome {
   readonly outcomes: readonly EffectResolution[];
 }
 
+export interface MoveOutcome {
+  readonly kind: 'move';
+  /** The evaluated movement budget handed to the host. */
+  readonly budget: number;
+}
+
 export interface SequenceOutcome {
   readonly kind: 'sequence';
   readonly steps: readonly EffectResolution[];
 }
 
 export type EffectResolution =
-  AttackOutcome | SaveOutcome | DamageOutcome | ConditionOutcome | TargetOutcome | SequenceOutcome;
+  | AttackOutcome
+  | SaveOutcome
+  | DamageOutcome
+  | ConditionOutcome
+  | TargetOutcome
+  | SequenceOutcome
+  | MoveOutcome;
 
 // ---------------------------------------------------------------- parsing
 
@@ -223,6 +240,8 @@ function execStatement(
       return execTarget(args, ctx, scope, halveFrom);
     case 'sequence':
       return execSequence(args, ctx, scope, halveFrom);
+    case 'move':
+      return execMove(args, ctx);
     default:
       throw new Error(`unknown effect function "${node.text}" — validate before execution (E-FORM-02)`);
   }
@@ -386,6 +405,18 @@ function execSequence(
   return [{ kind: 'sequence', steps }];
 }
 
+/** move(formula) → one host movement request with the evaluated budget; no host support = fail closed (FR-11). */
+function execMove(args: readonly FormulaAst[], ctx: EffectContext): readonly EffectResolution[] {
+  if (ctx.apply.move === undefined) {
+    throw new Error(
+      'move(...) needs host movement support (EffectApply.move) — combat supplies it; other callers cannot move (FR-11)',
+    );
+  }
+  const budget = valueOfFormula(evalFormula(args[0]!, ctx.vars, ctx.rng));
+  ctx.apply.move(budget);
+  return [{ kind: 'move', budget }];
+}
+
 /** The fail branch's first damage expression + its declared type — what damage(half) re-rolls and halves (magic.html: "half · 5 fire"). */
 type HalveFrom = { expr: FormulaAst; type?: string };
 
@@ -422,6 +453,7 @@ const ARG_CATEGORIES: Readonly<Record<string, readonly string[]>> = {
   applyCondition: ['condition-id', 'formula'],
   target: ['shape', 'effect'],
   sequence: [],
+  move: ['formula'],
 };
 
 /**
@@ -443,7 +475,7 @@ export function checkEffect(request: DslCheckRequest): ErrorCard[] {
     saves: request.saves,
     scalars: EFFECT_SCALARS,
   };
-  const failure = checkEffectAst(parsed.value, ctx, false, true);
+  const failure = checkEffectAst(parsed.value, ctx, false, true, true);
   if (failure === undefined) return [];
   return [dslCard(failure.rule, request, failure.message, failure.hint)];
 }
@@ -455,6 +487,7 @@ function checkEffectAst(
   ctx: FormulaCheckContext,
   insideSavePass: boolean,
   atEffectPosition: boolean,
+  atRoot: boolean,
 ): EffectFailure | undefined {
   if (node.kind !== 'call') {
     if (atEffectPosition) {
@@ -479,6 +512,20 @@ function checkEffectAst(
           : `"${name}" cannot be used here — ${spec.kind} vocabulary only.`,
     };
   }
+  if (name === 'move') {
+    if (!atRoot) {
+      return {
+        rule: 'E-FORM-02',
+        message: 'move(...) must be the whole effect — it cannot be nested in sequence/target/save.',
+      };
+    }
+    if ((node.args ?? []).some(containsDice)) {
+      return {
+        rule: 'E-FORM-02',
+        message: "move's budget must be dice-free (evaluated at declare time, before cost).",
+      };
+    }
+  }
   const categories = ARG_CATEGORIES[name] ?? [];
   const [minArgs, maxArgs] = typeof spec.arity === 'number' ? [spec.arity, spec.arity] : spec.arity;
   const count = (node.args ?? []).length;
@@ -493,7 +540,7 @@ function checkEffectAst(
     const category = name === 'sequence' ? 'effect' : categories[index];
     if (category === undefined) continue;
     if (category === 'effect') {
-      const failure = checkEffectAst(arg, ctx, name === 'save' && index === 3, true);
+      const failure = checkEffectAst(arg, ctx, name === 'save' && index === 3, true, false);
       if (failure !== undefined) return failure;
       continue;
     }
@@ -529,6 +576,12 @@ function checkEffectAst(
     }
   }
   return undefined;
+}
+
+function containsDice(node: FormulaAst): boolean {
+  if (node.kind === 'dice') return true;
+  const children = [...(node.args ?? []), node.operand, node.left, node.right];
+  return children.some((child) => child !== undefined && containsDice(child));
 }
 
 /** did-you-mean for save names (E-FORM-03) — nearest by edit distance, S01's nearestIds semantics. */

@@ -9,6 +9,10 @@
  * v1.4 (contract schema event, database.md §formulas): 12 → 13 with
  * `heal(formula)` — an effect statement executed as a negative-amount damage
  * request. No new rule id: an unknown function remains E-FORM-02.
+ *
+ * v1.5 (contract schema event, database.md §formulas, FR-11): 13 → 14 with
+ * `move(formula)` — host movement up to a dice-free budget; legal only as the
+ * root statement of a non-triggered action effect (misuse = E-FORM-02).
  */
 export const REGISTRY: Readonly<Record<string, FunctionSpec>> = Object.freeze({
   attack: { arity: 2, kind: 'effect', signature: ['formula', 'formula'] },
@@ -18,6 +22,7 @@ export const REGISTRY: Readonly<Record<string, FunctionSpec>> = Object.freeze({
   applyCondition: { arity: 2, kind: 'effect', signature: ['condition-id', 'formula'] },
   target: { arity: 2, kind: 'effect', signature: ['shape', 'effect'] },
   sequence: { arity: [2, 8], kind: 'effect', signature: ['effect', 'effect'] },
+  move: { arity: 1, kind: 'effect', signature: ['formula'] },
   hasTarget: { arity: 1, kind: 'validity', signature: ['shape'] },
   min: { arity: 2, kind: 'formula', signature: ['formula', 'formula'] },
   max: { arity: 2, kind: 'formula', signature: ['formula', 'formula'] },
@@ -52,6 +57,7 @@ export const EFFECT_VOCABULARY: readonly string[] = [
   'applyCondition',
   'target',
   'sequence',
+  'move',
 ];
 
 /** Validity vocabulary the registry must cover (S01's `valid` kind). */

@@ -9,7 +9,7 @@ import {
 import { validatePack } from '../../../src/schema/validate';
 
 describe('registry freeze (CA-2: extension is a schema event, never a code change)', () => {
-  it('asserts the exact v1.4 membership (13: heal joined as the v1.4 schema event) — additive id check, mirroring CA-1 discipline', () => {
+  it('asserts the exact v1.5 membership (14: move joined as the v1.5 schema event, after heal in v1.4) — additive id check, mirroring CA-1 discipline', () => {
     expect(Object.keys(REGISTRY).sort()).toEqual([
       'applyCondition',
       'attack',
@@ -21,6 +21,7 @@ describe('registry freeze (CA-2: extension is a schema event, never a code chang
       'heal',
       'max',
       'min',
+      'move',
       'save',
       'sequence',
       'target',
@@ -31,6 +32,11 @@ describe('registry freeze (CA-2: extension is a schema event, never a code chang
     for (const name of EFFECT_VOCABULARY) expect(REGISTRY[name]).toBeDefined();
     for (const name of VALIDITY_VOCABULARY) expect(REGISTRY[name]).toBeDefined();
     for (const name of FORMULA_VOCABULARY) expect(REGISTRY[name]).toBeDefined();
+  });
+
+  it('the effect vocabulary includes move (v1.5)', () => {
+    expect(EFFECT_VOCABULARY).toContain('move');
+    expect(REGISTRY['move']).toEqual({ arity: 1, kind: 'effect', signature: ['formula'] });
   });
 
   it('is frozen at runtime', () => {
@@ -84,6 +90,18 @@ describe('S01 wiring — validatePack with the real checker (CA-2 producer proof
     const form = cards.filter((card) => card.rule === 'E-FORM-01');
     expect(form).toHaveLength(1);
     expect(form[0]!.message).toMatch(/offset/);
+  });
+
+  it('move is root-only and dice-free through the whole validator (E-FORM-02)', () => {
+    const clean = validatePack(pack('move(3)'), packDslChecker);
+    expect(clean.filter((card) => card.rule.startsWith('E-FORM'))).toEqual([]);
+    for (const effect of ['sequence(move(3), damage(1))', 'move(1d6)', 'move(2 + 1d4)']) {
+      const cards = validatePack(pack(effect), packDslChecker);
+      expect(
+        cards.filter((card) => card.rule === 'E-FORM-02').map((card) => card.jsonPath),
+        effect,
+      ).toEqual(['actions.strike.effect']);
+    }
   });
 
   it('valid-field expressions are checked with the validity grammar', () => {
