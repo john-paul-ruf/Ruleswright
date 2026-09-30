@@ -19,10 +19,10 @@
  * with-grants `hp` formula — never above the cap, never lowering hp already
  * above it (legal after an unequip).
  *
- * Runtime leaf (R-11): value imports are core, `./errors` and `./conditions`
- * only — character/pools/inventory import this module, never the reverse.
+ * Runtime leaf (R-11): value imports are core, `./errors`, `./conditions` and
+ * the `./display-roll` leaf only — character/pools/inventory import this
+ * module, never the reverse.
  */
-import type { RollResult } from '../core/dice';
 import { executeEffect, type EffectApply } from '../core/dsl/effect';
 import { EQUIPMENT_SCALARS, evalFormula, valueOfFormula } from '../core/dsl/formula';
 import { Rng, type RandomSource } from '../core/rng';
@@ -31,6 +31,7 @@ import type { CharacterState } from './character';
 import { RuntimeRuleError, ruleCard } from './errors';
 import type { RuntimeEvent } from './events';
 import { applyCondition } from './conditions';
+import { displayRoll } from './display-roll';
 
 /** One occupied slot: plain data; one item per slot; the slot is a pack `equipSlots` id. */
 export interface EquippedEntry {
@@ -310,7 +311,7 @@ export function useItem(
           actor: state.id,
           target: state.id,
           payload: { amount: roll.total, type, hp: `${before}→${after}` },
-          why: { rule, rolls: [rollText(roll)] },
+          why: { rule, rolls: [displayRoll(roll)] },
         }),
       );
     },
@@ -347,10 +348,4 @@ function scopedFormula(runtime: Runtime, formulaId: string, scope: Readonly<Reco
     );
   }
   return valueOfFormula(evalFormula(ast, scope, new Rng(0)));
-}
-
-/** The `why.rolls` display string (combat's `d<sides>[values]±mod=total` anatomy; combat.ts is not importable from this leaf, R-11). */
-function rollText(roll: RollResult): string {
-  const modifier = roll.modifier === 0 ? '' : roll.modifier > 0 ? `+${roll.modifier}` : `${roll.modifier}`;
-  return `d${roll.sides}[${roll.values.join(',')}]${modifier}=${roll.total}`;
 }

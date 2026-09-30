@@ -66,6 +66,7 @@ import {
 } from './spatial';
 import { evalFormula, evalValidity, valueOfFormula, type FormulaAst } from '../../core/dsl/formula';
 import { RuntimeRuleError, ruleCard } from '../errors';
+import { displayRoll } from '../display-roll';
 import type { ErrorCard } from '../../schema/error-card';
 
 /** One combatant's live combat state — plain JSON, snapshot-ready (FR-14). */
@@ -1414,17 +1415,8 @@ export function defeatedSide(combatants: Readonly<Record<string, CombatantState>
   return undefined;
 }
 
-/** Structured roll → the mock's display string (`d20[14]+3=17 ≥ ac15`, `d6[4]+2=6`). */
-export function displayRoll(roll: import('../../core/dice').RollResult): string {
-  const dicePart = `d${roll.sides}[${roll.values.join(',')}]`;
-  const modifierPart =
-    roll.modifier === 0 ? '' : roll.modifier > 0 ? `+${roll.modifier}` : `${roll.modifier}`;
-  const base = `${dicePart}${modifierPart}=${roll.total}`;
-  const verdict = roll.verdict;
-  if (verdict === undefined) return base;
-  const relation = verdict.result === 'miss' || verdict.result === 'fail' ? '<' : '≥';
-  return `${base} ${relation} ${verdict.defense}${verdict.value}`;
-}
+/** Re-exported from the leaf so the runtime barrel keeps `displayRoll` where it was. */
+export { displayRoll };
 
 /** A convenience alias for CombatState's rng — re-exported for the snapshot seam (S06). */
 export type { SlotLedger, SlotGrants };
