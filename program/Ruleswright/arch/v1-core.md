@@ -715,3 +715,62 @@ at the equipment-consumables final pass (original text recoverable at c39ef87). 
 ### Edges
 
 No new module or edge. M02→M01 stays type-only, and M01 imports no core value (`check:isolation` 0).
+
+<!-- grid-movement SESSION-03 -->
+## grid-movement SESSION-03 delta (Orchestrator mid-run append; commits ea4e308..27c77f4)
+
+
+No new module, no new cross-module edge, no new rule id. One new runtime leaf file.
+
+### `arch/v1-core.md:163` — offer surfacing (F-P1, DD-M10)
+
+`resolve()` still returns the round window (`events.sinceRound(round)`), and so do
+`declare()` and `respond()` (unchanged public return values). **Offers, however, are
+surfaced only for the events the current call emitted**: `declare` and the reactive
+resolution behind `respond(…, 'take')` collect their own events with a per-call sink
+(`Combat.collect`, the `execute()` idiom) and feed only those to `surfaceOffers`; `use`
+already surfaced per call. `surfaceOffers` also skips any event it has already surfaced
+(a facade-side `WeakSet<RuntimeEvent>`, not combat state), so each (reactor, event) pair is
+offered exactly once. Offers raised inside a movement walk are surfaced when they are raised.
+After the only offer is taken or declined, `pendingTriggers` is `[]`.
+
+### Public API delta (`ruleswright/runtime`)
+
+- `combat/spatial.ts`: `hexGeometry(model)` (axial, DD-M2; `canReach` keeps
+  `≤ max(reach, defaultReach)`, DD-M14); `SpatialGeometry.model?: 'grid' | 'hex'` and
+  `SpatialGeometry.neighbors(p)` (grid: 8, counter-clockwise from east; hex: the pinned 6;
+  theater: `[]`); `spatialFromPack` dispatches on `spatial.model`; `TerrainCell {at, kind}`;
+  `PathQuery`; `PathResult`; `findPath(geometry, query)` (region-bounded exact Dijkstra,
+  DD-M18; kinds `blocked` → `occupied` → `unreachable` → `out-of-range {cost}`);
+  `terrainAt(vocabulary, cells)` and `entryCost(kind)`; `MoveRejection`
+  `{kind: no-destination|blocked|occupied|unreachable|out-of-range, rule: 'E-SPAT-01'}`.
+- `combat/combat.ts`: `DeclareOptions.to?: Position`; `StartCombatRequest.terrain?`;
+  `CombatState.terrain: readonly TerrainCell[]` (`[]` when none; every `serialize()` now
+  carries it); `CombatantState.speed?`, `CombatantState.pendingMove?`; `PendingMove
+  {actionId, to, remaining}`; `DeclareRejection` gains `MoveRejection`. startCombat's
+  E-SPAT-01 aggregate now also carries terrain refusals (unknown kind `terrain[i].kind`,
+  duplicate cell `terrain[i].at`, combatant on a blocking cell `positions.<id>`).
+  Events: `move:leaving-reach` (actor mover, target threatener, `{at, next}`),
+  `move:advanced {from, to, path, cost, remaining}`, `move:ended {reason, at}` — all with
+  `why.rule = actions.<moveActionId>`. `step()` while a move is paused emits
+  `move:ended {reason:'forfeited'}` before `turn:ended`. `respond()` resumes a paused move
+  when the offer queue empties and returns its events plus the resumption events.
+  `displayRoll` is re-exported from the new leaf.
+- `combat/resolve.ts`: `CombatantProfile.speed?` (only when `formulas.speed` is declared);
+  `executeAgainst(…, resolveShapeTargets?, move?)` — `move` becomes `apply.move`;
+  `effectVars(actor, target)` (the executor's per-target vars, `speed` = `profile.speed ?? 0`).
+- `character-profile.ts`: `profileFromCharacter` emits `speed` only when `formulas.speed` is declared.
+- `equipment.ts`: `useItem` binds `speed` (the pack's `speed` formula over the equipment
+  scope, else 0); the private `rollText` is gone (uses `displayRoll`).
+- `snapshots.ts`: `CombatRestoreRequest.terrain?` (host re-states; same refusals as
+  startCombat, paths `restore.terrain[i].kind|at`, `restore.<id>.position`);
+  `SnapshotCombatant.pendingMove?` (only when set; unknown/non-move `actionId` → E-SNAP-01
+  at `combatants[i].pendingMove.actionId`). **Derived restore phase:** `combat-over` if a
+  side is defeated, else `resolved` if any combatant carries `pendingMove`/`pendingTrigger`,
+  else `awaiting-declare`. A restored offer's `matchingEvent` is the pattern's event type
+  (base before `[`).
+- New leaf `src/runtime/display-roll.ts` (`displayRoll`; imports only `core/dice` types).
+  Value-import edges: `combat/combat.ts → display-roll.ts`, `equipment.ts → display-roll.ts`
+  (equipment stays a leaf apart from this leaf). Intra-module helper exports not in the
+  barrel: `copyTerrain`, `terrainRefusals`, `moveBudgetAst` (combat.ts → snapshots.ts),
+  `effectVars` (resolve.ts → combat.ts).
