@@ -11,9 +11,9 @@
 - **Authorization:** this comes from the human's answers on 2026-09-29: "1 B; hex movement;
   yes blocking and difficult terrain defined by pack; reactions — yes — defined by pack".
   That settles the direction. The defaults DD-M2…DD-M13 below were chosen by Planner and
-  **must be confirmed by the human before SESSION-01 is dispatched**. SESSION-01 is an
-  Author re-entry session in the requirements-change, design-change and schema-change
-  classes, so it is human-gated.
+  **confirmed by the human on 2026-09-30 ("confirmed", no edits)**. That answer authorizes
+  SESSION-01's Author re-entry (requirements-change, design-change and schema-change
+  classes) exactly as written in DD-M1…DD-M13.
 - **Plan HEAD:** `02f8196` (clean tree; `pnpm test` 661/661 across 37 files, run by Planner
   2026-09-29).
 - **Sessions:** 4. They run serially:
@@ -24,7 +24,7 @@
 
 | # | Session | Modules | Owns | Status | Checkpoint | Completed | Notes |
 |---|---------|---------|------|--------|------------|-----------|-------|
-| 01 | Author re-entry: FR-11 movement amendment, spatial/api-map design, contract v1.5 | — (Author: Spec, Designer, DB) | `program/Ruleswright/specs/requirements.md`, `program/Ruleswright/mocks/spatial.html`, `program/Ruleswright/mocks/api-map.html`, `program/Ruleswright/specs/database.md`, `src/schema/contracts/pack.schema.json`, `src/schema/contracts/snapshots.schema.json` | pending (human confirmation of DD-M2..M13 required) | — | — | Author roles, not Coder |
+| 01 | Author re-entry: FR-11 movement amendment, spatial/api-map design, contract v1.5 | — (Author: Spec, Designer, DB) | `program/Ruleswright/specs/requirements.md`, `program/Ruleswright/mocks/spatial.html`, `program/Ruleswright/mocks/api-map.html`, `program/Ruleswright/specs/database.md`, `src/schema/contracts/pack.schema.json`, `src/schema/contracts/snapshots.schema.json` | pending (ready — DD-M2..M13 confirmed 2026-09-30) | — | — | Author roles, not Coder |
 | 02 | Schema mirror + validator + core `move`/`speed` DSL | M01, M02 | see SESSION-02 | pending | — | — | |
 | 03 | Runtime movement engine: hex geometry, terrain, pathing, provoke pause, snapshots | M03 | see SESSION-03 | pending | — | — | first narrow journey at ck2 |
 | 04 | Generated content moves: themes, movement journey, README, CI | M04 (+ tests/docs/CI) | see SESSION-04 | pending | — | — | |
@@ -102,8 +102,8 @@ header; `.program/` holds no ledger or blockers file in the tree):
 
 ## Design Decisions
 
-Only DD-M1 was stated by the human. **DD-M2…DD-M13 are Planner defaults that the human
-must confirm before S01 dispatch.** S01 writes them into the Author artifacts. If S01's
+DD-M1 was stated by the human. **DD-M2…DD-M13 were Planner defaults, confirmed unchanged by
+the human on 2026-09-30.** S01 writes them into the Author artifacts. If S01's
 Author roles or the human change one, the matching CA row and the affected session
 prompts are amended before S02 dispatch.
 
@@ -236,13 +236,13 @@ the snapshot envelope. "Restart" = serialize → JSON → restore.
 
 | ID | Required meaning / authority | Producer → boundary → consumer | Mapping / constraints | Correction + proof owners / checkpoints | Agreement | Producer | Proof / evidence / checked sources |
 |----|------------------------------|--------------------------------|-----------------------|----------------------------------------|-----------|----------|------------------------------------|
-| CA-M1 | Spatial model vocabulary: `grid` = square/Chebyshev (unchanged); `hex` = axial `{x:q, y:r}`, hex distance; `terrain` kinds `{cost ≥ 1}` xor `{blocks: true}` | `pack.schema.json $defs/spatial` (S01) → `SpatialDef` + `checkSpatial` (S02) → `spatialFromPack`/`hexGeometry` (S03) → theme JSON (S04) | `model` enum `["grid","hex"]` (was const); `terrain` optional; kind ids kebab; exactly one of `cost`/`blocks`; unknown model → `E-SPAT-01` (unchanged mapping); malformed terrain → `E-SCHEMA-01` | S01 ck3 · S02 ck1 · S03 ck1 · S04 ck1 | agreed (pending human confirm DD-M2/M5) | planned | planned: S02 validate tests; S03 `movement-geometry.test.ts` |
-| CA-M2 | `move(formula)`: root-only, dice-free, non-triggered action effects only; `speed` reserved formula + effect scalar | `database.md §formulas` + registry doc (S01) → `REGISTRY.move`, `EFFECT_SCALARS`, `checkEffect`, executor (S02) → `executeAgainst` vars + `apply.move` + `CombatantProfile.speed` (S03) | registry 13 → 14; misuse → `E-FORM-02`; `speed` referenced without `formulas.speed` → `E-REF-01`; executor without `apply.move` throws (fail-closed) | S01 ck3 · S02 ck2 · S03 ck2 | agreed (pending DD-M7/M8) | planned | planned: S02 effect/checker/validate tests; S03 movement test |
-| CA-M3 | Move declare semantics: `DeclareOptions.to`; terrain placement; path legality; rejection kinds with no change | `spatial.html` + `api-map.html` (S01) → `Combat.declare` movement gate + `startCombat` terrain (S03) → journey (S04) | kinds `no-destination` / `blocked` / `occupied` / `unreachable` / `out-of-range`, all rule `E-SPAT-01`; no state/rng/ledger change (compare `serialize()` before and after); startCombat terrain refusals aggregate | S01 ck2 · S03 ck2 · S04 ck2 | agreed (pending DD-M5/M6/M9) | planned | planned |
-| CA-M4 | Provoke: `move:leaving-reach` (actor mover, target threatener); pause iff offers; resume on empty queue; resume re-checks; forfeit on `step()`; `move:advanced` / `move:ended` | `spatial.html` provoke section (S01) → `combat.ts` walk + `respond` + `step` (S03) → `opportunist` content (S04) | pattern `move:leaving-reach[target=self]` matches through the existing `eventMatches` (no grammar change); reasons are the closed set in DD-M10 | S01 ck2 · S03 ck3 · S04 ck1/ck2 | agreed (pending DD-M10) | planned | planned |
-| CA-M5 | Snapshot: combatant `pendingMove?` round-trips; positions and terrain re-stated by the host | `snapshots.schema.json` (S01) → `serializeCombat` / `deserializeCombat` / `CombatRestoreRequest.terrain` (S03) | serialize only when set; restore refuses an unknown or non-move `actionId` → `E-SNAP-01`; spatial restore gate (CAP-G5) unchanged | S01 ck3 · S03 ck4 | agreed (pending DD-M12) | planned | planned: `tests/snapshots/combat.test.ts` round-trip mid-pause |
-| CA-M6 | Theme content: `formulas.speed`, `stride` (tag `move`, `move` slot, `move(speed)`), `opportunist` (reaction slot, `move:leaving-reach[target=self]`, attack), terrain kinds; wyldwood `hex` | theme JSON (S04) → pipeline pass-through (existing) → `validatePack` (S02) → runtime (S03) | `rooted` already restricts `actions.tagged:move`, so it applies to `stride` without new code | S04 ck1/ck2 | agreed (pending DD-M3) | planned | planned: coverage-floor + movement journey |
-| CA-M7 | Theater of mind: move no-op success; move content loads without `spatial`; terrain rides along unconsulted, like positions | S01 text → S02 (no spatial requirement on `move`) → S03 no-op branch | no positions and no `move:*` events in theater packs | S02 ck2 · S03 ck2 · S04 ck2 | agreed (pending DD-M11) | planned | planned |
+| CA-M1 | Spatial model vocabulary: `grid` = square/Chebyshev (unchanged); `hex` = axial `{x:q, y:r}`, hex distance; `terrain` kinds `{cost ≥ 1}` xor `{blocks: true}` | `pack.schema.json $defs/spatial` (S01) → `SpatialDef` + `checkSpatial` (S02) → `spatialFromPack`/`hexGeometry` (S03) → theme JSON (S04) | `model` enum `["grid","hex"]` (was const); `terrain` optional; kind ids kebab; exactly one of `cost`/`blocks`; unknown model → `E-SPAT-01` (unchanged mapping); malformed terrain → `E-SCHEMA-01` | S01 ck3 · S02 ck1 · S03 ck1 · S04 ck1 | agreed (DD-M2/M5 confirmed 2026-09-30) | planned | planned: S02 validate tests; S03 `movement-geometry.test.ts` |
+| CA-M2 | `move(formula)`: root-only, dice-free, non-triggered action effects only; `speed` reserved formula + effect scalar | `database.md §formulas` + registry doc (S01) → `REGISTRY.move`, `EFFECT_SCALARS`, `checkEffect`, executor (S02) → `executeAgainst` vars + `apply.move` + `CombatantProfile.speed` (S03) | registry 13 → 14; misuse → `E-FORM-02`; `speed` referenced without `formulas.speed` → `E-REF-01`; executor without `apply.move` throws (fail-closed) | S01 ck3 · S02 ck2 · S03 ck2 | agreed (DD-M7/M8 confirmed 2026-09-30) | planned | planned: S02 effect/checker/validate tests; S03 movement test |
+| CA-M3 | Move declare semantics: `DeclareOptions.to`; terrain placement; path legality; rejection kinds with no change | `spatial.html` + `api-map.html` (S01) → `Combat.declare` movement gate + `startCombat` terrain (S03) → journey (S04) | kinds `no-destination` / `blocked` / `occupied` / `unreachable` / `out-of-range`, all rule `E-SPAT-01`; no state/rng/ledger change (compare `serialize()` before and after); startCombat terrain refusals aggregate | S01 ck2 · S03 ck2 · S04 ck2 | agreed (DD-M5/M6/M9 confirmed 2026-09-30) | planned | planned |
+| CA-M4 | Provoke: `move:leaving-reach` (actor mover, target threatener); pause iff offers; resume on empty queue; resume re-checks; forfeit on `step()`; `move:advanced` / `move:ended` | `spatial.html` provoke section (S01) → `combat.ts` walk + `respond` + `step` (S03) → `opportunist` content (S04) | pattern `move:leaving-reach[target=self]` matches through the existing `eventMatches` (no grammar change); reasons are the closed set in DD-M10 | S01 ck2 · S03 ck3 · S04 ck1/ck2 | agreed (DD-M10 confirmed 2026-09-30) | planned | planned |
+| CA-M5 | Snapshot: combatant `pendingMove?` round-trips; positions and terrain re-stated by the host | `snapshots.schema.json` (S01) → `serializeCombat` / `deserializeCombat` / `CombatRestoreRequest.terrain` (S03) | serialize only when set; restore refuses an unknown or non-move `actionId` → `E-SNAP-01`; spatial restore gate (CAP-G5) unchanged | S01 ck3 · S03 ck4 | agreed (DD-M12 confirmed 2026-09-30) | planned | planned: `tests/snapshots/combat.test.ts` round-trip mid-pause |
+| CA-M6 | Theme content: `formulas.speed`, `stride` (tag `move`, `move` slot, `move(speed)`), `opportunist` (reaction slot, `move:leaving-reach[target=self]`, attack), terrain kinds; wyldwood `hex` | theme JSON (S04) → pipeline pass-through (existing) → `validatePack` (S02) → runtime (S03) | `rooted` already restricts `actions.tagged:move`, so it applies to `stride` without new code | S04 ck1/ck2 | agreed (DD-M3 confirmed 2026-09-30) | planned | planned: coverage-floor + movement journey |
+| CA-M7 | Theater of mind: move no-op success; move content loads without `spatial`; terrain rides along unconsulted, like positions | S01 text → S02 (no spatial requirement on `move`) → S03 no-op branch | no positions and no `move:*` events in theater packs | S02 ck2 · S03 ck2 · S04 ck2 | agreed (DD-M11 confirmed 2026-09-30) | planned | planned |
 
 **Provisional:** every CA's producer is built inside this feature. All rows are provisional
 against their named producer checkpoints. **Orchestrator re-checks each mapping against
@@ -257,7 +257,7 @@ Dependents are dispatched against the amended CA text, not the planned text.
 
 | ID | Affects | Next action | Owner | Evidence to clear |
 |----|---------|-------------|-------|-------------------|
-| B-M1 | S01 (and so all sessions) | The human confirms or edits DD-M2…DD-M13 | Human (Author re-entry, requirements/design/schema classes) | A recorded answer in the conversation; Orchestrator copies it into Design Decisions |
+| — | — | None open. B-M1 (human confirmation of DD-M2…DD-M13) **cleared 2026-09-30**: the human answered "confirmed" with no edits. | — | Recorded in Program/Authorization and Design Decisions |
 
 ## Handoff Notes
 
