@@ -556,3 +556,167 @@ typos. This log is append-only, so they stay as written. PROGRAM-CONFIG's conven
   - PROGRAM-CONFIG's diff touches only the header realized-state note, the Module Registry, the Conventions evidence note (plus the date correction) and Custom Rules 1, 2 and 4.
   - Verification Commands, Git Config, Session Defaults, Stack and Author Sources are byte-unchanged.
 - **Role docs:** `PLANNER.md`, `CODER.md`, `UI-CODER.md` and `ORCHESTRATOR.md` are byte-identical to how this pass found them.
+
+---
+
+## 2026-09-30 — final pass, cycle `grid-movement` (feature commits `4ef88f0` → tree HEAD `6ab880a`)
+
+**Mode:** final, after the grid-movement Final Report (`6ab880a`; last source commit `c23d563`).
+Single-cycle synthesis. The equipment-consumables pass left no record debt, and this cycle's
+preflight planning-completeness pass (ARCHIVIST-PREFLIGHT, F-P1..F-P12) was consumed by
+REPLAN-GM-01. No interim checks ran (4 sessions, below the cadence).
+
+### Reconciled
+
+- **`arch/v1-core.md`: the three Orchestrator-integrated delta sections** (`<!-- grid-movement
+  SESSION-02..04 -->`, commits `08a831b`, `e354139`, `c420843`) were folded into the
+  module-ordered record. Where each piece went:
+  - v1.5 contract (S01) and mirror/validator, `checkTerrain`, `checkMovementDsl` (S02): the M01 section.
+  - `move` (registry 13→14), `EFFECT_SCALARS` + `speed`, optional `EffectApply.move`, `MoveOutcome`, `atRoot`: M02 DSL.
+  - `profileFromCharacter` `speed`, `useItem` `speed`: M03 character side.
+  - The move column, provoke pause/resume/forfeit, terrain refusals and **per-call offer surfacing (the `v1-core.md:163` delta, F-P1)**: M03 combat. The DD17 round-window sentence now says the return value is unchanged but offers are per call, so the two no longer read as contradictory.
+  - `hexGeometry`, `neighbors`, `findPath`, `terrainAt`/`entryCost`: M03 spatial. The new `display-roll.ts` leaf has its own bullet.
+  - Terrain restore, `pendingMove`, derived restore phase, restored `matchingEvent`: M03 snapshots.
+  - Theme movement content: M04. Movement journey, README subsection, CI build step: M05.
+  - DD-M1..DD-M19 summarized under Cross-cutting decisions. grid-combat DD1 (no move verb) and DD16 (stalemate) are marked superseded/retired, not deleted.
+  - Drift notes: the movement-verb item is RESOLVED; the `rollText` duplicate and the CI build gap are CLOSED; F-M1, F-M2, R-GM-1..3, `heal` missing from `EFFECT_VOCABULARY` and the grown `evalPackFormula` parse-once debt were added.
+- **Record correction, checked against source (Principle 2).** The prior drift note listed
+  `snapshots.ts → {combat/resolve, combat/spatial, combat/action-economy}` as value edges. At both
+  `c39ef87` and `6ab880a` those imports are `import type` (`snapshots.ts:52-54`). Snapshots' only
+  combat value edge is `combat/combat`. Both the arch record and the registry were corrected. The M02 DSL line "value imports only
+  `../rng`, `../dice`" was also re-derived: outside `dsl/` only `../dice` is a value import.
+- **Module registry in `PROGRAM-CONFIG.MD`** reconciled to `6ab880a`, with edges derived mechanically from
+  value imports (type-only clauses stripped, `export … from` counted as a runtime import):
+  - No new module ID, no new cross-module edge, and no rule id. This agrees with the Final Report's *Architecture impact*.
+  - New intra-M03 edges: `{combat/combat, equipment}.ts → display-roll.ts`. That leaf imports only `core/dice` types, so no cycle is formed.
+  - Guards re-verified: M01 imports nothing internal; M02→M01 is type-only; `src/runtime` has no compiler import; `src/compiler` has no runtime import.
+  - M03 now has 20 `.ts` files (was 19).
+- **Custom Rules (Archivist-owned) updated:**
+  - Rule 1 records the v1.5 contract event, including the `speed` caveat.
+  - Rule 2 records `speed` as an optional reserved formula id.
+  - Rule 4 notes that movement is pack data.
+  - Author Sources' "Data source" line still names only v1.2/v1.3, which is now two contract events stale. That section is Planner-owned, so it is flagged again for the next Planner rather than edited.
+- **Contract Agreements CA-M1..M7, sampled against source at `6ab880a`:**
+  - **CA-M1:** `SpatialDef.model: 'grid' | 'hex'` and `TerrainKind` are at `pack.ts:66-74`. `hexGeometry` is at `spatial.ts:120`, and `findPath` at `:280` is bounded by the expanded box (`:289-291`).
+  - **CA-M2:** `REGISTRY.move` is at `registry.ts:25` and `EFFECT_SCALARS` at `effect.ts:60`. `checkMovementDsl` is dispatched at `validate/index.ts:81`, after `checkRestrictsTags`. `useItem` binds `speed` or 0 at `equipment.ts:281`, and profiles carry `speed` only when declared (`resolve.ts:230`, `character-profile.ts:110`).
+  - **CA-M4:** the facade `WeakSet` is at `combat.ts:441`. Every `surfaceOffers` call is fed a per-call list (`:600`, `:685`, `:950`, `:1005`, `:1282`).
+  - **CA-M5:** the derived phase is at `snapshots.ts:590-592`, restored `matchingEvent` equals the pattern base at `:607`, and the `pendingMove.actionId` refusal is at `:743-750`.
+  - **CA-M6:** the three themes carry `move:leaving-reach` (3 occurrences), and wyldwood has `"model": "hex"`.
+  - **CA-M3/M7** were sampled through the journey run below.
+  - **Findings:** no mismatch. Every CA row's producer and consumer exist as recorded. No required fact is missing from the inventory.
+- **Capability Readiness** (CAP-M1..M7 verified) is consistent with the record. Current Blockers is empty. The carried items R-GM-1/2/3 and F-M1/F-M2 agree between STATE, the Final Report and source. No stale summary was found.
+- **Final Report mechanical facts were re-derived and match:**
+  - `git diff --shortstat 67f383b..b8380e1 -- src tests README.md .github` gives 34 files, +3297/−147;
+  - 741 tests across 40 files; 47 proofs across 7 files.
+  - No report-accuracy item this cycle.
+- **Verified by execution** (fresh runs by this pass at `6ab880a`): `pnpm typecheck` 0 · `pnpm build`
+  0 (24 dist files) · `check:isolation` 0 · `pnpm test` **741/741 across 40 files** ·
+  `pnpm exec vitest run tests/proofs/` **47/47 across 7 files**. lint, format:check and security were
+  **not** re-run. They are inherited from the Orchestrator receive at `c23d563`/`b8380e1`.
+- **Adoption check, done before carrying rows forward.** `program-agents/` is gitignored (`.gitignore:28`), so `git log` cannot show adoption. Every role doc's mtime is `2026-09-25 16:37:57`, earlier than the prior pass (2026-09-28), so no human edit has landed since. Current content was checked for each open row:
+  - **6f6b491b:** CODER.md:186 and ORCHESTRATOR.md:368 still name `npx vitest run <path>`.
+  - **a3680390 (new):** SPEC.md:14 and AUTHOR.md:137 still say "Spec is never spawned", and AUTHOR.md says Designer is "the only Author role that is ever spawned".
+  - **cecd2115:** ORCHESTRATOR.md:78 already has "Re-collect after crash: yes — re-await the id" for the Native binding. That text pre-dates the recommendation, and the prior pass did not cite it. The substance still missing is naming the host's 300 s idle timeout as an expected non-crash that must not start the Recovery ladder, so the row stays **open** with its wording narrowed.
+  - **Other rows:** no substance present.
+  - **Result:** no row is adopted. `PLANNER.md`, `CODER.md`, `UI-CODER.md` and `ORCHESTRATOR.md` are byte-identical to how this pass found them (sha1 recorded before and after). That is a separate claim from the adoption check above.
+
+### Crossed thresholds (Principle 4)
+
+- **Promoted this pass: planned Author re-entry sessions carry their authorization in the envelope** (row a3680390). This crossed the **cycles axis**, with 3 program cycles:
+  - grid-combat S01, a DB re-entry, "Human-authorized 2026-09-27" in that STATE;
+  - equipment-consumables S01, a DB re-entry, "builder-authorized" in the SESSION-01 Version Registry row;
+  - grid-movement S01, Spec → Designer → DB, with the authorization and DD-M confirmation recorded in STATE.
+  - In every case the worker proceeded on the recorded authorization. Only this cycle's worker flagged the role-document conflict.
+  - **The convention records the practice that has held:** STATE records the answer, and the envelope quotes it plus the prescribed text. It does **not** resolve the role-doc wording, which goes to the framework below.
+- **Held, not promoted: crash recovery from a preserved uncommitted tree** (row 17f4803c). By count it would cross, at 3 cycles and 5 instances with REPLAN-GM-01 attempt 1 added. But the carried "2 cycles" cannot be traced: the grid-combat entry calls both instances loot-inventory's, and also says "grid had none". That ambiguity is real, so the promotion is held until an entry can cite three distinct cycles.
+  - This is not a deferral behind the pattern itself: nothing is blocked on it.
+  - This cycle's instance added a lesson: attempt 2 re-verified the draft and corrected two pin-line ranges.
+- **Re-confirmed, no new promotion:**
+  - **Factual-premise verification** (row 576a2816) held for a fourth cycle. The preflight caught F-P1..F-P12 before dispatch, 4/4 sessions completed on first dispatch, and integration rework was zero. Disproved plan premises this cycle: F-P1 (arch round-window record), F-P2, F-P3, F-P5, F-P7 (line drift), plus the recovered draft's pin lines. That raises the row to 4 cycles and 17 instances.
+  - **Pin-lease ownership** (row 1cc46f93) held. STATE carried a full *Pins* table with owners, and S04's staged ck0 run failed exactly the listed pins plus one explained re-registration. Counts unchanged.
+  - **Whole-repo fast gates** (row 854ceecd) held. No red gate at any receive. Counts unchanged.
+
+### Proposed for the framework (Principle 3: no threshold)
+
+- **New: reconcile SPEC.md/AUTHOR.md "never spawned" with planned, human-authorized Author re-entry sessions** (row a3680390).
+  - **The conflict:** SPEC.md:14 tells Spec to stop when handed an orchestration envelope, and AUTHOR.md:130-137 says Designer is the only Author role ever spawned. Yet three consecutive programs planned DB (and now Spec) re-entry as orchestrated sessions, each on a recorded builder authorization.
+  - **Recommendation:** add an explicit "authorized re-entry session" path to AUTHOR.md/ORCHESTRATOR.md. It would name what the envelope must quote (the authorization, the classes, the prescribed text), so a worker is not forced to choose between the role doc and the plan.
+  - **Evidence:** 3 cycles, 3 in-cycle instances (1 explicitly flagged, grid-movement S01 surprise 1).
+- **New: ORCHESTRATOR.md STATE-update guidance should key table rows by their first-column ID** (row 3983f8eb).
+  - The S01/S02 receive commits (`3d52826`, `dfab1d9`) wrote CA contract-leg notes into CAP-M1/M5/M7, because the matcher also hit the CAP table's CA-ID column. Orchestrator found it at the S03 receive and rebuilt both tables in `4ffa236`. No worker consumed the wrong rows.
+  - **Recommendation:** match on the row's first cell (or table + ID), and re-read the target row after each write.
+  - **Evidence:** 1 cycle · 2 in-cycle instances.
+- **Carried, count raised: host await idle timeout** (row cecd2115). Several awaits hit the 300 s idle timeout again, and re-awaiting recovered each one.
+  - **Recommendation (narrowed):** ORCHESTRATOR.md:78 already says re-await after a crash. Also name the idle timeout as an expected, non-crash event that does not advance the Recovery ladder or count as an attempt.
+  - **Evidence:** 2 cycles · ≥4 instances (a floor; "several" per both Final Reports).
+- **Carried, no recurrence this cycle:**
+  - 6f6b491b (`npx`): every envelope used `pnpm exec`;
+  - c172cd30 (SHA-pinned gates): no SHA-pinned gate found in SESSION-01..04;
+  - f68c42a3 (derived report facts): this report's facts re-derived correctly;
+  - b32fc8d0, f57dbe4d, b85c8f3e (the barrel was leased to S03), c1ed872b, 3658f327, 1d910de1.
+  - Counts are unchanged. b32fc8d0, f57dbe4d and c1ed872b have now gone **three** consecutive cycles without recurrence. They stay open because they have been neither adopted nor disproved. A human may retire them.
+
+### Standing recommendations
+
+| id | pattern | cycles | in-cycle instances | first seen | status |
+|----|---------|-------:|-------------------:|------------|--------|
+| b32fc8d0c8c92d52 | Large single-session builds exhaust context on exhaustive checkpoint-0 read sweeps (empty-final crash; recovery = checkpoint-scoped reading) | 2 | 2 | v1-core | open |
+| f57dbe4d010638fe | Subagent model fabricates tool inputs (invented paths, invented project state, fabricated git output) under long-recovery prompts | 2 | 8 | v1-core | open |
+| b85c8f3e113a6764 | Public surface/barrel completeness gaps discovered at integration (lease gaps across wave-spanning modules) | 2 | 3 | v1-core | open |
+| c1ed872bea557b96 | run tool drops/misroutes argv; workers pass whole command lines as single argv entries | 2 | 3 | v1-core | open |
+| 3658f327cc9cff2f | commit_pathspec-style single-command commits fail on deleted files | 1 | 1 | v1-core | open |
+| 1cc46f93038f1d9a | Cross-suite pinning tests (docs-run block-count pin, registry-count pin) land without a named owner in the plan | 2 | 3 | loot-inventory | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-27; held in equipment-consumables and grid-movement) |
+| 576a281656f83b23 | Envelope factual premises (mock-vs-prompt anatomy, cross-suite counts) reach sessions unverified; mechanical premise verification at planning time is the fix | 4 | 17 | loot-inventory | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-27; fourth-cycle evidence recorded 2026-09-30) |
+| 854ceecd39d4b0d3 | Whole-repo fast gates (typecheck/lint/format:check) go red at role-scoped receives; cleared by format-only owner corrections | 4 | 4 | v1-core | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-27; held in grid-movement) |
+| 17f4803c1b08da77 | Provider stream aborts / capacity failures kill subagents mid-session with zero commits; recovery resumes from the preserved tree | 3 | 5 | loot-inventory | open (promotion held: carried cycle attribution ambiguous) |
+| 6f6b491bdbe37bf0 | Bare npx misresolves in this runtime; the working gate forms are pnpm exec vitest run <path> and node_modules/.bin/vitest | 2 | 3 | loot-inventory | open |
+| 1d910de11732c6c4 | Final Archivist pass aborts on provider capacity leave the next cycle's pass a double synthesis (prior cycle's integrated fragments + record-debt) | 2 | 2 | loot-inventory | open |
+| c172cd30e8dfc756 | Session commit gates hard-code a plan-time base SHA that a later replan makes stale | 1 | 1 | equipment-consumables | open |
+| cecd211504587426 | Host await idle timeout (300 s) interrupts long subagent waits; re-awaiting the same handle reattaches with no work lost | 2 | 4 | equipment-consumables | open |
+| f68c42a3f6224eb1 | Final Report mechanical facts (test-file counts, realized module edges) transcribed from handoffs rather than derived from the tree | 2 | 2 | v1-core | open |
+| a368039028d463d6 | Role documents say Spec/DB are never spawned, while plans dispatch orchestrated Author re-entry sessions on recorded human authorization | 3 | 3 | grid-combat | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-30); framework wording open |
+| 3983f8eb6d18a5f2 | Orchestrator STATE row matcher hits a CA-ID column inside the CAP table and writes contract-leg notes into the wrong rows | 1 | 2 | grid-movement | open |
+
+- **Carried rows (1–14):** the ids are copied verbatim.
+- **Minted this pass (15–16):** `sha256(firstSeen + '\n' + normalize(pattern)).slice(0,16)`. Row 15's `first seen` is `grid-combat`, because its first instance is grid-combat's S01 DB re-entry.
+- **Count changes:**
+  - Row 7 went from 3 cycles and 11 instances to 4 and 17.
+  - Row 9 went from 2 and 4 to 3 and 5.
+  - Row 13 went from 1 and 2 to 2 and 4 (a floor).
+
+### Cleanup ledger (carried forward; maintained here, no separate CLEANUP-LEDGER.md yet)
+
+| id | candidate | evidence | confidence | blast radius | proposed check | cluster | status |
+|----|-----------|----------|------------|--------------|----------------|---------|--------|
+| C1 | `matchesRestriction`/`isLivePattern` (`src/runtime/conditions.ts`) have no non-test consumer; combat.ts implements its own actions-only inline matcher (`restrictionRejection`) | re-verified at `6ab880a`: src refs = conditions.ts + index.ts re-export only; 1 test file | medium | src/runtime surface | grep after removing the re-export; conditions.test.ts pins them — decide surface-first | duplicated-logic | **briefed** (2026-09-28) |
+| C2 | `MAX_TABLE_DEPTH = 8` duplicated in `src/core/tables.ts` and `src/schema/validate/helpers.ts` | re-verified at `6ab880a`: both definitions present; 3 test files | medium | cross-module constant (M01 must stay import-free) | single-source strategy that keeps M01 import-free | duplicated-logic | **briefed** (2026-09-28) |
+| C3 | `readPatch` exported from the compiler surface but consumed only by tests | re-verified at `6ab880a`: compose.ts + index.ts; 2 test files | low | compiler surface | decide public-surface intent (FR-20 host-side composition) | compiler-surface | **tracking** |
+| C4 | `EventSeed`/`EventSink` exported from the runtime surface, no consumer | re-verified at `6ab880a`: events.ts + index.ts; 0 test files | low | runtime surface | same surface-first decision | runtime-surface | **tracking** |
+| C5 | Final Report test-file count 28 vs 29 | corrected at v1-core close (`0290d47`) | high | report accuracy | — | report-accuracy | **retired** |
+| C6 | `parsePackEffects` (`src/runtime/combat/resolve.ts`) has zero consumers | re-verified at `6ab880a`: definition only, 0 tests | high | M03 internal | delete **only if** the spells-as-combat-actions engine event is rejected | spell-asts | **tracking** (resumption condition: that engine design event's outcome) |
+| C7 | `WYLDWOOD` exported from the compiler surface, consumed only via theme-loader/index | re-verified at `6ab880a`: 3 test files | low | compiler surface | same surface-first decision as C3/C4 | compiler-surface | **tracking** |
+| C8 | `equipment.ts` private `rollText` duplicated `combat.ts` `displayRoll` | planned by REPLAN-GM-01 as DD-M15 and landed at grid-movement S03 ck5 `27c77f4`: `display-roll.ts` leaf, `rollText` has 0 src refs, `equipment.test.ts` 15/15 | high | M03 internal | — | duplicated-logic | **accepted** (closed by `27c77f4`) |
+| C9 | equipment-consumables Final Report *Architecture impact* omitted the `character-profile.ts → {equipment, inventory}` value edges | the committed report is historical; the arch record and registry carry the corrected edges since 2026-09-28 | high | report accuracy only | — | report-accuracy | **retired** (obsolete: corrected in the living record) |
+| C10 | `Combat.use`'s restriction gate cannot block (`ItemDef` has no `tags`) | S05 surprise 2 (equipment-consumables) | low | M03 combat | retain as forward-compat unless item tags are rejected as a product direction | item-tags | **tracking** (intentional; resumption: item tags decision) |
+| C11 | Theme feat triggers written `condition:applied[self]` never match the `eventMatches` grammar (`[key=value]`), and `reactiveActionsFor` registers actions only, so the feat-trigger content is inert | F-M1 (STATE grid-movement); `dark-fantasy.json:179`, `zombie-urban.json:183/188`, `wyldwood.json:362/369` at `6ab880a` | medium | M04 theme content + M03 triggers (product-visible if fixed: feats would start firing) | fix grammar in content or register feat triggers, then a per-theme test that each feat trigger is offered at least once; generated-hash pins will move | inert-content | **tracking** (owner: next feature touching triggers) |
+| C12 | `heal` is registry entry 13 but absent from `EFFECT_VOCABULARY` | `registry.ts:21` vs `:53-61` at `6ab880a`; S02 surprise | low | M02 DSL vocabulary (any consumer enumerating the vocabulary misses `heal`) | add `heal`, then an exact-membership test pairing `EFFECT_VOCABULARY` with the effect-kind registry entries | vocabulary-drift | **tracking** |
+
+**Cleanup brief status.** The 2026-09-28 duplicated-logic brief (C1, C2, C8) is partly
+accepted: C8 was taken into grid-movement's plan and closed. C1 (a surface decision) and C2
+(single-sourcing without an M01 value import) remain **briefed** and unaccepted. The brief
+carries forward unchanged apart from dropping C8. No new campaign crosses a threshold this pass:
+C11 and C12 are one medium and one low finding in different clusters.
+
+### Verification of this pass
+
+- **Sources.** Every realized-state claim traces to:
+  - git (`git log 67f383b..6ab880a`, `git show c39ef87:src/runtime/snapshots.ts` for the import correction);
+  - STATE.md (all 754 lines, including the planning-completeness, Pins, CAP and CA tables and the S01–S04 handoffs);
+  - the Final Report;
+  - mechanical value-import derivation, greps and reads of `src/**` at `6ab880a`.
+- **No contradiction** was found with STATE.md or the Final Report. One stale claim in the prior record (the snapshots edges) was resolved against source.
+- **Re-read after writing:**
+  - `arch/v1-core.md` has 2 `<!--` and 2 `-->`, with no nesting, and zero `grid-movement SESSION` markers.
+  - PROGRAM-CONFIG's diff touches only the header realized-state note, the Module Registry, Conventions (one new rule) and Custom Rules 1, 2 and 4.
+  - Verification Commands, Git Config, Session Defaults, Stack and Author Sources are byte-unchanged.
+- **Role docs:** `PLANNER.md`, `CODER.md`, `UI-CODER.md` and `ORCHESTRATOR.md` are byte-identical to how this pass found them.
