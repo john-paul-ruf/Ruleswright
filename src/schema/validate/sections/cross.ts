@@ -1,6 +1,7 @@
 /**
  * Cross-section checks that run after every section pass: progression/class
- * pairing (E-REF-03) and the v1.1 restricts-tag integrity (E-REF-01).
+ * pairing (E-REF-03), the v1.1 restricts-tag integrity (E-REF-01) and the v1.5
+ * movement DSL rules (move placement E-FORM-02, speed reference E-REF-01).
  */
 import type { Ctx } from '../context';
 import { makeErrorCard } from '../../error-card';
@@ -72,4 +73,138 @@ export function checkRestrictsTags(ctx: Ctx, content: unknown): void {
       }
     }
   }
+}
+
+/** A root `move(` statement — exact because core's checkEffect already makes move root-only. */
+const MOVE_ROOT = /^\s*move\s*\(/;
+
+/** Mirrors core effect.ts ARG_CATEGORIES: positions whose argument is a name, not a formula. M01 imports no core value. */
+const NON_FORMULA_ARGS: Readonly<Record<string, readonly number[]>> = {
+  damage: [1], // type
+  applyCondition: [0], // condition-id
+  target: [0], // shape
+  save: [0], // save-name
+};
+
+/** DSL tokens for the speed scan: names (core lexer grammar), numbers/dice, call punctuation, any other operator character. */
+const DSL_TOKEN = /[A-Za-z_][A-Za-z0-9_-]*|\d+(?:d\d+)?|[(),]|[^\sA-Za-z0-9_(),]/g;
+
+interface EffectField {
+  readonly artifactId: string;
+  readonly jsonPath: string;
+  readonly expr: string;
+  /** Why a root move is illegal here; undefined = a non-triggered action effect (legal). */
+  readonly moveForbiddenAs?: string;
+}
+
+/** v1.5 (CA-M2): move placement + the speed reference rule — text-level, M01 imports no core value. */
+export function checkMovementDsl(ctx: Ctx, doc: Record<string, unknown>): void {
+  const formulas = doc['formulas'];
+  // An unreadable formulas section already carries its structural card — the speed rule stays silent.
+  const isSpeedUndeclared = isPlainObject(formulas) && formulas['speed'] === undefined;
+  for (const field of effectFields(doc)) {
+    if (field.moveForbiddenAs !== undefined && MOVE_ROOT.test(field.expr)) {
+      add(
+        ctx,
+        makeErrorCard(
+          'E-FORM-02',
+          field.artifactId,
+          field.jsonPath,
+          `move(...) is legal only as the root statement of a non-triggered actions.<id>.effect — not in ${field.moveForbiddenAs}.`,
+        ),
+      );
+    }
+    if (isSpeedUndeclared && referencesSpeed(field.expr)) {
+      add(
+        ctx,
+        makeErrorCard(
+          'E-REF-01',
+          field.artifactId,
+          field.jsonPath,
+          '"speed" is referenced at a formula position, but the pack declares no formulas.speed — speed is a reserved optional formula id (v1.5 movement budget).',
+          'declare formulas.speed to give effects a speed to read.',
+        ),
+      );
+    }
+  }
+}
+
+/** Every effect-bearing field: action effects (triggered or not), spell and feat effects, item uses. */
+function effectFields(doc: Record<string, unknown>): EffectField[] {
+  const fields: EffectField[] = [];
+  const actions = doc['actions'];
+  if (isPlainObject(actions)) {
+    for (const [id, def] of Object.entries(actions)) {
+      if (!isPlainObject(def) || typeof def['effect'] !== 'string') continue;
+      fields.push({
+        artifactId: id,
+        jsonPath: `actions.${id}.effect`,
+        expr: def['effect'],
+        ...(def['trigger'] !== undefined ? { moveForbiddenAs: 'a triggered action' } : {}),
+      });
+    }
+  }
+  const content = doc['content'];
+  if (!isPlainObject(content)) return fields;
+  const sections = [
+    ['spells', 'effect', 'a spell effect'],
+    ['feats', 'effect', 'a feat effect'],
+    ['items', 'use', "an item's use"],
+  ] as const;
+  for (const [section, key, label] of sections) {
+    const artifacts = content[section];
+    if (!isPlainObject(artifacts)) continue;
+    for (const [id, def] of Object.entries(artifacts)) {
+      if (!isPlainObject(def) || typeof def[key] !== 'string') continue;
+      fields.push({
+        artifactId: id,
+        jsonPath: `content.${section}.${id}.${key}`,
+        expr: def[key],
+        moveForbiddenAs: label,
+      });
+    }
+  }
+  return fields;
+}
+
+/**
+ * Position-aware scan (DD-M19): does the name `speed` appear at a formula
+ * position? A bare `speed` that is the whole argument at a NON_FORMULA_ARGS
+ * position is a name (type, condition id, shape, save), not a reference.
+ * Unbalanced input reports nothing — the DSL seam has already rejected it.
+ */
+function referencesSpeed(expr: string): boolean {
+  const tokens = expr.match(DSL_TOKEN) ?? [];
+  const stack: { callName: string; argIndex: number; argTokens: number; hasSpeed: boolean }[] = [];
+  let isFound = false;
+  const closeArg = (): void => {
+    const frame = stack[stack.length - 1]!;
+    const isNamePosition =
+      frame.argTokens === 1 && (NON_FORMULA_ARGS[frame.callName] ?? []).includes(frame.argIndex);
+    if (frame.hasSpeed && !isNamePosition) isFound = true;
+  };
+  for (const [index, token] of tokens.entries()) {
+    const frame = stack[stack.length - 1];
+    if (token === '(') continue; // consumed with its call name
+    if (token === ',' || token === ')') {
+      if (frame === undefined) return false;
+      closeArg();
+      if (token === ',') {
+        frame.argIndex += 1;
+        frame.argTokens = 0;
+        frame.hasSpeed = false;
+      } else {
+        stack.pop();
+      }
+      continue;
+    }
+    if (frame !== undefined) frame.argTokens += 1;
+    if (tokens[index + 1] === '(') {
+      stack.push({ callName: token, argIndex: 0, argTokens: 0, hasSpeed: false });
+    } else if (token === 'speed') {
+      if (frame === undefined) isFound = true;
+      else frame.hasSpeed = true;
+    }
+  }
+  return stack.length === 0 && isFound;
 }

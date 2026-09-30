@@ -736,3 +736,132 @@ describe('equipment + consumables (v1.4, CA-EG1) — isolated pack, real DSL che
     expect(inAttack).toMatchObject([{ rule: 'E-FORM-03', jsonPath: 'actions.strike.effect' }]);
   });
 });
+
+describe('movement DSL cross checks (v1.5, CA-M2/CA-M7) — move placement + speed reference', () => {
+  /** Self-contained pack that is clean under the real checker; no spatial section (CA-M7). */
+  function movementPack(effect: string): Record<string, unknown> {
+    return {
+      manifest: { id: 'stride-pack', schemaVersion: 1, title: 'Stride Pack' },
+      stats: { abilities: ['vigor', 'might'], saves: ['reason', 'grit'] },
+      actions: { stride: { cost: { slots: { action: 1 } }, effect, tags: ['movement'] } },
+      economy: { turnSlots: { action: 1 } },
+      formulas: { hp: { expr: '8 + vigor * 2' }, ac: { expr: '10' }, speed: { expr: '4 + vigor' } },
+      content: { classes: { warden: { name: 'Warden' } } },
+      progression: { warden: { hd: 'd8', attackBonus: 'level / 2', saves: { reason: [2, 3, 4] } } },
+      bestiary: { 'grave-shambles': { name: 'Grave Shambles', threat: 1, actions: ['stride'] } },
+      tables: { 'loot-table': { kind: 'weighted', entries: [{ weight: 1, value: 'nothing' }] } },
+    };
+  }
+
+  function speedCards(cards: ReturnType<typeof validatePack>) {
+    return cards.filter((card) => card.rule === 'E-REF-01' && card.message.includes('formulas.speed'));
+  }
+
+  function withoutSpeed(mutate: (pack: Pack) => void) {
+    return errorsFor((pack) => {
+      delete pack.formulas['speed'];
+      mutate(pack);
+    });
+  }
+
+  function strikeEffect(effect: string) {
+    return withoutSpeed((pack) => (pack.actions.strike!.effect = effect));
+  }
+
+  it('a root move in a non-triggered action with formulas.speed is clean — real checker, no spatial section', () => {
+    expect(validatePack(movementPack('move(speed)'), packDslChecker)).toEqual([]);
+    expect(validatePack(movementPack('move(speed * 2)'), packDslChecker)).toEqual([]);
+  });
+
+  it('move(speed) without formulas.speed is one E-REF-01 at the field, hinting formulas.speed', () => {
+    const pack = movementPack('move(speed)');
+    delete (pack['formulas'] as Record<string, unknown>)['speed'];
+    const cards = validatePack(pack, packDslChecker);
+    expect(cards).toMatchObject([
+      { rule: 'E-REF-01', artifactId: 'stride', jsonPath: 'actions.stride.effect' },
+    ]);
+    expect(cards[0]!.hint).toMatch(/formulas\.speed/);
+  });
+
+  it('a triggered action with move(3) is E-FORM-02', () => {
+    const cards = errorsFor((pack) => (pack.actions['step-aside']!.effect = 'move(3)'));
+    expect(cards).toMatchObject([
+      { rule: 'E-FORM-02', artifactId: 'step-aside', jsonPath: 'actions.step-aside.effect' },
+    ]);
+    expect(cards[0]!.message).toMatch(/triggered action/);
+  });
+
+  it('a spell, a feat and an item use with a root move are each E-FORM-02', () => {
+    const cards = errorsFor((pack) => {
+      pack.content.spells!['grave-light']!.effect = 'move(3)';
+      pack.content.feats!['vengeful-strike']!.effect = ' move (3)';
+      (pack.content.items!['rope'] as unknown as Record<string, unknown>)['use'] = 'move(2)';
+    });
+    expect(cards.map((card) => [card.rule, card.jsonPath])).toEqual([
+      ['E-FORM-02', 'content.spells.grave-light.effect'],
+      ['E-FORM-02', 'content.feats.vengeful-strike.effect'],
+      ['E-FORM-02', 'content.items.rope.use'],
+    ]);
+  });
+
+  it('a non-triggered action move is legal; move-like names are not move', () => {
+    expect(errorsFor((pack) => (pack.actions.strike!.effect = 'move(3)'))).toEqual([]);
+    expect(errorsFor((pack) => (pack.content.spells!['grave-light']!.effect = 'mover(3)'))).toEqual([]);
+  });
+
+  it('speed at a formula position without formulas.speed: heal(speed) and damage(speed, fire) each yield one card', () => {
+    for (const effect of [
+      'heal(speed)',
+      'damage(speed, fire)',
+      'damage(1d6 + speed)',
+      'sequence(heal(1), damage(speed))',
+    ]) {
+      expect(speedCards(strikeEffect(effect)), effect).toMatchObject([
+        { artifactId: 'strike', jsonPath: 'actions.strike.effect' },
+      ]);
+    }
+  });
+
+  it('non-formula positions do not count (DD-M19): condition id, damage type, shape, save name', () => {
+    for (const effect of [
+      'applyCondition(speed, 2)',
+      'damage(1d6, speed)',
+      'target(speed, damage(1))',
+      'save(speed, 12, damage(1d6), damage(half))',
+    ]) {
+      expect(speedCards(strikeEffect(effect)), effect).toEqual([]);
+    }
+  });
+
+  it('a non-bare argument at a name position still counts', () => {
+    expect(speedCards(strikeEffect('applyCondition(prone, speed)'))).toHaveLength(1);
+    expect(speedCards(strikeEffect('target(burst-2, damage(speed))'))).toHaveLength(1);
+  });
+
+  it('speedy and half-speed are different tokens and never trigger the speed rule', () => {
+    const cards = withoutSpeed((pack) => {
+      pack.stats.abilities.push('speedy', 'half-speed');
+      pack.actions.strike!.effect = 'damage(speedy + half-speed)';
+    });
+    expect(speedCards(cards)).toEqual([]);
+  });
+
+  it('the rule scans spells, feats and item uses too', () => {
+    const cards = withoutSpeed((pack) => {
+      pack.content.spells!['grave-light']!.effect = 'heal(speed)';
+      pack.content.feats!['vengeful-strike']!.effect = 'damage(speed)';
+      (pack.content.items!['rope'] as unknown as Record<string, unknown>)['use'] = 'heal(speed)';
+    });
+    expect(speedCards(cards).map((card) => card.jsonPath)).toEqual([
+      'content.spells.grave-light.effect',
+      'content.feats.vengeful-strike.effect',
+      'content.items.rope.use',
+    ]);
+  });
+
+  it('unbalanced text reports nothing and never throws', () => {
+    for (const effect of ['damage(speed', 'speed)', 'damage(speed))']) {
+      expect(speedCards(strikeEffect(effect)), effect).toEqual([]);
+    }
+  });
+});
