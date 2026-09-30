@@ -683,3 +683,35 @@ Orchestrator-integrated markers loot-inventory SESSION-01 through grid-combat SE
 collapsed at the grid-combat final pass (original text recoverable at b671a37); the
 equipment-consumables SESSION-02..05 markers (f1563b1, 643fd76, 7c3db75, 7a479e6) were collapsed
 at the equipment-consumables final pass (original text recoverable at c39ef87). -->
+
+<!-- grid-movement SESSION-02 -->
+## grid-movement SESSION-02 delta (Orchestrator mid-run append; commits 21a0a5f..933c2fd)
+
+
+### M01 Schema (`src/schema/`)
+
+- `pack.ts`: new `export type TerrainKind = { cost: number } | { blocks: true }`.
+  `SpatialDef.model` widens `'grid'` → `'grid' | 'hex'`.
+  New `SpatialDef.terrain?: Readonly<Record<string, TerrainKind>>` (v1.5; cells are host-placed per fight).
+- `validate/sections/root.ts` `checkSpatial`:
+  - accepts `model ∈ {grid, hex}`; anything else is `E-SPAT-01` at `spatial.model`, naming `{grid, hex}`;
+  - the closed key set gains `terrain`;
+  - a private `checkTerrain` sends a non-object terrain, a non-kebab kind id, or a value other than exactly `{cost: int ≥ 1}` or `{blocks: true}` to `E-SCHEMA-01` at `spatial.terrain[.<kind>]`.
+- `validate/sections/cross.ts`: new export `checkMovementDsl(ctx: Ctx, doc: Record<string, unknown>): void`. It is a pass-3 cross check, dispatched from `validate/index.ts` after `checkRestrictsTags`. It is text-level; M01 still imports no core value.
+  - A root `move(` in a triggered action, a spell/feat `effect` or an item `use` → `E-FORM-02`.
+  - `speed` at a formula position while `formulas` is readable and has no `speed` → `E-REF-01`, one per field. This is a position-aware scan. `NON_FORMULA_ARGS` = `{damage:[1], applyCondition:[0], target:[0], save:[0]}` and mirrors core `ARG_CATEGORIES`.
+- No new rule id; `RULE_IDS` stays 15.
+
+### M02 Core (`src/core/dsl/`)
+
+- `registry.ts`: `REGISTRY.move = {arity: 1, kind: 'effect', signature: ['formula']}` (13 → 14). `EFFECT_VOCABULARY` gains `'move'`.
+- `effect.ts`:
+  - `EFFECT_SCALARS` = `['level','hp','ac','initiative','speed']`.
+  - `EffectApply.move?(budget: number): void` is optional; an absent host means no movement support.
+  - New `MoveOutcome {kind: 'move', budget}` joins the `EffectResolution` union.
+  - The executor's `move` evaluates the budget and calls `apply.move` once. It throws when `apply.move` is absent (fail-closed).
+  - `checkEffectAst` threads `atRoot`: a nested `move` → `E-FORM-02`, and any dice node in `move`'s argument → `E-FORM-02`. `ARG_CATEGORIES.move = ['formula']`.
+
+### Edges
+
+No new module or edge. M02→M01 stays type-only, and M01 imports no core value (`check:isolation` 0).
