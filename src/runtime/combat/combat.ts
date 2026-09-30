@@ -695,6 +695,7 @@ export class Combat {
     if (offer === undefined) return [];
     let events: readonly RuntimeEvent[];
     if (choice === 'decline') {
+      this.setClock(); // stamp with the fight's clock — a restored fight's stream starts at round 0
       emitDeclined(this.runtime, offer);
       const declined = this.runtime.events.sinceRound(this.state.round);
       events = [declined[declined.length - 1]!];

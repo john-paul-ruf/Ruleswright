@@ -40,7 +40,15 @@ import { Rng, type RngState } from '../core/rng';
 import { RuntimeRuleError } from './errors';
 import { buildCharacter, validateBuild } from './progression';
 import { Character, reserveValue } from './character';
-import { Combat, copyTerrain, defeatedSide, terrainRefusals, type CombatantState } from './combat/combat';
+import {
+  Combat,
+  copyTerrain,
+  defeatedSide,
+  moveBudgetAst,
+  terrainRefusals,
+  type CombatantState,
+  type PendingMove,
+} from './combat/combat';
 import type { CombatantProfile } from './combat/resolve';
 import type { Position, TerrainCell } from './combat/spatial';
 import type { EconomyBalances } from './combat/action-economy';
@@ -416,6 +424,8 @@ export interface SnapshotCombatant {
   readonly itemsUsed?: Readonly<Record<string, number>>;
   /** v1.4 — the heal cap fixed at fight start (CA-EG4/EG6); always emitted by v1.4 serializers. */
   readonly maxHp?: number;
+  /** v1.5 — a move paused by open leaving-reach offers (DD-M12); emitted only when set. */
+  readonly pendingMove?: PendingMove;
 }
 
 /** The combat envelope - pairsWith is the documented combat→party pairing (FR-14). */
@@ -478,6 +488,9 @@ export function serializeCombat(fight: Combat, options: { readonly pairsWith: st
         ...(combatant.position !== undefined ? { position: { ...combatant.position } } : {}),
         ...(pendingTrigger !== undefined ? { pendingTrigger } : {}),
         ...(Object.keys(combatant.itemsUsed).length > 0 ? { itemsUsed: { ...combatant.itemsUsed } } : {}),
+        ...(combatant.pendingMove !== undefined
+          ? { pendingMove: copyPendingMove(combatant.pendingMove) }
+          : {}),
       };
     }),
   };
@@ -489,11 +502,14 @@ export function serializeCombat(fight: Combat, options: { readonly pairsWith: st
  * them. hp/conditions/slot ledgers carry the frozen transients; item charges
  * are the re-stated `balances.items` with the frozen `itemsUsed` as the spend,
  * and `maxHp` is the frozen value, else `profile.maxHp`, else
- * `max(0, profile.hp)` (CA-EG6, R-9); the fight
- * resumes mid-round in `awaiting-declare` (the envelope carries no phase -
- * freezing between steps is the FR-10 boundary), unless the frozen hp already
- * satisfy the end rule (every combatant of one side at hp ≤ 0), in which case
- * it restores as `combat-over`. The rng words rebuild the dice stream: the
+ * `max(0, profile.hp)` (CA-EG6, R-9). The envelope carries no phase; restore
+ * derives it (DD-M12): `combat-over` when the frozen hp already satisfy the
+ * end rule (every combatant of one side at hp ≤ 0), else `resolved` when any
+ * combatant carries a `pendingMove` or `pendingTrigger` (the turn's action
+ * already resolved), else `awaiting-declare` (freezing between steps is the
+ * FR-10 boundary). A restored offer's matching event is the trigger
+ * pattern's event type (the base before `[`), as live offers store it.
+ * Positions and terrain are re-stated by the host (CAP-G5). The rng words rebuild the dice stream: the
  * next roll equals the uninterrupted fight's next roll.
  */
 export function deserializeCombat(
@@ -556,6 +572,9 @@ export function deserializeCombat(
         : undefined,
       attackBonus: entry.profile.attackBonus,
       ...(restore.positions?.[entry.id] !== undefined ? { position: restore.positions[entry.id] } : {}),
+      ...(frozenState.pendingMove !== undefined
+        ? { pendingMove: copyPendingMove(frozenState.pendingMove) }
+        : {}),
     };
   }
   const fight = new Combat(runtime, {
@@ -563,7 +582,15 @@ export function deserializeCombat(
     turn: saved.turn,
     order: [...saved.order],
     active: saved.order[saved.turn] ?? '',
-    phase: defeatedSide(combatants) === undefined ? 'awaiting-declare' : 'combat-over',
+    phase:
+      defeatedSide(combatants) !== undefined
+        ? 'combat-over'
+        : saved.combatants.some(
+              (c) =>
+                c.pendingMove !== undefined || (c.pendingTrigger !== undefined && c.pendingTrigger !== null),
+            )
+          ? 'resolved'
+          : 'awaiting-declare',
     combatants,
     rng: { ...saved.rng },
     terrain: copyTerrain(restore.terrain ?? []),
@@ -571,11 +598,13 @@ export function deserializeCombat(
   for (const combatant of saved.combatants) {
     if (combatant.pendingTrigger === undefined || combatant.pendingTrigger === null) continue;
     const pattern = runtime.pack.actions[combatant.pendingTrigger]!.trigger!.on; // restoreRefusals proved both lookups
+    const bracket = pattern.indexOf('[');
     fight.pendingTriggers.push({
       triggerId: `${combatant.id}.${combatant.pendingTrigger}`,
       actorId: combatant.id,
       actionId: combatant.pendingTrigger,
-      matchingEvent: pattern,
+      // The live offer's `event.type`: the pattern's base before `[` (eventMatches' base).
+      matchingEvent: bracket === -1 ? pattern : pattern.slice(0, bracket),
     });
   }
   return fight;
@@ -711,6 +740,20 @@ function combatRestoreRefusals(
     }
   });
   saved.combatants.forEach((combatant, index) => {
+    if (combatant.pendingMove === undefined) return;
+    const actionId = combatant.pendingMove.actionId;
+    if (runtime.pack.actions[actionId] === undefined || moveBudgetAst(runtime, actionId) === undefined) {
+      cards.push(
+        makeErrorCard(
+          'E-SNAP-01',
+          artifactId,
+          `combatants[${index}].pendingMove.actionId`,
+          `frozen paused move names ${display(actionId)}, which is not a move action in this pack (its effect root is not move(...), FR-11).`,
+        ),
+      );
+    }
+  });
+  saved.combatants.forEach((combatant, index) => {
     if (combatant.pendingTrigger === undefined || combatant.pendingTrigger === null) return;
     const def = runtime.pack.actions[combatant.pendingTrigger];
     if (def === undefined || def.trigger === undefined) {
@@ -725,6 +768,15 @@ function combatRestoreRefusals(
     }
   });
   return cards;
+}
+
+/** A plain-JSON copy of a paused move (FR-14: state never aliases envelope objects). */
+function copyPendingMove(pending: PendingMove): PendingMove {
+  return {
+    actionId: pending.actionId,
+    to: { x: pending.to.x, y: pending.to.y },
+    remaining: pending.remaining,
+  };
 }
 
 function validateRngWords(snapshot: unknown): void {

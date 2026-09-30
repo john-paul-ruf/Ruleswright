@@ -506,6 +506,208 @@ describe('spatial snapshots (CAP-G5, CA-G3)', () => {
     const restored = deserializeCombat(fresh, snap, { ...hexSides(fresh), positions: POSITIONS, terrain });
     expect(restored.state.terrain).toEqual(terrain);
   });
+
+  /**
+   * CA-M5 (ck4): a move paused by a leaving-reach offer survives serialize →
+   * JSON → restore. brynn (barrow-wight statblock, speed 3 + level 2 = 5)
+   * strides from (0,0) toward (-3,0) and leaves the adjacent wight's reach on
+   * its first step. Fight A runs on uninterrupted; fight B is restored from
+   * A's snapshot on a fresh runtime, and both answer the same way.
+   */
+  describe('v1.5 paused-move snapshots (CA-M5)', () => {
+    const MOVE_POSITIONS: Readonly<Record<string, Position>> = {
+      brynn: { x: 0, y: 0 },
+      wight: { x: 1, y: 0 },
+    };
+    const MOVE_TERRAIN = [{ at: { x: -2, y: 1 }, kind: 'bramble' }];
+    const DESTINATION = { x: -3, y: 0 };
+
+    function moveSides(runtime: Runtime): CombatRestoreRequest {
+      const block = (id: string) =>
+        profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, id);
+      return {
+        allies: [
+          {
+            id: 'brynn',
+            profile: { ...block('brynn'), actions: ['strike', 'stride'], initiativeBonus: 100 },
+          },
+        ],
+        enemies: [
+          {
+            id: 'wight',
+            profile: { ...block('wight'), actions: ['wight-claw', 'opportunist'], initiativeBonus: -100 },
+          },
+        ],
+      };
+    }
+
+    function recorded(runtime: Runtime): RuntimeEvent[] {
+      const seen: RuntimeEvent[] = [];
+      runtime.events.on((event) => {
+        seen.push(event);
+      });
+      return seen;
+    }
+
+    /** Fight A paused mid-move, plus fight B restored from A's JSON snapshot with re-stated positions and terrain. */
+    function pausedPair() {
+      const runtimeA = new Runtime(emberMarchesHexPack());
+      const eventsA = recorded(runtimeA);
+      const fightA = startCombat(runtimeA, {
+        ...moveSides(runtimeA),
+        positions: MOVE_POSITIONS,
+        terrain: MOVE_TERRAIN,
+        rng: new Rng('paused-move'),
+      });
+      fightA.step();
+      fightA.declare('stride', { to: DESTINATION });
+      const snap = JSON.parse(
+        JSON.stringify(serializeCombat(fightA, { pairsWith: 'party-1' })),
+      ) as CombatSnapshot;
+      const positions: Record<string, Position> = {};
+      for (const frozen of snap.combatants) positions[frozen.id] = frozen.position!;
+      const runtimeB = new Runtime(emberMarchesHexPack());
+      const eventsB = recorded(runtimeB);
+      const fightB = deserializeCombat(runtimeB, snap, {
+        ...moveSides(runtimeB),
+        positions,
+        terrain: MOVE_TERRAIN,
+      });
+      return { fightA, eventsA, fightB, eventsB, snap };
+    }
+
+    const COMPARED = [
+      'move:advanced',
+      'move:ended',
+      'attack:rolled',
+      'damage:applied',
+      'trigger:declined',
+      'turn:ended',
+    ];
+    function compared(events: readonly RuntimeEvent[], from: number): unknown[] {
+      return events
+        .slice(from)
+        .filter((event) => COMPARED.includes(event.type))
+        .map((event) => ({
+          type: event.type,
+          at: event.at,
+          actor: event.actor,
+          target: event.target,
+          payload: event.payload,
+        }));
+    }
+
+    it('pendingMove serializes only when set, and restore derives the resolved phase and the event-type offer', () => {
+      const { fightA, fightB, snap } = pausedPair();
+      const brynn = snap.combatants.find((combatant) => combatant.id === 'brynn')!;
+      const wight = snap.combatants.find((combatant) => combatant.id === 'wight')!;
+      expect(brynn.pendingMove).toEqual({ actionId: 'stride', to: DESTINATION, remaining: 5 });
+      expect('pendingMove' in wight).toBe(false);
+      expect(wight.pendingTrigger).toBe('opportunist');
+      expect(brynn.position).toEqual({ x: 0, y: 0 });
+
+      expect(fightA.state.phase).toBe('resolved');
+      expect(fightB.state.phase).toBe('resolved');
+      expect(fightB.state.combatants['brynn']!.pendingMove).toEqual(brynn.pendingMove);
+      expect(fightB.pendingTriggers).toEqual(fightA.pendingTriggers);
+      expect(fightB.pendingTriggers[0]!.matchingEvent).toBe('move:leaving-reach');
+    });
+
+    it('resume parity (take): respond in both fights yields identical move/attack/damage payloads and positions', () => {
+      const { fightA, eventsA, fightB, eventsB } = pausedPair();
+      const [fromA, fromB] = [eventsA.length, eventsB.length];
+      fightA.respond('wight.opportunist', 'take', 'brynn');
+      fightB.respond('wight.opportunist', 'take', 'brynn');
+      const tail = compared(eventsA, fromA);
+      const types = tail.map((event) => (event as { type: string }).type);
+      expect(types).toContain('attack:rolled');
+      expect(types.slice(-2)).toEqual(['move:advanced', 'move:ended']);
+      expect(compared(eventsB, fromB)).toEqual(tail);
+      expect(fightB.state.combatants['brynn']!.position).toEqual(DESTINATION);
+      expect(fightB.state.combatants['brynn']!.position).toEqual(fightA.state.combatants['brynn']!.position);
+      expect(fightB.state.combatants['brynn']!.hp).toEqual(fightA.state.combatants['brynn']!.hp);
+      expect(fightB.pendingTriggers).toEqual([]);
+      expect(fightB.state.combatants['brynn']!.pendingMove).toBeUndefined();
+    });
+
+    it('resume parity (decline): identical trigger:declined payloads (on included) and move payloads', () => {
+      const { fightA, eventsA, fightB, eventsB } = pausedPair();
+      const [fromA, fromB] = [eventsA.length, eventsB.length];
+      fightA.respond('wight.opportunist', 'decline');
+      const answeredB = fightB.respond('wight.opportunist', 'decline');
+      // A restored fight's decline returns the declined event (stamped with the fight clock, not round 0).
+      expect(answeredB.map((event) => event.type)).toEqual([
+        'trigger:declined',
+        'move:advanced',
+        'move:ended',
+      ]);
+      const tail = compared(eventsA, fromA);
+      expect(tail.map((event) => (event as { type: string }).type)).toEqual([
+        'trigger:declined',
+        'move:advanced',
+        'move:ended',
+      ]);
+      expect((tail[0] as { payload: Record<string, unknown> }).payload['on']).toBe('move:leaving-reach');
+      expect(compared(eventsB, fromB)).toEqual(tail);
+      expect(fightB.state.combatants['brynn']!.position).toEqual(fightA.state.combatants['brynn']!.position);
+    });
+
+    it('F-P2 forfeit parity: step() in both fights forfeits then ends the turn with identical payloads, no turn:began', () => {
+      const { fightA, eventsA, fightB, eventsB } = pausedPair();
+      const [fromA, fromB] = [eventsA.length, eventsB.length];
+      expect(fightA.step()).toEqual({ kind: 'turn-ended', combatantId: 'brynn' });
+      expect(fightB.step()).toEqual({ kind: 'turn-ended', combatantId: 'brynn' });
+      const tail = compared(eventsA, fromA);
+      expect(tail).toEqual([
+        {
+          type: 'move:ended',
+          at: { round: 1, turn: 0 },
+          actor: 'brynn',
+          target: undefined,
+          payload: { reason: 'forfeited', at: { x: 0, y: 0 } },
+        },
+        {
+          type: 'turn:ended',
+          at: { round: 1, turn: 0 },
+          actor: 'brynn',
+          target: undefined,
+          payload: { turn: 0, round: 1 },
+        },
+      ]);
+      expect(compared(eventsB, fromB)).toEqual(tail);
+      expect(eventsA.slice(fromA).some((event) => event.type === 'turn:began')).toBe(false);
+      expect(eventsB.slice(fromB).some((event) => event.type === 'turn:began')).toBe(false);
+    });
+
+    it('a pendingMove naming an unknown or a non-move action refuses with E-SNAP-01, before anything is rebuilt', () => {
+      const { snap } = pausedPair();
+      const index = snap.combatants.findIndex((combatant) => combatant.id === 'brynn');
+      for (const actionId of ['fly', 'strike']) {
+        const tampered = JSON.parse(JSON.stringify(snap)) as {
+          combatants: { pendingMove?: { actionId: string } }[];
+        };
+        tampered.combatants[index]!.pendingMove!.actionId = actionId;
+        const fresh = new Runtime(emberMarchesHexPack());
+        const seen = recorded(fresh);
+        let cards: readonly { rule: string; jsonPath: string; message: string }[] = [];
+        try {
+          deserializeCombat(fresh, tampered, {
+            ...moveSides(fresh),
+            positions: MOVE_POSITIONS,
+            terrain: MOVE_TERRAIN,
+          });
+          throw new Error('expected a refusal');
+        } catch (error) {
+          cards = (error as { errors: typeof cards }).errors;
+        }
+        expect(cards.map((card) => [card.rule, card.jsonPath])).toEqual([
+          ['E-SNAP-01', `combatants[${index}].pendingMove.actionId`],
+        ]);
+        expect(cards[0]!.message).toContain(`"${actionId}"`);
+        expect(seen).toEqual([]);
+      }
+    });
+  });
 });
 
 /**
