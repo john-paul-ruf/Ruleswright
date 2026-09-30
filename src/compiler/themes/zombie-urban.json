@@ -37,7 +37,8 @@
   "spatial": {
     "model": "grid",
     "reach": { "default": 1, "slab-brute": 2 },
-    "shapes": ["single", "burst"]
+    "shapes": ["single", "burst"],
+    "terrain": { "debris": { "cost": 2 }, "barricade-wall": { "blocks": true } }
   },
   "equipSlots": ["body", "main-hand"],
   "actions": {
@@ -103,6 +104,13 @@
       "cost": { "slots": { "main": 1 } },
       "effect": "save(presence, 11, applyCondition(hexbound, 2), applyCondition(hexbound, 1))",
       "tags": ["casting"]
+    },
+    "hustle": { "cost": { "slots": { "move": 1 } }, "effect": "move(speed)", "tags": ["move"] },
+    "cheap-shot": {
+      "cost": { "slots": { "reaction": 1 } },
+      "trigger": { "on": "move:leaving-reach[target=self]" },
+      "effect": "sequence(attack(ac, might), damage(1d6 + might, bludgeon))",
+      "tags": ["reaction"]
     }
   },
   "formulas": {
@@ -110,7 +118,8 @@
     "ac": { "expr": "11 - floor(level / 3) - gear-ac" },
     "initiative": { "expr": "d20 + grace + gear-initiative" },
     "adrenaline": { "expr": "8 + vigor" },
-    "stamina": { "expr": "8 + vigor" }
+    "stamina": { "expr": "8 + vigor" },
+    "speed": { "expr": "4 + floor(vigor / 4)" }
   },
   "content": {
     "classes": {
@@ -121,19 +130,27 @@
           { "level": 1, "ref": "scavengers-instinct" },
           { "level": 4, "ref": "block-runner" }
         ],
-        "actions": ["baton-blow", "crossbow-bolt", "fall-back", "dodge-roll"]
+        "actions": ["baton-blow", "crossbow-bolt", "fall-back", "dodge-roll", "hustle", "cheap-shot"]
       },
       "fixer": {
         "name": "Fixer",
         "spellLists": [],
         "features": [{ "level": 1, "ref": "milers-read" }],
-        "actions": ["baton-blow", "pistol-shot", "barricade", "wrench-parry", "adrenal-spike"]
+        "actions": [
+          "baton-blow",
+          "pistol-shot",
+          "barricade",
+          "wrench-parry",
+          "adrenal-spike",
+          "hustle",
+          "cheap-shot"
+        ]
       },
       "medic": {
         "name": "Medic",
         "spellLists": [],
         "features": [{ "level": 2, "ref": "field-surgery" }],
-        "actions": ["baton-blow", "fall-back", "dodge-roll"]
+        "actions": ["baton-blow", "fall-back", "dodge-roll", "hustle", "cheap-shot"]
       }
     },
     "races": {
@@ -321,7 +338,7 @@
       "abilityOverrides": { "might": 3, "vigor": 2, "grace": 1 },
       "saveOverrides": { "vigor": 2, "tenacity": 1 },
       "attackTable": "scavenger",
-      "actions": ["shambler-claw"]
+      "actions": ["shambler-claw", "hustle", "cheap-shot"]
     },
     "slab-brute": {
       "name": "Slab Brute",
@@ -331,7 +348,7 @@
       "abilityOverrides": { "might": 4, "vigor": 3, "grace": 0, "reason": 0, "insight": 0, "presence": 1 },
       "saveOverrides": { "vigor": 3, "tenacity": 2, "reason": 0, "presence": 1 },
       "attackTable": "scavenger",
-      "actions": ["slab-swipe", "infection-word"]
+      "actions": ["slab-swipe", "infection-word", "hustle", "cheap-shot"]
     },
     "cistern-crawler": {
       "name": "Cistern Crawler",
@@ -340,7 +357,7 @@
       "hd": "d6",
       "abilityOverrides": { "grace": 3, "might": 1 },
       "attackTable": "scavenger",
-      "actions": ["shambler-claw"]
+      "actions": ["shambler-claw", "hustle", "cheap-shot"]
     },
     "mile-tyrant": {
       "name": "Mile Tyrant",
@@ -350,7 +367,7 @@
       "abilityOverrides": { "might": 5, "vigor": 4, "grace": 2, "reason": 1, "insight": 2, "presence": 3 },
       "saveOverrides": { "vigor": 4, "tenacity": 3, "reason": 2, "presence": 3 },
       "attackTable": "scavenger",
-      "actions": ["slab-swipe", "infection-word", "rot-speech"]
+      "actions": ["slab-swipe", "infection-word", "rot-speech", "hustle", "cheap-shot"]
     }
   },
   "tables": {

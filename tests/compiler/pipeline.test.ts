@@ -425,11 +425,11 @@ describe('equipSlots pass-through (v1.4, CA-EG1) — theme input to pack root', 
 });
 
 describe('the bundled themes ship spatial (CAP-G6)', () => {
-  it('each generated pack carries model grid with an integer >= 1 at every reach key', () => {
+  it('each generated pack carries its model (grid; hex for wyldwood) with an integer >= 1 at every reach key', () => {
     for (const theme of [DARK_FANTASY, ZOMBIE_URBAN, WYLDWOOD]) {
       const pack = runPipeline(theme, 42);
       expect(pack.spatial, theme.id).toBeDefined();
-      expect(pack.spatial!.model).toBe('grid');
+      expect(pack.spatial!.model).toBe(theme.id === 'wyldwood' ? 'hex' : 'grid');
       expect(pack.spatial!.reach.default).toBeGreaterThanOrEqual(1);
       for (const [key, steps] of Object.entries(pack.spatial!.reach))
         expect(steps, `spatial.reach.${key} (${theme.id})`).toBeGreaterThanOrEqual(1);

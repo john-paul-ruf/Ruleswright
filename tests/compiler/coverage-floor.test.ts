@@ -6,8 +6,11 @@
  * generateCampaign → validatePack(packDslChecker) → the floor holds.
  *
  * SESSION-04 extends the floor with the spatial declarations (CAP-G6, FR-11):
- * every bundled theme declares the grid model and every generated pack ships it
- * — stage-8 validation clean (the theater-of-mind default would omit the section).
+ * every bundled theme declares a spatial model (grid; wyldwood hex since
+ * grid-movement DD-M3) and every generated pack ships it — stage-8 validation
+ * clean (the theater-of-mind default would omit the section). grid-movement
+ * SESSION-04 adds the movement floor (CA-M6): `formulas.speed`, a move-tagged
+ * `move(...)` action and a `move:leaving-reach` reaction on every class and statblock.
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -163,14 +166,15 @@ describe('FR-21 floor — the shared bullets, enumerated against both packs', ()
 
     it(`${name}: spatial — the theme declares it, the pack ships it, shape-valid (CAP-G6)`, () => {
       const theme = PACKS.find((entry) => entry.name === name)!.theme;
-      // declared: the grid model with an integer >= 1 at every reach key (the v1 set)
-      expect(theme.spatial?.model).toBe('grid');
+      // declared: the theme's model (grid; hex for wyldwood) with an integer >= 1 at every reach key
+      const model = name === 'wyldwood' ? 'hex' : 'grid';
+      expect(theme.spatial?.model).toBe(model);
       expect(theme.spatial?.reach.default).toBeGreaterThanOrEqual(1);
       for (const [key, steps] of Object.entries(theme.spatial?.reach ?? {}))
         expect(steps, `theme spatial.reach.${key} (${name})`).toBeGreaterThanOrEqual(1);
       // shipped: the pack section is the declaration, verbatim
       expect(pack.spatial).toEqual(theme.spatial);
-      expect(pack.spatial?.model).toBe('grid');
+      expect(pack.spatial?.model).toBe(model);
       expect(pack.spatial?.reach.default).toBeGreaterThanOrEqual(1);
       // overrides name bestiary ids the theme declares; the override extends the default
       for (const key of Object.keys(pack.spatial?.reach ?? {})) {
@@ -178,6 +182,26 @@ describe('FR-21 floor — the shared bullets, enumerated against both packs', ()
         expect(pack.bestiary[key], key).toBeDefined();
         expect(pack.spatial!.reach[key]!).toBeGreaterThanOrEqual(pack.spatial!.reach.default!);
       }
+    });
+
+    it(`${name}: v1.5 movement — speed, a move action and a leaving-reach reaction on every combatant (CA-M6)`, () => {
+      expect(pack.formulas['speed'], 'formulas.speed').toBeDefined();
+      const moves = Object.entries(pack.actions).filter(
+        ([, action]) => action.tags?.includes('move') && /^move\(/.test(action.effect),
+      );
+      const reactions = Object.entries(pack.actions).filter(([, action]) =>
+        action.trigger?.on.startsWith('move:leaving-reach'),
+      );
+      expect(moves.map(([id]) => id)).toHaveLength(1);
+      expect(reactions.map(([id]) => id)).toHaveLength(1);
+      const [moveId] = moves[0]!;
+      const [reactionId] = reactions[0]!;
+      const lists = [
+        ...Object.entries(pack.content.classes ?? {}).map(([id, def]) => [id, def.actions ?? []] as const),
+        ...Object.entries(pack.bestiary).map(([id, block]) => [id, block.actions] as const),
+      ];
+      for (const [id, actions] of lists) expect(actions.slice(-2), id).toEqual([moveId, reactionId]);
+      expect(pack.spatial?.terrain, 'spatial.terrain').toBeDefined();
     });
 
     it(`${name}: v1.4 equipment — equipSlots ship, armor + gear formulas exercised (CAP-E6)`, () => {

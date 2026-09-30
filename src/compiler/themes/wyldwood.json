@@ -49,12 +49,20 @@
     }
   },
   "spatial": {
-    "model": "grid",
+    "model": "hex",
     "reach": {
       "default": 1,
       "hollow-wight": 2
     },
-    "shapes": ["single", "burst"]
+    "shapes": ["single", "burst"],
+    "terrain": {
+      "bramble": {
+        "cost": 2
+      },
+      "standing-stone": {
+        "blocks": true
+      }
+    }
   },
   "equipSlots": ["charm"],
   "actions": {
@@ -180,6 +188,27 @@
       },
       "effect": "save(reason, 12, applyCondition(hexsight, 3), damage(half))",
       "tags": ["casting"]
+    },
+    "glide": {
+      "cost": {
+        "slots": {
+          "move": 1
+        }
+      },
+      "effect": "move(speed)",
+      "tags": ["move"]
+    },
+    "bramble-snap": {
+      "cost": {
+        "slots": {
+          "reaction": 1
+        }
+      },
+      "trigger": {
+        "on": "move:leaving-reach[target=self]"
+      },
+      "effect": "sequence(attack(ac, might), damage(1d8 + might, sharp))",
+      "tags": ["reaction"]
     }
   },
   "formulas": {
@@ -194,6 +223,9 @@
     },
     "motes": {
       "expr": "#knob/mote-base + insight"
+    },
+    "speed": {
+      "expr": "5 + floor(grace / 4)"
     }
   },
   "content": {
@@ -212,7 +244,7 @@
             "ref": "verges-glyph"
           }
         ],
-        "actions": ["strike", "thorn-lash", "fall-back", "circle-path", "ward-step"]
+        "actions": ["strike", "thorn-lash", "fall-back", "circle-path", "ward-step", "glide", "bramble-snap"]
       },
       "hexer": {
         "name": "Hexer",
@@ -223,7 +255,15 @@
             "ref": "hexers-eye"
           }
         ],
-        "actions": ["bow-volley", "glade-spear", "circle-path", "root-snare", "charm-word"]
+        "actions": [
+          "bow-volley",
+          "glade-spear",
+          "circle-path",
+          "root-snare",
+          "charm-word",
+          "glide",
+          "bramble-snap"
+        ]
       },
       "hedge-mage": {
         "name": "Hedge Mage",
@@ -234,7 +274,15 @@
             "ref": "hedges-eye"
           }
         ],
-        "actions": ["thorn-lash", "gloam-light", "fall-back", "ward-step", "wyrd-gaze"]
+        "actions": [
+          "thorn-lash",
+          "gloam-light",
+          "fall-back",
+          "ward-step",
+          "wyrd-gaze",
+          "glide",
+          "bramble-snap"
+        ]
       }
     },
     "races": {
@@ -751,7 +799,7 @@
         "grace": 2
       },
       "attackTable": "warden",
-      "actions": ["strike"]
+      "actions": ["strike", "glide", "bramble-snap"]
     },
     "briar-shade": {
       "name": "Briar Shade",
@@ -768,7 +816,7 @@
         "presence": 2
       },
       "attackTable": "warden",
-      "actions": ["gloam-light", "charm-word"]
+      "actions": ["gloam-light", "charm-word", "glide", "bramble-snap"]
     },
     "hollow-wight": {
       "name": "Hollow Wight",
@@ -786,7 +834,7 @@
         "presence": 3
       },
       "attackTable": "warden",
-      "actions": ["thorn-lash", "wyrd-gaze", "root-snare"]
+      "actions": ["thorn-lash", "wyrd-gaze", "root-snare", "glide", "bramble-snap"]
     }
   },
   "tables": {

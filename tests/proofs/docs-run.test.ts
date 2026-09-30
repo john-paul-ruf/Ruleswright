@@ -192,7 +192,15 @@ describe('README quickstart runs verbatim (NFR-DX)', () => {
       // 03 — combat: Brynn fights as herself (her class actions, her derived ac),
       // and the provenanced attack event is the README's verbatim roll line.
       const ally = fight.state.combatants['brynn']!;
-      expect(ally.actions).toEqual(['strike', 'cut-down', 'withdraw', 'brace', 'parry']);
+      expect(ally.actions).toEqual([
+        'strike',
+        'cut-down',
+        'withdraw',
+        'brace',
+        'parry',
+        'stride',
+        'opportunist',
+      ]);
       expect(ally.ac).toBe(brynn.derived().ac);
       expect(attack).toBeDefined();
       expect(attack!.actor).toBe('wight');

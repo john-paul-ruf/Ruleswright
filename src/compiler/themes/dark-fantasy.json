@@ -37,7 +37,8 @@
   "spatial": {
     "model": "grid",
     "reach": { "default": 1, "barrow-wight": 2 },
-    "shapes": ["single", "burst"]
+    "shapes": ["single", "burst"],
+    "terrain": { "rubble": { "cost": 2 }, "pillar": { "blocks": true } }
   },
   "equipSlots": ["body", "main-hand"],
   "actions": {
@@ -100,13 +101,21 @@
       "cost": { "points": { "pool": "ember", "amount": 2 } },
       "effect": "damage(2d6, fire)",
       "tags": ["free"]
+    },
+    "stride": { "cost": { "slots": { "move": 1 } }, "effect": "move(speed)", "tags": ["move"] },
+    "opportunist": {
+      "cost": { "slots": { "reaction": 1 } },
+      "trigger": { "on": "move:leaving-reach[target=self]" },
+      "effect": "sequence(attack(ac, might), damage(1d8 + might, sharp))",
+      "tags": ["reaction"]
     }
   },
   "formulas": {
     "hp": { "expr": "6 + level + vigor * 2 + gear-hp" },
     "ac": { "expr": "12 - floor(level / 3) - gear-ac" },
     "initiative": { "expr": "d20 + grace + gear-initiative" },
-    "ember": { "expr": "8 + insight" }
+    "ember": { "expr": "8 + insight" },
+    "speed": { "expr": "4 + floor(grace / 4)" }
   },
   "content": {
     "classes": {
@@ -118,20 +127,20 @@
           { "level": 1, "ref": "oath-of-the-warden" },
           { "level": 3, "ref": "wardens-glyph" }
         ],
-        "actions": ["strike", "cut-down", "withdraw", "brace", "parry"]
+        "actions": ["strike", "cut-down", "withdraw", "brace", "parry", "stride", "opportunist"]
       },
       "hexer": {
         "name": "Hexer",
         "spellLists": ["hexer"],
         "armorCasting": ["leather"],
         "features": [{ "level": 1, "ref": "hexers-eye" }],
-        "actions": ["hurl", "long-shot", "withdraw", "ward-glint", "ember-surge"]
+        "actions": ["hurl", "long-shot", "withdraw", "ward-glint", "ember-surge", "stride", "opportunist"]
       },
       "crypt-warden": {
         "name": "Crypt Warden",
         "spellLists": ["warden", "hexer"],
         "features": [{ "level": 2, "ref": "wardens-glyph" }],
-        "actions": ["strike", "long-shot", "withdraw", "brace", "ward-glint"]
+        "actions": ["strike", "long-shot", "withdraw", "brace", "ward-glint", "stride", "opportunist"]
       }
     },
     "races": {
@@ -601,7 +610,7 @@
       "abilityOverrides": { "might": 4, "grace": 2, "vigor": 3, "reason": 0, "insight": 1, "presence": 2 },
       "saveOverrides": { "vigor": 3, "grace": 1, "tenacity": 2, "reason": 3, "presence": 2 },
       "attackTable": "warden",
-      "actions": ["cut-down", "grave-gaze"]
+      "actions": ["cut-down", "grave-gaze", "stride", "opportunist"]
     },
     "grave-shambles": {
       "name": "Grave Shambles",
@@ -610,7 +619,7 @@
       "hd": "d8",
       "abilityOverrides": { "might": 3, "vigor": 2 },
       "attackTable": "warden",
-      "actions": ["cut-down"]
+      "actions": ["cut-down", "stride", "opportunist"]
     },
     "hill-spider": {
       "name": "Hill Spider",
@@ -619,7 +628,7 @@
       "hd": "d6",
       "abilityOverrides": { "grace": 3, "might": 1 },
       "attackTable": "warden",
-      "actions": ["cut-down", "cold-grip"]
+      "actions": ["cut-down", "cold-grip", "stride", "opportunist"]
     },
     "barrow-choir": {
       "name": "Barrow Choir",
@@ -629,7 +638,7 @@
       "abilityOverrides": { "presence": 4, "insight": 3, "might": 2, "vigor": 2 },
       "saveOverrides": { "reason": 4, "presence": 3 },
       "attackTable": "warden",
-      "actions": ["barrow-drain", "grave-gaze", "cut-down"]
+      "actions": ["barrow-drain", "grave-gaze", "cut-down", "stride", "opportunist"]
     }
   },
   "tables": {

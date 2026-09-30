@@ -212,6 +212,7 @@ describe('CAP-G7 — the grid journey on the real generated pack (dark-fantasy, 
       model: 'grid',
       reach: { default: 1, 'barrow-wight': 2 },
       shapes: ['single', 'burst'],
+      terrain: { rubble: { cost: 2 }, pillar: { blocks: true } },
     });
     expect(rt.spatial.enabled).toBe(true);
     // The other generated themes carry their committed spatial declarations too (S04's record).
@@ -219,11 +220,13 @@ describe('CAP-G7 — the grid journey on the real generated pack (dark-fantasy, 
       model: 'grid',
       reach: { default: 1, 'slab-brute': 2 },
       shapes: ['single', 'burst'],
+      terrain: { debris: { cost: 2 }, 'barricade-wall': { blocks: true } },
     });
     expect(generateCampaign({ theme: loadTheme('wyldwood'), seed: 42 }).spatial).toEqual({
-      model: 'grid',
+      model: 'hex',
       reach: { default: 1, 'hollow-wight': 2 },
       shapes: ['single', 'burst'],
+      terrain: { bramble: { cost: 2 }, 'standing-stone': { blocks: true } },
     });
   });
 
