@@ -27,7 +27,7 @@
     },
     "formulas": {
       "type": "object",
-      "description": "formulaId -> {params?, expr}. v1.4: expressions in this section (and only this section) may read the four equipment variables gear-hp, gear-ac, gear-initiative, gear-armor — each the sum of the matching reserved grant key over every equipped item; 0 when nothing is equipped and 0 wherever unbound (e.g. statblocks). The pack's formula decides what the value does; the engine applies no direction (ascending AC: \"10 + gear-ac\"; descending AC: \"12 - floor(level / 3) - gear-ac\"). Every other DSL field keeps its v1.3 vocabulary.",
+      "description": "formulaId -> {params?, expr}. v1.4: expressions in this section (and only this section) may read the four equipment variables gear-hp, gear-ac, gear-initiative, gear-armor — each the sum of the matching reserved grant key over every equipped item; 0 when nothing is equipped and 0 wherever unbound (e.g. statblocks). The pack's formula decides what the value does; the engine applies no direction (ascending AC: \"10 + gear-ac\"; descending AC: \"12 - floor(level / 3) - gear-ac\"). Every other DSL field keeps its v1.3 vocabulary. v1.5 (FR-11 movement): reserved optional id speed — a movement budget; profiles evaluate it like initiative (CombatantProfile.speed, carried only when formulas.speed is declared). speed is also an engine-derived effect scalar (like hp/ac it shadows a same-named ability inside effect vars): in combat it binds to the actor's profile speed (0 when absent); in out-of-combat item use it binds to this pack's speed formula, else 0. The effect statement move(formula) (registry 13 -> 14) is legal only as the root statement of a non-triggered actions.<id>.effect; nested inside sequence/target/save, or in spells, feats, items' use or triggered actions = E-FORM-02. Its argument must be dice-free (the budget is evaluated at declare time, before cost, and consumes no RNG); a dice argument = E-FORM-02. An effect that references speed at a formula position in a pack with no formulas.speed = E-REF-01; a damage type, condition id, shape or save name spelled speed is not a reference. In a pack without spatial, a move action resolves as a no-op success.",
       "additionalProperties": {
         "type": "object",
         "additionalProperties": false,
@@ -188,8 +188,8 @@
       "required": ["model", "reach"],
       "properties": {
         "model": {
-          "const": "grid",
-          "description": "v1 ships exactly the square grid (Chebyshev distance). Other models are future additive revisions, never silent aliases."
+          "enum": ["grid", "hex"],
+          "description": "grid = square grid, Chebyshev distance (v1.3). hex (v1.5) = axial coordinates {x: q, y: r}, hex distance (|dq|+|dr|+|dq+dr|)/2. Other models are future additive revisions, never silent aliases."
         },
         "reach": {
           "type": "object",
@@ -209,9 +209,30 @@
           "items": { "enum": ["single", "burst"] },
           "uniqueItems": true,
           "description": "Documented shape set (FR-11): v1 ships single + burst only; cone/line are deferred engine geometry and cannot be declared (E-SPAT-01 if attempted post-validation shape growth)."
+        },
+        "terrain": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[a-z][a-z0-9-]*$" },
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["cost"],
+                "properties": { "cost": { "type": "integer", "minimum": 1 } }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["blocks"],
+                "properties": { "blocks": { "const": true } }
+              }
+            ]
+          },
+          "description": "v1.5 — terrain vocabulary (FR-11): kind id -> {cost} (entering a cell costs this many movement points; plain cells cost 1) or {blocks: true} (never enterable). Cells are placed by the host per fight (startCombat terrain), never by the pack."
         }
       },
-      "description": "The spatial model (spatial.html verbatim): {model: 'grid', reach: {default, <label>: n}, shapes?}. Positions are host-declared per combatant; the engine never invents a grid."
+      "description": "The spatial model (spatial.html verbatim): {model: 'grid' | 'hex', reach: {default, <label>: n}, shapes?, terrain?}. Positions are host-declared per combatant; the engine never invents a grid."
     },
 
     "content": {

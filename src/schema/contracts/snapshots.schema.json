@@ -225,6 +225,22 @@
                 "type": "integer",
                 "minimum": 0,
                 "description": "v1.4 — optional: the combatant's heal cap, fixed at fight start (characters: derived hp with equipment grants; statblocks: the hp formula value). A heal never raises hp above maxHp and never lowers hp: a combatant already above its cap stays unchanged. Restore precedence: this snapshot value wins over the re-stated profile; when absent (a pre-v1.4 envelope) restore falls back to the profile's maxHp, then to the profile's hp (floored at 0)."
+              },
+              "pendingMove": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["actionId", "to", "remaining"],
+                "properties": {
+                  "actionId": { "type": "string" },
+                  "to": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["x", "y"],
+                    "properties": { "x": { "type": "integer" }, "y": { "type": "integer" } }
+                  },
+                  "remaining": { "type": "integer", "minimum": 0 }
+                },
+                "description": "v1.5 — optional: a move paused by open leaving-reach offers (FR-11). Resumes when the offer queue empties. Unknown or non-move actionId = E-SNAP-01. Absent = no paused move. Restore derives the resolved phase when any combatant carries pendingMove or pendingTrigger (no envelope field)."
               }
             }
           }
