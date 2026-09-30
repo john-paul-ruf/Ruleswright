@@ -833,6 +833,11 @@ describe('movement DSL cross checks (v1.5, CA-M2/CA-M7) — move placement + spe
     }
   });
 
+  it('grouping parentheses keep their argument position', () => {
+    expect(speedCards(strikeEffect('damage((speed + 1), fire)'))).toHaveLength(1);
+    expect(speedCards(strikeEffect('damage((1d6), speed)'))).toEqual([]);
+  });
+
   it('a non-bare argument at a name position still counts', () => {
     expect(speedCards(strikeEffect('applyCondition(prone, speed)'))).toHaveLength(1);
     expect(speedCards(strikeEffect('target(burst-2, damage(speed))'))).toHaveLength(1);

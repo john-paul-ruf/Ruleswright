@@ -185,7 +185,12 @@ function referencesSpeed(expr: string): boolean {
   };
   for (const [index, token] of tokens.entries()) {
     const frame = stack[stack.length - 1];
-    if (token === '(') continue; // consumed with its call name
+    if (token === '(') {
+      if (index > 0 && isCallName(tokens[index - 1]!)) continue; // opened with its call name
+      if (frame !== undefined) frame.argTokens += 1;
+      stack.push({ callName: '', argIndex: 0, argTokens: 0, hasSpeed: false }); // grouping parentheses
+      continue;
+    }
     if (token === ',' || token === ')') {
       if (frame === undefined) return false;
       closeArg();
@@ -207,4 +212,8 @@ function referencesSpeed(expr: string): boolean {
     }
   }
   return stack.length === 0 && isFound;
+}
+
+function isCallName(token: string): boolean {
+  return /^[A-Za-z_]/.test(token);
 }
