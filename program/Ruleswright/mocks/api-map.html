@@ -49,7 +49,7 @@ rt.createCharacter({ name, race, classes })    <span class="com">→ Character</
 rt.awardXp(char, amount)                        <span class="com">→ Event[]</span>       <span class="com">// FR-6 · host awards</span>
 rt.spawnMonster(id)                             <span class="com">→ Combatant</span>     <span class="com">// FR-16 · same machinery</span>
 rt.assembleEncounter({ budget, party, seed })   <span class="com">→ Encounter</span>     <span class="com">// FR-16 · deterministic</span>
-rt.startCombat({ allies, enemies }, opts?)      <span class="com">→ Combat</span>        <span class="com">// opts.rng injectable (FR-1)</span></code></pre>
+rt.startCombat({ allies, enemies, positions?, terrain? }, opts?)  <span class="com">→ Combat</span>  <span class="com">// opts.rng injectable (FR-1) · positions/terrain host-placed (FR-11)</span></code></pre>
     </div>
   </section>
 
@@ -71,10 +71,10 @@ char.serialize() / Character.deserialize(json)  <span class="com">// FR-14 · se
     <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
       <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>fight.step()                                    <span class="com">// begin → declare → resolve → end (FR-10)</span>
 fight.roundComplete                             <span class="com">// host paces the loop</span>
-fight.declare(actionId, targetRef)              <span class="com">// validity checked against pack (FR-4)</span>
+fight.declare(actionId, { targetId?, to? })     <span class="com">// validity checked against pack (FR-4) · to = move destination (FR-11)</span>
 fight.respond(triggerId, choice)                <span class="com">// answer an offered trigger (FR-4, FR-13)</span>
 fight.on(fn) / fight.off(fn)                    <span class="com">// subscribe — never required (FR-13)</span>
-fight.events.sinceRound(n)                      <span class="com">// the provenance stream</span>
+fight.events.sinceRound(n)                      <span class="com">// the provenance stream · move:leaving-reach · move:advanced · move:ended (FR-11)</span>
 fight.serialize() / Combat.deserialize(snap, pack)  <span class="com">// FR-14 · serializer 3 of 3 · rng included</span></code></pre>
     </div>
   </section>

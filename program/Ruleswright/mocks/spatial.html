@@ -30,27 +30,29 @@
 <main class="max-w-4xl mx-auto px-6 py-10">
 
   <h1 class="font-display text-4xl mb-3">The optional spatial layer</h1>
-  <p class="text-[#9A8F7E] mb-10 max-w-2xl">Packs may declare positions, adjacency, and reach — or declare none, and everything else works untouched. Theater-of-mind packs pay nothing; tactical packs get geometry (FR-11).</p>
+  <p class="text-[#9A8F7E] mb-10 max-w-2xl">Packs may declare positions, adjacency, reach, movement, and terrain — on a square grid or a hex grid — or declare none, and everything else works untouched. Theater-of-mind packs pay nothing; tactical packs get geometry (FR-11).</p>
 
   <!-- OPT-IN -->
   <section class="mb-12">
     <h2 class="font-display text-2xl mb-4">An opt-in, declared per pack</h2>
     <div class="grid md:grid-cols-2 gap-4">
       <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4">
-        <p class="text-sm"><span class="text-[#7BA05B]">✓</span> <span class="text-[#E8E2D6]">Declared:</span> melee actions may require adjacency; a reach value extends it; burst shapes exist. All read from the pack.</p>
+        <p class="text-sm"><span class="text-[#7BA05B]">✓</span> <span class="text-[#E8E2D6]">Declared:</span> melee actions may require adjacency; a reach value extends it; burst shapes exist; move actions walk the grid; terrain kinds cost extra or block. All read from the pack.</p>
       </div>
       <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4">
-        <p class="text-sm"><span class="text-[#9A8F7E]">—</span> <span class="text-[#E8E2D6]">Absent:</span> no position state, no adjacency checks, <span class="font-data text-[13px]">valid</span> clauses never reference distance. Nothing else changes — same combat loop, same events.</p>
+        <p class="text-sm"><span class="text-[#9A8F7E]">—</span> <span class="text-[#E8E2D6]">Absent:</span> no position state, no adjacency checks, <span class="font-data text-[13px]">valid</span> clauses never reference distance. A move action resolves as a no-op success (<span class="font-data text-[13px]">to</span> ignored, nothing emitted beyond <span class="font-data text-[13px]">action:resolved</span>), and move content still loads; terrain, like positions, rides along unconsulted. Nothing else changes — same combat loop, same events.</p>
       </div>
     </div>
     <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden mt-4">
-      <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">pack.json · spatial declaration</div>
+      <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">pack.json · spatial declaration (v1.5: hex model, terrain vocabulary)</div>
       <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="str">"spatial"</span>: {
-  <span class="kw">"model"</span>: <span class="str">"grid"</span>,           <span class="com">// or omit the block entirely</span>
+  <span class="kw">"model"</span>: <span class="str">"hex"</span>,                 <span class="com">// or "grid" (square) — or omit the block</span>
   <span class="kw">"reach"</span>: { <span class="kw">"default"</span>: <span class="num">1</span>, <span class="kw">"weapons.long-spear"</span>: <span class="num">2</span> },
-  <span class="kw">"shapes"</span>: [<span class="str">"single"</span>, <span class="str">"burst"</span>]   <span class="com">// v1 set (FR-11)</span>
+  <span class="kw">"shapes"</span>: [<span class="str">"single"</span>, <span class="str">"burst"</span>],
+  <span class="kw">"terrain"</span>: { <span class="kw">"bramble"</span>: { <span class="kw">"cost"</span>: <span class="num">2</span> }, <span class="kw">"standing-stone"</span>: { <span class="kw">"blocks"</span>: <span class="kw">true</span> } }
 }</code></pre>
     </div>
+    <p class="text-sm text-[#9A8F7E] mt-3 max-w-2xl"><span class="font-data text-[13px]">grid</span> is the square grid: Chebyshev distance, 8 neighbors, a diagonal step costs 1. <span class="font-data text-[13px]">hex</span> reuses the same <span class="font-data text-[13px]">{x, y}</span> positions as axial <span class="font-data text-[13px]">{q, r}</span>: distance is <span class="font-data text-[13px]">(|dq| + |dr| + |dq + dr|) / 2</span>, with 6 neighbors in the fixed order <span class="font-data text-[13px]">(+1,0) (+1,−1) (0,−1) (−1,0) (−1,+1) (0,+1)</span>. Reach, <span class="font-data text-[13px]">adjacent</span> and burst all use the pack's distance.</p>
   </section>
 
   <!-- ADJACENCY IN AN ACTION -->
@@ -85,6 +87,118 @@
     </div>
   </section>
 
+  <!-- MOVEMENT -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">Movement is an action, not a verb</h2>
+    <p class="text-sm text-[#9A8F7E] mb-4 max-w-2xl">There is no engine <span class="font-data text-[13px]">move</span> command. A pack declares a move action whose effect is <span class="font-data text-[13px]">move(&lt;formula&gt;)</span>, budgeted by the pack's optional reserved <span class="font-data text-[13px]">speed</span> formula. It is declared like any action — with a destination — spends the pack's declared slots, and is restricted by conditions through its tags. The engine walks the cheapest legal path (deterministic: fixed neighbor order breaks ties). One declare is one move up to the budget; unspent budget is lost.</p>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+      <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">pack.json · a move action + its budget</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="str">"actions"</span>: {
+  <span class="kw">"stride"</span>: {
+    <span class="kw">"cost"</span>: { <span class="kw">"slots"</span>: { <span class="kw">"move"</span>: <span class="num">1</span> } },
+    <span class="kw">"tags"</span>: [<span class="str">"move"</span>],
+    <span class="kw">"effect"</span>: <span class="str">"move(speed)"</span>      <span class="com">// root statement only · dice-free argument</span>
+  }
+},
+<span class="str">"formulas"</span>: {
+  <span class="kw">"speed"</span>: { <span class="kw">"expr"</span>: <span class="str">"4 + floor(grace / 4)"</span> }   <span class="com">// reserved, optional · evaluated like initiative</span>
+}</code></pre>
+    </div>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden mt-4">
+      <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">host code</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>fight.declare(<span class="str">'stride'</span>, { to: { x: <span class="num">3</span>, y: <span class="num">-1</span> } })</code></pre>
+    </div>
+    <div class="rounded-md border border-[#3A322A] bg-[#1E1A16] overflow-hidden mt-4">
+      <div class="px-4 py-2 border-b border-[#3A322A] font-data text-xs text-[#9A8F7E]">output — brynn strides, speed 4, bramble at (1,0)</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>move:advanced  brynn (0,0) → (3,-1) · path (1,-1) (2,-1) (3,-1) · cost 3 · remaining 1
+move:ended     brynn · arrived @ (3,-1)
+  <span class="com">// the bramble detour would cost 4; the plain path wins · the 1 left over is lost</span></code></pre>
+    </div>
+    <p class="text-sm text-[#9A8F7E] mt-4 mb-3 max-w-2xl">A move that cannot legally reach its destination within budget is rejected <em>declaratively</em>: one <span class="font-data text-[13px]">declare:rejected</span>, rule <span class="font-data text-[13px]">E-SPAT-01</span>, and nothing changes — no slot spent, no RNG drawn, no ledger entry. The movement gate runs where the reach gate runs, before cost; a move action targets its actor (no opponent resolution, no reach gate).</p>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+      <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">rejection kinds — all E-SPAT-01, nothing changes</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="kw">no-destination</span>   a move action declared without <span class="str">to</span>
+<span class="kw">blocked</span>          the destination is a blocking terrain cell
+<span class="kw">occupied</span>         a standing combatant holds the destination — including the mover itself
+<span class="kw">unreachable</span>      no legal path exists at any cost
+<span class="kw">out-of-range</span>     a legal path exists, but its cheapest cost exceeds the budget</code></pre>
+    </div>
+    <div class="space-y-3 mt-4">
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
+        <span class="text-[#6A93A8] shrink-0">◈</span>
+        <p class="text-sm"><span class="font-data text-[13px]">unreachable</span> means no legal path exists at any cost. <span class="font-data text-[13px]">out-of-range</span> means a legal path exists, but its cheapest cost exceeds the budget. A reachable destination is never reported <span class="font-data text-[13px]">unreachable</span>, whatever its cost — a wall detour longer than the budget is <span class="font-data text-[13px]">out-of-range</span>.</p>
+      </div>
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
+        <span class="text-[#6A93A8] shrink-0">◈</span>
+        <p class="text-sm">A declare whose <span class="font-data text-[13px]">to</span> is the mover's own cell is <span class="font-data text-[13px]">occupied</span>: the mover holds that cell (occupancy rule, below). There is no new kind, no slot is spent, and nothing changes.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- TERRAIN -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">Terrain</h2>
+    <p class="text-sm text-[#9A8F7E] mb-4 max-w-2xl">The pack declares the terrain <em>vocabulary</em> — each kind either costs <span class="font-data text-[13px]">cost</span> movement points to enter (plain cells cost 1) or <span class="font-data text-[13px]">blocks</span> and can never be entered. The host places cells per fight, exactly as it places positions, and re-states them on restore. The engine never invents a map.</p>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+      <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">host code · placement per fight</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>rt.startCombat({
+  allies, enemies,
+  positions: { brynn: { x: <span class="num">0</span>, y: <span class="num">0</span> }, <span class="str">'grave-shambles'</span>: { x: <span class="num">-1</span>, y: <span class="num">0</span> } },
+  terrain: [
+    { at: { x: <span class="num">1</span>, y: <span class="num">0</span> }, kind: <span class="str">'bramble'</span> },
+    { at: { x: <span class="num">2</span>, y: <span class="num">0</span> }, kind: <span class="str">'standing-stone'</span> }
+  ]
+})
+<span class="com">// restore re-states both: Combat.deserialize(snap, pack, { positions, terrain })</span></code></pre>
+    </div>
+    <p class="text-sm text-[#9A8F7E] mt-3 max-w-2xl"><span class="font-data text-[13px]">startCombat</span> refuses — one <span class="font-data text-[13px]">E-SPAT-01</span> aggregate, nothing built — when a kind is unknown, a cell is placed twice, or a combatant starts on a blocking cell. Restore applies the same refusals.</p>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3 mt-4">
+      <span class="text-[#6A93A8] shrink-0">◈</span>
+      <p class="text-sm"><span class="text-[#E8E2D6]">Occupancy (engine rule):</span> a move cannot end on a cell held by a standing combatant — this includes the mover itself. It may pass through standing allies but not standing enemies. Downed combatants (hp ≤ 0) never block.</p>
+    </div>
+  </section>
+
+  <!-- LEAVING REACH -->
+  <section class="mb-12">
+    <h2 class="font-display text-2xl mb-4">Leaving reach</h2>
+    <p class="text-sm text-[#9A8F7E] mb-4 max-w-2xl">Before each step, if the mover's current cell is within reach of a standing opposing combatant and the next cell is not, the engine emits <span class="font-data text-[13px]">move:leaving-reach</span> — actor = the mover, target = the threatener, payload <span class="font-data text-[13px]">{at, next}</span>. Opportunity attacks are not engine rules: a pack declares a reaction to that event. Packs without matching reactions never pause.</p>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+      <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">pack.json · an opportunity reaction</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="kw">"opportunist"</span>: {
+  <span class="kw">"cost"</span>: { <span class="kw">"slots"</span>: { <span class="kw">"reaction"</span>: <span class="num">1</span> } },
+  <span class="kw">"trigger"</span>: { <span class="kw">"on"</span>: <span class="str">"move:leaving-reach[target=self]"</span> },
+  <span class="kw">"effect"</span>: <span class="str">"sequence(attack(ac, might), damage(1d8 + might, sharp))"</span>,
+  <span class="kw">"tags"</span>: [<span class="str">"reaction"</span>]
+}</code></pre>
+    </div>
+    <div class="rounded-md border border-[#3A322A] bg-[#1E1A16] overflow-hidden mt-4">
+      <div class="px-4 py-2 border-b border-[#3A322A] font-data text-xs text-[#9A8F7E]">output — pause → respond → resume</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>fight.declare(<span class="str">'stride'</span>, { to: { x: <span class="num">3</span>, y: <span class="num">-1</span> } })
+move:leaving-reach  brynn ← grave-shambles · at (0,0) next (1,-1)
+  <span class="com">// offer grave-shambles.opportunist — the move pauses at (0,0)</span>
+  <span class="com">// brynn carries pendingMove { actionId: 'stride', to: (3,-1), remaining: 4 }</span>
+
+fight.respond(<span class="str">'grave-shambles.opportunist'</span>, <span class="str">'take'</span>, <span class="str">'brynn'</span>)
+trigger:fired · attack:rolled · damage:applied
+  <span class="com">// queue empty → the move resumes from (0,0) with its remaining budget</span>
+move:advanced  brynn (0,0) → (3,-1) · path (1,-1) (2,-1) (3,-1) · cost 3 · remaining 1
+move:ended     brynn · arrived @ (3,-1)</code></pre>
+    </div>
+    <ul class="text-sm text-[#9A8F7E] mt-4 space-y-2 max-w-2xl list-disc pl-5">
+      <li><span class="text-[#E8E2D6]">Offers are per call.</span> A call (<span class="font-data text-[13px]">declare</span>, <span class="font-data text-[13px]">respond</span>, <span class="font-data text-[13px]">use</span>) raises offers only for the events <em>that call</em> emitted — never a replay of the round. Each matching (reactor, event) pair is offered exactly once, and answering an offer never brings it back: one <span class="font-data text-[13px]">trigger:fired</span> per matching event, at most one <span class="font-data text-[13px]">trigger:declined</span> per offer.</li>
+      <li><span class="text-[#E8E2D6]">Offers are not filtered by affordability.</span> A threatener whose reaction slot is already spent is still offered, and the move still pauses. The host answers: <span class="font-data text-[13px]">decline</span> → one <span class="font-data text-[13px]">trigger:declined</span>; <span class="font-data text-[13px]">take</span> → one <span class="font-data text-[13px]">declare:rejected</span> (<span class="font-data text-[13px]">slot-exhausted</span>, resource <span class="font-data text-[13px]">reaction</span>, <span class="font-data text-[13px]">E-ECON-01</span>), nothing spent and nothing else changed. Either answer clears the offer, and the move resumes once none remain.</li>
+      <li><span class="text-[#E8E2D6]">Resume re-checks.</span> Mover downed → <span class="font-data text-[13px]">move:ended</span> reason <span class="font-data text-[13px]">downed</span>; a condition now restricts the action's tags → <span class="font-data text-[13px]">restricted</span>; otherwise re-plan from the current cell with the remaining budget, and no path → <span class="font-data text-[13px]">blocked</span>. <span class="font-data text-[13px]">fight.step()</span> while paused forfeits the move (<span class="font-data text-[13px]">forfeited</span>) before its usual effect.</li>
+      <li><span class="text-[#E8E2D6]">A paused move survives a snapshot.</span> <span class="font-data text-[13px]">pendingMove</span> rides in the combat snapshot; restore resumes in the <span class="font-data text-[13px]">resolved</span> phase (derived: some combatant carries <span class="font-data text-[13px]">pendingMove</span> or <span class="font-data text-[13px]">pendingTrigger</span>), so <span class="font-data text-[13px]">step()</span> forfeits exactly as it would have without the restart.</li>
+      <li>To take an opportunity reaction when the reactor has several opponents, pass the mover as <span class="font-data text-[13px]">targetId</span> — <span class="font-data text-[13px]">respond</span> keeps its existing target resolution.</li>
+    </ul>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden mt-4">
+      <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">move events</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="kw">move:leaving-reach</span>  actor mover · target threatener · { at, next }
+<span class="kw">move:advanced</span>       { from, to, path, cost, remaining }       <span class="com">// per contiguous segment</span>
+<span class="kw">move:ended</span>          { reason, at }   <span class="com">// arrived | downed | restricted | blocked | forfeited</span></code></pre>
+    </div>
+  </section>
+
   <!-- CALLOUTS -->
   <div class="space-y-3">
     <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
@@ -93,7 +207,7 @@
     </div>
     <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
       <span class="text-[#6A93A8] shrink-0">◈</span>
-      <p class="text-sm">Conditions can be spatial too: <span class="font-data text-[13px]">rooted</span> restricts move actions and only means anything in packs that opted in (FR-7) — see the conditions surface.</p>
+      <p class="text-sm">Conditions can be spatial too: <span class="font-data text-[13px]">rooted</span> declares <span class="font-data text-[13px]">"restricts": ["actions.tagged:move"]</span>, so it restricts <span class="font-data text-[13px]">stride</span> through its <span class="font-data text-[13px]">move</span> tag — a rooted combatant's <span class="font-data text-[13px]">fight.declare('stride', { to })</span> is one <span class="font-data text-[13px]">declare:rejected</span> (<span class="font-data text-[13px]">restricted</span>) and nothing changes. No engine special case; it only means anything in packs that opted in (FR-7) — see the conditions surface.</p>
     </div>
   </div>
 
