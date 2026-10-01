@@ -3,7 +3,7 @@
 > **Program:** Ruleswright
 > **Feature:** spells-in-combat
 > **Modules:** — (Author artifacts: Spec, Designer, DB)
-> **Depends on:** — (dispatch gate **B-S1**: the human confirms DD-S8's sub-defaults and DD-S9 … DD-S14)
+> **Depends on:** — (dispatch gate **B-S1** cleared 2026-09-30)
 > **Concurrent with:** —
 > **Owns:** `program/Ruleswright/specs/requirements.md`, `program/Ruleswright/mocks/magic.html`, `program/Ruleswright/mocks/api-map.html`, `program/Ruleswright/mocks/triggers.html`, `program/Ruleswright/mocks/conditions.html`, `program/Ruleswright/specs/database.md`, `src/schema/contracts/pack.schema.json`, `src/schema/contracts/snapshots.schema.json`
 > **Reads:** `program/Ruleswright/specs/design.md`, `program/Ruleswright/mocks/combat-loop.html`, `program/Ruleswright/mocks/spatial.html`, `src/runtime/combat/combat.ts`, `src/runtime/combat/spatial.ts`, `src/runtime/combat/triggers.ts`, `src/runtime/snapshots.ts`, `src/runtime/pools.ts`, `src/runtime/character-profile.ts`, `src/schema/validate/helpers.ts`, `program/Ruleswright/prompts/spells-in-combat/STATE.md` (Design Decisions, Contract Agreements)
@@ -23,10 +23,12 @@ Also on 2026-09-30 the human answered DD-S8: "**8 spell need a range, can target
 square for aoe blasts**". That answer authorizes the requirements-change class (Spec, ck1)
 and the `targeting.range` schema field (DB, ck3), as DD-S8 in STATE.md spells out.
 
-B-S1, the confirmation of DD-S8's sub-defaults and DD-S9 … DD-S14, is recorded in STATE.md's Intent section
-before this session dispatches. **Orchestrator: paste that recorded answer here in the
-envelope.** It authorizes the schema-change class (DB) and the design-change class (the
-four mocks), both exactly as written below.
+B-S1 was cleared on 2026-09-30. The human wrote "**8a - yes 8b - fine 9 cost a turn 10 yes 11 yes 12 yes 13 yes 14 yes**": DD-S8 sub-defaults (a)
+and (b), DD-S9 (read as the whole turn: bundled spells cost `main` + `move`), and DD-S10 …
+DD-S14 are confirmed (STATE.md Intent). **Orchestrator: paste this answer into the
+envelope verbatim.** It authorizes the schema-change class (DB) and the design-change
+class (the four mocks), both exactly as written below. DD-S9 is theme content (S02); it
+changes no contract or mock text here.
 
 **Spec runs for one change only:** spell range and empty-cell area centers (DD-S8), which
 no approved FR states. FR-5, FR-13 and FR-14 already cover the rest of the feature.

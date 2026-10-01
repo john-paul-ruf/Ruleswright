@@ -280,7 +280,8 @@ wins: report the difference.
      - spells may target any combatant, within the spell's `targeting.range`
        (default: the caster's reach); a burst may be centered on an empty cell with
        `{ at: { x, y } }`;
-     - the `main` turn cost in the sample themes;
+     - the whole-turn cost in the sample themes (`main` + `move`; the reaction stays
+       free);
      - snapshot spend;
      - `settleSpellCasts`;
      - `learnFeat`;

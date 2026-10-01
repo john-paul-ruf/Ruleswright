@@ -6,11 +6,9 @@ Planner planned this. Coder builds it (./CODER.md). Orchestrator schedules it
 (./ORCHESTRATOR.md).
 
 **SESSION-01 is an Author re-entry session** (Spec → Designer → DB), not a Coder session.
-Its human gate is **B-S1**: the human confirms DD-S8's sub-defaults and DD-S9 … DD-S14
-(STATE.md Design Decisions; DD-S8's direction was answered on 2026-09-30).
-**Do not dispatch S01 until B-S1 is cleared** and the answer is recorded in STATE.md's
-Intent section. If the human edits a DD, amend the affected CA rows and SESSION-01..03
-before dispatch.
+Its human gate, **B-S1**, was cleared on 2026-09-30 ("8a - yes 8b - fine 9 cost a turn 10 yes 11 yes 12 yes 13 yes 14 yes", recorded in STATE.md's
+Intent section). S01 is dispatchable. If the human later edits a DD, amend the affected
+CA rows and SESSION-01..03 before the affected session dispatches.
 
 **Recommended before S01:** a scoped Archivist planning-completeness pass over
 STATE.md and SESSION-01..03 (the promoted factual-premise convention). Route its findings
@@ -76,8 +74,8 @@ commits its own lease at every checkpoint. This plan has no concurrent waves
 - **Blocked** → set the session to blocked and skip to the next eligible one. There are
   no parallel alternatives in this plan.
 - **Context limit** → commit the current checkpoint, update STATE.md, stop cleanly.
-- **User input needed** → only for product design or destructive work. B-S1 is the one
-  planned instance. Otherwise record the conservative default and continue.
+- **User input needed** → only for product design or destructive work. B-S1 was the one
+  planned instance (cleared). Otherwise record the conservative default and continue.
 
 ## Final Report
 

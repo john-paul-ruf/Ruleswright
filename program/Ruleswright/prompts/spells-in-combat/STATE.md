@@ -31,13 +31,21 @@
   It is a product rule, so it authorizes S01's **requirements-change class** (Spec adds the
   FR-9/FR-11 criteria) as well as the schema field (`targeting.range`, DB). Delivering it
   forced one auto-decision, DD-S19 (per-target defender values).
-- **Human gate still open — B-S1.** DD-S9 … DD-S14 and DD-S8's two sub-defaults (optional
-  range with a reach fallback; `range: 6` on every bundled spell) await confirmation.
-  Confirming them also authorizes S01's design-change class (four mocks). See Current
-  Blockers.
+- **B-S1 cleared (human, 2026-09-30):** "**8a - yes 8b - fine 9 cost a turn 10 yes 11 yes 12 yes 13 yes 14 yes**".
+  - DD-S8 (a) optional range with a reach fallback, and (b) `range: 6` on every bundled
+    spell: confirmed.
+  - DD-S9: "cost a turn", given twice (once before Planner's A/B question, once after
+    it). Planner reads it as option **B, the whole turn**: every bundled spell costs
+    `main` **and** `move`; the reaction stays available. DD-S9 is rewritten accordingly.
+    If the human meant only the main action, revert DD-S9 to `main: 1` and the four
+    S02 edits listed under DD-S9; nothing else depends on it.
+  - DD-S10 … DD-S14: confirmed as written.
+  - The confirmation authorizes S01's design-change class for `magic.html`,
+    `api-map.html`, `triggers.html` and `conditions.html`.
 - **Plan HEAD:** `55b294f` (clean tree; all gates green, see Verification Baseline).
   Plan committed at `ac0e225`; amended for the DD-S8 answer (S01 gains Spec ck1; S02 gains
-  ck2 "range and area targeting" and widens to M01/M02).
+  ck2 "range and area targeting" and widens to M01/M02); amended again for the B-S1
+  answer (DD-S9 whole-turn cost; the theater-of-mind grid-journey test is now leased work).
 - **Sessions:** 3. They run serially: S01 Author re-entry (Spec → Designer → DB) → S02 the spell
   column → S03 the feat/trigger column, snapshot envelope and README.
 
@@ -45,7 +53,7 @@
 
 | # | Session | Modules | Owns | Status | Checkpoint | Completed | Notes |
 |---|---------|---------|------|--------|------------|-----------|-------|
-| 01 | Author re-entry: FR-9/FR-11 spell range, magic/api-map/triggers/conditions mocks + contract v1.6 | — (Author: Spec, Designer, DB) | `program/Ruleswright/specs/requirements.md`, `program/Ruleswright/mocks/magic.html`, `program/Ruleswright/mocks/api-map.html`, `program/Ruleswright/mocks/triggers.html`, `program/Ruleswright/mocks/conditions.html`, `program/Ruleswright/specs/database.md`, `src/schema/contracts/pack.schema.json`, `src/schema/contracts/snapshots.schema.json` | blocked (B-S1) | — | — | Author roles, not Coder; 3 checkpoints (Spec added for DD-S8) |
+| 01 | Author re-entry: FR-9/FR-11 spell range, magic/api-map/triggers/conditions mocks + contract v1.6 | — (Author: Spec, Designer, DB) | `program/Ruleswright/specs/requirements.md`, `program/Ruleswright/mocks/magic.html`, `program/Ruleswright/mocks/api-map.html`, `program/Ruleswright/mocks/triggers.html`, `program/Ruleswright/mocks/conditions.html`, `program/Ruleswright/specs/database.md`, `src/schema/contracts/pack.schema.json`, `src/schema/contracts/snapshots.schema.json` | pending | — | — | Author roles, not Coder; 3 checkpoints (Spec added for DD-S8); B-S1 cleared 2026-09-30 |
 | 02 | The spell column: declare spells, range + empty-cell bursts, spend + snapshot, settlement, generated spells, spell journey | M01 (mirror/validator), M02 (executor), M03, M04 (content) | `src/schema/artifacts.ts`, `src/schema/validate/sections/content.ts`, `src/core/dsl/effect.ts`, `src/runtime/combat/combat.ts`, `src/runtime/combat/action-economy.ts`, `src/runtime/combat/resolve.ts`, `src/runtime/character-profile.ts`, `src/runtime/pools.ts`, `src/runtime/snapshots.ts`, `src/runtime/index.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `tests/schema/validate.test.ts`, `tests/core/dsl/effect.test.ts`, `tests/runtime/combat/spells.test.ts`, `tests/runtime/combat/combat-spatial.test.ts`, `tests/runtime/combat/character-profile.test.ts`, `tests/runtime/fixtures/packs.ts`, `tests/snapshots/combat.test.ts`, `tests/proofs/grid-journey.test.ts`, `tests/proofs/rules-are-data.test.ts`, `tests/proofs/spells-journey.test.ts` | pending | — | — | depends S01; 5 checkpoints |
 | 03 | The feat column: trigger grammar, feats held + offered, snapshot envelope, README | M01, M03, M04 (content) | `src/schema/validate/helpers.ts`, `src/runtime/feats.ts`, `src/runtime/character.ts`, `src/runtime/runtime.ts`, `src/runtime/combat/triggers.ts`, `src/runtime/combat/combat.ts`, `src/runtime/combat/resolve.ts`, `src/runtime/character-profile.ts`, `src/runtime/snapshots.ts`, `src/runtime/index.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `tests/schema/validate.test.ts`, `tests/runtime/fixtures/packs.ts`, `tests/compiler/pipeline.test.ts`, `tests/compiler/stages.test.ts`, `tests/compiler/coverage-floor.test.ts`, `tests/runtime/feats.test.ts`, `tests/runtime/combat/feat-triggers.test.ts`, `tests/snapshots/character.test.ts`, `tests/snapshots/combat.test.ts`, `tests/proofs/movement-journey.test.ts`, `tests/proofs/rules-are-data.test.ts`, `tests/proofs/spells-journey.test.ts`, `tests/proofs/docs-run.test.ts`, `README.md` | pending | — | — | depends S02 |
 
@@ -56,7 +64,7 @@ is allowed only because they never run at the same time; see the Wave Plan.
 
 | Wave | Sessions | Why this shape |
 |------|----------|----------------|
-| W1 | S01 | Author gate (B-S1 first). S02 and S03 mirror the v1.6 contract text, so nothing runs beside it. |
+| W1 | S01 | Author gate (B-S1 cleared 2026-09-30). S02 and S03 mirror the v1.6 contract text, so nothing runs beside it. |
 | W2 | S02 | The spell column. It owns `combat.ts`, `snapshots.ts`, `character-profile.ts` and the themes, all of which S03 also edits. |
 | W3 | S03 | The feat column builds on S02's `CombatantState`, snapshot fields and `profileFromCharacter`. It also extends S02's journey file with the feat leg. |
 
@@ -128,7 +136,7 @@ S01 (Author: Spec FR-9/FR-11 ck1 → Designer mocks ck2 → DB contract v1.6 + d
 | M01 | `src/schema/artifacts.ts`, `validate/sections/content.ts`, `validate/helpers.ts` | `SpellTargeting.range?` mirror + validator (S02 ck2); `checkTrigger` enforces the grammar (E-FORM-01, S03) |
 | M02 | `src/core/dsl/effect.ts` | optional `EffectApply.varsFor`: per-target saves/defense inside a shape scope (DD-S19, S02 ck2) |
 | M03 | `src/runtime/` | spell declare, range gate, `at` (empty-cell burst center), binding pick, armor gate, spell restricts, `spell:cast`; `poolsSpent`/`slotsCast` with snapshot round-trip; `settleSpellCasts`; profile `spells`/`castBlockedBy`/`feats`, balances `bindings`; `feats.ts` `learnFeat` + character feats + character snapshot feats; `featEffects` index; feat offers, take/decline, no-chain rule; envelope `offers`/`phase`/`offeredCount`; `parsePackEffects` deleted; barrel |
-| M04 | `src/compiler/themes/*.json` | every spell cost gains `slots: { main: 1 }` and every spell `targeting.range: 6` (S02); feat triggers `condition:applied[self]` → `condition:applied[target=self]` (S03). No compiler source change |
+| M04 | `src/compiler/themes/*.json` | every spell cost gains `slots: { main: 1, move: 1 }` and every spell `targeting.range: 6` (S02); feat triggers `condition:applied[self]` → `condition:applied[target=self]` (S03). No compiler source change |
 | — | tests/docs | `tests/proofs/spells-journey.test.ts` (spell leg in S02, feat leg in S03); grid-journey casts the real `ember-bloom`; FR-12 proof 3 casts in combat, proof 2 adds a reactive feat; README spells/feats text |
 
 ### Inherited findings and dispositions
@@ -165,7 +173,8 @@ Sources inspected at `55b294f`:
 **Human answers (2026-09-30):** DD-S1, DD-S2 and DD-S3.
 **Announced Planner defaults, not objected to:** DD-S4 … DD-S7.
 **Human answer on DD-S8 (2026-09-30):** spell range + empty-cell blasts; DD-S8 rewritten.
-**Defaults the human must still confirm (B-S1):** DD-S8 sub-defaults (a)/(b), DD-S9 … DD-S14.
+**Confirmed by the human (B-S1, 2026-09-30, "8a - yes 8b - fine 9 cost a turn 10 yes 11 yes 12 yes 13 yes 14 yes"):** DD-S8 sub-defaults (a)/(b),
+DD-S9 (as "cost a turn", read as the whole turn), DD-S10 … DD-S14.
 **Corrections from source:** DD-S15 and DD-S16.
 **Auto-decision (implied by approved FR-9/FR-11):** DD-S19.
 
@@ -210,8 +219,8 @@ Sources inspected at `55b294f`:
    - it then clears the combatant's spend, so a second call returns `[]`;
    - per-fight idempotence has the same documented limit as R-4.
 8. **DD-S8 — spell range, targets and empty-cell blasts (human, 2026-09-30: "8 spell
-   need a range, can target empty square for aoe blasts"; sub-defaults (a) and (b) await
-   confirmation under B-S1).**
+   need a range, can target empty square for aoe blasts"; sub-defaults (a) "yes" and
+   (b) "fine", B-S1 2026-09-30).**
    - **Range is pack data.** A spell may declare `targeting.range`, an integer ≥ 0 in the
      pack's own distance (grid: Chebyshev steps; hex: hex steps; `runtime.spatial.distance`).
      It is measured from the caster's position to the target combatant's position, or to
@@ -248,21 +257,34 @@ Sources inspected at `55b294f`:
      `targeting` block gain `"targeting": { "shape": "single", "range": 6 }`; burst spells
      keep their shape and radius and gain `"range": 6`. *Alternative:* per-spell ranges
      chosen by content.
-9. **DD-S9 — a sample-theme spell costs the caster's main action (confirm).**
-   - Every spell in the three themes gains `"slots": { "main": 1 }` in its cost. This is
-     content, not engine: the pack decides.
-   - Without it, the shipped spells cost no turn slot, so a caster could cast every
-     prepared spell in one turn. Today the grid journey even asserts that `main` stays 1
-     after the burst (`grid-journey.test.ts:409`).
-   - **Alternative:** leave the content unchanged, so spells are free of turn slots.
-10. **DD-S10 — restricts and spells (confirm).**
+9. **DD-S9 — a sample-theme spell costs the caster's whole turn (human, B-S1: "9 cost a
+   turn").**
+   - Every spell in the three themes gains `"slots": { "main": 1, "move": 1 }` in its cost.
+     This is content, not engine: the pack decides. The engine has no "end turn" cost, so
+     "a turn" is expressed as the turn slots a turn grants, minus the reaction.
+   - After casting, the caster can neither act (`main`) nor take a move-costing action
+     (`stride`, `hustle`, `glide`, …) that turn: each is one `declare:rejected`
+     `slot-exhausted` / `E-ECON-01`. The **reaction stays available**, so reactive actions
+     and feats still fire.
+   - Grants (checked at `55b294f`): dark-fantasy and wyldwood declare
+     `economy.turnSlots {main: 1, move: 1, reaction: 1}`; zombie-urban declares none and
+     derives `main`, `move`, `reaction` from its action costs. All three already grant
+     `move`, so no `slot-ungranted` risk.
+   - **Interpretation note:** Planner offered A (main only) and B (main + move); the
+     human answered "cost a turn" both times. B is the literal reading. Reverting to A
+     touches only: the theme edit and its one-liner (S02 ck5 item 1), the grid-journey
+     pins (`:409`, `:433`), the theater test's turn advance, and the journey's
+     move-rejection assertion.
+   - Without a cost, the shipped spells cost no turn slot, so a caster could cast every
+     prepared spell in one turn.
+10. **DD-S10 — restricts and spells (human-confirmed, B-S1).**
     - A spell declare is blocked when an active condition carries `actions.tagged:<t>`
       **or** `spells.tagged:<t>` and `<t>` is among the spell's tags. A spell is an action
       (FR-9), and database.md:297 says spells use "the same matcher as actions".
     - Action declares are unchanged (`actions.tagged:` only).
     - Effect on dark-fantasy: `hexbound` (`spells.tagged:casting`, line 440) now stops
       casting.
-11. **DD-S11 — characters hold feats (confirm).**
+11. **DD-S11 — characters hold feats (human-confirmed, B-S1).**
     - New verb `learnFeat(runtime, state, featId)` plus the facade `character.learnFeat(id)`.
     - It rejects an unknown feat (`unknown-feat`) and a feat already held
       (`feat-known`).
@@ -277,7 +299,7 @@ Sources inspected at `55b294f`:
     - **Alternative:** the host states feats on the combat profile only, so characters
       never hold them. Rejected as a default because then generated play never fires a
       feat.
-12. **DD-S12 — reactive feats in combat (confirm).**
+12. **DD-S12 — reactive feats in combat (human-confirmed, B-S1).**
     - A combatant's `feats` list holds every reactive feat the character has learned.
     - A matching event offers the feat exactly as a reactive action is offered: per call,
       once per (reactor, event), not to downed combatants.
@@ -295,7 +317,7 @@ Sources inspected at `55b294f`:
     - **Alternative:** a pack-declared `once` gate. The mock `triggers.html` shows
       `"once": "per:encounter"`, but no schema field exists, so that would be a schema
       addition.
-13. **DD-S13 — the trigger grammar is checked at load (confirm).**
+13. **DD-S13 — the trigger grammar is checked at load (human-confirmed, B-S1).**
     - `trigger.on` must match
       `^[a-z][a-z0-9-]*(:[a-z][a-z0-9-]*)*(\[(target|actor)=[a-z][a-z0-9-]*\])?$`. That is
       the `eventMatches` grammar (`triggers.ts:31-41`); `self` is the reactor.
@@ -309,7 +331,7 @@ Sources inspected at `55b294f`:
       The bare forms used by fixtures (`enemy-approaches`, `damaged`) still pass.
     - This follows the v1.1 "tag integrity" precedent: a pattern that can never fire is a
       broken reference, not a silent no-op.
-14. **DD-S14 — the combat snapshot envelope (confirm).**
+14. **DD-S14 — the combat snapshot envelope (human-confirmed, B-S1).**
     - **`offers`** (optional array, in queue order):
       `[{actorId, source: 'action' | 'feat', id, on}]`. `on` is the live offer's event
       type. v1.6 writers emit `offers` (when non-empty) and **stop emitting** the
@@ -399,7 +421,9 @@ run in prior cycles finished in seconds.
 
 | Pin | File:line | Moves when | Owner |
 |---|---|---|---|
-| burst leaves `main` at 1 | `tests/proofs/grid-journey.test.ts:409` | DD-S9 adds the main cost | S02 ck5 |
+| burst leaves `main` at 1 | `tests/proofs/grid-journey.test.ts:409` | DD-S9 adds the whole-turn cost: `main` **0** and `move` **0** | S02 ck5 |
+| rejected cast leaves `main` at 1 | `tests/proofs/grid-journey.test.ts:433` | unchanged value; add `move` stays 1 | S02 ck5 |
+| theater-of-mind parity: `ember-halo` burst then `strike` in the same turn | `tests/proofs/grid-journey.test.ts:595-645` | `packWithBurstAction` is deleted, and the real spell now costs `main`, so the same-turn `strike` is `slot-exhausted` | S02 ck5 (see its item 2) |
 | burst per-target save values | `tests/runtime/combat/combat-spatial.test.ts:294-362`, `tests/proofs/grid-journey.test.ts:342-410` | DD-S19 rolls each target's save with its own value | S02 ck2 (re-key; recompute each expected total from the target's own save) |
 | whole-profile shape | `tests/runtime/combat/character-profile.test.ts:313-330` | S02 adds `spells`/`castBlockedBy` (both emitted only when set; the zombie-urban survivor knows no spells, so it probably does not move) | S02 ck3 (re-key if red) |
 | spell targeting closed shape | `tests/schema/validate.test.ts` (any `targeting` unknown-key assertion) | `range` becomes a known key | S02 ck2 |
@@ -413,22 +437,22 @@ run in prior cycles finished in seconds.
 
 | ID | Approved behavior / entry point | Required facts + producer owners | CA IDs / prerequisites | Integration owner / checkpoint | Status | Proof / checked sources | Open gaps + correction owners |
 |----|--------------------------------|---------------------------------|------------------------|--------------------------------|--------|-------------------------|-------------------------------|
-| CAP-S1 | A character casts a known spell in combat: `fight.declare(spellId, {targetId?})` → gates → spend → effect → events (FR-9, FR-10) | known spells (`knownSpells`, `pools.ts`), bindings (character `slots`), armor (`armorBlockingCast`) → profile/balances (S02 ck3); spell AST (`index.spellEffects`, landed) | CA-S1, CA-S4, CA-S5; S01 | S02 ck3 | planned | — | B-S1 (DD-S9/S10) |
-| CAP-S9 | A spell is gated by its pack-declared range; a burst spell may be centered on an empty cell, hitting everyone in radius with per-target saves (FR-9, FR-11; human 2026-09-30) | `targeting.range` (S01 contract, S02 ck2 mirror/validator), `runtime.spatial.distance` (landed), `varsFor` (S02 ck2), theme ranges (S02 ck5) | CA-S9; S01 | S02 ck2 (unit), S02 ck5 (journey empty-cell leg) | planned | — | B-S1 (DD-S8 sub-defaults a/b) |
+| CAP-S1 | A character casts a known spell in combat: `fight.declare(spellId, {targetId?})` → gates → spend → effect → events (FR-9, FR-10) | known spells (`knownSpells`, `pools.ts`), bindings (character `slots`), armor (`armorBlockingCast`) → profile/balances (S02 ck3); spell AST (`index.spellEffects`, landed) | CA-S1, CA-S4, CA-S5; S01 | S02 ck3 | planned | — | — |
+| CAP-S9 | A spell is gated by its pack-declared range; a burst spell may be centered on an empty cell, hitting everyone in radius with per-target saves (FR-9, FR-11; human 2026-09-30) | `targeting.range` (S01 contract, S02 ck2 mirror/validator), `runtime.spatial.distance` (landed), `varsFor` (S02 ck2), theme ranges (S02 ck5) | CA-S9; S01 | S02 ck2 (unit), S02 ck5 (journey empty-cell leg) | planned | — | — |
 | CAP-S2 | A mid-fight snapshot keeps the spell spend, and restore continues it (FR-14) | `poolsSpent`/`slotsCast` (S02 ck4) | CA-S2; S01 contract | S02 ck4 | planned | — | — |
 | CAP-S3 | After `combat-over`, `settleSpellCasts` writes the spend into the character, which persists in a character snapshot | combatant spend (S02 ck4) | CA-S3 | S02 ck4 | planned | — | — |
 | CAP-S4 | **First narrow journey:** the generated dark-fantasy pack (seed 42), through `dist/`: prepare → profile → start → declare the real `ember-bloom` → an empty-cell blast → snapshot/restore → finish → settle → character snapshot shows the slots emptied; plus a wyldwood pool-spell leg | all of the above; theme spell costs + ranges (S02 ck5) | CA-S1…S5, CA-S9 | S02 ck5 | planned | — | the S03 feat leg depends on this proof |
-| CAP-S5 | A character learns a feat; feats persist in character snapshots and reach combat (FR-5, FR-13) | `learnFeat` (S03 ck2), profile `feats` (S03 ck2) | CA-S6 | S03 ck2 | planned | — | B-S1 (DD-S11) |
-| CAP-S6 | Reactive feats fire in generated play: offered, taken (effect on the holder) or declined, with no chaining (FR-12 proof 2, FR-13) | feat offers (S03 ck3), theme patterns (S03 ck1) | CA-S6, CA-S7 | S03 ck3 (unit), S03 ck5 (journey leg) | planned | — | B-S1 (DD-S12) |
-| CAP-S7 | A trigger pattern the engine can never match is refused at load (FR-2) | `checkTrigger` (S03 ck1) | CA-S7 | S03 ck1 | planned | — | B-S1 (DD-S13) |
-| CAP-S8 | The combat snapshot keeps every open offer (action and feat), the offer counter and the phase (FR-14; R-GM-1/2) | envelope fields (S03 ck4) | CA-S8 | S03 ck4 | planned | — | B-S1 (DD-S14) |
+| CAP-S5 | A character learns a feat; feats persist in character snapshots and reach combat (FR-5, FR-13) | `learnFeat` (S03 ck2), profile `feats` (S03 ck2) | CA-S6 | S03 ck2 | planned | — | — |
+| CAP-S6 | Reactive feats fire in generated play: offered, taken (effect on the holder) or declined, with no chaining (FR-12 proof 2, FR-13) | feat offers (S03 ck3), theme patterns (S03 ck1) | CA-S6, CA-S7 | S03 ck3 (unit), S03 ck5 (journey leg) | planned | — | — |
+| CAP-S7 | A trigger pattern the engine can never match is refused at load (FR-2) | `checkTrigger` (S03 ck1) | CA-S7 | S03 ck1 | planned | — | — |
+| CAP-S8 | The combat snapshot keeps every open offer (action and feat), the offer counter and the phase (FR-14; R-GM-1/2) | envelope fields (S03 ck4) | CA-S8 | S03 ck4 | planned | — | — |
 
 **Production paths and acceptance assertions:**
 - **CAP-S1:**
   - Path: `profileFromCharacter` → `startCombat` → `Combat.declare` → `executeAgainst`
     → the events stream.
   - Asserts: `spell:cast`, then the effect events, then `action:resolved`, in that order;
-    `boundSlots`, `slotsCast`, `poolsSpent` and the `main` ledger change exactly.
+    `boundSlots`, `slotsCast`, `poolsSpent` and the turn-slot ledger change exactly.
   - Every rejection (`no-action`, `restricted`, `out-of-range`, `invalid-target`,
     `armor-not-castable`, `vancian`, `points`, `slot-exhausted`) is one `declare:rejected` with
     `serialize()` unchanged.
@@ -468,11 +492,11 @@ which S03 consumes: recheck them at S02 receive.
 | CA-S2 | A spend is recorded; balances are re-stated; restore = re-stated − spend (the `itemsUsed` precedent) | `CombatantState.poolsSpent/slotsCast` → snapshot combatant → `deserializeCombat` | see below | S01 ck3 (contract); S02 ck4 | agreed | planned | `snapshots.ts:413-430, 515-596`, `snapshots.schema.json:185-247` |
 | CA-S3 | The fight never writes character state; the host settles explicitly | combatant spend → `settleSpellCasts` → `CharacterState.pools/slots` | see below | S02 ck4 | agreed | planned | `character-profile.ts:131-236` |
 | CA-S4 | Character → combatant parity (FR-16) | `CharacterState` → `profileFromCharacter` → `CombatantProfile` / `EconomyBalances` | `spells` = `knownSpells` (non-empty only); `castBlockedBy` = `armorBlockingCast` (set only); `balances.bindings` = deep copy of `state.slots`; `feats` = `state.feats` (non-empty only, S03) | S02 ck3; S03 ck2 | agreed | planned | `character-profile.ts:58-117`, `pools.ts:208, 300-310` |
-| CA-S5 | Conditions restrict spells by tag (FR-7, FR-9) | `content.conditions[*].restricts` → `restrictionRejection` | DD-S10 | S02 ck1 (unit), ck3 (integrated) | agreed (B-S1) | planned | `combat.ts:732-757`, `conditions.ts:41` |
-| CA-S6 | Reactive feats ride the trigger substrate (FR-13; mocks triggers/conditions) | `CharacterState.feats` → profile → `CombatantState.feats` → `offersForEvent` → `respond` | DD-S11/S12; `PendingTrigger.source`; `triggerId = <combatantId>.<id>` (ids are globally unique, E-DUP-01) | S03 ck2–ck3 | agreed (B-S1) | planned | `triggers.ts:44-81`, `combat.ts:619-640, 1237-1289` |
-| CA-S7 | The trigger pattern grammar is the `eventMatches` grammar, enforced at load | `pack.schema.json` `trigger.on` pattern → `checkTrigger` → `eventMatches` | DD-S13 regex; `E-FORM-01`; jsonPath `<base>.trigger.on` | S01 ck3; S03 ck1 | agreed (B-S1) | planned | `helpers.ts:296-325`, `triggers.ts:31-41` |
-| CA-S9 | Spell range and area center (FR-9, FR-11; human 2026-09-30) | `content.spells[id].targeting.{shape,radius,range}` → `Combat.declare` range gate / `at` → `resolveShape(center)` → executor `varsFor` | see below; DD-S8, DD-S19 | S01 ck3 (contract); S02 ck2 (unit), ck5 (journey) | agreed (sub-defaults a/b: B-S1) | planned | `spatial.ts:45-63, 93-135`, `combat.ts:1064-1092`, `resolve.ts` `executeAgainst`/`effectVars`, `effect.ts:255-307, 383-393`, `content.ts:497-530` at `55b294f` |
-| CA-S8 | The combat envelope keeps offers/phase/counter (FR-14) | `Combat.pendingTriggers`/`state.phase`/`offeredCount` → envelope → `deserializeCombat` | DD-S14 | S01 ck3; S03 ck4 | agreed (B-S1) | planned | `snapshots.ts:461-610, 757-770`, `combat.ts:439` |
+| CA-S5 | Conditions restrict spells by tag (FR-7, FR-9) | `content.conditions[*].restricts` → `restrictionRejection` | DD-S10 | S02 ck1 (unit), ck3 (integrated) | agreed | planned | `combat.ts:732-757`, `conditions.ts:41` |
+| CA-S6 | Reactive feats ride the trigger substrate (FR-13; mocks triggers/conditions) | `CharacterState.feats` → profile → `CombatantState.feats` → `offersForEvent` → `respond` | DD-S11/S12; `PendingTrigger.source`; `triggerId = <combatantId>.<id>` (ids are globally unique, E-DUP-01) | S03 ck2–ck3 | agreed | planned | `triggers.ts:44-81`, `combat.ts:619-640, 1237-1289` |
+| CA-S7 | The trigger pattern grammar is the `eventMatches` grammar, enforced at load | `pack.schema.json` `trigger.on` pattern → `checkTrigger` → `eventMatches` | DD-S13 regex; `E-FORM-01`; jsonPath `<base>.trigger.on` | S01 ck3; S03 ck1 | agreed | planned | `helpers.ts:296-325`, `triggers.ts:31-41` |
+| CA-S9 | Spell range and area center (FR-9, FR-11; human 2026-09-30) | `content.spells[id].targeting.{shape,radius,range}` → `Combat.declare` range gate / `at` → `resolveShape(center)` → executor `varsFor` | see below; DD-S8, DD-S19 | S01 ck3 (contract); S02 ck2 (unit), ck5 (journey) | agreed | planned | `spatial.ts:45-63, 93-135`, `combat.ts:1064-1092`, `resolve.ts` `executeAgainst`/`effectVars`, `effect.ts:255-307, 383-393`, `content.ts:497-530` at `55b294f` |
+| CA-S8 | The combat envelope keeps offers/phase/counter (FR-14) | `Combat.pendingTriggers`/`state.phase`/`offeredCount` → envelope → `deserializeCombat` | DD-S14 | S01 ck3; S03 ck4 | agreed | planned | `snapshots.ts:461-610, 757-770`, `combat.ts:439` |
 
 **CA-S1 — explicit mapping**
 - **Lookup:** `pack.actions[id]` first, then `pack.content.spells[id]` (ids are unique, so
@@ -564,7 +588,7 @@ which S03 consumes: recheck them at S02 receive.
 
 | ID | Affects | Next action | Owner | Evidence to clear |
 |----|---------|-------------|-------|-------------------|
-| **B-S1** | S01 (therefore S02, S03); CAP-S1, S5–S9; CA-S5–S9 | DD-S8's direction is answered (2026-09-30, recorded in Intent). The human still confirms DD-S8 sub-defaults (a) optional range → reach fallback and (b) `range: 6` on every bundled spell, plus DD-S9 … DD-S14, as written or edited. Confirmation also authorizes S01's design-change class for `magic.html`, `api-map.html`, `triggers.html` and `conditions.html`. If the human edits a DD, Planner amends the affected rows and prompts before S01 dispatches. | human | A recorded answer (date and words) in this file's Intent section |
+| — | — | None open. **B-S1 cleared** 2026-09-30 ("8a - yes 8b - fine 9 cost a turn 10 yes 11 yes 12 yes 13 yes 14 yes", recorded in Intent). DD-S9 was read as the whole turn; see the interpretation note under DD-S9. | — | — |
 
 ## Handoff Notes
 

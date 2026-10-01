@@ -17,7 +17,7 @@
 | M01 | Schema | `artifacts.ts` (`SpellTargeting` l.48–55), `validate/sections/content.ts` (`checkTargeting` l.497–530) | `targeting.range` mirror and validator |
 | M02 | Core | `dsl/effect.ts` (`EffectApply` l.67–75, `execAttack` l.250–275, `execSave` l.279–307, `execTarget` l.383–393) | per-target defender values (DD-S19) |
 | M03 | Runtime | `combat/combat.ts` (`declare` l.515–604, `restrictionRejection` l.732, `resolveTarget` l.759, `spatialGate` l.808, `resolveShape` l.1064, `reachOf` l.1099, `applyNonSlotCosts` l.1105, `resolve` l.1119, `execute` l.1144, `boundActionOf` l.1291, `profileOf` l.1301, `ruleBaseOf` l.1318), `combat/spatial.ts` (`SpatialGeometry.distance` l.45), `combat/action-economy.ts` (`EconomyBalances` l.91, `checkCost` l.108), `combat/resolve.ts` (`CombatantProfile`, `parsePackEffects` l.115, `executeAgainst`, `effectVars`), `character-profile.ts` (all), `pools.ts` (`prepareSpell`, `armorBlockingCast` l.208, `castSpell` l.230, `knownSpells`), `snapshots.ts` (l.410–632, refusals l.633–800), `runtime.ts` (`PackIndex.spellEffects`) | The whole spell path |
-| M04 | Compiler content | `themes/*.json` `content.spells` | DD-S9 turn cost; DD-S8(b) range |
+| M04 | Compiler content | `themes/*.json` `content.spells` | DD-S9 whole-turn cost (`main` + `move`); DD-S8(b) range |
 
 ## Context
 
@@ -91,7 +91,7 @@ Report any mismatch before changing code.
 | `src/runtime/character-profile.ts` | modify | profile `spells`/`castBlockedBy`, balances `bindings`; `settleSpellCasts` |
 | `src/runtime/snapshots.ts` | modify | `SnapshotCombatant.poolsSpent/slotsCast`; serialize; restore = re-stated − spend; refusals |
 | `src/runtime/index.ts` | modify | export `settleSpellCasts`, `armorBlockingCast` |
-| `src/compiler/themes/{dark-fantasy,zombie-urban,wyldwood}.json` | modify | every spell cost gains `"slots": { "main": 1 }` (DD-S9); every spell gains `targeting.range: 6` (DD-S8 b) |
+| `src/compiler/themes/{dark-fantasy,zombie-urban,wyldwood}.json` | modify | every spell cost gains `"slots": { "main": 1, "move": 1 }` (DD-S9); every spell gains `targeting.range: 6` (DD-S8 b) |
 | `tests/schema/validate.test.ts` | modify | `range` accepted; non-integer / negative refused |
 | `tests/core/dsl/effect.test.ts` | modify | `varsFor` per-target save and defense; absent `varsFor` unchanged |
 | `tests/runtime/combat/spells.test.ts` | create | unit proofs for CAP-S1, S2, S3, S9 on `emberMarchesPack()` |
@@ -99,7 +99,7 @@ Report any mismatch before changing code.
 | `tests/runtime/fixtures/packs.ts` | modify (only if needed) | e.g. a ranged spell, a spell with `cost.points`, a leather item; extend, never change existing values |
 | `tests/runtime/combat/character-profile.test.ts` | modify | new assertions (`spells`, `castBlockedBy`, `bindings`); re-key the l.313–330 pin only if red |
 | `tests/snapshots/combat.test.ts` | modify | spend round-trip and refusals |
-| `tests/proofs/grid-journey.test.ts` | modify | ck2: re-key burst save pins; ck5: cast the real `ember-bloom`, delete `packWithBurstAction`, `main` 1 → 0 |
+| `tests/proofs/grid-journey.test.ts` | modify | ck2: re-key burst save pins; ck5: cast the real `ember-bloom` / `ember-halo`, delete `packWithBurstAction`, `main`/`move` 1 → 0, theater test strikes on the next turn |
 | `tests/proofs/rules-are-data.test.ts` | modify | proof 3 gains a combat leg |
 | `tests/proofs/spells-journey.test.ts` | create | CAP-S4 through `dist/`, including an empty-cell blast |
 
@@ -353,13 +353,15 @@ Report any mismatch before changing code.
 
 1. **Themes (DD-S9, DD-S8 b):** in each of the three themes, for every
    `content.spells.<id>`:
-   - add `"slots": { "main": 1 }` to `cost`, keeping the existing keys;
+   - add `"slots": { "main": 1, "move": 1 }` to `cost`, keeping the existing keys (the
+     whole turn, DD-S9; the reaction is not charged);
    - a spell with a `targeting` block gains `"range": 6` inside it (shape and radius
      unchanged); a spell without one gains `"targeting": { "shape": "single", "range": 6 }`.
 
    Do it mechanically (a one-off script outside the lease, deleted before commit, or
    careful edits) and preserve each file's formatting. Then confirm with a one-liner that
-   every spell cost has `slots.main === 1` and every spell has `targeting.range === 6`
+   every spell cost has `slots` equal to `{main: 1, move: 1}` and every spell has
+   `targeting.range === 6`
    (47 spells: dark-fantasy 33, zombie-urban 4, wyldwood 10 at `55b294f`).
 2. **`grid-journey.test.ts`:**
    - delete `packWithBurstAction` and its DD17a header paragraph (l.23–31);
@@ -367,7 +369,21 @@ Report any mismatch before changing code.
      real `ember-bloom`. The caster's spells come from `profileFromCharacter` (`hexer`
      knows `ember-bloom`, as the existing guard at l.145 checks), so `extraAction` is no
      longer needed for spells;
-   - the assertion at l.409 becomes `main` **0**, because the spell now costs main;
+   - the assertion at l.409 becomes `main` **0**, and add `move` **0**: the spell now
+     costs the whole turn (DD-S9);
+   - the vancian-gate test (l.411–433): `main` stays 1 as today; add `move` stays 1;
+   - **the theater-of-mind parity test (l.595–645)** also uses `packWithBurstAction`
+     (`ember-halo` → `thorn-bloom-rite`, wyldwood). Rewrite it to declare the real
+     `ember-halo`: the `warden` class's `spellLists` is `['warden']` and `ember-halo` is on
+     that list, so `profileFromCharacter` gives the caster the spell (confirm at ck0 that
+     `heroEntry` builds the profile through `profileFromCharacter`; if it does not, give
+     the entry `spells: ['ember-halo']` explicitly). `why.rule` filters change from
+     `actions.thorn-bloom-rite` to `content.spells.ember-halo`. The `strike` in the same
+     turn is now `slot-exhausted`: assert that rejection (with no RNG drawn), then
+     advance to the caster's next turn with `fight.step()` calls, as l.580–584 do, and
+     strike there. Check that no step consumes a scripted die; if one does, extend the
+     `ScriptedRng` faces and record why in a comment. `combat-over` and the
+     `combat:ended` payload stay as asserted;
    - the positions already put the target within range 6 (hexer (4,2) → wight (4,3));
    - every other assertion as re-keyed at ck2 must hold unchanged. Dice: the spell adds
      no roll before the save.
@@ -380,7 +396,7 @@ Report any mismatch before changing code.
    `equipment-journey.test.ts`: import from `../../dist/runtime.js` and
    `../../dist/compiler.js`):
    - **Freshness:** `typeof runtimeDist.settleSpellCasts === 'function'`, and the
-     generated dark-fantasy `ember-bloom` has cost `{ vancian: 2, slots: { main: 1 } }`
+     generated dark-fantasy `ember-bloom` has cost `{ vancian: 2, slots: { main: 1, move: 1 } }`
      and `targeting` `{ shape: 'burst', radius: 2, range: 6 }`.
    - **Vancian leg** (dark-fantasy seed 42, grid, positions as in grid-journey's burst
      test):
@@ -390,7 +406,10 @@ Report any mismatch before changing code.
      2. `profileFromCharacter`;
      3. `startCombat` with a `barrow-wight` adjacent to the target;
      4. `declare('ember-bloom', {targetId})`, which emits `spell:cast {slotLevel: '2',
-        slotIndex: 0}`;
+        slotIndex: 0}`. Then, in the same turn, a move-costing action the hexer's profile
+        holds (pick it at ck0, e.g. `stride` with a `to`) is one `declare:rejected`
+        `slot-exhausted` with `resource: 'move'` and `serialize()` unchanged: the cast
+        took the whole turn (DD-S9);
      5. **empty-cell blast:** on the hexer's next turn, `declare('ember-bloom', { at })` on
         an empty cell within range 6 whose radius 2 covers the wight: the wight is hit,
         `spell:cast` carries `at`; then an `at` 8 steps away is `out-of-range` with
