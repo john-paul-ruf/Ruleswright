@@ -15,7 +15,7 @@ Coder commits its own lease at every checkpoint. See `./ORCHESTRATOR.md` and `./
 
 This plan is serial (S01 → S02 → S03). No wave has more than one session.
 
-**Dispatch gate:** S01 is blocked on **B-AT-1** (STATE.md Current Blockers). That is a human authorization for the DB re-entry. Paste the answer verbatim into STATE.md and into S01's envelope before dispatch.
+**Dispatch gate:** **B-AT-1** was cleared on 2026-10-01 ("1 approved 2 12 3 confrim"). The answer is recorded in STATE.md and quoted in S01's envelope. S01 is dispatchable.
 
 ## Protocol — each iteration (solo mode)
 
@@ -51,7 +51,7 @@ This plan is serial (S01 → S02 → S03). No wave has more than one session.
 - **All sessions done:** write the Final Report. Product completion also requires CAP-A1…A7 verified against current sources.
 - **Blocked:** set the session to blocked and skip to the next eligible one. In this serial plan, a block stalls its dependents.
 - **Context limit:** commit the current checkpoint, update STATE.md, and stop clean.
-- **User input needed:** only for product-design or destructive work. B-AT-1 is such a case. Otherwise record the conservative default, the owner correction, the recovery, or the final-report debt, and continue.
+- **User input needed:** only for product-design or destructive work. B-AT-1 was such a case (cleared). Otherwise record the conservative default, the owner correction, the recovery, or the final-report debt, and continue.
 
 ## Final Report
 

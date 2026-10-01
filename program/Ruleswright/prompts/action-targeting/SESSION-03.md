@@ -58,7 +58,7 @@ Required facts: the actor's composed abilities. In combat, `actor.abilities` in 
 - `registry.ts` still has 14 entries.
 - `grep -rn "executeEffect(" src` still shows exactly 2 non-definition callers.
 - S02 has landed (`git log --oneline -- src/compiler/themes/zombie-urban.json` shows S02's ck2).
-- The med-kit line to write is in the envelope (S01 handoff / B-AT-1). The default is `heal(2 + ability(vigor))`.
+- The med-kit line is fixed by the human (B-AT-1 item 2, 2026-10-01: "2 12"): `heal(2 + ability(vigor))`.
 
 ## Files to Create/Modify
 
@@ -133,12 +133,11 @@ Required facts: the actor's composed abilities. In combat, `actor.abilities` in 
 
 ### Checkpoint 3 — The med-kit reads the ability
 
-1. `zombie-urban.json` l.259: `"use"` → the line from the envelope. Default: `"heal(2 + ability(vigor))"`.
-2. `equipment-journey.test.ts`. Re-key the derived values with the default line and the level-1 scavenger (abilities all 10, vigor save 0, cap 27; plan-time probe, re-derive by running):
+1. `zombie-urban.json` l.259: `"use"` → `"heal(2 + ability(vigor))"` (human-chosen, B-AT-1).
+2. `equipment-journey.test.ts`. Re-key the derived values with that line and the level-1 scavenger (abilities all 10, vigor save 0, cap 27; plan-time probe, re-derive by running):
    - step 4: `amount: -12`, `hp: '23→27'`, rolls `['d0[]-12=-12']`, `Math.min(cap, cap - 4 + 12)`;
    - step 5: `amount -12`, `'26→27'`, `'d0[]-12=-12'`.
    - Add one assertion that discriminates: the profile's `saves.vigor` (0) ≠ `abilities.vigor` (10).
-   - **If the human chose the modifier line** (heals 2 at vigor 10), the amounts stay; the discrimination lives in `ability.test.ts` (f). Record which line applies in the test's doc comment.
 3. README: l.390 JSON line; l.430-433 prose ("heals 12: `ability(vigor)` reads the vigor ability, 10, not the same-named save"); the l.437-441 output lines, kept consistent with the test. Add one sentence to the effect-DSL / consumables prose describing `ability(name)`. No ```ts block.
 
 **Commit when:** `pnpm build && pnpm test` passes whole-suite; `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm check:isolation` and `pnpm check:security` = 0.

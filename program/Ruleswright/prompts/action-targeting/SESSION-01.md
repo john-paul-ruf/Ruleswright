@@ -3,7 +3,7 @@
 > **Program:** Ruleswright
 > **Feature:** action-targeting
 > **Modules:** — (Author artifact: DB)
-> **Depends on:** — (dispatch gate **B-AT-1**: human authorization, schema-change class)
+> **Depends on:** — (dispatch gate **B-AT-1** cleared 2026-10-01)
 > **Concurrent with:** —
 > **Owns:** `program/Ruleswright/specs/database.md`, `src/schema/contracts/pack.schema.json`
 > **Reads:** `program/Ruleswright/specs/requirements.md` (FR-3, FR-4, FR-9), `src/core/dsl/registry.ts`, `src/core/dsl/effect.ts`, `src/core/dsl/formula.ts`, `src/runtime/combat/combat.ts`, `src/runtime/combat/resolve.ts`, `src/runtime/equipment.ts`, `src/schema/validate/sections/cross.ts`, `src/compiler/themes/*.json`, `program/Ruleswright/prompts/action-targeting/STATE.md` (Design Decisions DD-A1…A9, Contract Agreements CA-A1…A4)
@@ -12,13 +12,15 @@
 
 **Role.** This is an **Author re-entry** session for the DB role, not a Coder session.
 
-**Authorization (quote it; do not re-litigate it).** Orchestrator pastes the human's B-AT-1
-answer here **verbatim**, with its date, before dispatch. Do not start without it. The
-answer authorizes the schema-change class for exactly the three items below. If it narrows
-them (for example, it declines `ability(name)`), write only what it authorizes and report
-the delta in the handoff.
+**Authorization (quote it; do not re-litigate it).** On 2026-10-01 the human answered the
+three B-AT-1 questions with "**1 approved 2 12 3 confrim**" ("confrim" = confirm):
+1. **approved** — this DB re-entry (schema-change class) for contract v1.7: the `self`
+   shape word and self actions (DD-A1/A2), and `ability(name)`, registry 14 → 15 (DD-A4);
+2. **12** — the med-kit line is `heal(2 + ability(vigor))` (DD-A5); S03 writes it;
+3. **confirm** — `brace` roots its user (DD-A3); S02 writes it.
 
-> *(B-AT-1 answer — Orchestrator inserts here)*
+Items 2 and 3 are content, not contract text; they are quoted here so the record travels
+with the session. Use `2026-10-01` as the date in Version Registry row 8.
 
 Earlier human answer on record (2026-10-01): "**med kit should use ability**".
 
@@ -103,7 +105,7 @@ Write, in DB voice, matching the v1.5/v1.6 paragraphs:
 ### Checkpoint 2 — pack.schema.json description + Version Registry row 8
 
 1. `pack.schema.json` `formulas.description` (l.30): append a v1.7 sentence covering `ability(name)` (registry 14 → 15, effect fields only, actor's ability, unshadowed) and the `self` shape word of `target`. Keep the JSON valid: `node -e "JSON.parse(require('fs').readFileSync('src/schema/contracts/pack.schema.json','utf8'))"`.
-2. `database.md` Version Registry, row 8: `| 8 | 1 (v1.7) | builder-authorized <B-AT-1 date>, action-targeting: target(self, …) shape word + self actions; ability(name) formula function (registry 14→15); no field added/removed/renamed, no rule id added, schemaVersion stays 1 — **one compatibility caveat:** (c) a target(self, …) now resolves to the actor | pack.schema.json revised (description only) |`.
+2. `database.md` Version Registry, row 8: `| 8 | 1 (v1.7) | builder-authorized 2026-10-01, action-targeting: target(self, …) shape word + self actions; ability(name) formula function (registry 14→15); no field added/removed/renamed, no rule id added, schemaVersion stays 1 — **one compatibility caveat:** (c) a target(self, …) now resolves to the actor | pack.schema.json revised (description only) |`.
 
 **Commit when:** the JSON parses; `pnpm exec prettier --check src/schema/contracts/pack.schema.json` passes (`program/` is in `.prettierignore`, so `database.md` is not formatted); `pnpm exec vitest run tests/schema` passes (the contracts are read by schema tests).
 
@@ -118,7 +120,7 @@ Write, in DB voice, matching the v1.5/v1.6 paragraphs:
 
 Report in the handoff:
 - the exact text written for CA-A1, CA-A2 and CA-A3, and any delta from STATE.md, by CA id;
-- the B-AT-1 answer as applied, with the med-kit line the human chose, which S03 needs;
+- the B-AT-1 answer as applied (med-kit line `heal(2 + ability(vigor))`, for S03);
 - the commit SHAs.
 
 Orchestrator then re-checks CA-A1…A3 against the landed text before dispatching S02.
