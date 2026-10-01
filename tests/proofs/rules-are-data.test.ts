@@ -18,6 +18,7 @@ import { packDslChecker } from '../../src/core/dsl/checker';
 import { Runtime } from '../../src/runtime/runtime';
 import { knownSpells, prepareSpell, castSpell } from '../../src/runtime/pools';
 import { profileFromStatblock, type CombatantProfile } from '../../src/runtime/combat/resolve';
+import { profileFromCharacter } from '../../src/runtime/character-profile';
 import { startCombat, type Combat, type StepOutcome } from '../../src/runtime/combat/combat';
 import type { RuntimeEvent } from '../../src/runtime/events';
 import type { Pack } from '../../src/schema/pack';
@@ -157,9 +158,12 @@ describe('FR-12 trio — rules are data (zero engine diffs)', () => {
     void eventMatchesProbe;
   });
 
-  it('proof 3: a new spell is memorized → bound → cast — pack data only', () => {
-    // DATA delta: one new spell on the hexer list.
+  it('proof 3: a new spell is memorized → bound → cast, out of combat and in a fight — pack data only', () => {
+    // DATA delta: one new spell on the hexer list, and combat actions for the
+    // fixture hexer class (a v1.2 class field; `strike` is a fixture action) so
+    // the character can stand in a fight at all (profileFromCharacter needs one).
     const pack = fixturePack();
+    pack.content.classes!['hexer']!.actions = ['strike'];
     (pack.content.spells ??= {})['wither-light'] = {
       name: 'Wither Light',
       magic: { level: 1, lists: ['hexer'] },
@@ -196,6 +200,45 @@ describe('FR-12 trio — rules are data (zero engine diffs)', () => {
     });
     expect(knownSpells(baseRuntime, baseChar.state)).not.toContain('wither-light');
     expect(() => prepareSpell(baseRuntime, baseChar.state, 'wither-light')).toThrow();
+
+    // Combat leg (v1.6, FR-9): the same new spell is declared in a fight
+    // through the unchanged pipeline. The out-of-combat cast emptied the slot,
+    // so bind it again; the caster leads (+100, the grid-journey idiom).
+    prepareSpell(runtime, state, 'wither-light');
+    const castIn = (rt: Runtime, character: typeof hexer) => {
+      const pair = profileFromCharacter(rt, character, 'hexer');
+      const fight = startCombat(rt, {
+        allies: [
+          { id: 'hexer', profile: { ...pair.profile, initiativeBonus: 100 }, balances: pair.balances },
+        ],
+        enemies: [
+          {
+            id: 'wight',
+            profile: {
+              ...profileFromStatblock(rt.pack, rt.pack.bestiary['barrow-wight']!, 'wight'),
+              actions: ['wight-claw'],
+            },
+          },
+        ],
+        rng: new Rng('proof3'),
+      });
+      expect(fight.state.active).toBe('hexer');
+      return fight.declare('wither-light', { targetId: 'wight' });
+    };
+    const cast = castIn(runtime, hexer).find((event) => event.type === 'spell:cast');
+    expect(cast).toBeDefined();
+    expect(cast!.why.rule).toBe('content.spells.wither-light');
+    // Baseline: the class-actions line alone (no wither-light) — the id is no pack data, no-action.
+    const actionsOnly = fixturePack();
+    actionsOnly.content.classes!['hexer']!.actions = ['strike'];
+    const plainRuntime = new Runtime(actionsOnly);
+    const plain = plainRuntime.createCharacter({
+      name: 'Plain',
+      race: 'ashling',
+      classes: [{ id: 'hexer', level: 1 }],
+    });
+    const refused = castIn(plainRuntime, plain).filter((event) => event.type === 'declare:rejected');
+    expect(refused.map((event) => event.payload['kind'])).toEqual(['no-action']);
   });
 });
 

@@ -184,244 +184,264 @@
       "grave-light": {
         "name": "Grave Light",
         "magic": { "level": 1, "lists": ["hexer"] },
-        "cost": { "vancian": 1 },
+        "cost": { "vancian": 1, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "single", "range": 6 },
         "effect": "sequence(damage(1d6, radiance), applyCondition(shaken, 1))",
         "tags": ["casting"]
       },
       "hex-bolt": {
         "name": "Hex Bolt",
         "magic": { "level": 1, "lists": ["hexer"] },
-        "cost": { "points": { "pool": "ember", "amount": 3 } },
+        "cost": { "points": { "pool": "ember", "amount": 3 }, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "single", "range": 6 },
         "effect": "damage(1d6 + insight, force)",
         "tags": ["casting"]
       },
       "ward-sigil": {
         "name": "Ward Sigil",
         "magic": { "level": 1, "lists": ["warden"] },
-        "cost": { "vancian": 1 },
+        "cost": { "vancian": 1, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "single", "range": 6 },
         "effect": "applyCondition(warded, 3)",
         "tags": ["casting"]
       },
       "bone-dart": {
         "name": "Bone Dart",
         "magic": { "level": 1, "lists": ["hexer"] },
-        "cost": { "vancian": 1 },
+        "cost": { "vancian": 1, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "single", "range": 6 },
         "effect": "damage(1d8, pierce)",
         "tags": ["casting"]
       },
       "sapping-word": {
         "name": "Sapping Word",
         "magic": { "level": 1, "lists": ["hexer"] },
-        "cost": { "vancian": 1 },
+        "cost": { "vancian": 1, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "single", "range": 6 },
         "effect": "save(tenacity, 12, applyCondition(sapped, 3), applyCondition(sapped, 1))",
         "tags": ["casting"]
       },
       "gutter-flame": {
         "name": "Gutter Flame",
         "magic": { "level": 1, "lists": ["hexer"] },
-        "cost": { "vancian": 1 },
-        "targeting": { "shape": "burst", "radius": 1 },
+        "cost": { "vancian": 1, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "burst", "radius": 1, "range": 6 },
         "effect": "target(burst-1, save(grace, 12, damage(2d6, fire), damage(half)))",
         "tags": ["casting"]
       },
       "marsh-light": {
         "name": "Marsh Light",
         "magic": { "level": 1, "lists": ["warden"] },
-        "cost": { "vancian": 1 },
-        "targeting": { "shape": "burst", "radius": 2 },
+        "cost": { "vancian": 1, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "burst", "radius": 2, "range": 6 },
         "effect": "target(burst-2, applyCondition(dazzled, 2))",
         "tags": ["casting"]
       },
       "iron-skin": {
         "name": "Iron Skin",
         "magic": { "level": 1, "lists": ["warden"] },
-        "cost": { "vancian": 1 },
+        "cost": { "vancian": 1, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "single", "range": 6 },
         "effect": "applyCondition(warded, 5)",
         "tags": ["casting"]
       },
       "whisper-ward": {
         "name": "Whisper Ward",
         "magic": { "level": 1, "lists": ["warden"] },
-        "cost": { "vancian": 1 },
+        "cost": { "vancian": 1, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "single", "range": 6 },
         "effect": "applyCondition(warded, 2)",
         "tags": ["casting"]
       },
       "dread-hush": {
         "name": "Dread Hush",
         "magic": { "level": 1, "lists": ["hexer"] },
-        "cost": { "vancian": 1 },
+        "cost": { "vancian": 1, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "single", "range": 6 },
         "effect": "save(presence, 11, applyCondition(dread, 2), damage(half))",
         "tags": ["casting"]
       },
       "bind-wound": {
         "name": "Bind Wound",
         "magic": { "level": 1, "lists": ["warden"] },
-        "cost": { "vancian": 1 },
+        "cost": { "vancian": 1, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "single", "range": 6 },
         "effect": "damage(1d8 - vigor, mending)",
         "tags": ["casting"]
       },
       "cold-clasp": {
         "name": "Cold Clasp",
         "magic": { "level": 1, "lists": ["hexer"] },
-        "cost": { "vancian": 1 },
+        "cost": { "vancian": 1, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "single", "range": 6 },
         "effect": "save(tenacity, 11, damage(1d8, frost), damage(half))",
         "tags": ["casting"]
       },
       "ember-halo": {
         "name": "Ember Halo",
         "magic": { "level": 2, "lists": ["warden"] },
-        "cost": { "vancian": 2 },
-        "targeting": { "shape": "burst", "radius": 2 },
+        "cost": { "vancian": 2, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "burst", "radius": 2, "range": 6 },
         "effect": "target(burst-2, save(reason, 13, damage(3d6, fire), damage(half)))",
         "tags": ["casting"]
       },
       "ember-bloom": {
         "name": "Ember Bloom",
         "magic": { "level": 2, "lists": ["hexer"] },
-        "cost": { "vancian": 2 },
-        "targeting": { "shape": "burst", "radius": 2 },
+        "cost": { "vancian": 2, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "burst", "radius": 2, "range": 6 },
         "effect": "target(burst-2, save(reason, 12, damage(3d6, fire), damage(half)))",
         "tags": ["casting"]
       },
       "grave-bind": {
         "name": "Grave Bind",
         "magic": { "level": 2, "lists": ["hexer"] },
-        "cost": { "vancian": 2 },
+        "cost": { "vancian": 2, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "single", "range": 6 },
         "effect": "save(tenacity, 13, applyCondition(rooted, 3), applyCondition(rooted, 1))",
         "tags": ["casting"]
       },
       "wights-bane": {
         "name": "Wight's Bane",
         "magic": { "level": 2, "lists": ["warden"] },
-        "cost": { "vancian": 2 },
+        "cost": { "vancian": 2, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "single", "range": 6 },
         "effect": "save(presence, 13, damage(2d8, radiance), damage(half))",
         "tags": ["casting"]
       },
       "hex-storm": {
         "name": "Hex Storm",
         "magic": { "level": 2, "lists": ["hexer"] },
-        "cost": { "vancian": 2 },
-        "targeting": { "shape": "burst", "radius": 3 },
+        "cost": { "vancian": 2, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "burst", "radius": 3, "range": 6 },
         "effect": "target(burst-3, save(grace, 13, damage(2d6, force), damage(half)))",
         "tags": ["casting"]
       },
       "iron-sweep": {
         "name": "Iron Sweep",
         "magic": { "level": 2, "lists": ["warden"] },
-        "cost": { "vancian": 2 },
-        "targeting": { "shape": "burst", "radius": 1 },
+        "cost": { "vancian": 2, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "burst", "radius": 1, "range": 6 },
         "effect": "target(burst-1, save(tenacity, 12, damage(2d8, sharp), damage(half)))",
         "tags": ["casting"]
       },
       "marshal-word": {
         "name": "Marshal Word",
         "magic": { "level": 2, "lists": ["warden"] },
-        "cost": { "vancian": 2 },
+        "cost": { "vancian": 2, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "single", "range": 6 },
         "effect": "applyCondition(marshaled, 3)",
         "tags": ["casting"]
       },
       "grave-sight": {
         "name": "Grave Sight",
         "magic": { "level": 2, "lists": ["hexer"] },
-        "cost": { "vancian": 2 },
+        "cost": { "vancian": 2, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "single", "range": 6 },
         "effect": "applyCondition(hexsight, 5)",
         "tags": ["casting"]
       },
       "blood-price": {
         "name": "Blood Price",
         "magic": { "level": 2, "lists": ["hexer"] },
-        "cost": { "points": { "pool": "ember", "amount": 5 } },
+        "cost": { "points": { "pool": "ember", "amount": 5 }, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "single", "range": 6 },
         "effect": "sequence(damage(level + vigor, grave-touch), applyCondition(sapped, 2))",
         "tags": ["casting"]
       },
       "ward-circle": {
         "name": "Ward Circle",
         "magic": { "level": 2, "lists": ["warden"] },
-        "cost": { "vancian": 2 },
-        "targeting": { "shape": "burst", "radius": 2 },
+        "cost": { "vancian": 2, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "burst", "radius": 2, "range": 6 },
         "effect": "target(burst-2, applyCondition(warded, 4))",
         "tags": ["casting"]
       },
       "cold-snap": {
         "name": "Cold Snap",
         "magic": { "level": 2, "lists": ["hexer"] },
-        "cost": { "vancian": 2 },
+        "cost": { "vancian": 2, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "single", "range": 6 },
         "effect": "save(tenacity, 13, damage(2d8, frost), damage(half))",
         "tags": ["casting"]
       },
       "glyph-shield": {
         "name": "Glyph Shield",
         "magic": { "level": 2, "lists": ["warden"] },
-        "cost": { "vancian": 2 },
+        "cost": { "vancian": 2, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "single", "range": 6 },
         "effect": "applyCondition(warded, 6)",
         "tags": ["casting"]
       },
       "wight-bell": {
         "name": "Wight Bell",
         "magic": { "level": 2, "lists": ["hexer"] },
-        "cost": { "vancian": 2 },
-        "targeting": { "shape": "burst", "radius": 2 },
+        "cost": { "vancian": 2, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "burst", "radius": 2, "range": 6 },
         "effect": "target(burst-2, save(presence, 12, applyCondition(shaken, 3), damage(half)))",
         "tags": ["casting"]
       },
       "crown-word": {
         "name": "Crown Word",
         "magic": { "level": 3, "lists": ["warden"] },
-        "cost": { "vancian": 3 },
+        "cost": { "vancian": 3, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "single", "range": 6 },
         "effect": "applyCondition(marshaled, 5)",
         "tags": ["casting"]
       },
       "grave-frost": {
         "name": "Grave Frost",
         "magic": { "level": 3, "lists": ["hexer"] },
-        "cost": { "vancian": 3 },
-        "targeting": { "shape": "burst", "radius": 3 },
+        "cost": { "vancian": 3, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "burst", "radius": 3, "range": 6 },
         "effect": "target(burst-3, save(tenacity, 14, damage(4d6, frost), damage(half)))",
         "tags": ["casting"]
       },
       "barrow-wake": {
         "name": "Barrow Wake",
         "magic": { "level": 3, "lists": ["hexer"] },
-        "cost": { "vancian": 3 },
-        "targeting": { "shape": "burst", "radius": 2 },
+        "cost": { "vancian": 3, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "burst", "radius": 2, "range": 6 },
         "effect": "target(burst-2, save(presence, 14, applyCondition(dread, 4), damage(half)))",
         "tags": ["casting"]
       },
       "suns-verdict": {
         "name": "Sun's Verdict",
         "magic": { "level": 3, "lists": ["warden"] },
-        "cost": { "vancian": 3 },
-        "targeting": { "shape": "burst", "radius": 2 },
+        "cost": { "vancian": 3, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "burst", "radius": 2, "range": 6 },
         "effect": "target(burst-2, save(reason, 14, damage(4d8, radiance), damage(half)))",
         "tags": ["casting"]
       },
       "bind-the-lung": {
         "name": "Bind the Lung",
         "magic": { "level": 3, "lists": ["hexer"] },
-        "cost": { "vancian": 3 },
+        "cost": { "vancian": 3, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "single", "range": 6 },
         "effect": "save(vigor, 14, applyCondition(sapped, 5), damage(half))",
         "tags": ["casting"]
       },
       "wardens-glyph": {
         "name": "Warden's Glyph",
         "magic": { "level": 3, "lists": ["warden"] },
-        "cost": { "vancian": 3 },
+        "cost": { "vancian": 3, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "single", "range": 6 },
         "effect": "applyCondition(warded, 8)",
         "tags": ["casting"]
       },
       "mass-sapping-word": {
         "name": "Mass Sapping Word",
         "magic": { "level": 3, "lists": ["hexer"] },
-        "cost": { "vancian": 3 },
-        "targeting": { "shape": "burst", "radius": 3 },
+        "cost": { "vancian": 3, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "burst", "radius": 3, "range": 6 },
         "effect": "target(burst-3, save(tenacity, 14, applyCondition(sapped, 4), damage(half)))",
         "tags": ["casting"]
       },
       "crypt-seal": {
         "name": "Crypt Seal",
         "magic": { "level": 3, "lists": ["warden"] },
-        "cost": { "vancian": 3 },
-        "targeting": { "shape": "burst", "radius": 2 },
+        "cost": { "vancian": 3, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "burst", "radius": 2, "range": 6 },
         "effect": "target(burst-2, save(tenacity, 14, applyCondition(rooted, 5), damage(half)))",
         "tags": ["casting"]
       }

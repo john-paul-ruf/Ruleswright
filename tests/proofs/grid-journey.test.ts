@@ -20,15 +20,12 @@
  * `declare()` returns the round's event window (sinceRound), not one call's
  * events — resumed and post-restore legs therefore read a fresh local sink.
  *
- * The burst shape rides a data-only pack action added at test setup (FR-12's
- * proof-1 discipline — pack data, public surface only, zero engine diffs):
- * the generated themes ship burst spells in `content.spells` and the combat
- * loop declares `pack.actions`, so the action carries the generated spell's
- * verbatim cost + effect on the caster's action list. Dark-fantasy is
- * vancian: the spell is bound through the approved `prepareSpell` surface
- * first (the E-VANC-01 gate reads the bound slot). Wyldwood is pool-based:
- * no binding — the pool cost rides the balances, the session's alternative
- * cost family.
+ * The burst is the generated spell itself, declared through `fight.declare`
+ * (v1.6, FR-9): the caster's known spells come from `profileFromCharacter`.
+ * Dark-fantasy is vancian: the spell is bound through the approved
+ * `prepareSpell` surface first (the binding pick reads the bound slot).
+ * Wyldwood is pool-based: no binding — the pool cost rides the balances. Every
+ * generated spell costs the caster's whole turn (`main` + `move`, DD-S9).
  */
 import { describe, expect, it } from 'vitest';
 import { generateCampaign, loadTheme } from '../../src/compiler';
@@ -62,6 +59,11 @@ class ScriptedRng extends Rng {
     this.queue = [...faces];
   }
 
+  /** How many faces have been drawn — the proof that a declare drew no die. */
+  get drawn(): number {
+    return this.cursor;
+  }
+
   override int(maxExclusive: number): number {
     const face = this.queue[this.cursor];
     if (face === undefined) throw new Error('dice script exhausted — pin one face per roll');
@@ -78,19 +80,6 @@ function darkFantasyPack(): Pack {
   return generateCampaign({ theme: loadTheme('dark-fantasy'), seed: 42 });
 }
 
-/**
- * FR-12 proof-1 shape: the burst shape as pack data — the generated spell's
- * verbatim cost + effect on an action the combat loop can declare.
- */
-function packWithBurstAction(base: Pack, spellId: string, actionId: string): Pack {
-  const spell = base.content.spells?.[spellId];
-  if (spell === undefined) throw new Error(`the generated pack lost its ${spellId} spell`);
-  return {
-    ...base,
-    actions: { ...base.actions, [actionId]: { cost: spell.cost, effect: spell.effect, tags: ['casting'] } },
-  };
-}
-
 /** The same generated pack, theater-of-mind: the optional spatial section is pack data — remove it and the pack never declared a grid. */
 function stripSpatial(base: Pack): Pack {
   const stripped: Pack = { ...base };
@@ -100,7 +89,6 @@ function stripSpatial(base: Pack): Pack {
 
 interface HeroOptions {
   readonly race?: string;
-  readonly extraAction?: string;
 }
 
 /** A hero on a side: the approved character path, its instance id, a pinned initiative bonus, and its balances. */
@@ -119,27 +107,16 @@ function heroEntry(
   const pair = profileFromCharacter(rt, hero, instanceId);
   return {
     id: instanceId,
-    profile: {
-      ...pair.profile,
-      initiativeBonus,
-      ...(options.extraAction !== undefined
-        ? { actions: [...pair.profile.actions, options.extraAction] }
-        : {}),
-    },
+    profile: { ...pair.profile, initiativeBonus },
     balances: pair.balances,
   };
 }
 
 /**
  * The vancian caster: a hexer who has bound ember-bloom through the approved
- * `prepareSpell` surface — the E-VANC-01 gate reads the bound slot — with the
- * burst action on its action list.
+ * `prepareSpell` surface — the binding pick reads the bound slot (DD-S18).
  */
-function boundBurstEntry(
-  rt: Runtime,
-  instanceId: string,
-  burstAction: string,
-): StartCombatRequest['allies'][number] {
+function boundBurstEntry(rt: Runtime, instanceId: string): StartCombatRequest['allies'][number] {
   const hero = rt.createCharacter({
     name: instanceId,
     race: 'hillfolk',
@@ -149,7 +126,7 @@ function boundBurstEntry(
     throw new Error('the hexer cannot know ember-bloom — pack data drifted');
   }
   prepareSpell(rt, hero.state, 'ember-bloom');
-  const entry = heroEntry(rt, 'hexer', instanceId, 100, { extraAction: burstAction });
+  const entry = heroEntry(rt, 'hexer', instanceId, 100);
   return { ...entry, balances: profileFromCharacter(rt, hero, instanceId).balances };
 }
 
@@ -340,8 +317,8 @@ describe('CAP-G7 — the grid journey on the real generated pack (dark-fantasy, 
   });
 
   it('burst: every in-radius combatant on both sides takes a per-target save with mixed branches; the out-of-radius one is untouched (CAP-G3, CA-G4)', () => {
-    const rt = new Runtime(packWithBurstAction(darkFantasyPack(), 'ember-bloom', 'barrow-bloom-rite'));
-    const caster = boundBurstEntry(rt, 'hexer', 'barrow-bloom-rite');
+    const rt = new Runtime(darkFantasyPack());
+    const caster = boundBurstEntry(rt, 'hexer');
     const ally = heroEntry(rt, 'warden', 'brynn', -100);
     const foe = foeEntry(rt, 'barrow-wight', 'wight', 100);
     const bystander = foeEntry(rt, 'grave-shambles', 'shambles');
@@ -378,7 +355,7 @@ describe('CAP-G7 — the grid journey on the real generated pack (dark-fantasy, 
       dice,
     );
     expect(fight.state.active).toBe('hexer');
-    const declared = fight.declare('barrow-bloom-rite', { targetId: 'wight' });
+    const declared = fight.declare('ember-bloom', { targetId: 'wight' });
     expect(declared.some((event) => event.type === 'declare:rejected')).toBe(false);
     const damage = events.filter((event) => event.type === 'damage:applied');
     const damagedIds = damage.map((event) => event.target);
@@ -405,15 +382,17 @@ describe('CAP-G7 — the grid journey on the real generated pack (dark-fantasy, 
     expect(damage[2]!.target).toBe('brynn');
     expect(damage[2]!.why.rolls[2]).toBe('d6[2,2,2]=6');
     // The spell rode the normal action pipeline (FR-9): the vancian cost
-    // consumed the bound level-2 slot; the burst costs no turn slots.
+    // consumed the bound level-2 slot, and the cast took the whole turn (DD-S9).
     expect(fight.state.combatants['hexer']!.boundSlots['2']).toBe(0);
-    expect(fight.state.combatants['hexer']!.slots.remaining['main']).toBe(1);
+    expect(fight.state.combatants['hexer']!.slotsCast).toEqual({ '2': [0] });
+    expect(fight.state.combatants['hexer']!.slots.remaining['main']).toBe(0);
+    expect(fight.state.combatants['hexer']!.slots.remaining['move']).toBe(0);
   });
 
   it('the vancian gate: an unbound burst spell rejects E-VANC-01 with no durable change', () => {
-    const rt = new Runtime(packWithBurstAction(darkFantasyPack(), 'ember-bloom', 'barrow-bloom-rite'));
+    const rt = new Runtime(darkFantasyPack());
     // The hero never prepares the spell — no level-2 binding, no cast.
-    const unbound = heroEntry(rt, 'hexer', 'hexer', 100, { extraAction: 'barrow-bloom-rite' });
+    const unbound = heroEntry(rt, 'hexer', 'hexer', 100);
     const foe = foeEntry(rt, 'barrow-wight', 'wight');
     // Adjacent placement isolates the cost gate (spatial passes; the recorded
     // gate order is validity → spatial → cost).
@@ -425,13 +404,14 @@ describe('CAP-G7 — the grid journey on the real generated pack (dark-fantasy, 
     );
     expect(fight.state.active).toBe('hexer');
     const before = fight.serialize();
-    const rejected = fight.declare('barrow-bloom-rite', { targetId: 'wight' });
+    const rejected = fight.declare('ember-bloom', { targetId: 'wight' });
     expect(rejected).toHaveLength(1);
     expect(rejected[0]!.type).toBe('declare:rejected');
     expect(rejected[0]!.payload['kind']).toBe('vancian');
     expect(rejected[0]!.why.rule).toBe('E-VANC-01');
     // No durable change: the ledger is unspent and the state is identical.
     expect(fight.state.combatants['hexer']!.slots.remaining['main']).toBe(1);
+    expect(fight.state.combatants['hexer']!.slots.remaining['move']).toBe(1);
     expect(fight.serialize()).toEqual(before);
   });
 
@@ -596,35 +576,80 @@ describe('CAP-G7 — the grid journey on the real generated pack (dark-fantasy, 
 describe('theater-of-mind parity (the same journey on the generated content minus its spatial section: wyldwood, seed 42)', () => {
   it('no positions demanded, no reach rejections, hasTarget(adjacent) passes, the burst shape resolves to the bound target only', () => {
     const base = generateCampaign({ theme: loadTheme('wyldwood'), seed: 42 });
-    const rt = new Runtime(packWithBurstAction(stripSpatial(base), 'ember-halo', 'thorn-bloom-rite'));
+    const rt = new Runtime(stripSpatial(base));
     expect(rt.spatial.enabled).toBe(false);
-    const caster = heroEntry(rt, 'warden', 'caster', 100, {
-      race: 'verge-born',
-      extraAction: 'thorn-bloom-rite',
-    });
+    // The warden's spellLists ['warden'] carry ember-halo: profileFromCharacter knows it.
+    const caster = heroEntry(rt, 'warden', 'caster', 100, { race: 'verge-born' });
+    expect(caster.profile.spells).toContain('ember-halo');
     const ally = heroEntry(rt, 'hexer', 'ally', -100, { race: 'verge-born' });
     const foe = foeEntry(rt, 'thorn-wolf', 'foe');
     // No positions at all — a theater-of-mind fight never demands them (CA-G3).
-    // Faces: initiatives ×3; the wolf's save 20 (19 + 0 presence ≥ dc 13 → the
-    // PASS branch); its halved damage re-rolls 3d6[4,2,3]=9 → 5; the strike's
-    // attack 5 (15 ≥ ac 12 → hit) and its d8+might damage 6 (+10 = 16).
+    // Faces: initiatives ×3; the wolf's save 20 (20 + its reason 0 ≥ dc 13 → the
+    // PASS branch); its halved damage re-rolls 3d6[4,2,3]=9 → 5; the next-turn
+    // strike's attack 5 (15 ≥ ac 12 → hit) and its d8+might damage 6 (+10 = 16).
+    // The two in-between declares (glide, a move action) draw no die.
     const dice = new ScriptedRng([1, 1, 1, 20, 4, 2, 3, 5, 6]);
     const { fight, events } = startFight(rt, { allies: [caster, ally], enemies: [foe] }, undefined, dice);
+    expect(fight.state.order).toEqual(['caster', 'ally', 'foe']);
     expect(fight.state.active).toBe('caster');
     const motesBefore = fight.state.combatants['caster']!.pools['motes']!;
     expect(motesBefore).toBeGreaterThanOrEqual(4);
     // The burst shape (burst-2 around the bound target) resolves to the BOUND
     // TARGET ONLY — the no-op geometry answers every shape with the bound
     // targets and never rejects (Design Decision 3, the absent-column gate).
-    const bloom = fight.declare('thorn-bloom-rite', { targetId: 'foe' });
-    expect(bloom.some((event) => event.type === 'declare:rejected')).toBe(false);
-    const bloomDamage = events.filter(
-      (event) => event.type === 'damage:applied' && event.why.rule === 'actions.thorn-bloom-rite',
+    const halo = fight.declare('ember-halo', { targetId: 'foe' });
+    expect(halo.some((event) => event.type === 'declare:rejected')).toBe(false);
+    const haloDamage = events.filter(
+      (event) => event.type === 'damage:applied' && event.why.rule === 'content.spells.ember-halo',
     );
-    expect(bloomDamage.map((event) => event.target)).toEqual(['foe']);
-    expect(bloomDamage[0]!.payload['amount']).toBe(5); // the pass branch's halved 3d6=9
+    expect(haloDamage.map((event) => event.target)).toEqual(['foe']);
+    expect(haloDamage[0]!.payload['amount']).toBe(5); // the pass branch's halved 3d6=9
+    expect(haloDamage[0]!.payload['hp']).toBe('7→2');
     // The pool cost rode the balances (the pool-based theme needs no binding).
     expect(fight.state.combatants['caster']!.pools['motes']).toBe(motesBefore - 4);
+
+    // The spell took the whole turn (DD-S9): a same-turn strike is refused
+    // before any die, and nothing changes.
+    const before = fight.serialize();
+    const drawnBefore = dice.drawn;
+    const sameTurn = capture(rt);
+    try {
+      fight.declare('strike', { targetId: 'foe' });
+      expect(sameTurn.events).toHaveLength(1);
+      expect(sameTurn.events[0]!.type).toBe('declare:rejected');
+      expect(sameTurn.events[0]!.payload['kind']).toBe('slot-exhausted');
+      expect(sameTurn.events[0]!.payload['resource']).toBe('main');
+      expect(sameTurn.events[0]!.why.rule).toBe('E-ECON-01');
+    } finally {
+      sameTurn.release();
+    }
+    expect(dice.drawn).toBe(drawnBefore);
+    expect(fight.serialize()).toEqual(before);
+
+    // step() never passes a turn: each combatant between the caster's two
+    // turns declares — a dice-free glide (a theater pack walks nowhere, DD-M11).
+    const inBetween = (id: string) => {
+      const leg = capture(rt);
+      try {
+        fight.declare('glide');
+        expect(leg.events.map((event) => event.type)).toEqual(['action:resolved']);
+        expect(leg.events[0]!.actor).toBe(id);
+      } finally {
+        leg.release();
+      }
+      expect(dice.drawn).toBe(drawnBefore);
+      expect(fight.pendingTriggers).toEqual([]);
+    };
+    expect(fight.step()).toMatchObject({ kind: 'turn-ended', combatantId: 'caster' });
+    expect(fight.step()).toMatchObject({ kind: 'turn-started', combatantId: 'ally' });
+    inBetween('ally');
+    expect(fight.step()).toMatchObject({ kind: 'turn-ended', combatantId: 'ally' });
+    expect(fight.step()).toMatchObject({ kind: 'turn-started', combatantId: 'foe' });
+    inBetween('foe');
+    expect(fight.step()).toMatchObject({ kind: 'round-completed', round: 1 });
+    expect(fight.step()).toMatchObject({ kind: 'turn-started', combatantId: 'caster' });
+    expect(fight.state.round).toBe(2);
+
     // hasTarget(adjacent) passes without any geometry — `strike` resolves at a
     // distance no spatial pack would allow (the wolf stands at hp 2: the blow
     // ends the fight through the engine's own side-defeated rule).
@@ -635,6 +660,8 @@ describe('theater-of-mind parity (the same journey on the generated content minu
     );
     expect(strikeDamage).toBeDefined();
     expect(strikeDamage!.target).toBe('foe');
+    expect(strikeDamage!.payload['amount']).toBe(16);
+    expect(dice.drawn).toBe(9);
     expect(fight.state.phase).toBe('combat-over');
     expect(events.filter((event) => event.type === 'combat:ended').map((event) => event.payload)).toEqual([
       { winner: 'allies', defeated: 'enemies' },

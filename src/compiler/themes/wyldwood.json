@@ -382,7 +382,15 @@
           "points": {
             "pool": "motes",
             "amount": 2
+          },
+          "slots": {
+            "main": 1,
+            "move": 1
           }
+        },
+        "targeting": {
+          "shape": "single",
+          "range": 6
         },
         "effect": "applyCondition(warded, 3)",
         "tags": ["casting"]
@@ -397,7 +405,15 @@
           "points": {
             "pool": "motes",
             "amount": 2
+          },
+          "slots": {
+            "main": 1,
+            "move": 1
           }
+        },
+        "targeting": {
+          "shape": "single",
+          "range": 6
         },
         "effect": "damage(1d8 - vigor, mending)",
         "tags": ["casting"]
@@ -412,7 +428,15 @@
           "points": {
             "pool": "motes",
             "amount": 2
+          },
+          "slots": {
+            "main": 1,
+            "move": 1
           }
+        },
+        "targeting": {
+          "shape": "single",
+          "range": 6
         },
         "effect": "damage(1d6 + insight, force)",
         "tags": ["casting"]
@@ -427,7 +451,15 @@
           "points": {
             "pool": "motes",
             "amount": 2
+          },
+          "slots": {
+            "main": 1,
+            "move": 1
           }
+        },
+        "targeting": {
+          "shape": "single",
+          "range": 6
         },
         "effect": "save(tenacity, 11, damage(1d8, frost), damage(half))",
         "tags": ["casting"]
@@ -442,11 +474,16 @@
           "points": {
             "pool": "motes",
             "amount": 4
+          },
+          "slots": {
+            "main": 1,
+            "move": 1
           }
         },
         "targeting": {
           "shape": "burst",
-          "radius": 2
+          "radius": 2,
+          "range": 6
         },
         "effect": "target(burst-2, save(reason, 13, damage(3d6, fire), damage(half)))",
         "tags": ["casting"]
@@ -461,7 +498,15 @@
           "points": {
             "pool": "motes",
             "amount": 3
+          },
+          "slots": {
+            "main": 1,
+            "move": 1
           }
+        },
+        "targeting": {
+          "shape": "single",
+          "range": 6
         },
         "effect": "applyCondition(dazzled, 3)",
         "tags": ["casting"]
@@ -476,11 +521,16 @@
           "points": {
             "pool": "motes",
             "amount": 4
+          },
+          "slots": {
+            "main": 1,
+            "move": 1
           }
         },
         "targeting": {
           "shape": "burst",
-          "radius": 2
+          "radius": 2,
+          "range": 6
         },
         "effect": "target(burst-2, save(presence, 12, applyCondition(beguiled, 3), damage(half)))",
         "tags": ["casting"]
@@ -495,7 +545,15 @@
           "points": {
             "pool": "motes",
             "amount": 1
+          },
+          "slots": {
+            "main": 1,
+            "move": 1
           }
+        },
+        "targeting": {
+          "shape": "single",
+          "range": 6
         },
         "effect": "applyCondition(dazzled, 1)",
         "tags": ["casting"]
@@ -510,11 +568,16 @@
           "points": {
             "pool": "motes",
             "amount": 5
+          },
+          "slots": {
+            "main": 1,
+            "move": 1
           }
         },
         "targeting": {
           "shape": "burst",
-          "radius": 3
+          "radius": 3,
+          "range": 6
         },
         "effect": "target(burst-3, save(tenacity, 14, applyCondition(hexbound, 4), damage(half)))",
         "tags": ["casting"]
@@ -529,11 +592,16 @@
           "points": {
             "pool": "motes",
             "amount": 5
+          },
+          "slots": {
+            "main": 1,
+            "move": 1
           }
         },
         "targeting": {
           "shape": "burst",
-          "radius": 2
+          "radius": 2,
+          "range": 6
         },
         "effect": "target(burst-2, save(grace, 14, damage(4d6, pierce), damage(half)))",
         "tags": ["casting"]

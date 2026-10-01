@@ -193,29 +193,32 @@
       "bind-the-bite": {
         "name": "Bind the Bite",
         "magic": { "level": 1, "lists": ["medic"] },
-        "cost": { "points": { "pool": "adrenaline", "amount": 4 } },
+        "cost": { "points": { "pool": "adrenaline", "amount": 4 }, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "single", "range": 6 },
         "effect": "damage(1d8 - vigor, mending)",
         "tags": ["casting"]
       },
       "clean-sear": {
         "name": "Clean Sear",
         "magic": { "level": 1, "lists": ["medic"] },
-        "cost": { "points": { "pool": "adrenaline", "amount": 2 } },
+        "cost": { "points": { "pool": "adrenaline", "amount": 2 }, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "single", "range": 6 },
         "effect": "damage(1d6, sear)",
         "tags": ["casting"]
       },
       "quietsong": {
         "name": "Quietsong",
         "magic": { "level": 1, "lists": ["fixer"] },
-        "cost": { "points": { "pool": "stamina", "amount": 3 } },
-        "targeting": { "shape": "burst", "radius": 2 },
+        "cost": { "points": { "pool": "stamina", "amount": 3 }, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "burst", "radius": 2, "range": 6 },
         "effect": "target(burst-2, save(presence, 11, applyCondition(dazzled, 2), damage(half)))",
         "tags": ["casting"]
       },
       "rot-read": {
         "name": "Rot Read",
         "magic": { "level": 1, "lists": ["fixer"] },
-        "cost": { "points": { "pool": "stamina", "amount": 2 } },
+        "cost": { "points": { "pool": "stamina", "amount": 2 }, "slots": { "main": 1, "move": 1 } },
+        "targeting": { "shape": "single", "range": 6 },
         "effect": "applyCondition(hexsight, 5)",
         "tags": ["casting"]
       }
