@@ -158,6 +158,75 @@ describe('FR-12 trio — rules are data (zero engine diffs)', () => {
     void eventMatchesProbe;
   });
 
+  it('proof 2 (feat leg): a reactive feat held by a character fires via the same event hooks — pack data only', () => {
+    // DATA delta: combat actions for the fixture warden class (a v1.2 class
+    // field; profileFromCharacter needs one). The fixture already declares
+    // `second-gust` (condition:applied[target=self] → applyCondition(braced, 2))
+    // and `grave-gaze` (hexbound on either save branch). A statblock holds no
+    // feats (DD-S2), so the holder is a character.
+    const pack = fixturePack();
+    pack.content.classes!['warden']!.actions = ['strike'];
+    expect(validatePack(structuredClone(pack), packDslChecker)).toEqual([]);
+
+    const gazeAtBrynn = (learnsFeat: boolean): { fight: Combat; events: RuntimeEvent[] } => {
+      const runtime = new Runtime(pack);
+      const events: RuntimeEvent[] = [];
+      runtime.events.on((event) => events.push(event));
+      const character = runtime.createCharacter({
+        name: 'Brynn',
+        race: 'ashling',
+        classes: [{ id: 'warden', level: 1 }],
+      });
+      if (learnsFeat) character.learnFeat('second-gust');
+      const brynn = profileFromCharacter(runtime, character, 'brynn');
+      const fight = startCombat(runtime, {
+        allies: [
+          { id: 'brynn', profile: { ...brynn.profile, initiativeBonus: -100 }, balances: brynn.balances },
+        ],
+        enemies: [
+          {
+            id: 'wight',
+            profile: {
+              ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'wight'),
+              actions: ['grave-gaze'],
+              initiativeBonus: 100,
+            },
+          },
+        ],
+      });
+      fight.step();
+      expect(fight.state.active).toBe('wight');
+      fight.declare('grave-gaze', { targetId: 'brynn' });
+      return { fight, events };
+    };
+
+    // The held feat is offered through the unchanged trigger substrate, after the hexbound it reacts to.
+    const { fight, events } = gazeAtBrynn(true);
+    const hexbound = events.findIndex(
+      (event) =>
+        event.type === 'condition:applied' &&
+        event.target === 'brynn' &&
+        event.payload['conditionId'] === 'hexbound',
+    );
+    const fired = events.filter((event) => event.type === 'trigger:fired');
+    expect(hexbound).toBeGreaterThanOrEqual(0);
+    expect(fired).toHaveLength(1);
+    expect(events.indexOf(fired[0]!)).toBeGreaterThan(hexbound);
+    expect(fired[0]!.payload).toMatchObject({ source: 'feat', actionId: 'second-gust' });
+    // Taking it applies braced on the holder under the feat's own rule, and never chains.
+    const taken = fight.respond('brynn.second-gust', 'take');
+    expect(
+      taken.map((event) => [event.type, event.target, event.payload['conditionId'], event.why.rule]),
+    ).toEqual([['condition:applied', 'brynn', 'braced', 'content.feats.second-gust']]);
+    expect(events.filter((event) => event.type === 'trigger:fired')).toHaveLength(1);
+
+    // Baseline: the same pack and fight, with a character that never learned the feat — no offer.
+    const baseline = gazeAtBrynn(false);
+    expect(baseline.events.some((event) => event.type === 'condition:applied')).toBe(true);
+    expect(baseline.events.filter((event) => event.type === 'trigger:fired')).toEqual([]);
+    expect(baseline.fight.pendingTriggers).toEqual([]);
+  });
+
   it('proof 3: a new spell is memorized → bound → cast, out of combat and in a fight — pack data only', () => {
     // DATA delta: one new spell on the hexer list, and combat actions for the
     // fixture hexer class (a v1.2 class field; `strike` is a fixture action) so

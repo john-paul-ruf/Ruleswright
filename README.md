@@ -138,7 +138,9 @@ deterministic per seed, like everything else (FR-1).
 
 - `profileFromCharacter(rt, character, id?)` returns `{ profile, balances }`: current
   hp, `derived()` ac/attack bonus, the pack's `initiative` formula, the union of the
-  character's class `actions` (pack v1.2), and its pool points + bound spell slots.
+  character's class `actions` (pack v1.2), its pool points + bound spell slots, the
+  spells it knows, its slot bindings, any armor that blocks slot casting, and its
+  reactive feats.
   A class with no `actions` cannot fight (`no-combat-actions`).
 - The fight ends by one engine rule (`combat.sideDefeated`): after any resolution, once every
   combatant on one side is at hp ≤ 0, `fight.state.phase` becomes `combat-over`, one `combat:ended`
@@ -175,7 +177,8 @@ Chebyshev, melee reach is measured in grid steps, and a per-id reach override
 uses the default. An out-of-reach declare is refused declaratively — one
 `declare:rejected` event, rule `E-SPAT-01`, no state change — and an action
 whose `valid` clause says `hasTarget(adjacent)` fails the same way when no
-combatant resolves for the shape. Burst spells (`target(burst-N, …)`) resolve
+combatant resolves for the shape. Burst spells (`target(burst-N, …)`) are declared like
+actions — `fight.declare('ember-bloom', { targetId })` — and resolve
 every combatant within Chebyshev radius N of the _declared target_, on both
 sides, each taking its own save; a pool-based theme casts with no binding,
 while a vancian theme (dark-fantasy) must prepare the spell into a slot first —
@@ -302,6 +305,73 @@ and dark-fantasy packs (seed 42).
   ⇒ identical rolls on Node, browsers, Electron (FR-1, FR-17; the Node matrix is
   verified in CI, the browser leg is a tracked v1.1 follow-up).
 
+## Spells and feats in combat
+
+A spell is declared like an action, by id, on the caster's turn:
+`fight.declare('ember-bloom', { targetId: 'wight' })`. The caster must know it —
+`profileFromCharacter` carries the character's known spells, slot bindings and
+pool points. The gates run in a fixed order, and each refusal is one
+`declare:rejected` with nothing spent: the spell is known (`no-action`) → no
+active condition restricts it (`restricted`; dark-fantasy's `hexbound` restricts
+`spells.tagged:casting`) → the target resolves and the spell's `valid` clause
+passes → range (`out-of-range`, `E-SPAT-01`) → equipped armor the caster's classes
+cannot cast in blocks a slot (vancian) spell (`armor-not-castable`) → the cost
+(turn slots, pool points) → a vancian spell needs an uncast slot bound to it
+(`E-VANC-01`).
+
+- **Targeting.** A spell may target any combatant, ally or enemy, within its
+  `targeting.range` (default: the caster's reach). A burst may be centered on an
+  empty cell instead: `fight.declare('ember-bloom', { at: { x: 4, y: 1 } })`.
+- **Cost.** In the sample themes a spell costs the whole turn (`main` + `move`);
+  the reaction slot stays free.
+- **Snapshot spend.** The fight never writes to the character. A combat snapshot
+  carries each caster's `poolsSpent` and `slotsCast`, and restore continues the
+  spend against the re-stated fight-start balances.
+- **Settlement.** Once the fight is `combat-over`,
+  `settleSpellCasts(rt, character, fight, combatantId)` drops the spent pool
+  points (`pool:settled`) and empties the cast slots (`slot:settled`) on the
+  character; a second call returns `[]`.
+- **Feats.** `character.learnFeat(featId)` (or `learnFeat(rt, state, featId)`)
+  adds a pack-declared feat (`feat:learned`; `unknown-feat` and `feat-known`
+  refuse). The character snapshot keeps `feats`.
+- **Reactive feats.** A held feat with a `trigger` is offered like a reaction
+  (`trigger:fired` with `source: 'feat'`) and answered with `fight.respond`. It
+  is free (no slot), acts on its holder, and never chains: taking it raises no
+  new offer. A combat snapshot keeps every open offer (`offers`), the offer
+  counter (`offeredCount`) and the live `phase`.
+- **The trigger grammar.** `trigger.on` is `<event>` or
+  `<event>[target|actor=self|<id>]`, for example
+  `condition:applied[target=self]`. A pattern that can never fire is refused at
+  load (`E-FORM-01`).
+
+From the generated dark-fantasy pack (seed 42): a hexer holding `second-gust` is
+gazed at by an adjacent barrow-wight, the fight is frozen and restored, and the
+hexer takes the feat:
+
+```text
+fight.declare('grave-gaze', { targetId: 'hexer' })            // the wight's turn
+  condition:applied  wight → hexer {conditionId: 'hexbound'}   actions.grave-gaze
+  action:resolved    {actionId: 'grave-gaze', targetId: 'hexer'}
+  trigger:fired      hexer {triggerId: 'hexer.second-gust', actionId: 'second-gust',
+                     source: 'feat', on: 'condition:applied', offerIndex: 0}
+                     content.feats.second-gust.trigger
+serialize → JSON → restore    phase 'resolved' · offeredCount 1 · offers [second-gust]
+restored.respond('hexer.second-gust', 'take')
+  condition:applied  hexer → hexer {conditionId: 'braced', duration: 2}
+                     content.feats.second-gust
+  // no second trigger:fired (a taken feat never chains)
+step() · step()                turn:ended wight · turn:began hexer
+restored.declare('ember-bloom', { targetId: 'wight' })
+  declare:rejected   {kind: 'restricted', resource: 'casting'}   // hexbound; nothing spent
+```
+
+v1 limits: there is no feat-slot cap (a character may learn any number of
+feats), and zombie-urban's classes know no spells.
+
+The spells journey — vancian and point-pool legs, plus the feat leg above — runs
+in `tests/proofs/spells-journey.test.ts` against the built package and the real
+generated packs (seed 42).
+
 ## Equipment & consumables
 
 Equipment is pack data too. A pack declares its own slot vocabulary
@@ -340,7 +410,7 @@ zombie-urban pack (seed 42):
   `kind`; otherwise it is refused `armor-not-castable` with the slot still bound.
   In dark-fantasy the warden (`["mail"]`) casts in warded-mail and the hexer
   (`["leather"]`) must unequip first. armorCasting covers slot casting only:
-  point-pool spells have no cast verb in v1, so the gate never applies to them.
+  point-pool spells are cast in combat and are never armor-gated.
 - **Consumables.** `character.useItem(itemId)` (or `useItem(rt, state, itemId)`)
   spends one unit out of combat; `fight.use(itemId, { target })` spends one charge
   in combat (the active combatant, default target itself). Charges are the held

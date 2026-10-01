@@ -21,11 +21,12 @@
  *   the snapshot JSON and `deserializeCombat` derives `combat-over`. Only HOW
  *   the fight ends is harnessed; the spend, the restore, the settlement and
  *   the character round-trip are the production path.
- * - Ledger and turn continuity across a restore are NOT claimed here: until
- *   the envelope carries `phase` (S03), restore derives `awaiting-declare`.
+ * - The spell legs claim no ledger or turn continuity across a restore; the
+ *   feat leg continues the frozen fight (the v1.6 envelope keeps `offers`,
+ *   `offeredCount` and `phase`, DD-S14).
  *
  * Layout: freshness → vancian leg (dark-fantasy, grid) → pool leg (wyldwood,
- * hex) → determinism. SESSION-03 appends its feat leg after the pool leg.
+ * hex) → determinism → feat leg (dark-fantasy, grid; CAP-S6).
  */
 import { describe, expect, it } from 'vitest';
 import { generateCampaign, loadTheme } from '../../dist/compiler.js';
@@ -97,8 +98,9 @@ function standingWithin(fight: Combat, center: { x: number; y: number }, radius:
 }
 
 describe('CAP-S4 — dist freshness', () => {
-  it('the built runtime exports settleSpellCasts, and the built compiler ships the v1.6 spell data', () => {
+  it('the built runtime exports settleSpellCasts and learnFeat, and the built compiler ships the v1.6 spell data', () => {
     expect(typeof runtimeDist.settleSpellCasts).toBe('function');
+    expect(typeof runtimeDist.learnFeat).toBe('function');
     const bloom = packFor('dark-fantasy').content.spells!['ember-bloom']!;
     // `move: 1` is the whole-turn cost (DD-S9; a revert item if DD-S9 becomes main-only).
     expect(bloom.cost).toEqual({ vancian: 2, slots: { main: 1, move: 1 } });
@@ -324,5 +326,93 @@ describe('CAP-S4 — determinism (FR-1)', () => {
   it('two runs of each leg with the same seed produce JSON-equal event streams', () => {
     expect(JSON.stringify(vancianLeg().events)).toBe(JSON.stringify(vancianLeg().events));
     expect(JSON.stringify(poolLeg().events)).toBe(JSON.stringify(poolLeg().events));
+  });
+});
+
+/**
+ * The feat leg (CAP-S6 end to end; dark-fantasy, seed 42, grid). A hexer who
+ * learned `second-gust` is hexbound by an adjacent wight's `grave-gaze` (either
+ * save branch applies it). The production path, no doubles: `learnFeat` →
+ * `profileFromCharacter` → `startCombat` → a monster `declare` → the offer
+ * queue → serialize/restore (DD-S14) → `respond`.
+ */
+describe('CAP-S6 — the feat leg (dark-fantasy, seed 42, grid)', () => {
+  it('learnFeat → profile → grave-gaze offers second-gust → snapshot/restore keeps offers + offeredCount → take (braced, no chain) → hexbound blocks ember-bloom → character round-trip keeps feats', () => {
+    const rt = new Runtime(packFor('dark-fantasy'));
+
+    // 1. The hexer learns the reactive feat and binds ember-bloom.
+    const hexer = rt.createCharacter({
+      name: 'hexer',
+      race: 'hillfolk',
+      classes: [{ id: 'hexer', level: 3 }],
+    });
+    hexer.learnFeat('second-gust');
+    expect(hexer.state.feats).toEqual(['second-gust']);
+    prepareSpell(rt, hexer.state, 'ember-bloom');
+
+    // 2. The bridge carries the held reactive feat; the wight stands adjacent and acts first.
+    const pair = profileFromCharacter(rt, hexer, 'hexer');
+    expect(pair.profile.feats).toEqual(['second-gust']);
+    const request: CombatRestoreRequest = {
+      allies: [{ id: 'hexer', profile: { ...pair.profile, initiativeBonus: -100 }, balances: pair.balances }],
+      enemies: [
+        { id: 'wight', profile: { ...spawnMonster(rt, 'barrow-wight', 'wight'), initiativeBonus: 100 } },
+      ],
+      positions: { hexer: { x: 0, y: 0 }, wight: { x: 1, y: 0 } },
+    };
+    const fight = startCombat(rt, request);
+    expect(fight.state.order).toEqual(['wight', 'hexer']);
+    expect(fight.step()).toMatchObject({ kind: 'turn-started', combatantId: 'wight' });
+
+    // 3. grave-gaze hexbinds the hexer, and the held feat is offered (source feat).
+    const gaze = during(rt, () => fight.declare('grave-gaze', { targetId: 'hexer' }));
+    const hexbound = gaze.find((event) => event.type === 'condition:applied');
+    expect(hexbound).toMatchObject({ target: 'hexer', payload: { conditionId: 'hexbound' } });
+    const fired = gaze.filter((event) => event.type === 'trigger:fired');
+    expect(fired).toHaveLength(1);
+    expect(fired[0]).toMatchObject({
+      actor: 'hexer',
+      payload: {
+        triggerId: 'hexer.second-gust',
+        actionId: 'second-gust',
+        source: 'feat',
+        on: 'condition:applied',
+      },
+      why: { rule: 'content.feats.second-gust.trigger' },
+    });
+    expect(gaze.indexOf(hexbound!)).toBeLessThan(gaze.indexOf(fired[0]!));
+
+    // 4. Freeze → JSON → restore: the open feat offer and the offer counter survive.
+    const snap = frozen(fight);
+    expect(snap.offers).toEqual([
+      { actorId: 'hexer', source: 'feat', id: 'second-gust', on: 'condition:applied' },
+    ]);
+    expect(snap.offeredCount).toBe((fired[0]!.payload['offerIndex'] as number) + 1);
+    const restored = deserializeCombat(rt, snap, request);
+    expect(restored.offeredCount).toBe(snap.offeredCount);
+    expect(restored.pendingTriggers).toEqual(fight.pendingTriggers);
+    expect(restored.state.phase).toBe(fight.state.phase);
+
+    // 5. Take: braced on the hexer under the feat's rule, and no second offer (the no-chain rule).
+    const taken = during(rt, () => restored.respond('hexer.second-gust', 'take'));
+    expect(
+      taken.map((event) => [event.type, event.target, event.payload['conditionId'], event.why.rule]),
+    ).toEqual([['condition:applied', 'hexer', 'braced', 'content.feats.second-gust']]);
+    expect(restored.pendingTriggers).toEqual([]);
+
+    // 6. The wight's turn is over (it declared); the hexer is next. hexbound
+    // restricts spells.tagged:casting (DD-S10): ember-bloom is refused, nothing spent.
+    expect(restored.step()).toMatchObject({ kind: 'turn-ended', combatantId: 'wight' });
+    expect(restored.step()).toMatchObject({ kind: 'turn-started', combatantId: 'hexer' });
+    const before = restored.serialize();
+    const blocked = during(rt, () => restored.declare('ember-bloom', { targetId: 'wight' }));
+    expect(blocked).toHaveLength(1);
+    expect(blocked[0]!.type).toBe('declare:rejected');
+    expect(blocked[0]!.payload['kind']).toBe('restricted');
+    expect(restored.serialize()).toEqual(before);
+
+    // 7. The character snapshot keeps the learned feat.
+    const back = restoreCharacter(rt, JSON.parse(JSON.stringify(serializeCharacter(rt, hexer.state))));
+    expect(back.state.feats).toEqual(['second-gust']);
   });
 });
