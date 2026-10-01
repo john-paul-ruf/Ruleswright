@@ -23,6 +23,7 @@ import type { EconomyBalances } from './combat/action-economy';
 import type { Combat } from './combat/combat';
 import { equipmentView, equippedUnits } from './equipment';
 import { dropItem } from './inventory';
+import { armorBlockingCast, knownSpells } from './pools';
 import type { RuntimeEvent } from './events';
 import type { ErrorCard } from '../schema/error-card';
 import { RuntimeRuleError, ruleCard } from './errors';
@@ -52,9 +53,14 @@ export interface CharacterCombatant {
  * - `actions` is the union of the character's class action lists in class
  *   order, first occurrence wins. None at all → `RuntimeRuleError`
  *   (`no-combat-actions`).
+ * - `spells` (v1.6, CA-S4) is `knownSpells`, emitted only when non-empty;
+ *   `castBlockedBy` is the equipped armor `armorBlockingCast` names, emitted
+ *   only when it blocks (DD-S6).
  * - `balances` carries the character's pool points, per spell level the count
- *   of bound (memorized) slots, and (CA-EG5) the held qty of every consumable
- *   (an item with a parse-once `use` effect) — the fight's item charges.
+ *   of bound (memorized) slots, (CA-EG5) the held qty of every consumable
+ *   (an item with a parse-once `use` effect) — the fight's item charges — and
+ *   (v1.6) `bindings`, a deep copy of the character's `slots`, which spell
+ *   casts consume (DD-S18).
  * - Active conditions are NOT carried (v1: `StartCombatRequest` has no field).
  */
 export function profileFromCharacter(
@@ -95,6 +101,10 @@ export function profileFromCharacter(
   for (const entry of state.inventory) {
     if (runtime.index.itemEffects[entry.id] !== undefined) items[entry.id] = entry.qty;
   }
+  const spells = knownSpells(runtime, state);
+  const castBlockedBy = armorBlockingCast(runtime, state);
+  const bindings: Record<string, (string | null)[]> = {};
+  for (const [level, slots] of Object.entries(state.slots)) bindings[level] = [...slots];
 
   return {
     profile: {
@@ -111,8 +121,10 @@ export function profileFromCharacter(
       actions,
       ...(derived.attackBonus !== undefined ? { attackBonus: derived.attackBonus } : {}),
       ...(attackTable !== undefined ? { attackTable } : {}),
+      ...(spells.length > 0 ? { spells: [...spells] } : {}),
+      ...(castBlockedBy !== undefined ? { castBlockedBy } : {}),
     },
-    balances: { pools: { ...state.pools }, boundSlots, items },
+    balances: { pools: { ...state.pools }, boundSlots, items, bindings },
   };
 }
 

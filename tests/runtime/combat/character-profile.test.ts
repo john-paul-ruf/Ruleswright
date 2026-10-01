@@ -12,6 +12,7 @@ import {
   attackBonusAgainst,
   bestiaryIds,
   knownSpells,
+  prepareSpell,
   profileFromCharacter,
   profileFromStatblock,
   settleItemUses,
@@ -329,6 +330,40 @@ describe('CA-EG2 — profiles carry equipment grants and maxHp', () => {
       ...(derived.attackBonus !== undefined ? { attackBonus: derived.attackBonus } : {}),
       ...(profile.attackTable !== undefined ? { attackTable: profile.attackTable } : {}),
     });
+  });
+});
+
+describe('v1.6 — the spell bridge (CA-S4): spells, castBlockedBy, bindings', () => {
+  const rt = new Runtime(packFor('dark-fantasy'));
+
+  it("a hexer's profile.spells equals knownSpells; a non-caster emits none", () => {
+    const hexer = hero(rt, 'ashkin', [{ id: 'hexer', level: 1 }]);
+    const { profile } = profileFromCharacter(rt, hexer);
+    expect(profile.spells).toEqual(knownSpells(rt, hexer.state));
+    expect(profile.spells!.length).toBeGreaterThan(0);
+    const survivor = new Runtime(packFor('zombie-urban'));
+    const nonCaster = hero(survivor, 'mile-born', [
+      { id: Object.keys(survivor.pack.content.classes ?? {})[0]!, level: 1 },
+    ]);
+    expect('spells' in profileFromCharacter(survivor, nonCaster).profile).toBe(false);
+  });
+
+  it("balances.bindings is a deep copy of the character's slots: a prepared level-2 spell is bound", () => {
+    const hexer = hero(rt, 'ashkin', [{ id: 'hexer', level: 3 }]);
+    prepareSpell(rt, hexer.state, 'ember-bloom');
+    const { balances } = profileFromCharacter(rt, hexer);
+    expect(balances.bindings!['2']).toEqual(['ember-bloom', null, null]);
+    expect(balances.bindings).toEqual(hexer.state.slots);
+    expect(balances.bindings!['2']).not.toBe(hexer.state.slots['2']);
+  });
+
+  it('a hexer in warded-mail (armorCasting [leather]) carries castBlockedBy; unarmored, none', () => {
+    const hexer = hero(rt, 'ashkin', [{ id: 'hexer', level: 1 }]);
+    expect(rt.pack.content.classes!['hexer']!.armorCasting).toEqual(['leather']);
+    expect('castBlockedBy' in profileFromCharacter(rt, hexer).profile).toBe(false);
+    hexer.grant('warded-mail');
+    hexer.equip('warded-mail', 'body');
+    expect(profileFromCharacter(rt, hexer).profile.castBlockedBy).toBe('warded-mail');
   });
 });
 

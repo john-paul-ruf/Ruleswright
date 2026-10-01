@@ -205,7 +205,7 @@ export function prepareSpell(
  * `kind` no class of the character lists in `armorCasting`, or undefined when
  * the character may cast. A class without `armorCasting` casts in no armor.
  */
-function armorBlockingCast(runtime: Runtime, character: CharacterState): string | undefined {
+export function armorBlockingCast(runtime: Runtime, character: CharacterState): string | undefined {
   for (const entry of character.equipped ?? []) {
     const item = runtime.pack.content.items?.[entry.itemId];
     if (item?.grants?.['armor'] === undefined) continue;

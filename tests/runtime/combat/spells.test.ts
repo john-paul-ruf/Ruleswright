@@ -22,6 +22,10 @@ import type { RuntimeEvent } from '../../../src/runtime/events';
 import { applyCondition, isRestricted } from '../../../src/runtime/conditions';
 import { Rng } from '../../../src/core/rng';
 import type { Pack } from '../../../src/schema/pack';
+import { generateCampaign, loadTheme } from '../../../src/compiler';
+import { prepareSpell } from '../../../src/runtime/pools';
+import { profileFromCharacter } from '../../../src/runtime/character-profile';
+import { spawnMonster } from '../../../src/runtime/bestiary';
 
 /** Intended die faces (1..sides); int(n) returns face − 1 because rollRecipe adds the +1. */
 class ScriptedRng extends Rng {
@@ -646,5 +650,63 @@ describe('CAP-S9 — theater of mind never consults range or at (DD-M11 discipli
     expect(bloom.filter((event) => event.type === 'damage:applied').map((event) => event.target)).toEqual([
       'wight',
     ]);
+  });
+});
+
+describe('CAP-S1 integrated — a generated character casts through the production bridge (dark-fantasy, seed 42)', () => {
+  /**
+   * The src integration: generateCampaign → Runtime → createCharacter →
+   * prepareSpell → profileFromCharacter → startCombat → declare. No doubles:
+   * the executor, economy and grid geometry are production code. The fixture
+   * hexer class declares no actions, so this runs on the generated pack.
+   */
+  function hexerFight(prepared: boolean) {
+    const rt = new Runtime(generateCampaign({ theme: loadTheme('dark-fantasy'), seed: 42 }));
+    const hexer = rt.createCharacter({
+      name: 'hexer',
+      race: 'hillfolk',
+      classes: [{ id: 'hexer', level: 1 }],
+    });
+    expect(hexer.state.slots).toEqual({ '1': [null, null, null] });
+    if (prepared) prepareSpell(rt, hexer.state, 'grave-light');
+    const pair = profileFromCharacter(rt, hexer, 'hexer');
+    const fight = startCombat(rt, {
+      allies: [{ id: 'hexer', profile: { ...pair.profile, initiativeBonus: 100 }, balances: pair.balances }],
+      enemies: [
+        { id: 'wight', profile: { ...spawnMonster(rt, 'barrow-wight', 'wight'), initiativeBonus: -100 } },
+      ],
+      // Adjacent: no theme spell declares a range until checkpoint 5, so the reach fallback (1) applies.
+      positions: { hexer: { x: 0, y: 0 }, wight: { x: 1, y: 0 } },
+      rng: new Rng('spells-bridge'),
+    });
+    return { rt, fight };
+  }
+
+  it('a prepared grave-light is declared and resolves: spell:cast first, the bound slot spent', () => {
+    const { rt, fight } = hexerFight(true);
+    expect(fight.state.active).toBe('hexer');
+    expect(fight.state.combatants['hexer']!.spells).toContain('grave-light');
+    const events = during(rt, () => fight.declare('grave-light', { targetId: 'wight' }));
+    expect(events.map((event) => event.type)).toEqual([
+      'spell:cast',
+      'damage:applied',
+      'condition:applied',
+      'action:resolved',
+    ]);
+    expect(events.every((event) => event.why.rule === 'content.spells.grave-light')).toBe(true);
+    expect(events[0]!.payload).toMatchObject({ slotLevel: '1', slotIndex: 0, cost: 'vancian' });
+    expect(fight.state.combatants['hexer']!.slotsCast).toEqual({ '1': [0] });
+    expect(fight.state.combatants['hexer']!.boundSlots['1']).toBe(0);
+  });
+
+  it('a hexer that never prepared it is rejected vancian with nothing changed', () => {
+    const { rt, fight } = hexerFight(false);
+    expectRejected(
+      rt,
+      fight,
+      () => fight.declare('grave-light', { targetId: 'wight' }),
+      'vancian',
+      'E-VANC-01',
+    );
   });
 });
