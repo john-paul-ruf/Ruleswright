@@ -324,7 +324,8 @@ describe('the first narrow journey leg (CAP-M2/CAP-M3): move → serialize → J
     expect(restored.state.terrain).toEqual(terrain);
     expect(restored.state.combatants['hero']!.speed).toBe(4);
 
-    restored.step(); // the hero's turn re-begins after the restore boundary
+    // DD-S14: the envelope phase restores the live phase — the hero's turn continues (its main slot is unspent).
+    expect(restored.state.phase).toBe(fight.state.phase);
     const declared = restored.declare('strike', { targetId: 'wight' });
     expect(declared.some((event) => event.type === 'declare:rejected')).toBe(false);
     expect(seen.some((event) => event.type === 'attack:rolled' && event.target === 'wight')).toBe(true);

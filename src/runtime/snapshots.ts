@@ -52,6 +52,7 @@ import {
   moveBudgetAst,
   terrainRefusals,
   type CombatantState,
+  type CombatPhase,
   type PendingMove,
 } from './combat/combat';
 import type { CombatantProfile } from './combat/resolve';
@@ -442,7 +443,7 @@ export interface SnapshotCombatant {
   readonly conditions?: readonly SnapshotActiveCondition[];
   /** The precise {x, y} — emitted only when set; never null (FR-11, CA-G3). */
   readonly position?: Position;
-  /** Reactive action currently offered (FR-4/FR-13). */
+  /** Legacy (v1.5 writers) — the combatant's first open reactive-action offer; read on restore, never written by v1.6 (DD-S14). */
   readonly pendingTrigger?: null | string;
   /** v1.4 — item id -> units SPENT in this fight (CA-EG6); emitted only when non-empty. */
   readonly itemsUsed?: Readonly<Record<string, number>>;
@@ -456,6 +457,14 @@ export interface SnapshotCombatant {
   readonly slotsCast?: Readonly<Record<string, readonly number[]>>;
 }
 
+/** v1.6 — one open offer (DD-S14): `on` is the live offer's matching event type. */
+export interface SnapshotOffer {
+  readonly actorId: string;
+  readonly source: 'action' | 'feat';
+  readonly id: string;
+  readonly on: string;
+}
+
 /** The combat envelope - pairsWith is the documented combat→party pairing (FR-14). */
 export interface CombatSnapshot {
   readonly kind: 'combat';
@@ -467,6 +476,12 @@ export interface CombatSnapshot {
   readonly order: readonly string[];
   readonly rng: RngState;
   readonly combatants: readonly SnapshotCombatant[];
+  /** v1.6 — the live phase (R-GM-2); always written by v1.6 serializers. */
+  readonly phase?: CombatPhase;
+  /** v1.6 — offers raised so far, so the next `offerIndex` continues (R-GM-1); always written by v1.6 serializers. */
+  readonly offeredCount?: number;
+  /** v1.6 — every open offer, in queue order; written only when non-empty. */
+  readonly offers?: readonly SnapshotOffer[];
 }
 
 /** The sides exactly as `startCombat` took them: the host re-states its original request to resume (FR-10 between-steps boundary). */
@@ -484,14 +499,13 @@ export interface CombatRestoreRequest {
  * is whole between any two steps). Per-combatant state carries the CA-4
  * transients (the per-turn slot ledger), the item spend (`itemsUsed`), the
  * spell spend (`poolsSpent`/`slotsCast`, v1.6) and the heal cap (`maxHp`). Pool/bound-slot/item balances ride the paired party's
- * character states - FR-14's pairsWith discipline.
+ * character states - FR-14's pairsWith discipline. The envelope (v1.6,
+ * DD-S14) always carries `phase` and `offeredCount`, and `offers` — every
+ * open offer, actions and feats, in queue order — when any is open; the
+ * per-combatant `pendingTrigger` is no longer written.
  */
 export function serializeCombat(fight: Combat, options: { readonly pairsWith: string }): CombatSnapshot {
   const state = fight.state;
-  const offeredBy = new Map<string, string>();
-  for (const offer of fight.pendingTriggers) {
-    if (!offeredBy.has(offer.actorId)) offeredBy.set(offer.actorId, offer.actionId);
-  }
   return {
     kind: 'combat',
     snapshotVersion: SNAPSHOT_VERSION,
@@ -501,9 +515,20 @@ export function serializeCombat(fight: Combat, options: { readonly pairsWith: st
     turn: state.turn,
     order: [...state.order],
     rng: { ...state.rng },
+    phase: state.phase,
+    offeredCount: fight.offeredCount,
+    ...(fight.pendingTriggers.length > 0
+      ? {
+          offers: fight.pendingTriggers.map((offer) => ({
+            actorId: offer.actorId,
+            source: offer.source,
+            id: offer.actionId,
+            on: offer.matchingEvent,
+          })),
+        }
+      : {}),
     combatants: state.order.map((id) => {
       const combatant = state.combatants[id]!;
-      const pendingTrigger = offeredBy.get(id);
       return {
         id,
         hp: combatant.hp.current,
@@ -514,7 +539,6 @@ export function serializeCombat(fight: Combat, options: { readonly pairsWith: st
           remaining: active.duration,
         })),
         ...(combatant.position !== undefined ? { position: { ...combatant.position } } : {}),
-        ...(pendingTrigger !== undefined ? { pendingTrigger } : {}),
         ...(Object.keys(combatant.itemsUsed).length > 0 ? { itemsUsed: { ...combatant.itemsUsed } } : {}),
         ...(combatant.pendingMove !== undefined
           ? { pendingMove: copyPendingMove(combatant.pendingMove) }
@@ -537,13 +561,16 @@ export function serializeCombat(fight: Combat, options: { readonly pairsWith: st
  * `poolsSpent`/`slotsCast` (CA-S2), with bindings, spells and
  * `castBlockedBy` re-stated;
  * and `maxHp` is the frozen value, else `profile.maxHp`, else
- * `max(0, profile.hp)` (CA-EG6, R-9). The envelope carries no phase; restore
- * derives it (DD-M12): `combat-over` when the frozen hp already satisfy the
- * end rule (every combatant of one side at hp ≤ 0), else `resolved` when any
- * combatant carries a `pendingMove` or `pendingTrigger` (the turn's action
- * already resolved), else `awaiting-declare` (freezing between steps is the
- * FR-10 boundary). A restored offer's matching event is the trigger
- * pattern's event type (the base before `[`), as live offers store it.
+ * `max(0, profile.hp)` (CA-EG6, R-9). The phase (DD-S14): `combat-over` when
+ * the frozen hp already satisfy the end rule (every combatant of one side at
+ * hp ≤ 0), else the envelope `phase`, else the v1.5 derivation (DD-M12) —
+ * `resolved` when any combatant carries a `pendingMove` or `pendingTrigger`,
+ * or the envelope carries `offers` (the turn's action already resolved),
+ * else `awaiting-declare` (freezing between steps is the FR-10 boundary).
+ * Open offers come from the envelope `offers`, in queue order, else from the
+ * legacy per-combatant `pendingTrigger`, whose matching event is the trigger
+ * pattern's event type (the base before `[`), as live offers store it. The
+ * offer counter resumes from `offeredCount` (absent = 0).
  * Positions and terrain are re-stated by the host (CAP-G5). The rng words rebuild the dice stream: the
  * next roll equals the uninterrupted fight's next roll.
  */
@@ -618,24 +645,40 @@ export function deserializeCombat(
         : {}),
     };
   }
-  const fight = new Combat(runtime, {
-    round: saved.round,
-    turn: saved.turn,
-    order: [...saved.order],
-    active: saved.order[saved.turn] ?? '',
-    phase:
-      defeatedSide(combatants) !== undefined
-        ? 'combat-over'
-        : saved.combatants.some(
-              (c) =>
-                c.pendingMove !== undefined || (c.pendingTrigger !== undefined && c.pendingTrigger !== null),
-            )
-          ? 'resolved'
-          : 'awaiting-declare',
-    combatants,
-    rng: { ...saved.rng },
-    terrain: copyTerrain(restore.terrain ?? []),
-  });
+  const derivedPhase: CombatPhase =
+    (saved.offers?.length ?? 0) > 0 ||
+    saved.combatants.some(
+      (c) => c.pendingMove !== undefined || (c.pendingTrigger !== undefined && c.pendingTrigger !== null),
+    )
+      ? 'resolved'
+      : 'awaiting-declare';
+  const fight = new Combat(
+    runtime,
+    {
+      round: saved.round,
+      turn: saved.turn,
+      order: [...saved.order],
+      active: saved.order[saved.turn] ?? '',
+      phase: defeatedSide(combatants) !== undefined ? 'combat-over' : (saved.phase ?? derivedPhase),
+      combatants,
+      rng: { ...saved.rng },
+      terrain: copyTerrain(restore.terrain ?? []),
+    },
+    undefined,
+    { offeredCount: saved.offeredCount ?? 0 },
+  );
+  if (saved.offers !== undefined) {
+    for (const offer of saved.offers) {
+      fight.pendingTriggers.push({
+        triggerId: `${offer.actorId}.${offer.id}`,
+        actorId: offer.actorId,
+        actionId: offer.id,
+        source: offer.source,
+        matchingEvent: offer.on,
+      });
+    }
+    return fight;
+  }
   for (const combatant of saved.combatants) {
     if (combatant.pendingTrigger === undefined || combatant.pendingTrigger === null) continue;
     const pattern = runtime.pack.actions[combatant.pendingTrigger]!.trigger!.on; // restoreRefusals proved both lookups
@@ -798,6 +841,7 @@ function combatRestoreRefusals(
       );
     }
   });
+  cards.push(...envelopeV16Refusals(runtime, saved, restore, artifactId));
   saved.combatants.forEach((combatant, index) => {
     if (combatant.pendingTrigger === undefined || combatant.pendingTrigger === null) return;
     const def = runtime.pack.actions[combatant.pendingTrigger];
@@ -813,6 +857,102 @@ function combatRestoreRefusals(
     }
   });
   return cards;
+}
+
+const COMBAT_PHASES: readonly CombatPhase[] = [
+  'awaiting-declare',
+  'resolved',
+  'awaiting-trigger-response',
+  'combat-over',
+];
+
+/**
+ * DD-S14 — the v1.6 envelope fields must describe this fight (E-SNAP-01, one
+ * card per defect, all before anything is rebuilt): `offers` never rides
+ * beside a legacy `pendingTrigger`; each offer names a combatant in the order
+ * and, for its `source`, a reactive action in that combatant's re-stated
+ * `actions` or a reactive feat in its re-stated `feats`; `phase` is a
+ * combat phase, and `combat-over` only when the frozen hp defeat a side;
+ * `offeredCount` is an integer ≥ 0.
+ */
+function envelopeV16Refusals(
+  runtime: Runtime,
+  saved: CombatSnapshot,
+  restore: CombatRestoreRequest,
+  artifactId: string,
+): ErrorCard[] {
+  const cards: ErrorCard[] = [];
+  const refuse = (at: string, message: string) =>
+    cards.push(makeErrorCard('E-SNAP-01', artifactId, at, message));
+  const offers: unknown = saved.offers;
+  if (offers !== undefined && !Array.isArray(offers)) {
+    refuse('offers', 'offers must be an array of {actorId, source, id, on} (DD-S14).');
+  } else if (offers !== undefined) {
+    if (saved.combatants.some((c) => c.pendingTrigger !== undefined && c.pendingTrigger !== null)) {
+      refuse(
+        'offers',
+        'the snapshot carries both envelope offers and a per-combatant pendingTrigger — v1.6 writers emit offers only (DD-S14).',
+      );
+    }
+    const profiles = new Map(
+      [...restore.allies, ...restore.enemies].map((entry) => [entry.id, entry.profile]),
+    );
+    offers.forEach((offer: unknown, index) => {
+      const at = `offers[${index}]`;
+      if (
+        !isRecord(offer) ||
+        typeof offer['actorId'] !== 'string' ||
+        typeof offer['id'] !== 'string' ||
+        typeof offer['on'] !== 'string'
+      ) {
+        refuse(at, 'an offer must be {actorId, source, id, on} (DD-S14).');
+        return;
+      }
+      const actorId = offer['actorId'];
+      const id = offer['id'];
+      const source = offer['source'];
+      if (!saved.order.includes(actorId)) {
+        refuse(`${at}.actorId`, `offer names combatant "${actorId}", who is not in this fight (DD-S14).`);
+        return;
+      }
+      const profile = profiles.get(actorId);
+      const held =
+        source === 'action'
+          ? profile?.actions.includes(id) === true && runtime.pack.actions[id]?.trigger !== undefined
+          : source === 'feat'
+            ? profile?.feats?.includes(id) === true && runtime.pack.content.feats?.[id]?.trigger !== undefined
+            : false;
+      if (!held) {
+        refuse(
+          `${at}.id`,
+          `offer names ${display(source)} "${id}", which is not a reactive action or feat of that source combatant "${actorId}" holds (DD-S14).`,
+        );
+      }
+    });
+  }
+  if (saved.phase !== undefined) {
+    if (!COMBAT_PHASES.includes(saved.phase)) {
+      refuse(
+        'phase',
+        `phase ${display(saved.phase)} is not a combat phase (${COMBAT_PHASES.join(', ')}) (DD-S14).`,
+      );
+    } else if (saved.phase === 'combat-over' && !frozenSideDefeated(saved, restore)) {
+      refuse('phase', 'phase "combat-over", but the frozen hp defeat no side (DD-S14).');
+    }
+  }
+  const count: unknown = saved.offeredCount;
+  if (count !== undefined && !(typeof count === 'number' && Number.isInteger(count) && count >= 0)) {
+    refuse('offeredCount', `offeredCount ${display(count)} is not an integer ≥ 0 (DD-S14).`);
+  }
+  return cards;
+}
+
+/** The end rule over the frozen hp and the re-stated sides: every member of one side at hp ≤ 0. */
+function frozenSideDefeated(saved: CombatSnapshot, restore: CombatRestoreRequest): boolean {
+  const hp = new Map(saved.combatants.map((combatant) => [combatant.id, combatant.hp]));
+  return [restore.allies, restore.enemies].some(
+    (members) => members.length > 0 && members.every((member) => (hp.get(member.id) ?? 1) <= 0),
+  );
 }
 
 /**

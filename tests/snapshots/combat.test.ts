@@ -79,9 +79,11 @@ describe('combat snapshots (FR-14, CAP-7)', () => {
     expect(Object.keys(snap).sort()).toEqual([
       'combatants',
       'kind',
+      'offeredCount',
       'order',
       'pack',
       'pairsWith',
+      'phase',
       'rng',
       'round',
       'snapshotVersion',
@@ -120,10 +122,8 @@ describe('combat snapshots (FR-14, CAP-7)', () => {
     const victim = attacker === 'wight' ? 'brynn' : 'wight';
     fight.declare(attacker === 'wight' ? 'wight-claw' : 'strike'); // the attack offers the victim's parry
     const snap = serializeCombat(fight, { pairsWith: 'party-1' });
-    const offered = snap.combatants.find((combatant) => combatant.pendingTrigger !== undefined);
-    expect(offered).toBeDefined();
-    expect(offered!.pendingTrigger).toBe('parry');
-    expect(offered!.id).toBe(victim);
+    expect(snap.offers).toEqual([{ actorId: victim, source: 'action', id: 'parry', on: 'attack:rolled' }]);
+    expect(snap.combatants.some((combatant) => 'pendingTrigger' in combatant)).toBe(false);
   });
 });
 
@@ -603,7 +603,10 @@ describe('spatial snapshots (CAP-G5, CA-G3)', () => {
       const wight = snap.combatants.find((combatant) => combatant.id === 'wight')!;
       expect(brynn.pendingMove).toEqual({ actionId: 'stride', to: DESTINATION, remaining: 5 });
       expect('pendingMove' in wight).toBe(false);
-      expect(wight.pendingTrigger).toBe('opportunist');
+      expect(snap.offers).toEqual([
+        { actorId: 'wight', source: 'action', id: 'opportunist', on: 'move:leaving-reach' },
+      ]);
+      expect('pendingTrigger' in wight).toBe(false);
       expect(brynn.position).toEqual({ x: 0, y: 0 });
 
       expect(fightA.state.phase).toBe('resolved');
@@ -1017,5 +1020,199 @@ describe('spell spend snapshots (CA-S2)', () => {
       { rule: 'E-SNAP-01', jsonPath: `combatants[${bad.index}].poolsSpent.stamina` },
       { rule: 'E-SNAP-01', jsonPath: `combatants[${bad.index}].slotsCast.1[1]` },
     ]);
+  });
+});
+
+describe('the v1.6 envelope: offers, offeredCount, phase (DD-S14, CAP-S8)', () => {
+  function refusal(run: () => unknown): { rule: string; jsonPath: string }[] {
+    try {
+      run();
+    } catch (error) {
+      return (error as { errors: readonly { rule: string; jsonPath: string }[] }).errors.map((card) => ({
+        rule: card.rule,
+        jsonPath: card.jsonPath,
+      }));
+    }
+    throw new Error('expected a refusal');
+  }
+
+  /** brynn holds a reactive action and a reactive feat on the same event; the wight acts first. */
+  function reactivePack() {
+    const pack = emberMarchesPack();
+    pack.actions['shrug-off'] = {
+      cost: { slots: { reaction: 1 } },
+      trigger: { on: 'condition:applied[target=self]' },
+      effect: 'applyCondition(braced, 1)',
+      tags: ['reaction'],
+    };
+    pack.actions['jeer'] = {
+      cost: { slots: { reaction: 1 } },
+      trigger: { on: 'damage:applied[target=brynn]' },
+      effect: 'applyCondition(shaken, 1)',
+      tags: ['reaction'],
+    };
+    return pack;
+  }
+
+  function reactiveSides(runtime: Runtime, brynnFirst = false): CombatRestoreRequest {
+    const frame = (id: string): CombatantProfile =>
+      profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, id);
+    return {
+      allies: [
+        {
+          id: 'brynn',
+          profile: {
+            ...frame('brynn'),
+            actions: ['strike', 'shrug-off'],
+            feats: ['second-gust'],
+            initiativeBonus: brynnFirst ? 100 : -100,
+          },
+          balances: { items: { 'mend-salve': 1 } },
+        },
+      ],
+      enemies: [
+        {
+          id: 'wight',
+          profile: {
+            ...frame('wight'),
+            actions: ['grave-gaze', 'parry', 'jeer'],
+            initiativeBonus: brynnFirst ? -100 : 100,
+          },
+        },
+      ],
+    };
+  }
+
+  function reactiveFight(brynnFirst = false): { runtime: Runtime; fight: Combat } {
+    const runtime = new Runtime(reactivePack());
+    const fight = startCombat(runtime, { ...reactiveSides(runtime, brynnFirst), rng: new Rng('envelope') });
+    fight.step();
+    return { runtime, fight };
+  }
+
+  function restored(fight: Combat, mutate: (snap: Record<string, unknown>) => void = () => undefined) {
+    const snap = JSON.parse(JSON.stringify(serializeCombat(fight, { pairsWith: 'party-1' }))) as Record<
+      string,
+      unknown
+    >;
+    mutate(snap);
+    const runtime = new Runtime(reactivePack());
+    return deserializeCombat(runtime, snap, reactiveSides(runtime, fight.state.order[0] === 'brynn'));
+  }
+
+  it('two open offers for one combatant — an action and a feat — survive the round-trip in order, with the counter', () => {
+    const { fight } = reactiveFight();
+    fight.declare('grave-gaze', { targetId: 'brynn' });
+    const snap = serializeCombat(fight, { pairsWith: 'party-1' });
+    expect(snap.offers).toEqual([
+      { actorId: 'brynn', source: 'action', id: 'shrug-off', on: 'condition:applied' },
+      { actorId: 'brynn', source: 'feat', id: 'second-gust', on: 'condition:applied' },
+    ]);
+    expect(snap.offeredCount).toBe(2);
+    expect(snap.phase).toBe('resolved');
+    const back = restored(fight);
+    expect(back.pendingTriggers).toEqual(fight.pendingTriggers);
+    expect(back.offeredCount).toBe(2);
+    expect(back.state.phase).toBe('resolved');
+
+    // The next offer continues the frozen count in both fights (R-GM-1).
+    const nextIndex = (live: Combat) => {
+      const seen: RuntimeEvent[] = [];
+      live.runtime.events.on((event) => {
+        seen.push(event);
+      });
+      live.respond('brynn.shrug-off', 'decline');
+      live.respond('brynn.second-gust', 'decline');
+      live.step(); // the wight's turn ends
+      live.step(); // brynn's turn begins
+      live.declare('strike', { targetId: 'wight' }); // attack:rolled offers the wight's parry
+      return seen
+        .filter((event) => event.type === 'trigger:fired')
+        .map((event) => event.payload['offerIndex']);
+    };
+    expect(nextIndex(back)).toEqual([2]);
+    expect(nextIndex(fight)).toEqual([2]);
+  });
+
+  it('R-GM-2: a use-raised offer restores into the live phase (awaiting-declare), not resolved', () => {
+    const { fight } = reactiveFight(true);
+    expect(fight.state.active).toBe('brynn');
+    fight.use('mend-salve');
+    expect(fight.pendingTriggers.map((offer) => offer.triggerId)).toEqual(['wight.jeer']);
+    expect(fight.state.phase).toBe('awaiting-declare');
+    const back = restored(fight);
+    expect(back.state.phase).toBe('awaiting-declare');
+    expect(back.pendingTriggers).toEqual(fight.pendingTriggers);
+    // Without the envelope phase, the v1.5 derivation would say resolved.
+    expect(restored(fight, (snap) => delete snap['phase']).state.phase).toBe('resolved');
+  });
+
+  it('a v1.5-shaped envelope (per-combatant pendingTrigger, no phase/offers/offeredCount) restores as before', () => {
+    const { fight } = journeyFight('offer');
+    fight.step();
+    const attacker = fight.state.active;
+    const victim = attacker === 'wight' ? 'brynn' : 'wight';
+    fight.declare(attacker === 'wight' ? 'wight-claw' : 'strike');
+    const legacy = JSON.parse(JSON.stringify(serializeCombat(fight, { pairsWith: 'party-1' }))) as {
+      combatants: { id: string; pendingTrigger?: string }[];
+    } & Record<string, unknown>;
+    delete legacy['phase'];
+    delete legacy['offeredCount'];
+    delete legacy['offers'];
+    legacy.combatants.find((combatant) => combatant.id === victim)!.pendingTrigger = 'parry';
+    const fresh = new Runtime(emberMarchesPack());
+    const back = deserializeCombat(fresh, legacy, journeyRestore(fresh));
+    expect(back.state.phase).toBe('resolved');
+    expect(back.offeredCount).toBe(0);
+    expect(back.pendingTriggers).toEqual([
+      {
+        triggerId: `${victim}.parry`,
+        actorId: victim,
+        actionId: 'parry',
+        source: 'action',
+        matchingEvent: 'attack:rolled',
+      },
+    ]);
+  });
+
+  it('refuses, all cards at once: offers beside a pendingTrigger, an unknown actor, an id the source does not hold, combat-over with no side down, a bad counter', () => {
+    const { fight } = reactiveFight();
+    fight.declare('grave-gaze', { targetId: 'brynn' });
+    const snap = JSON.parse(JSON.stringify(serializeCombat(fight, { pairsWith: 'party-1' }))) as {
+      combatants: { id: string; pendingTrigger?: string }[];
+    } & Record<string, unknown>;
+    snap['offers'] = [
+      { actorId: 'ghost', source: 'action', id: 'parry', on: 'attack:rolled' },
+      { actorId: 'brynn', source: 'feat', id: 'shrug-off', on: 'condition:applied' },
+      { actorId: 'brynn', source: 'action', id: 'second-gust', on: 'condition:applied' },
+      { actorId: 'wight', source: 'action', id: 'grave-gaze', on: 'condition:applied' },
+      { actorId: 'brynn', source: 'feat', id: 'second-gust', on: 'condition:applied' },
+    ];
+    snap.combatants.find((combatant) => combatant.id === 'wight')!.pendingTrigger = 'parry';
+    snap['phase'] = 'combat-over';
+    snap['offeredCount'] = -1;
+    const fresh = new Runtime(reactivePack());
+    const seen = fresh.events.sinceRound(0).length;
+    expect(refusal(() => deserializeCombat(fresh, snap, reactiveSides(fresh)))).toEqual([
+      { rule: 'E-SNAP-01', jsonPath: 'offers' },
+      { rule: 'E-SNAP-01', jsonPath: 'offers[0].actorId' },
+      { rule: 'E-SNAP-01', jsonPath: 'offers[1].id' },
+      { rule: 'E-SNAP-01', jsonPath: 'offers[2].id' },
+      { rule: 'E-SNAP-01', jsonPath: 'offers[3].id' },
+      { rule: 'E-SNAP-01', jsonPath: 'phase' },
+      { rule: 'E-SNAP-01', jsonPath: 'offeredCount' },
+    ]);
+    expect(fresh.events.sinceRound(0)).toHaveLength(seen);
+  });
+
+  it('combat-over in the envelope is accepted when the frozen hp do defeat a side', () => {
+    const { fight } = reactiveFight();
+    const back = restored(fight, (snap) => {
+      snap['phase'] = 'combat-over';
+      for (const combatant of snap['combatants'] as { id: string; hp: number }[]) {
+        if (combatant.id === 'wight') combatant.hp = 0;
+      }
+    });
+    expect(back.state.phase).toBe('combat-over');
   });
 });

@@ -434,7 +434,7 @@ describe('the end-of-combat rule (D-26: combat.sideDefeated)', () => {
     expect(new Combat(fresh, fight.serialize()).state.phase).toBe('combat-over');
   });
 
-  it('a mid-fight snapshot (one side partly downed) restores exactly as before: awaiting-declare at the frozen turn', () => {
+  it('a mid-fight snapshot (one side partly downed) restores exactly as before: the live phase at the frozen turn', () => {
     const { fight } = ruleFight([BRYNN], [WIGHT_AT_1, GHOUL]);
     fight.step();
     fight.declare('surge', { targetId: 'wight' });
@@ -445,7 +445,8 @@ describe('the end-of-combat rule (D-26: combat.sideDefeated)', () => {
       JSON.parse(JSON.stringify(snap)),
       ruleSides(fresh, [BRYNN], [WIGHT_AT_1, GHOUL]),
     );
-    expect(restored.state.phase).toBe('awaiting-declare');
+    expect(restored.state.phase).toBe('resolved');
+    expect(restored.state.phase).toBe(fight.state.phase);
     expect(restored.state.round).toBe(1);
     expect(restored.state.turn).toBe(0);
     expect(restored.state.active).toBe('brynn');

@@ -261,11 +261,14 @@ describe('CAP-M6 — generated themes move (wyldwood hex, seed 42)', () => {
         at: event.at,
         actor: event.actor,
         target: event.target,
-        // R-GM-1: offerIndex restarts at 0 after a restore — compare trigger:fired without it.
-        payload: event.type === 'trigger:fired' ? { ...event.payload, offerIndex: undefined } : event.payload,
+        payload: event.payload,
       }));
     const tailA = tail(a.events, from.a);
     expect(tail(b.events, from.b)).toEqual(tailA);
+    // R-GM-1 closed (DD-S14 offeredCount): the restored fight's offerIndex continues the frozen fight's count.
+    const resumedOffer = tailA.find((event) => event.type === 'trigger:fired')!;
+    expect(resumedOffer.payload['offerIndex']).toBe(snap.offeredCount);
+    expect(snap.offeredCount).toBeGreaterThan(0);
     const types = tailA.map((event) => event.type);
     expect(types).toContain('attack:rolled');
     expect(types).toContain('damage:applied');

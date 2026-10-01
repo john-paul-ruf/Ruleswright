@@ -476,7 +476,8 @@ export class Combat {
   state: CombatState;
   /** Open trigger offers (triggers.html): the host answers each via respond(). */
   readonly pendingTriggers: PendingTrigger[] = [];
-  private offeredCount = 0;
+  /** How many offers this fight has raised — the next `trigger:fired.offerIndex` (R-GM-1: restorable). */
+  private offerCounter: number;
   /** Events already offered against — each (reactor, event) pair is offered once (F-P1). */
   private readonly surfaced = new WeakSet<RuntimeEvent>();
 
@@ -484,11 +485,27 @@ export class Combat {
   /** The fight's own dice stream — snapshot-resumable via state.rng (FR-14). */
   private readonly rng: Rng;
 
-  constructor(runtime: Runtime, state: CombatState, rng: Rng = new Rng(state.rng)) {
+  /**
+   * `options.offeredCount` resumes the offer counter (v1.6, DD-S14): a restored
+   * fight's next `trigger:fired.offerIndex` continues where the frozen fight
+   * stopped. Absent = 0 (a new fight).
+   */
+  constructor(
+    runtime: Runtime,
+    state: CombatState,
+    rng: Rng = new Rng(state.rng),
+    options: { readonly offeredCount?: number } = {},
+  ) {
     this.runtime = runtime;
     this.state = state;
     this.grants = resolveSlotGrants(runtime.pack);
     this.rng = rng;
+    this.offerCounter = options.offeredCount ?? 0;
+  }
+
+  /** How many offers this fight has raised so far — the snapshot's `offeredCount` (R-GM-1). */
+  get offeredCount(): number {
+    return this.offerCounter;
   }
 
   get roundComplete(): boolean {
@@ -1500,8 +1517,8 @@ export class Combat {
       for (const offer of offersForEvent(this.runtime, this.state.combatants, event, options)) {
         if (isDowned(this.state.combatants[offer.actorId]!)) continue;
         this.pendingTriggers.push(offer);
-        emitOffer(this.runtime, offer, this.offeredCount);
-        this.offeredCount += 1;
+        emitOffer(this.runtime, offer, this.offerCounter);
+        this.offerCounter += 1;
         raised += 1;
       }
     }
