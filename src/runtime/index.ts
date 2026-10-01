@@ -111,7 +111,12 @@ export {
   type MutationRequest,
   type MutationSink,
 } from './combat/resolve';
-export { profileFromCharacter, settleItemUses, type CharacterCombatant } from './character-profile';
+export {
+  profileFromCharacter,
+  settleItemUses,
+  settleSpellCasts,
+  type CharacterCombatant,
+} from './character-profile';
 export {
   resolveSlotGrants,
   checkCost,

@@ -6,9 +6,9 @@
  * formulas, CA-6), or pack data; actions are the class-granted
  * `content.classes.<id>.actions` lists (v1.2).
  *
- * The inverse direction is `settleItemUses` (CA-EG5): the fight never touches
- * character state, so the host settles a finished fight's item spend back into
- * the inventory explicitly.
+ * The inverse direction is `settleItemUses` (CA-EG5) and `settleSpellCasts`
+ * (CA-S3, v1.6): the fight never touches character state, so the host settles
+ * a finished fight's item and spell spend back into the character explicitly.
  *
  * v1 limits (documented, not silent): active conditions are not carried into
  * the fight — `StartCombatRequest` has no conditions field — and a multiclass
@@ -244,5 +244,131 @@ export function settleItemUses(
     );
   }
   combatant.itemsUsed = {};
+  return events;
+}
+
+/**
+ * CA-S3 — write a finished fight's spell spend back to the character (the
+ * spell twin of `settleItemUses`; the fight never touches character state).
+ * The fight must be `combat-over` (`combat-not-over`) and hold the combatant
+ * (`combatantId`, default the character's id; `unknown-target`). Every spend
+ * is validated before anything changes, all cards at once: each spent pool
+ * (id order) must exist on the character (`unknown-pool`) and still cover the
+ * spend (`insufficient-points`); each cast slot (level, then index,
+ * ascending) must still hold the spell the fight cast from it
+ * (`slot-mismatch`), and a count-only combatant's casts cannot be mapped to
+ * a slot (`slot-unmapped`). Then pools drop by the spend (`pool:settled`
+ * `{combatantId, pool, amount}`) and cast slots empty (`slot:settled`
+ * `{combatantId, slotLevel, slotIndex, spellId}`). Finally the combatant's
+ * `poolsSpent`/`slotsCast` are cleared, so a second call returns `[]`.
+ *
+ * v1 limits (documented, as `settleItemUses`):
+ * - a fight abandoned before `combat-over` does not settle;
+ * - idempotence is per live fight object, not across snapshots: a snapshot
+ *   taken before settling still carries the spend, and restoring it and
+ *   settling again spends it twice. Settle each fight once.
+ */
+export function settleSpellCasts(
+  runtime: Runtime,
+  character: Character,
+  fight: Combat,
+  combatantId?: string,
+): readonly RuntimeEvent[] {
+  const state = character.state;
+  const id = combatantId ?? state.id;
+  if (fight.state.phase !== 'combat-over') {
+    throw new RuntimeRuleError([
+      ruleCard(
+        'combat-not-over',
+        id,
+        'phase',
+        `the fight is in phase "${fight.state.phase}" — spell casts settle only once the fight is combat-over.`,
+      ),
+    ]);
+  }
+  const combatant = fight.state.combatants[id];
+  if (combatant === undefined) {
+    throw new RuntimeRuleError([
+      ruleCard('unknown-target', id, 'combatants', `combatant "${id}" is not in this fight.`),
+    ]);
+  }
+  const spentPools = Object.entries(combatant.poolsSpent).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  const casts = Object.entries(combatant.slotsCast)
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .flatMap(([level, indices]) => [...indices].sort((a, b) => a - b).map((index) => ({ level, index })));
+  const cards: ErrorCard[] = [];
+  for (const [pool, amount] of spentPools) {
+    const held = state.pools[pool];
+    if (held === undefined) {
+      cards.push(
+        ruleCard(
+          'unknown-pool',
+          pool,
+          `pools.${pool}`,
+          `"${state.id}" has no pool "${pool}" — ${amount} spent in the fight.`,
+        ),
+      );
+    } else if (held < amount) {
+      cards.push(
+        ruleCard(
+          'insufficient-points',
+          pool,
+          `pools.${pool}`,
+          `pool "${pool}" holds ${held} point(s), but ${amount} were spent in the fight.`,
+        ),
+      );
+    }
+  }
+  for (const { level, index } of casts) {
+    const cast = combatant.bindings?.[level]?.[index];
+    const at = `slots.${level}[${index}]`;
+    if (combatant.bindings === undefined) {
+      cards.push(
+        ruleCard(
+          'slot-unmapped',
+          id,
+          at,
+          `combatant "${id}" fought with slot counts only — its level-${level} cast cannot be mapped to a character slot.`,
+        ),
+      );
+    } else if (cast === undefined || cast === null || state.slots[level]?.[index] !== cast) {
+      cards.push(
+        ruleCard(
+          'slot-mismatch',
+          cast ?? id,
+          at,
+          `level-${level} slot ${index} holds ${JSON.stringify(state.slots[level]?.[index] ?? null)}, but the fight cast ${JSON.stringify(cast ?? null)} from it.`,
+        ),
+      );
+    }
+  }
+  if (cards.length > 0) throw new RuntimeRuleError(cards);
+
+  const events: RuntimeEvent[] = [];
+  for (const [pool, amount] of spentPools) {
+    state.pools[pool] = state.pools[pool]! - amount;
+    events.push(
+      runtime.events.emit({
+        type: 'pool:settled',
+        actor: state.id,
+        payload: { combatantId: id, pool, amount },
+        why: { rule: `pools.${pool}`, rolls: [] },
+      }),
+    );
+  }
+  for (const { level, index } of casts) {
+    const spellId = state.slots[level]![index]!;
+    state.slots[level]![index] = null;
+    events.push(
+      runtime.events.emit({
+        type: 'slot:settled',
+        actor: state.id,
+        payload: { combatantId: id, slotLevel: level, slotIndex: index, spellId },
+        why: { rule: 'content.spells', rolls: [] },
+      }),
+    );
+  }
+  combatant.poolsSpent = {};
+  combatant.slotsCast = {};
   return events;
 }

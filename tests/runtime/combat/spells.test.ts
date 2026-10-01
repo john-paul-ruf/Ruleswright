@@ -24,7 +24,16 @@ import { Rng } from '../../../src/core/rng';
 import type { Pack } from '../../../src/schema/pack';
 import { generateCampaign, loadTheme } from '../../../src/compiler';
 import { prepareSpell } from '../../../src/runtime/pools';
-import { profileFromCharacter } from '../../../src/runtime/character-profile';
+import { profileFromCharacter, settleSpellCasts } from '../../../src/runtime/character-profile';
+import {
+  deserializeCombat,
+  restoreCharacter,
+  serializeCharacter,
+  serializeCombat,
+  type CombatRestoreRequest,
+} from '../../../src/runtime/snapshots';
+import { RuntimeRuleError } from '../../../src/runtime/errors';
+import { rest } from '../../../src/runtime/pools';
 import { spawnMonster } from '../../../src/runtime/bestiary';
 
 /** Intended die faces (1..sides); int(n) returns face − 1 because rollRecipe adds the +1. */
@@ -708,5 +717,132 @@ describe('CAP-S1 integrated — a generated character casts through the producti
       'vancian',
       'E-VANC-01',
     );
+  });
+});
+
+describe('CAP-S3 — settleSpellCasts writes the spend into the character (CA-S3)', () => {
+  /**
+   * A level-3 dark-fantasy hexer casts its prepared grave-light (level-1 slot 0)
+   * and draws 2 ember through its `ember-surge` action in one turn; the fight
+   * then ends through the restore harness (every enemy at hp 0 in the snapshot
+   * → restore derives combat-over), which also carries the spend across a
+   * snapshot. The settlement and the character round-trip are the real path.
+   */
+  function endedFight() {
+    const rt = new Runtime(generateCampaign({ theme: loadTheme('dark-fantasy'), seed: 42 }));
+    const hexer = rt.createCharacter({
+      name: 'hexer',
+      race: 'hillfolk',
+      classes: [{ id: 'hexer', level: 3 }],
+    });
+    prepareSpell(rt, hexer.state, 'grave-light');
+    const pair = profileFromCharacter(rt, hexer, 'hexer');
+    const request: CombatRestoreRequest = {
+      allies: [{ id: 'hexer', profile: { ...pair.profile, initiativeBonus: 100 }, balances: pair.balances }],
+      enemies: [
+        {
+          id: 'wight',
+          profile: { ...spawnMonster(rt, 'barrow-wight', 'wight'), initiativeBonus: -100, hp: 60 },
+        },
+      ],
+      positions: { hexer: { x: 0, y: 0 }, wight: { x: 1, y: 0 } },
+    };
+    const live = startCombat(rt, { ...request, rng: new Rng('settle') });
+    const cast = during(rt, () => live.declare('grave-light', { targetId: 'wight' }));
+    expect(cast[0]!.type).toBe('spell:cast');
+    const surge = during(rt, () => live.declare('ember-surge', { targetId: 'wight' }));
+    expect(surge.some((event) => event.type === 'declare:rejected')).toBe(false);
+    const snapshot = JSON.parse(JSON.stringify(serializeCombat(live, { pairsWith: 'party-1' }))) as {
+      combatants: { id: string; hp: number }[];
+    };
+    for (const combatant of snapshot.combatants) if (combatant.id === 'wight') combatant.hp = 0;
+    const fight = deserializeCombat(rt, snapshot, request);
+    expect(fight.state.phase).toBe('combat-over');
+    expect(fight.state.combatants['hexer']!.slotsCast).toEqual({ '1': [0] });
+    expect(fight.state.combatants['hexer']!.poolsSpent).toEqual({ ember: 2 });
+    return { rt, hexer, live, fight };
+  }
+
+  function refusedWith(run: () => unknown): string[] {
+    try {
+      run();
+    } catch (error) {
+      expect(error).toBeInstanceOf(RuntimeRuleError);
+      return (error as RuntimeRuleError).errors.map((card) => card.rule);
+    }
+    throw new Error('expected a refusal');
+  }
+
+  it('pools drop by the spend and cast slots empty, with pool:settled / slot:settled', () => {
+    const { rt, hexer, fight } = endedFight();
+    expect(hexer.state.slots['1']).toEqual(['grave-light', null, null, null]);
+    const events = settleSpellCasts(rt, hexer, fight, 'hexer');
+    expect(events.map((event) => [event.type, event.payload, event.why.rule])).toEqual([
+      ['pool:settled', { combatantId: 'hexer', pool: 'ember', amount: 2 }, 'pools.ember'],
+      [
+        'slot:settled',
+        { combatantId: 'hexer', slotLevel: '1', slotIndex: 0, spellId: 'grave-light' },
+        'content.spells',
+      ],
+    ]);
+    expect(hexer.state.pools['ember']).toBe(16);
+    expect(hexer.state.slots['1']).toEqual([null, null, null, null]);
+    expect(fight.state.combatants['hexer']!.slotsCast).toEqual({});
+    expect(fight.state.combatants['hexer']!.poolsSpent).toEqual({});
+  });
+
+  it('the character snapshot round-trip keeps the settled pools and slots', () => {
+    const { rt, hexer, fight } = endedFight();
+    settleSpellCasts(rt, hexer, fight, 'hexer');
+    const restored = restoreCharacter(
+      rt,
+      JSON.parse(JSON.stringify(serializeCharacter(rt, hexer.state))) as ReturnType<
+        typeof serializeCharacter
+      >,
+    );
+    expect(restored.state.pools['ember']).toBe(16);
+    expect(restored.state.slots['1']).toEqual([null, null, null, null]);
+  });
+
+  it('a second settle returns [] and changes nothing', () => {
+    const { rt, hexer, fight } = endedFight();
+    settleSpellCasts(rt, hexer, fight, 'hexer');
+    const after = structuredClone(hexer.state);
+    expect(settleSpellCasts(rt, hexer, fight, 'hexer')).toEqual([]);
+    expect(hexer.state).toEqual(after);
+  });
+
+  it('combat-not-over: a live fight never settles; the character is unchanged', () => {
+    const { rt, hexer, live } = endedFight();
+    const before = structuredClone(hexer.state);
+    expect(refusedWith(() => settleSpellCasts(rt, hexer, live, 'hexer'))).toEqual(['combat-not-over']);
+    expect(hexer.state).toEqual(before);
+  });
+
+  it('slot-mismatch: the character re-bound the cast slot mid-fight; nothing changes', () => {
+    const { rt, hexer, fight } = endedFight();
+    rest(rt, hexer.state);
+    prepareSpell(rt, hexer.state, 'bone-dart');
+    expect(hexer.state.slots['1']![0]).toBe('bone-dart');
+    const before = structuredClone(hexer.state);
+    expect(refusedWith(() => settleSpellCasts(rt, hexer, fight, 'hexer'))).toEqual(['slot-mismatch']);
+    expect(hexer.state).toEqual(before);
+  });
+
+  it('insufficient-points: the pool no longer covers the spend; every refusal is collected before any change', () => {
+    const { rt, hexer, fight } = endedFight();
+    hexer.state.pools['ember'] = 1;
+    hexer.state.slots['1']![0] = null;
+    const before = structuredClone(hexer.state);
+    expect(refusedWith(() => settleSpellCasts(rt, hexer, fight, 'hexer'))).toEqual([
+      'insufficient-points',
+      'slot-mismatch',
+    ]);
+    expect(hexer.state).toEqual(before);
+  });
+
+  it('unknown-target: the combatant is not in the fight', () => {
+    const { rt, hexer, fight } = endedFight();
+    expect(refusedWith(() => settleSpellCasts(rt, hexer, fight, 'nobody'))).toEqual(['unknown-target']);
   });
 });

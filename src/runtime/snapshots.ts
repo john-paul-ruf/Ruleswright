@@ -427,6 +427,10 @@ export interface SnapshotCombatant {
   readonly maxHp?: number;
   /** v1.5 — a move paused by open leaving-reach offers (DD-M12); emitted only when set. */
   readonly pendingMove?: PendingMove;
+  /** v1.6 — pool id -> points SPENT in this fight (CA-S2); emitted only when non-empty. */
+  readonly poolsSpent?: Readonly<Record<string, number>>;
+  /** v1.6 — spell level -> slot indices cast in this fight (CA-S2); emitted only when non-empty. */
+  readonly slotsCast?: Readonly<Record<string, readonly number[]>>;
 }
 
 /** The combat envelope - pairsWith is the documented combat→party pairing (FR-14). */
@@ -455,8 +459,8 @@ export interface CombatRestoreRequest {
 /**
  * FR-14 - the combat envelope: the whole fight, mid-round included (the state
  * is whole between any two steps). Per-combatant state carries the CA-4
- * transients (the per-turn slot ledger), the item spend (`itemsUsed`) and the
- * heal cap (`maxHp`). Pool/bound-slot/item balances ride the paired party's
+ * transients (the per-turn slot ledger), the item spend (`itemsUsed`), the
+ * spell spend (`poolsSpent`/`slotsCast`, v1.6) and the heal cap (`maxHp`). Pool/bound-slot/item balances ride the paired party's
  * character states - FR-14's pairsWith discipline.
  */
 export function serializeCombat(fight: Combat, options: { readonly pairsWith: string }): CombatSnapshot {
@@ -492,6 +496,10 @@ export function serializeCombat(fight: Combat, options: { readonly pairsWith: st
         ...(combatant.pendingMove !== undefined
           ? { pendingMove: copyPendingMove(combatant.pendingMove) }
           : {}),
+        ...(Object.keys(combatant.poolsSpent).length > 0 ? { poolsSpent: { ...combatant.poolsSpent } } : {}),
+        ...(Object.keys(combatant.slotsCast).length > 0
+          ? { slotsCast: copySlotsCast(combatant.slotsCast) }
+          : {}),
       };
     }),
   };
@@ -501,7 +509,10 @@ export function serializeCombat(fight: Combat, options: { readonly pairsWith: st
  * Resume a fight from its envelope (FR-14 resume discipline): the identity
  * gate first, then the host re-states its sides exactly as `startCombat` took
  * them. hp/conditions/slot ledgers carry the frozen transients; item charges
- * are the re-stated `balances.items` with the frozen `itemsUsed` as the spend,
+ * are the re-stated `balances.items` with the frozen `itemsUsed` as the spend;
+ * pools and bound-slot counts are the re-stated balances minus the frozen
+ * `poolsSpent`/`slotsCast` (CA-S2), with bindings, spells and
+ * `castBlockedBy` re-stated;
  * and `maxHp` is the frozen value, else `profile.maxHp`, else
  * `max(0, profile.hp)` (CA-EG6, R-9). The envelope carries no phase; restore
  * derives it (DD-M12): `combat-over` when the frozen hp already satisfy the
@@ -557,8 +568,8 @@ export function deserializeCombat(
         frozenState.conditions?.map((active) => ({ conditionId: active.id, duration: active.remaining })) ??
         [],
       slots: { remaining: { ...frozenState.slotsUsed } },
-      pools: { ...(entry.balances?.pools ?? {}) },
-      boundSlots: { ...(entry.balances?.boundSlots ?? {}) },
+      pools: remainingPools(entry.balances?.pools ?? {}, frozenState.poolsSpent ?? {}),
+      boundSlots: remainingBound(entry.balances?.boundSlots ?? {}, frozenState.slotsCast ?? {}),
       itemBalances: { ...(entry.balances?.items ?? {}) },
       itemsUsed: { ...(frozenState.itemsUsed ?? {}) },
       abilities: { ...entry.profile.abilities },
@@ -570,8 +581,8 @@ export function deserializeCombat(
       actions: [...entry.profile.actions],
       spells: [...(entry.profile.spells ?? [])],
       ...(entry.balances?.bindings !== undefined ? { bindings: copyBindings(entry.balances.bindings) } : {}),
-      slotsCast: {},
-      poolsSpent: {},
+      slotsCast: copySlotsCast(frozenState.slotsCast ?? {}),
+      poolsSpent: { ...(frozenState.poolsSpent ?? {}) },
       ...(entry.profile.castBlockedBy !== undefined ? { castBlockedBy: entry.profile.castBlockedBy } : {}),
       attackTable: entry.profile.attackTable
         ? entry.profile.attackTable.map((row) => ({ level: row.level, byDefense: { ...row.byDefense } }))
@@ -746,6 +757,9 @@ function combatRestoreRefusals(
     }
   });
   saved.combatants.forEach((combatant, index) => {
+    cards.push(...spendRefusals(artifactId, combatant, index, balances.get(combatant.id)));
+  });
+  saved.combatants.forEach((combatant, index) => {
     if (combatant.pendingMove === undefined) return;
     const actionId = combatant.pendingMove.actionId;
     if (runtime.pack.actions[actionId] === undefined || moveBudgetAst(runtime, actionId) === undefined) {
@@ -774,6 +788,97 @@ function combatRestoreRefusals(
     }
   });
   return cards;
+}
+
+/**
+ * CA-S2 — the frozen spell spend must fit the re-stated fight-start balances
+ * (E-SNAP-01, one card per defect): a pool the combatant was not re-stated,
+ * a spend that is not an integer ≥ 1 or exceeds the re-stated pool; a cast
+ * level with no re-stated slots; an index that is not an integer ≥ 0, lies
+ * past the re-stated bindings (or the re-stated count when there are no
+ * bindings), names a null binding, or repeats.
+ */
+function spendRefusals(
+  artifactId: string,
+  combatant: SnapshotCombatant,
+  index: number,
+  balances: EconomyBalances | undefined,
+): ErrorCard[] {
+  const cards: ErrorCard[] = [];
+  const refuse = (at: string, message: string) =>
+    cards.push(makeErrorCard('E-SNAP-01', artifactId, `combatants[${index}].${at}`, message));
+  for (const [pool, spent] of Object.entries(combatant.poolsSpent ?? {})) {
+    const stated = balances?.pools?.[pool];
+    if (stated === undefined) {
+      refuse(
+        `poolsSpent.${pool}`,
+        `frozen spend names pool "${pool}", which the restore request does not state for "${combatant.id}" (CA-S2).`,
+      );
+    } else if (!Number.isInteger(spent) || spent < 1 || spent > stated) {
+      refuse(
+        `poolsSpent.${pool}`,
+        `combatant "${combatant.id}" spent ${display(spent)} "${pool}", but the restore request states ${stated} — the host re-states the fight-start balances.pools (CA-S2).`,
+      );
+    }
+  }
+  for (const [level, indices] of Object.entries(combatant.slotsCast ?? {})) {
+    const bindings = balances?.bindings?.[level];
+    const count = balances?.boundSlots?.[level];
+    if ((balances?.bindings !== undefined ? bindings : count) === undefined || !Array.isArray(indices)) {
+      refuse(
+        `slotsCast.${level}`,
+        `frozen casts name level ${level}, for which the restore request states no slots for "${combatant.id}" (CA-S2).`,
+      );
+      continue;
+    }
+    const seen = new Set<number>();
+    indices.forEach((slot, k) => {
+      const at = `slotsCast.${level}[${k}]`;
+      const limit = bindings !== undefined ? bindings.length : (count ?? 0);
+      if (!Number.isInteger(slot) || slot < 0 || slot >= limit) {
+        refuse(
+          at,
+          `cast index ${display(slot)} is not a re-stated level-${level} slot (0..${limit - 1}) (CA-S2).`,
+        );
+      } else if (bindings !== undefined && bindings[slot] === null) {
+        refuse(
+          at,
+          `cast index ${slot} names a level-${level} slot the restore request states empty (null) (CA-S2).`,
+        );
+      } else if (seen.has(slot)) {
+        refuse(at, `cast index ${slot} repeats — each level-${level} slot is cast at most once (CA-S2).`);
+      }
+      seen.add(slot);
+    });
+  }
+  return cards;
+}
+
+/** A plain-JSON copy of a cast-slot record (FR-14: state never aliases envelope objects). */
+function copySlotsCast(slotsCast: Readonly<Record<string, readonly number[]>>): Record<string, number[]> {
+  const copy: Record<string, number[]> = {};
+  for (const [level, indices] of Object.entries(slotsCast)) copy[level] = [...indices];
+  return copy;
+}
+
+/** CA-S2: a restored pool is the re-stated fight-start balance minus the frozen spend. */
+function remainingPools(
+  restated: Readonly<Record<string, number>>,
+  spent: Readonly<Record<string, number>>,
+): Record<string, number> {
+  const pools: Record<string, number> = { ...restated };
+  for (const [pool, amount] of Object.entries(spent)) pools[pool] = (pools[pool] ?? 0) - amount;
+  return pools;
+}
+
+/** CA-S2: a restored bound-slot count is the re-stated count minus the slots cast. */
+function remainingBound(
+  restated: Readonly<Record<string, number>>,
+  cast: Readonly<Record<string, readonly number[]>>,
+): Record<string, number> {
+  const bound: Record<string, number> = { ...restated };
+  for (const [level, indices] of Object.entries(cast)) bound[level] = (bound[level] ?? 0) - indices.length;
+  return bound;
 }
 
 /** A plain-JSON copy of a paused move (FR-14: state never aliases envelope objects). */

@@ -824,3 +824,198 @@ describe('item spend + maxHp snapshots (CA-EG6)', () => {
     expect(fresh.nextCharacterId).toBe(1);
   });
 });
+
+/**
+ * CA-S2 (spells-in-combat S02 ck4): the spell spend survives a snapshot. The
+ * combatant records `poolsSpent`/`slotsCast`; the host re-states the
+ * FIGHT-START balances, and restore = re-stated − spend. A spend the
+ * re-stated balances cannot carry refuses (E-SNAP-01), all cards before any
+ * rebuild.
+ */
+describe('spell spend snapshots (CA-S2)', () => {
+  function spendSides(runtime: Runtime, bindings = true): CombatRestoreRequest {
+    const base = profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'hexer');
+    const hexer: CombatantProfile = {
+      ...base,
+      actions: ['strike', 'surge'],
+      spells: ['grave-light'],
+      initiativeBonus: 100,
+      hp: 40,
+    };
+    const wight: CombatantProfile = {
+      ...base,
+      id: 'wight',
+      actions: ['wight-claw'],
+      initiativeBonus: -100,
+      hp: 40,
+    };
+    return {
+      allies: [
+        {
+          id: 'hexer',
+          profile: hexer,
+          balances: {
+            pools: { stamina: 6 },
+            boundSlots: { '1': 1 },
+            ...(bindings ? { bindings: { '1': ['grave-light', null] } } : {}),
+          },
+        },
+      ],
+      enemies: [{ id: 'wight', profile: wight }],
+    };
+  }
+
+  /** Cast grave-light (slot 0) and surge (2 stamina) mid-turn, then freeze through JSON text. */
+  function spentFight(): { runtime: Runtime; fight: Combat; snap: CombatSnapshot } {
+    const runtime = new Runtime(emberMarchesPack());
+    const fight = startCombat(runtime, { ...spendSides(runtime), rng: new Rng('spend') });
+    fight.step();
+    expect(fight.declare('grave-light', { targetId: 'wight' }).some((e) => e.type === 'spell:cast')).toBe(
+      true,
+    );
+    fight.declare('surge', { targetId: 'wight' });
+    return {
+      runtime,
+      fight,
+      snap: JSON.parse(JSON.stringify(serializeCombat(fight, { pairsWith: 'party-1' }))),
+    };
+  }
+
+  function refusal(run: () => unknown): { rule: string; jsonPath: string }[] {
+    try {
+      run();
+    } catch (error) {
+      return (error as { errors: readonly { rule: string; jsonPath: string }[] }).errors.map((card) => ({
+        rule: card.rule,
+        jsonPath: card.jsonPath,
+      }));
+    }
+    throw new Error('expected a refusal');
+  }
+
+  /** Tamper with the hexer's frozen spend and return its index. */
+  function tampered(
+    snap: CombatSnapshot,
+    spend: { poolsSpent?: Record<string, number>; slotsCast?: Record<string, number[]> },
+  ): { snap: unknown; index: number } {
+    const copy = JSON.parse(JSON.stringify(snap)) as { combatants: Record<string, unknown>[] };
+    const index = copy.combatants.findIndex((combatant) => combatant['id'] === 'hexer');
+    Object.assign(copy.combatants[index]!, spend);
+    return { snap: copy, index };
+  }
+
+  it('round-trip: restored with the fight-start balances, pools/boundSlots/spend equal the live fight', () => {
+    const { fight, snap } = spentFight();
+    const frozen = snap.combatants.find((combatant) => combatant.id === 'hexer')!;
+    expect(frozen.poolsSpent).toEqual({ stamina: 2 });
+    expect(frozen.slotsCast).toEqual({ '1': [0] });
+    const wightFrozen = snap.combatants.find((combatant) => combatant.id === 'wight')!;
+    expect('poolsSpent' in wightFrozen || 'slotsCast' in wightFrozen).toBe(false);
+
+    const fresh = new Runtime(emberMarchesPack());
+    const restored = deserializeCombat(fresh, snap, spendSides(fresh));
+    const live = fight.state.combatants['hexer']!;
+    const back = restored.state.combatants['hexer']!;
+    expect(back.pools).toEqual({ stamina: 4 });
+    expect(back.pools).toEqual(live.pools);
+    expect(back.boundSlots).toEqual({ '1': 0 });
+    expect(back.boundSlots).toEqual(live.boundSlots);
+    expect(back.slotsCast).toEqual(live.slotsCast);
+    expect(back.poolsSpent).toEqual(live.poolsSpent);
+    expect(back.bindings).toEqual({ '1': ['grave-light', null] });
+    expect(back.spells).toEqual(['grave-light']);
+
+    // The same cast is spent on both sides of the restore.
+    for (const side of [fight, restored]) {
+      const again = side.declare('grave-light', { targetId: 'wight' });
+      expect(again[again.length - 1]!.payload['kind']).toBe('vancian');
+    }
+    // The next roll equals the uninterrupted fight's (FR-14): the same strike, the same dice.
+    const strikeOf = (target: Combat, runtime: Runtime) => {
+      const seen: RuntimeEvent[] = [];
+      runtime.events.on((event) => {
+        seen.push(event);
+      });
+      target.declare('strike', { targetId: 'wight' });
+      return seen.filter((event) => event.type === 'attack:rolled').map((event) => event.payload);
+    };
+    const liveRoll = strikeOf(fight, fight.runtime);
+    expect(liveRoll).toHaveLength(1);
+    expect(strikeOf(restored, fresh)).toEqual(liveRoll);
+  });
+
+  it('an envelope without the v1.6 fields restores exactly as v1.5: nothing spent', () => {
+    const runtime = new Runtime(emberMarchesPack());
+    const fight = startCombat(runtime, { ...spendSides(runtime), rng: new Rng('unspent') });
+    const snap = JSON.parse(
+      JSON.stringify(serializeCombat(fight, { pairsWith: 'party-1' })),
+    ) as CombatSnapshot;
+    expect(
+      snap.combatants.every((combatant) => !('poolsSpent' in combatant) && !('slotsCast' in combatant)),
+    ).toBe(true);
+    const back = deserializeCombat(runtime, snap, spendSides(runtime)).state.combatants['hexer']!;
+    expect(back.pools).toEqual({ stamina: 6 });
+    expect(back.boundSlots).toEqual({ '1': 1 });
+    expect(back.poolsSpent).toEqual({});
+    expect(back.slotsCast).toEqual({});
+  });
+
+  it('refuses an over-spend of a re-stated pool', () => {
+    const { snap } = spentFight();
+    const fresh = new Runtime(emberMarchesPack());
+    const bad = tampered(snap, { poolsSpent: { stamina: 7 } });
+    expect(refusal(() => deserializeCombat(fresh, bad.snap, spendSides(fresh)))).toEqual([
+      { rule: 'E-SNAP-01', jsonPath: `combatants[${bad.index}].poolsSpent.stamina` },
+    ]);
+  });
+
+  it('refuses a pool the restore request does not state', () => {
+    const { snap } = spentFight();
+    const fresh = new Runtime(emberMarchesPack());
+    const bad = tampered(snap, { poolsSpent: { stamina: 2, motes: 1 } });
+    expect(refusal(() => deserializeCombat(fresh, bad.snap, spendSides(fresh)))).toEqual([
+      { rule: 'E-SNAP-01', jsonPath: `combatants[${bad.index}].poolsSpent.motes` },
+    ]);
+  });
+
+  it('refuses a cast level with no re-stated slots', () => {
+    const { snap } = spentFight();
+    const fresh = new Runtime(emberMarchesPack());
+    const bad = tampered(snap, { slotsCast: { '1': [0], '2': [0] } });
+    expect(refusal(() => deserializeCombat(fresh, bad.snap, spendSides(fresh)))).toEqual([
+      { rule: 'E-SNAP-01', jsonPath: `combatants[${bad.index}].slotsCast.2` },
+    ]);
+  });
+
+  it('refuses an index past the re-stated bindings (or past the count without bindings)', () => {
+    const { snap } = spentFight();
+    const fresh = new Runtime(emberMarchesPack());
+    const bad = tampered(snap, { slotsCast: { '1': [2] } });
+    expect(refusal(() => deserializeCombat(fresh, bad.snap, spendSides(fresh)))).toEqual([
+      { rule: 'E-SNAP-01', jsonPath: `combatants[${bad.index}].slotsCast.1[0]` },
+    ]);
+    const countOnly = tampered(snap, { slotsCast: { '1': [1] } });
+    expect(refusal(() => deserializeCombat(fresh, countOnly.snap, spendSides(fresh, false)))).toEqual([
+      { rule: 'E-SNAP-01', jsonPath: `combatants[${countOnly.index}].slotsCast.1[0]` },
+    ]);
+  });
+
+  it('refuses an index whose re-stated binding is null', () => {
+    const { snap } = spentFight();
+    const fresh = new Runtime(emberMarchesPack());
+    const bad = tampered(snap, { slotsCast: { '1': [1] } });
+    expect(refusal(() => deserializeCombat(fresh, bad.snap, spendSides(fresh)))).toEqual([
+      { rule: 'E-SNAP-01', jsonPath: `combatants[${bad.index}].slotsCast.1[0]` },
+    ]);
+  });
+
+  it('refuses a duplicate index; all spend cards come together before any rebuild', () => {
+    const { snap } = spentFight();
+    const fresh = new Runtime(emberMarchesPack());
+    const bad = tampered(snap, { slotsCast: { '1': [0, 0] }, poolsSpent: { stamina: 9 } });
+    expect(refusal(() => deserializeCombat(fresh, bad.snap, spendSides(fresh)))).toEqual([
+      { rule: 'E-SNAP-01', jsonPath: `combatants[${bad.index}].poolsSpent.stamina` },
+      { rule: 'E-SNAP-01', jsonPath: `combatants[${bad.index}].slotsCast.1[1]` },
+    ]);
+  });
+});
