@@ -56,7 +56,7 @@
 
 | # | Session | Modules | Owns | Status | Checkpoint | Completed | Notes |
 |---|---------|---------|------|--------|------------|-----------|-------|
-| 01 | Author re-entry: FR-9/FR-11 spell range, magic/api-map/triggers/conditions mocks + contract v1.6 | — (Author: Spec, Designer, DB) | `program/Ruleswright/specs/requirements.md`, `program/Ruleswright/mocks/magic.html`, `program/Ruleswright/mocks/api-map.html`, `program/Ruleswright/mocks/triggers.html`, `program/Ruleswright/mocks/conditions.html`, `program/Ruleswright/specs/database.md`, `src/schema/contracts/pack.schema.json`, `src/schema/contracts/snapshots.schema.json` | pending | — | — | Author roles, not Coder; 3 checkpoints (Spec added for DD-S8); B-S1 cleared 2026-09-30 |
+| 01 | Author re-entry: FR-9/FR-11 spell range, magic/api-map/triggers/conditions mocks + contract v1.6 | — (Author: Spec, Designer, DB) | `program/Ruleswright/specs/requirements.md`, `program/Ruleswright/mocks/magic.html`, `program/Ruleswright/mocks/api-map.html`, `program/Ruleswright/mocks/triggers.html`, `program/Ruleswright/mocks/conditions.html`, `program/Ruleswright/specs/database.md`, `src/schema/contracts/pack.schema.json`, `src/schema/contracts/snapshots.schema.json` | done | 3/3 (`e5e1d7f`, `67705d9`, `1639a19`) | 2026-09-30 | Author roles, not Coder; 3 checkpoints (Spec added for DD-S8); B-S1 cleared 2026-09-30 |
 | 02 | The spell column: declare spells, range + empty-cell bursts, spend + snapshot, settlement, generated spells, spell journey | M01 (mirror/validator), M02 (executor), M03, M04 (content) | `src/schema/artifacts.ts`, `src/schema/validate/sections/content.ts`, `src/core/dsl/effect.ts`, `src/runtime/combat/combat.ts`, `src/runtime/combat/action-economy.ts`, `src/runtime/combat/resolve.ts`, `src/runtime/character-profile.ts`, `src/runtime/pools.ts`, `src/runtime/snapshots.ts`, `src/runtime/index.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `tests/schema/validate.test.ts`, `tests/core/dsl/effect.test.ts`, `tests/runtime/combat/spells.test.ts`, `tests/runtime/combat/combat-spatial.test.ts`, `tests/runtime/combat/character-profile.test.ts`, `tests/runtime/fixtures/packs.ts`, `tests/snapshots/combat.test.ts`, `tests/proofs/grid-journey.test.ts`, `tests/proofs/rules-are-data.test.ts`, `tests/proofs/spells-journey.test.ts` | pending | — | — | depends S01; 5 checkpoints; replanned (F-P1/P2/P3/P5/P7/P8/P12/P13) |
 | 03 | The feat column: trigger grammar, feats held + offered, snapshot envelope, README | M01, M03, M04 (content) | `src/schema/validate/helpers.ts`, `src/runtime/feats.ts`, `src/runtime/character.ts`, `src/runtime/runtime.ts`, `src/runtime/combat/triggers.ts`, `src/runtime/combat/combat.ts`, `src/runtime/combat/resolve.ts`, `src/runtime/character-profile.ts`, `src/runtime/snapshots.ts`, `src/runtime/index.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `tests/schema/validate.test.ts`, `tests/runtime/fixtures/packs.ts`, `tests/compiler/pipeline.test.ts`, `tests/compiler/stages.test.ts`, `tests/compiler/coverage-floor.test.ts`, `tests/runtime/feats.test.ts`, `tests/runtime/combat/feat-triggers.test.ts`, `tests/runtime/combat/movement.test.ts`, `tests/snapshots/character.test.ts`, `tests/snapshots/combat.test.ts`, `tests/proofs/movement-journey.test.ts`, `tests/proofs/rules-are-data.test.ts`, `tests/proofs/spells-journey.test.ts`, `tests/proofs/docs-run.test.ts`, `README.md` | pending | — | — | depends S02; 5 checkpoints; `movement.test.ts` added (F-P4) |
 
@@ -566,15 +566,15 @@ which S03 consumes: recheck them at S02 receive.
 
 | ID | Required meaning / authority | Producer → boundary → consumer | Mapping / constraints | Correction + proof owners / checkpoints | Agreement | Producer | Proof / evidence / checked sources |
 |----|------------------------------|--------------------------------|-----------------------|----------------------------------------|-----------|----------|------------------------------------|
-| CA-S1 | A spell is an action plus metadata; casting rides the action pipeline (FR-9) | `pack.content.spells[id]` + `index.spellEffects[id]` → `Combat.declare` → executor/events | see below | S02 ck1 (unit), ck5 (journey) | agreed | planned | `combat.ts:515-604`, `runtime.ts` PackIndex at `55b294f` |
-| CA-S2 | A spend is recorded; balances are re-stated; restore = re-stated − spend (the `itemsUsed` precedent) | `CombatantState.poolsSpent/slotsCast` → snapshot combatant → `deserializeCombat` | see below | S01 ck3 (contract); S02 ck4 | agreed | planned | `snapshots.ts:413-430, 515-596`, `snapshots.schema.json:185-247` |
-| CA-S3 | The fight never writes character state; the host settles explicitly | combatant spend → `settleSpellCasts` → `CharacterState.pools/slots` | see below | S02 ck4 | agreed | planned | `character-profile.ts:131-236` |
-| CA-S4 | Character → combatant parity (FR-16) | `CharacterState` → `profileFromCharacter` → `CombatantProfile` / `EconomyBalances` | `spells` = `knownSpells` (non-empty only); `castBlockedBy` = `armorBlockingCast` (set only); `balances.bindings` = deep copy of `state.slots`; `feats` = `state.feats` (non-empty only, S03) | S02 ck3; S03 ck2 | agreed | planned | `character-profile.ts:58-117`, `pools.ts:208, 300-310` |
-| CA-S5 | Conditions restrict spells by tag in combat (FR-7, FR-9) | `content.conditions[*].restricts` → `restrictionRejection` → the exported `matchesRestriction` + `declaredTags` | DD-S10: kind `'action'` for every declare, plus kind `'spell'` for a spell declare; out of combat `isRestricted` unchanged (kind-exact) | S01 ck3 (DB text, combat-scoped); S02 ck1 (unit, incl. the out-of-combat `isRestricted` pin), ck3 (integrated) | agreed | planned | `combat.ts:732-757`, `conditions.ts:41-52, 55, 186-213`, `tests/runtime/conditions.test.ts:67-72` at `56476e9` |
-| CA-S6 | Reactive feats ride the trigger substrate (FR-13; mocks triggers/conditions) | `CharacterState.feats` → profile → `CombatantState.feats` → `offersForEvent` → `respond` | DD-S11/S12; `PendingTrigger.source`; `triggerId = <combatantId>.<id>` (ids are globally unique, E-DUP-01) | S03 ck2–ck3 | agreed | planned | `triggers.ts:44-81`, `combat.ts:690-709` (`respond`), `combat.ts:1237-1289` |
-| CA-S7 | The trigger pattern grammar is the `eventMatches` grammar, enforced at load | `pack.schema.json` `trigger.on` pattern → `checkTrigger` → `eventMatches` | DD-S13 regex; `E-FORM-01`; jsonPath `<base>.trigger.on` | S01 ck3; S03 ck1 | agreed | planned | `helpers.ts:296-325`, `triggers.ts:31-41` |
-| CA-S9 | Spell range and area center (FR-9, FR-11; human 2026-09-30) | `content.spells[id].targeting.{shape,radius,range}` → `Combat.declare` range gate / `at` → `resolveShape(center)` → executor `varsFor` | see below; DD-S8, DD-S19 | S01 ck3 (contract); S02 ck2 (unit), ck5 (journey) | agreed | planned | `spatial.ts:45-63, 93-135`, `combat.ts:1064-1092`, `resolve.ts` `executeAgainst`/`effectVars`, `effect.ts:255-307, 383-393`, `content.ts:497-530` at `55b294f` |
-| CA-S8 | The combat envelope keeps offers/phase/counter (FR-14) | `Combat.pendingTriggers`/`state.phase`/`offeredCount` → envelope → `deserializeCombat` | DD-S14 | S01 ck3; S03 ck4 | agreed | planned | `snapshots.ts:461-610, 757-770`, `combat.ts:439` |
+| CA-S1 | A spell is an action plus metadata; casting rides the action pipeline (FR-9) | `pack.content.spells[id]` + `index.spellEffects[id]` → `Combat.declare` → executor/events | see below | S02 ck1 (unit), ck5 (journey) | agreed (DB text rechecked vs `1639a19` database.md v1.6, no delta) | planned | `combat.ts:515-604`, `runtime.ts` PackIndex at `55b294f` |
+| CA-S2 | A spend is recorded; balances are re-stated; restore = re-stated − spend (the `itemsUsed` precedent) | `CombatantState.poolsSpent/slotsCast` → snapshot combatant → `deserializeCombat` | see below | S01 ck3 (contract); S02 ck4 | agreed (rechecked vs `1639a19`, no delta) | contract leg landed S01 ck3 `1639a19`; runtime S02 ck4 planned | `snapshots.ts:413-430, 515-596`, `snapshots.schema.json:185-247` |
+| CA-S3 | The fight never writes character state; the host settles explicitly | combatant spend → `settleSpellCasts` → `CharacterState.pools/slots` | see below | S02 ck4 | agreed (DB text rechecked vs `1639a19` database.md v1.6, no delta) | planned | `character-profile.ts:131-236` |
+| CA-S4 | Character → combatant parity (FR-16) | `CharacterState` → `profileFromCharacter` → `CombatantProfile` / `EconomyBalances` | `spells` = `knownSpells` (non-empty only); `castBlockedBy` = `armorBlockingCast` (set only); `balances.bindings` = deep copy of `state.slots`; `feats` = `state.feats` (non-empty only, S03) | S02 ck3; S03 ck2 | agreed (DB text rechecked vs `1639a19` database.md v1.6, no delta) | planned | `character-profile.ts:58-117`, `pools.ts:208, 300-310` |
+| CA-S5 | Conditions restrict spells by tag in combat (FR-7, FR-9) | `content.conditions[*].restricts` → `restrictionRejection` → the exported `matchesRestriction` + `declaredTags` | DD-S10: kind `'action'` for every declare, plus kind `'spell'` for a spell declare; out of combat `isRestricted` unchanged (kind-exact) | S01 ck3 (DB text, combat-scoped); S02 ck1 (unit, incl. the out-of-combat `isRestricted` pin), ck3 (integrated) | agreed (DB text rechecked vs `1639a19` database.md v1.6, no delta) | planned | `combat.ts:732-757`, `conditions.ts:41-52, 55, 186-213`, `tests/runtime/conditions.test.ts:67-72` at `56476e9` |
+| CA-S6 | Reactive feats ride the trigger substrate (FR-13; mocks triggers/conditions) | `CharacterState.feats` → profile → `CombatantState.feats` → `offersForEvent` → `respond` | DD-S11/S12; `PendingTrigger.source`; `triggerId = <combatantId>.<id>` (ids are globally unique, E-DUP-01) | S03 ck2–ck3 | agreed (DB text rechecked vs `1639a19` database.md v1.6, no delta) | planned | `triggers.ts:44-81`, `combat.ts:690-709` (`respond`), `combat.ts:1237-1289` |
+| CA-S7 | The trigger pattern grammar is the `eventMatches` grammar, enforced at load | `pack.schema.json` `trigger.on` pattern → `checkTrigger` → `eventMatches` | DD-S13 regex; `E-FORM-01`; jsonPath `<base>.trigger.on` | S01 ck3; S03 ck1 | agreed (rechecked vs `1639a19`, no delta) | contract leg landed S01 ck3 `1639a19`; runtime S03 ck1 planned | `helpers.ts:296-325`, `triggers.ts:31-41` |
+| CA-S9 | Spell range and area center (FR-9, FR-11; human 2026-09-30) | `content.spells[id].targeting.{shape,radius,range}` → `Combat.declare` range gate / `at` → `resolveShape(center)` → executor `varsFor` | see below; DD-S8, DD-S19 | S01 ck3 (contract); S02 ck2 (unit), ck5 (journey) | agreed (rechecked vs `1639a19`, no delta) | contract leg landed S01 ck3 `1639a19`; runtime S02 ck2 planned | `spatial.ts:45-63, 93-135`, `combat.ts:1064-1092`, `resolve.ts` `executeAgainst`/`effectVars`, `effect.ts:255-307, 383-393`, `content.ts:497-530` at `55b294f` |
+| CA-S8 | The combat envelope keeps offers/phase/counter (FR-14) | `Combat.pendingTriggers`/`state.phase`/`offeredCount` → envelope → `deserializeCombat` | DD-S14 | S01 ck3; S03 ck4 | agreed (rechecked vs `1639a19`, no delta) | contract leg landed S01 ck3 `1639a19`; runtime S03 ck4 planned | `snapshots.ts:461-610, 757-770`, `combat.ts:439` |
 
 **CA-S1 — explicit mapping**
 - **Lookup:** `pack.actions[id]` first, then `pack.content.spells[id]` (ids are unique, so
@@ -698,7 +698,99 @@ and B-S1) are unchanged.
 | ID | Affects | Next action | Owner | Evidence to clear |
 |----|---------|-------------|-------|-------------------|
 | — | — | None open. **B-S1 cleared** 2026-09-30 ("8a - yes 8b - fine 9 cost a turn 10 yes 11 yes 12 yes 13 yes 14 yes", recorded in Intent). DD-S9 was read as the whole turn; see the interpretation note under DD-S9. The planning-completeness review's blocking findings F-P1 … F-P6 are resolved by REPLAN-SIC-01 (see "Planning completeness review"), and S01 is dispatchable. | — | — |
+| C-S01-1 | `mocks/spatial.html:191` (derived-phase copy goes stale once S03 ck4 writes envelope `phase`) | Carried: an existing-mock copy change outside S01's authorized four-mock design-change; Designer re-entry after S03, listed in the Final Report | Designer (human-authorized design-change) | mock text matches DD-S14 |
 
 ## Handoff Notes
 
 *(Orchestrator writes here after each session, verbatim from Coder's Handoff.)*
+
+### SESSION-01 — received 2026-09-30 (r-ZVpm, handle h-vs87 / AFZM2)
+
+**Orchestrator receive:** 3/3 commits (`e5e1d7f`, `67705d9`, `1639a19`), every path inside the lease. Gates run by Orchestrator at `1639a19`: typecheck 0, lint 0, format:check 0, build 0, test 741/741 (40 files), check:isolation 0, check:security 0. CA rows rechecked against the landed contracts and database.md v1.6: `targeting.range` {integer, min 0}, required [shape]; trigger `on` pattern on actions and feats equals DD-S13; combatant `poolsSpent`/`slotsCast`; envelope `phase`/`offeredCount`/`offers`; `pendingTrigger` legacy. No delta. No arch fragment (data/docs). spatial.html:191 carried (C-S01-1).
+
+**Handoff (verbatim):**
+
+- **session:** SESSION-01 (spells-in-combat)
+- **status:** done
+- **checkpoint:** 3 of 3. Commits: `e5e1d7f` (ck1 Spec), `67705d9` (ck2 Designer), `1639a19` (ck3 DB). Each commit used an explicit pathspec, and `git show --name-only` after each one listed only lease files.
+- **notes:** S01 Author re-entry is complete. Spec added the FR-9 range criterion and the FR-11 empty-cell area-center criterion. Designer updated `magic.html`, `api-map.html`, `triggers.html` and `conditions.html`. DB wrote contract v1.6 and `database.md` v1.6. No rule id was added, `schemaVersion` stays 1, there are two compatibility caveats, and the text never says "purely additive".
+- **delivered:**
+  - **FR-9 line, as written (after the targeting criterion):** "- [ ] Spells declare a **range** as pack data. In a pack with a spatial model, a spell whose target (or area center) is farther than its range is rejected declaratively, with no state change. A spell that declares no range reaches as far as its caster's reach. Theater-of-mind packs never consult range."
+  - **FR-11 line, as written (after the AoE criterion):** "- [ ] An area spell may be **centered on an empty cell**. Every combatant within the shape is affected, on both sides, each with its own save, and an area that catches nobody is still a legal cast."
+  - **Decision Log row:** `| 2026-09-30 | spells-in-combat: spells declare a range (pack data; absent = caster reach); area spells may be centered on an empty cell (human) | FR-9, FR-11 |`. I put it in the existing table format; the "Encoded in" column says FR-9, FR-11.
+  - **Mocks:** all four were changed as specified. The anatomy blocks are verbatim apart from HTML escaping, the `once` line is gone, and the fourth timeline row, the proof block and `conditions.html` line 109 were all updated.
+  - **JSON paths S02/S03 must mirror:**
+    - `pack.schema.json`:
+      - `$defs/content/properties/spells/additionalProperties/properties/targeting/properties/range`, which is `{type: integer, minimum: 0}`. The spell targeting `required` stays `["shape"]` and the `allOf` is untouched.
+      - `$defs/actionDef/properties/trigger/properties/on/pattern` and `$defs/content/properties/feats/additionalProperties/properties/trigger/properties/on/pattern`. Both equal `^[a-z][a-z0-9-]*(:[a-z][a-z0-9-]*)*(\[(target|actor)=[a-z][a-z0-9-]*\])?$`. The action `on` keeps `minLength: 1`; the feat `on` never had a `minLength`.
+      - New descriptions on the `spells` and `feats` maps.
+    - `snapshots.schema.json`:
+      - combatant: `$defs/combatSnapshot/properties/combatants/items/properties/{poolsSpent,slotsCast}`;
+      - envelope: `$defs/combatSnapshot/properties/{phase,offeredCount,offers}`;
+      - each `offers[]` item is `{actorId, source: action|feat, id, on}`, with all four required and `additionalProperties: false`.
+  - **Event names:** `spell:cast`, `action:resolved` (with `{actionId, targetId}` or `{actionId, at}`), `pool:settled`, `slot:settled`, `feat:learned`, and `trigger:fired` with `source: 'feat'`.
+  - **Settle refusal names:** `combat-not-over`, `unknown-target`, `unknown-pool`, `insufficient-points`, `slot-mismatch`, `slot-unmapped`.
+  - **Learn refusals:** `unknown-feat`, `feat-known`.
+  - **Cast rejection kinds and rules:**
+    - `no-action` / `E-REF-01`
+    - `out-of-range` / `E-SPAT-01`, resource `targetId` or `"x,y"`
+    - `invalid-target` / `E-REF-01`
+    - `armor-not-castable` / `E-REF-01`
+    - `vancian` / `E-VANC-01`
+    - points / `E-POINTS-01`
+    - `slot-exhausted` / `E-ECON-01`
+  - **DD-S values:** DD-S2, S4, S5, S6, S8, S10, S11, S12, S13, S14, S17, S18 and S19 are in `database.md` with the meaning STATE gives them. DD-S7 is in the spend-asymmetry paragraph, following CA-S3. Wording deltas, none of which changes a value:
+    - **DD-S6:** "after the spatial gate" became "after the target/range gates and before cost", because spells now pass a range gate rather than the spatial gate.
+    - **DD-S13:** the grammar is a paragraph under the §actions table, not inside the `trigger` row. The `|` characters in the regex would split a Markdown table cell. The row points to the paragraph.
+- **verification:**
+  - Both contracts parse with the Python `json.load` command.
+  - `pnpm exec prettier --check src/schema/contracts/ program/Ruleswright/specs/database.md` is 0. Note that `.prettierignore` ignores `program/`, so in practice only the contracts are checked.
+  - `pnpm typecheck` is 0.
+  - `pnpm exec vitest run tests/schema` passes, 105/105 in 4 files.
+  - No `required` line changed. The only `required` line in the diff is the new `offers` item's own list.
+  - `grep "(no envelope field)"` on the snapshots schema and `grep "none is added"` on `database.md` both print nothing. `DD17a` no longer appears in `database.md`.
+  - The four mocks parse with balanced tags.
+  - The pattern accepts `condition:applied[target=self]`, `attack:rolled[actor=wight]`, `damaged` and `enemy-approaches`. It rejects `condition:applied[self]`, `on:event(x)` and the empty string.
+  - The `phase` enum equals `CombatPhase` (`combat.ts:127`).
+  - The cumulative `git diff --stat b05b06e HEAD` touches only the 8 lease files.
+  - I did not run the whole test suite, as the envelope instructs.
+- **surprises:**
+  1. **`api-map.html` names vs `database.md`:** the specified `api-map` lines include `settleSpellCasts`, `learnFeat` and `spell:cast`, but not `pool:settled`, `slot:settled` or `feat:learned`. The first two appear in the `magic.html` callout; `feat:learned` appears only in `database.md`. I added none of them beyond the task text.
+  2. **`spatial.html:191` goes stale:** it still says restore resumes in `resolved`, "derived". It is outside the lease. A design-change follow-up is needed after S03 ck4.
+  3. **Versioning-discipline conflict:** `database.md` says "tightening constraints = breaking → major". The trigger grammar is a tightening, but it is recorded as caveat (a) under the pre-release revisable-v1 rule, following the v1.5 `speed` precedent.
+  4. **No map description existed** on the spells or feats map in `pack.schema.json`, so I added a `description` key to each map object.
+  5. **Header label left alone:** the `triggers.html` anatomy header still says "pack actions — one reactive action, one reactive feat", although the feat now lives in `content.feats`. Its inline comment says so.
+  6. **New spells-section callout:** it uses the existing blue `◈` info-callout style; no new token.
+- **followUp:**
+  - **S02, CA-S2 restore refusals (`E-SNAP-01`), exactly as written:**
+    - an unknown pool, or an over-spend;
+    - a level with no re-stated slots;
+    - an index ≥ the re-stated binding length (or ≥ `boundSlots[L]` when there are no bindings);
+    - an index whose binding is `null`;
+    - a duplicate index;
+    - all cards collected before any rebuild.
+  - **S02, CA-S9 range wording:** "absent `targeting.range` = the caster's effective reach: max(its reach entry, `spatial.reach.default`), the value the reach gate uses". Out of range is `{kind:'out-of-range', rule:'E-SPAT-01', resource: <targetId> | "<x>,<y>"}`, with the message `spell "<id>" has range <r>; <target> is <d> away.`
+  - **S02, CA-S9 `at` refusals (`invalid-target`/`E-REF-01`):** `at` with `targetId`; `at` on a non-burst spell (absent `targeting` = single); `at` on an action; `at` on a burst spell whose effect root is not `target(burst-…)`.
+  - **S02:** the validator must admit `range` (closes the range window) and re-key the `tests/schema` `targeting` assertion.
+  - **S03, restore phase precedence:**
+    1. frozen hp satisfying the end rule → `combat-over`;
+    2. else the envelope `phase`;
+    3. else the v1.5 derivation.
+
+    `combat-over` while no side is defeated is `E-SNAP-01`.
+  - **S03, `offers`:** read when present, else the legacy `pendingTrigger`. Both present is `E-SNAP-01`; an unknown actor, or an id that is not a reactive action/feat that actor holds, is `E-SNAP-01`. v1.6 writers emit `offers` (when non-empty) and always emit `phase`.
+  - **S03, `offeredCount`:** absent = 0; the next `trigger:fired.offerIndex` continues from it.
+  - **S03, grammar wording:** "the eventMatches grammar: <eventType> or <eventType>[target|actor=self|<id>] (self = the reactor). Any other form can never fire and is E-FORM-01 at load." The jsonPath is `<base>.trigger.on`.
+  - **Orchestrator:** recheck the CA rows against `1639a19`, and route `spatial.html` (surprise 2) as a design-change.
+- **needsOwnerCorrection:** `program/Ruleswright/mocks/spatial.html:191`, the derived-phase copy (Designer, after S03).
+- **needsDesignSource:** —
+- **blockedReason:** —
+- **filesTouched:**
+  - `program/Ruleswright/specs/requirements.md`
+  - `program/Ruleswright/mocks/magic.html`
+  - `program/Ruleswright/mocks/api-map.html`
+  - `program/Ruleswright/mocks/triggers.html`
+  - `program/Ruleswright/mocks/conditions.html`
+  - `program/Ruleswright/specs/database.md`
+  - `src/schema/contracts/pack.schema.json`
+  - `src/schema/contracts/snapshots.schema.json`
