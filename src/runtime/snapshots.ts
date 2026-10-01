@@ -23,7 +23,10 @@
  *   - equipped       ⇄ state.equipped, presence-preserving (v1.4, CA-EG6):
  *                      emitted only when the state carries it; restore
  *                      validates every entry before applying anything
- *   - skills / feats ⇄ absent (envelope optionals; v1 engine state has neither)
+ *   - feats          ⇄ state.feats, presence-preserving (v1.6, DD-S11): emitted
+ *                      only when the state carries it; restore refuses an
+ *                      unknown feat id before applying anything
+ *   - skills         ⇄ absent (envelope optional; v1 engine state has none)
  *   - saves / hp / level / xp / id ⇄ NOT envelope fields: reconstructed from
  *     pack + classes through the engine's own progression invariants (best-of
  *     saves, the reserved hp formula at the derived level, Σ levels, Σ classXp,
@@ -177,6 +180,7 @@ function serializeCharacterState(state: CharacterState): SnapshotCharacterState 
     ...(state.equipped !== undefined
       ? { equipped: state.equipped.map((entry) => ({ slot: entry.slot, itemId: entry.itemId })) }
       : {}),
+    ...(state.feats !== undefined ? { feats: [...state.feats] } : {}),
   };
 }
 
@@ -316,7 +320,24 @@ function characterStateRefusals(runtime: Runtime, saved: SnapshotCharacterState,
       saved.classes.map((entry) => ({ id: entry.id, level: entry.level })),
     ),
     ...equippedRefusals(runtime, saved, path),
+    ...featRefusals(runtime, saved, path),
   ];
+}
+
+/** DD-S11 — every restored feat id names a feat the pack declares (E-SNAP-01, all cards before anything is applied). */
+function featRefusals(runtime: Runtime, saved: SnapshotCharacterState, path: string): ErrorCard[] {
+  return (saved.feats ?? []).flatMap((featId, index) =>
+    runtime.pack.content.feats?.[featId] !== undefined
+      ? []
+      : [
+          makeErrorCard(
+            'E-SNAP-01',
+            runtime.pack.manifest.id,
+            `${path}.feats[${index}]`,
+            `feat ${display(featId)} is not declared in content.feats — refusing the snapshot (DD-S11).`,
+          ),
+        ],
+  );
 }
 
 /**
@@ -404,6 +425,7 @@ function restoreCharacterState(runtime: Runtime, saved: SnapshotCharacterState):
     ...(saved.equipped !== undefined
       ? { equipped: saved.equipped.map((entry) => ({ slot: entry.slot, itemId: entry.itemId })) }
       : {}),
+    ...(saved.feats !== undefined ? { feats: [...saved.feats] } : {}),
     hp: { current: reserveValue(runtime, 'hp', abilities, built.level, new Rng(0)), temp: 0 },
   };
 }

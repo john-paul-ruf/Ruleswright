@@ -55,7 +55,8 @@ export interface CharacterCombatant {
  *   (`no-combat-actions`).
  * - `spells` (v1.6, CA-S4) is `knownSpells`, emitted only when non-empty;
  *   `castBlockedBy` is the equipped armor `armorBlockingCast` names, emitted
- *   only when it blocks (DD-S6).
+ *   only when it blocks (DD-S6). `feats` (CA-S4) is the character's held
+ *   feats that declare a `trigger`, emitted only when non-empty.
  * - `balances` carries the character's pool points, per spell level the count
  *   of bound (memorized) slots, (CA-EG5) the held qty of every consumable
  *   (an item with a parse-once `use` effect) — the fight's item charges — and
@@ -105,6 +106,7 @@ export function profileFromCharacter(
   const castBlockedBy = armorBlockingCast(runtime, state);
   const bindings: Record<string, (string | null)[]> = {};
   for (const [level, slots] of Object.entries(state.slots)) bindings[level] = [...slots];
+  const feats = (state.feats ?? []).filter((featId) => pack.content.feats?.[featId]?.trigger !== undefined);
 
   return {
     profile: {
@@ -123,6 +125,7 @@ export function profileFromCharacter(
       ...(attackTable !== undefined ? { attackTable } : {}),
       ...(spells.length > 0 ? { spells: [...spells] } : {}),
       ...(castBlockedBy !== undefined ? { castBlockedBy } : {}),
+      ...(feats.length > 0 ? { feats } : {}),
     },
     balances: { pools: { ...state.pools }, boundSlots, items, bindings },
   };

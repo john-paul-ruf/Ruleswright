@@ -355,3 +355,52 @@ describe('equipped snapshots (CA-EG6)', () => {
     expect(target.nextCharacterId).toBe(1);
   });
 });
+
+describe('feat snapshots (DD-S11, CAP-S5)', () => {
+  it('a never-learned character serializes byte-exact with no feats key, and restores without one', () => {
+    const runtime = new Runtime(cloneRuntimePack());
+    const state = hexer(runtime);
+    const text = JSON.stringify(serializeCharacter(runtime, state));
+    expect(text).not.toContain('"feats"');
+    const restored = restoreCharacter(new Runtime(cloneRuntimePack()), JSON.parse(text));
+    expect('feats' in restored.state).toBe(false);
+    expect(JSON.stringify(serializeCharacter(runtime, restored.state))).toBe(text);
+  });
+
+  it('held feats survive serialize → JSON → restore, in learn order', () => {
+    const runtime = new Runtime(cloneRuntimePack());
+    const character = createCharacter(runtime, { name: 'Ald', race: 'hillfolk', classes: ['warden'] });
+    character.learnFeat('vengeful-strike');
+    character.learnFeat('ironhide');
+    const snap = JSON.parse(JSON.stringify(serializeCharacter(runtime, character.state))) as ReturnType<
+      typeof serializeCharacter
+    >;
+    expect(snap.state.feats).toEqual(['vengeful-strike', 'ironhide']);
+    const restored = restoreCharacter(new Runtime(cloneRuntimePack()), snap);
+    expect(restored.state).toEqual(character.state);
+    restored.state.feats!.push('extra');
+    expect(snap.state.feats).toEqual(['vengeful-strike', 'ironhide']);
+  });
+
+  it('an unknown feat id is refused (E-SNAP-01 at state.feats[i]), every card at once, nothing minted', () => {
+    const runtime = new Runtime(cloneRuntimePack());
+    const character = createCharacter(runtime, { name: 'Ald', race: 'hillfolk', classes: ['warden'] });
+    character.learnFeat('ironhide');
+    const snap = JSON.parse(JSON.stringify(serializeCharacter(runtime, character.state))) as {
+      state: { feats: string[] };
+    };
+    snap.state.feats = ['ironhide', 'moon-step', 'sky-leap'];
+    const target = new Runtime(cloneRuntimePack());
+    let cards: readonly { rule: string; jsonPath: string }[] = [];
+    try {
+      restoreCharacter(target, snap as never);
+    } catch (error) {
+      cards = (error as { errors: readonly { rule: string; jsonPath: string }[] }).errors;
+    }
+    expect(cards.map((card) => [card.rule, card.jsonPath])).toEqual([
+      ['E-SNAP-01', 'state.feats[1]'],
+      ['E-SNAP-01', 'state.feats[2]'],
+    ]);
+    expect(target.nextCharacterId).toBe(1);
+  });
+});

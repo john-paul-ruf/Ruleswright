@@ -95,6 +95,8 @@ export interface CombatantProfile {
   readonly spells?: readonly string[];
   /** v1.6 — the equipped armor item that blocks vancian casting (CA-EG3); absent = not blocked (DD-S6). */
   readonly castBlockedBy?: string;
+  /** v1.6 — the reactive feats this combatant holds (characters: held feats with a `trigger`; absent = none, CA-S4). */
+  readonly feats?: readonly string[];
 }
 
 /** Which side a combatant fights for — also the encounter sides. */

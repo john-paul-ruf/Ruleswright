@@ -25,6 +25,7 @@ export {
   type InventoryEntry,
   type DerivedStats,
 } from './character';
+export { learnFeat } from './feats';
 export { CharacterBuildError, validateBuild, levelForXp, xpSplit, levelSet, awardXp } from './progression';
 export {
   spendPool,

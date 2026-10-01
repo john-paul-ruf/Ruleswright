@@ -41,6 +41,8 @@ export interface PackIndex {
   readonly spellEffects: Readonly<Record<string, EffectAst>>;
   /** Parse-once `use` effect ASTs for consumable items (CA-EG5, F-E11; items without `use` = no entry). */
   readonly itemEffects: Readonly<Record<string, EffectAst>>;
+  /** v1.6 — parse-once effect ASTs for feats declaring `effect` (DD-S12; passive-only feats = no entry). */
+  readonly featEffects: Readonly<Record<string, EffectAst>>;
   /** Parse-once formula ASTs — the whole `formulas` map, reserved ids included. */
   readonly formulaAsts: Readonly<Record<string, FormulaAst>>;
   /** Parse-once per-class attackBonus formulas (FR-3; table-convention classes have none). */
@@ -120,6 +122,7 @@ export class Runtime {
       actionEffects: compileEffects(loaded.actions, (action) => action.effect),
       spellEffects: compileEffects(loaded.content.spells ?? {}, (spell) => spell.effect),
       itemEffects: compileEffects(itemUseDefs(loaded), (def) => def.effect),
+      featEffects: compileEffects(featEffectDefs(loaded), (def) => def.effect),
       formulaAsts: compileFormulas(loaded.formulas),
       attackBonusAsts: compileFormulas(classAttackBonusDefs(loaded)),
       validAsts: compileValidAsts(loaded.actions),
@@ -187,6 +190,15 @@ function itemUseDefs(pack: Pack): Record<string, { effect: string }> {
   const defs: Record<string, { effect: string }> = {};
   for (const [id, item] of Object.entries(pack.content.items ?? {})) {
     if (item.use !== undefined) defs[id] = { effect: item.use };
+  }
+  return defs;
+}
+
+/** The feats declaring an `effect`, as `{effect}` for compileEffects. */
+function featEffectDefs(pack: Pack): Record<string, { effect: string }> {
+  const defs: Record<string, { effect: string }> = {};
+  for (const [id, feat] of Object.entries(pack.content.feats ?? {})) {
+    if (feat.effect !== undefined) defs[id] = { effect: feat.effect };
   }
   return defs;
 }

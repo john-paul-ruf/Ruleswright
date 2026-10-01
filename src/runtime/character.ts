@@ -42,6 +42,7 @@ import {
   type EquippedEntry,
   type UseItemOptions,
 } from './equipment';
+import { learnFeat as learnFeatFn } from './feats';
 import type { RuntimeEvent } from './events';
 import { validateBuild, buildCharacter, CharacterBuildError } from './progression';
 
@@ -89,6 +90,8 @@ export interface CharacterState {
   inventory: InventoryEntry[];
   /** Occupied equip slots (CAP-E2) — ABSENT until the first equip (absent = `[]`, F-E5). */
   equipped?: EquippedEntry[];
+  /** v1.6 — held feat ids (DD-S11); absent until the first learn (the `equipped` presence rule). */
+  feats?: string[];
   /** HP bookkeeping: the reserved formula's value is the cap; `current` starts at it. */
   hp: { current: number; temp: number };
 }
@@ -120,6 +123,11 @@ export class Character {
   /** FR-9 — memorize a known spell into an empty slot (pools.ts). */
   prepare(spellId: string, slotIndex?: number): void {
     prepareSpellFn(this.runtime, this.state, spellId, slotIndex);
+  }
+
+  /** DD-S11 — learn a pack-declared feat (feats.ts). */
+  learnFeat(featId: string): void {
+    learnFeatFn(this.runtime, this.state, featId);
   }
 
   /** FR-8 — cast consumes a bound slot of the matching level (pools.ts). */
