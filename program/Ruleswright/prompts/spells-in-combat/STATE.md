@@ -509,7 +509,7 @@ re-run, so 741/741 above is still the Planner-observed baseline.
 
 | ID | Approved behavior / entry point | Required facts + producer owners | CA IDs / prerequisites | Integration owner / checkpoint | Status | Proof / checked sources | Open gaps + correction owners |
 |----|--------------------------------|---------------------------------|------------------------|--------------------------------|--------|-------------------------|-------------------------------|
-| CAP-S1 | A character casts a known spell in combat: `fight.declare(spellId, {targetId?})` → gates → spend → effect → events (FR-9, FR-10) | known spells (`knownSpells`, `pools.ts`), bindings (character `slots`), armor (`armorBlockingCast`) → profile/balances (S02 ck3); spell AST (`index.spellEffects`, landed); restricts (`matchesRestriction`/`declaredTags`, `conditions.ts`, landed) | CA-S1, CA-S4, CA-S5; S01 | S02 ck3 (src integration on the dark-fantasy generated pack; the fixture hexer has no class actions, F-P3) | **stale** (verified at `ab6d6f6` (Orchestrator: build/typecheck/lint/format/isolation/security 0, 793/793) via `spells.test.ts` 32, spells-journey 4; counterexample C-S02-1: 12 theme `save(…, applyCondition(…), damage(half))` sites throw in `execDamage` mid-declare after the spend) | `tests/runtime/combat/spells.test.ts`, `tests/proofs/spells-journey.test.ts` | out-of-combat restricts asymmetry carried (owner: future restricts feature); C-S02-1 correction OWNER-M02-HALF |
+| CAP-S1 | A character casts a known spell in combat: `fight.declare(spellId, {targetId?})` → gates → spend → effect → events (FR-9, FR-10) | known spells (`knownSpells`, `pools.ts`), bindings (character `slots`), armor (`armorBlockingCast`) → profile/balances (S02 ck3); spell AST (`index.spellEffects`, landed); restricts (`matchesRestriction`/`declaredTags`, `conditions.ts`, landed) | CA-S1, CA-S4, CA-S5; S01 | S02 ck3 (src integration on the dark-fantasy generated pack; the fixture hexer has no class actions, F-P3) | verified (C-S02-1 closed by OWNER-M02-HALF `623a687`: passed save with no fail-branch damage resolves as no damage, `effect.test.ts` +2, `spells.test.ts` +2 combat cast, negative control; Orchestrator gate 102/102 at `aa3eb23` tree) | `tests/runtime/combat/spells.test.ts`, `tests/proofs/spells-journey.test.ts` | out-of-combat restricts asymmetry carried (owner: future restricts feature); C-S02-1 closed `623a687` |
 | CAP-S9 | A spell is gated by its pack-declared range; a burst spell may be centered on an empty cell, hitting everyone in radius with per-target saves (FR-9, FR-11; human 2026-09-30) | `targeting.range` (S01 contract, S02 ck2 mirror/validator), `runtime.spatial.distance` (landed), the absent-range fallback = the `canReach` value (`spatial.ts:99-100, 125`, landed), `varsFor` (S02 ck2), theme ranges (S02 ck5) | CA-S9; S01 | S02 ck2 (unit), S02 ck5 (journey empty-cell leg) | verified | `ab6d6f6` (Orchestrator: build/typecheck/lint/format/isolation/security 0, 793/793): `spells.test.ts` (range, `at`, refusals, theater), `effect.test.ts` (`varsFor`, +3), `validate.test.ts` (`range`), journey empty-cell leg through `dist/` | F-M2 floor inherited by the fallback (carried) |
 | CAP-S2 | A mid-fight snapshot keeps the spell spend, and restore continues it (FR-14) | `poolsSpent`/`slotsCast` (S02 ck4) | CA-S2; S01 contract | S02 ck4 | verified | `ab6d6f6` (Orchestrator: build/typecheck/lint/format/isolation/security 0, 793/793): `tests/snapshots/combat.test.ts` (+8) + journey restore | — |
 | CAP-S3 | After `combat-over`, `settleSpellCasts` writes the spend into the character, which persists in a character snapshot | combatant spend (S02 ck4) | CA-S3 | S02 ck4 | verified | `ab6d6f6` (Orchestrator: build/typecheck/lint/format/isolation/security 0, 793/793): `spells.test.ts` settlement + journey settle → character snapshot round-trip | — |
@@ -568,7 +568,7 @@ which S03 consumes: recheck them at S02 receive.
 
 | ID | Required meaning / authority | Producer → boundary → consumer | Mapping / constraints | Correction + proof owners / checkpoints | Agreement | Producer | Proof / evidence / checked sources |
 |----|------------------------------|--------------------------------|-----------------------|----------------------------------------|-----------|----------|------------------------------------|
-| CA-S1 | A spell is an action plus metadata; casting rides the action pipeline (FR-9) | `pack.content.spells[id]` + `index.spellEffects[id]` → `Combat.declare` → executor/events | see below | S02 ck1 (unit), ck5 (journey) | agreed (DB text rechecked vs `1639a19` database.md v1.6, no delta) | landed ck1 `010d730`, ck5 `ab6d6f6`; proof passed at `ab6d6f6` | `combat.ts:515-604`, `runtime.ts` PackIndex at `55b294f`; counterexample C-S02-1 (damage(half) with no fail-branch damage throws after spend) — correction OWNER-M02-HALF |
+| CA-S1 | A spell is an action plus metadata; casting rides the action pipeline (FR-9) | `pack.content.spells[id]` + `index.spellEffects[id]` → `Combat.declare` → executor/events | see below | S02 ck1 (unit), ck5 (journey) | agreed (DB text rechecked vs `1639a19` database.md v1.6, no delta) | landed ck1 `010d730`, ck5 `ab6d6f6`; proof passed at `ab6d6f6` | `combat.ts:515-604`, `runtime.ts` PackIndex at `55b294f`; counterexample C-S02-1 closed by `623a687` (passed-save case proven in `spells.test.ts`) |
 | CA-S2 | A spend is recorded; balances are re-stated; restore = re-stated − spend (the `itemsUsed` precedent) | `CombatantState.poolsSpent/slotsCast` → snapshot combatant → `deserializeCombat` | see below | S01 ck3 (contract); S02 ck4 | agreed (rechecked vs `1639a19`, no delta) | contract leg landed S01 ck3 `1639a19`; runtime landed S02 ck4 `45c6fce`; proof passed at `ab6d6f6` | `snapshots.ts:413-430, 515-596`, `snapshots.schema.json:185-247` |
 | CA-S3 | The fight never writes character state; the host settles explicitly | combatant spend → `settleSpellCasts` → `CharacterState.pools/slots` | see below | S02 ck4 | agreed (DB text rechecked vs `1639a19` database.md v1.6, no delta) | landed ck4 `45c6fce`; proof passed at `ab6d6f6` | `character-profile.ts:131-236` |
 | CA-S4 | Character → combatant parity (FR-16) | `CharacterState` → `profileFromCharacter` → `CombatantProfile` / `EconomyBalances` | `spells` = `knownSpells` (non-empty only); `castBlockedBy` = `armorBlockingCast` (set only); `balances.bindings` = deep copy of `state.slots`; `feats` = `state.feats` (non-empty only, S03) | S02 ck3; S03 ck2 | agreed (DB text rechecked vs `1639a19` database.md v1.6, no delta) | landed S02 ck3 `9ec0410` (spell half); feats S03 ck2 planned; proof passed at `ab6d6f6` | `character-profile.ts:58-117`, `pools.ts:208, 300-310` |
@@ -701,7 +701,7 @@ and B-S1) are unchanged.
 |----|---------|-------------|-------|-------------------|
 | — | — | None open. **B-S1 cleared** 2026-09-30 ("8a - yes 8b - fine 9 cost a turn 10 yes 11 yes 12 yes 13 yes 14 yes", recorded in Intent). DD-S9 was read as the whole turn; see the interpretation note under DD-S9. The planning-completeness review's blocking findings F-P1 … F-P6 are resolved by REPLAN-SIC-01 (see "Planning completeness review"), and S01 is dispatchable. | — | — |
 | C-S01-1 | `mocks/spatial.html:191` (derived-phase copy goes stale once S03 ck4 writes envelope `phase`) | Carried: an existing-mock copy change outside S01's authorized four-mock design-change; Designer re-entry after S03, listed in the Final Report | Designer (human-authorized design-change) | mock text matches DD-S14 |
-| C-S02-1 | CAP-S1, CA-S1 (12 theme sites: dark-fantasy :92/:261/:381/:405/:421/:437/:445, wyldwood :189/:535/:582, zombie-urban :100/:214; actions incl. `cold-grip`) | OWNER-M02-HALF: executor treats `damage(half)` whose save fail branch has no damage as no damage (no throw); regression on a combat cast | Orchestrator owner correction (effect.ts, effect.test.ts, spells.test.ts) | a passed save on such a spell resolves with no damage event, `action:resolved` emitted, no throw |
+| C-S02-1 | CAP-S1, CA-S1 (12 theme sites: dark-fantasy :92/:261/:381/:405/:421/:437/:445, wyldwood :189/:535/:582, zombie-urban :100/:214; actions incl. `cold-grip`) | OWNER-M02-HALF: executor treats `damage(half)` whose save fail branch has no damage as no damage (no throw); regression on a combat cast | **closed** `623a687` (OWNER-M02-HALF) | a passed save on such a spell resolves with no damage event, `action:resolved` emitted, no throw |
 | B-S03-1 | S03 ck4/ck5 | Lease revision 2 adds `tests/runtime/combat/combat.test.ts` (one pin re-key); resume S03 from ck3 with its preserved ck4 tree | Orchestrator (Controlled Lease Revision) | ck4 committed with whole suite green |
 
 ## Handoff Notes
@@ -1053,3 +1053,64 @@ The concurrent worker's files (`effect.ts`, `effect.test.ts`, `spells.test.ts`) 
   - `tests/runtime/combat/feat-triggers.test.ts`
   - `tests/runtime/combat/movement.test.ts`
   - `tests/proofs/movement-journey.test.ts`
+
+### OWNER-M02-HALF — received 2026-09-30 (r-ZVpm, handle h-fgRX / CzvAR)
+
+**Orchestrator receive:** 1 commit `623a687`, every path inside the write set. Lease-scoped gate re-run by Orchestrator in the shared tree after S03 ck1 landed: `pnpm exec vitest run tests/core/dsl tests/runtime/combat/spells.test.ts` 102/102, prettier 0, eslint 0. Whole-repo re-verification is deferred to wave close (S03 in flight). Arch delta appended. C-S02-1 closed; CAP-S1 verified.
+
+**Result (verbatim):**
+
+I fixed C-S02-1: a passed save whose fail branch has no damage now resolves `damage(half)` as no damage instead of throwing in the middle of `Combat.declare`. It is committed as `623a687`, all four required proofs hold, and the tests run in a clean worktree pass 102/102. The spells tests can't pass in the shared tree right now, because SESSION-03's uncommitted edits break pack loading for the whole file.
+
+## Handoff
+
+- **session:** OWNER-M02-HALF
+- **status:** done
+- **checkpoint:** 1
+- **notes:** C-S02-1 fixed (CAP-S1 / CA-S1). In `src/core/dsl/effect.ts`, a passed save with no fail-branch damage now resolves `damage(half)` as no damage. `execSave` passes a `NOTHING_TO_HALVE` marker, and `execDamage` returns `[]` for it: no `apply.damage` call, no outcome, no RNG draw. The load-time check, the fail branch and saves that do have fail-branch damage are unchanged. Commit `623a687`, at base `df03f7b`.
+- **delivered:**
+  - **`execSave`** passes `halveFromFail(failEffect) ?? NOTHING_TO_HALVE` into the pass branch.
+  - **`execDamage`** now has one `source: HalveFrom | undefined`:
+    - `damage(half)` with nothing to halve returns `[]`.
+    - `damage(half)` outside any save's pass branch, which only an unvalidated tree can produce, still throws E-FORM-02, so misuse still fails closed.
+    - Every path that had damage to halve evaluates the same expression with the same RNG draws as before, so draws and outcomes are unchanged.
+  - **The header docs** now describe the new rule.
+  - **Tests:** 2 new in `effect.test.ts` and 2 new in `spells.test.ts`, using a fixture spell `dread-hush` = `save(reason, 12, applyCondition(shaken, 2), damage(half))`.
+- **verification:**
+  - **Required gate:** `pnpm exec vitest run tests/core/dsl tests/runtime/combat/spells.test.ts`.
+    - In a temporary `git worktree` at HEAD `df03f7b` with only my 3 files copied in: 4 files, 102/102 pass. The baseline there is 98/98, so this is +4 new tests and 0 existing tests changed.
+    - In the shared tree it is red: 34/34 spells tests fail at pack load because of SESSION-03's in-flight edits (see surprises).
+  - **Proof 1, `effect.test.ts`:** "damage(half) with no fail-branch damage resolves as no damage on a pass…". A counting RNG wraps scripted [10] with vigor 2, so the save totals 12, a tie that passes. It asserts no throw, `draws === 1`, no apply calls, a single `save` outcome with a pass verdict, and an empty `perTarget[0].outcomes`. A companion test checks that the failed save still applies `sapped 3`.
+  - **Proof 2, `spells.test.ts`:** `describe('C-S02-1 …')` runs the real `Runtime`, `startCombat` and `Combat.declare` on the fixture pack. The `ScriptedRng` throws if its queue runs out, and the queue is [1, 1, 10], so any extra roll would fail the test. Assertions:
+    - `fight.declare` does not throw;
+    - events are exactly `['spell:cast', 'action:resolved']`, all with `why.rule` `content.spells.dread-hush`;
+    - the wight stays at 40 hp with no conditions;
+    - `slotsCast` is `{'1':[0]}` and `boundSlots['1']` is 0, so the cost was spent exactly once;
+    - phase is `resolved`.
+    - A companion fail test expects `spell:cast` → `condition:applied` → `action:resolved`.
+  - **Proof 3, negative control:** done in the worktree only.
+    - Restoring a throw on `NOTHING_TO_HALVE` fails exactly the 2 new pass tests (100/102).
+    - Running the original HEAD `effect.ts` against the new tests fails the same 2.
+    - After reverting, 102/102 pass.
+  - **Proof 4:** every existing test in both suites passes unchanged (98/98 → still green).
+  - **`pnpm typecheck`:** none of the errors are in my files, in either tree.
+    - Shared tree: 1 error, in `tests/compiler/coverage-floor.test.ts` (SESSION-03 area).
+    - Worktree: errors in `tests/proofs/{equipment,loot,spells}-journey.test.ts`, the same with and without my files, so they come from the worktree setup.
+  - **`pnpm exec prettier --check`** on the 3 files: clean.
+  - **Lease check:** `git show --name-only` on HEAD lists only the 3 write-set paths.
+- **surprises:**
+  - **Shared-tree red from SESSION-03:** uncommitted edits to `src/schema/validate/helpers.ts` (the trigger grammar, "condition:applied[self] can never fire") and to `tests/runtime/fixtures/packs.ts` make every Runtime and `generateCampaign` load fail. That turns all of `spells.test.ts` red in the shared tree, and also changes the shared-tree typecheck (`coverage-floor.test.ts`). I verified hermetically in a temp worktree under `/tmp`, which is now removed.
+  - **Throw message changed:** the remaining throw's message now reads "damage(half) is only legal inside a save's pass branch…", since the old "needs a fail branch with damage" case no longer throws.
+  - **Fixture spell instead of the generated pack:** the generated dark-fantasy pack fails to load in the shared tree. In the clean worktree the fixture spell was the simpler real path.
+- **followUp:**
+  - CAP-S1 / CA-S1 can be re-verified once SESSION-03's helpers and fixture edits land consistently.
+  - The 12 theme sites and the `cold-grip` action now resolve a passed save as fail-branch-free with no damage. The content is unchanged, as decided.
+  - When the generated pack loads again, a later run could add a check that `dread-hush` and `wight-bell` cast through the generated pack.
+- **needsOwnerCorrection:** —
+- **needsDesignSource:** —
+- **blockedReason:** —
+- **filesTouched:**
+  - `src/core/dsl/effect.ts`
+  - `tests/core/dsl/effect.test.ts`
+  - `tests/runtime/combat/spells.test.ts`
+  - `.program/signal/OWNER-M02-HALF.arch.md` (arch fragment, uncommitted, as the envelope specifies)
