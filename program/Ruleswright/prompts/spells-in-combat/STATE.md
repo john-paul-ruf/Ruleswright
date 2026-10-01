@@ -58,7 +58,7 @@
 |---|---------|---------|------|--------|------------|-----------|-------|
 | 01 | Author re-entry: FR-9/FR-11 spell range, magic/api-map/triggers/conditions mocks + contract v1.6 | — (Author: Spec, Designer, DB) | `program/Ruleswright/specs/requirements.md`, `program/Ruleswright/mocks/magic.html`, `program/Ruleswright/mocks/api-map.html`, `program/Ruleswright/mocks/triggers.html`, `program/Ruleswright/mocks/conditions.html`, `program/Ruleswright/specs/database.md`, `src/schema/contracts/pack.schema.json`, `src/schema/contracts/snapshots.schema.json` | done | 3/3 (`e5e1d7f`, `67705d9`, `1639a19`) | 2026-09-30 | Author roles, not Coder; 3 checkpoints (Spec added for DD-S8); B-S1 cleared 2026-09-30 |
 | 02 | The spell column: declare spells, range + empty-cell bursts, spend + snapshot, settlement, generated spells, spell journey | M01 (mirror/validator), M02 (executor), M03, M04 (content) | `src/schema/artifacts.ts`, `src/schema/validate/sections/content.ts`, `src/core/dsl/effect.ts`, `src/runtime/combat/combat.ts`, `src/runtime/combat/action-economy.ts`, `src/runtime/combat/resolve.ts`, `src/runtime/character-profile.ts`, `src/runtime/pools.ts`, `src/runtime/snapshots.ts`, `src/runtime/index.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `tests/schema/validate.test.ts`, `tests/core/dsl/effect.test.ts`, `tests/runtime/combat/spells.test.ts`, `tests/runtime/combat/combat-spatial.test.ts`, `tests/runtime/combat/character-profile.test.ts`, `tests/runtime/fixtures/packs.ts`, `tests/snapshots/combat.test.ts`, `tests/proofs/grid-journey.test.ts`, `tests/proofs/rules-are-data.test.ts`, `tests/proofs/spells-journey.test.ts` | done | 5/5 (`010d730`, `89a11e7`, `9ec0410`, `45c6fce`, `ab6d6f6`) | 2026-09-30 | depends S01; 5 checkpoints; replanned (F-P1/P2/P3/P5/P7/P8/P12/P13) |
-| 03 | The feat column: trigger grammar, feats held + offered, snapshot envelope, README | M01, M03, M04 (content) | `src/schema/validate/helpers.ts`, `src/runtime/feats.ts`, `src/runtime/character.ts`, `src/runtime/runtime.ts`, `src/runtime/combat/triggers.ts`, `src/runtime/combat/combat.ts`, `src/runtime/combat/resolve.ts`, `src/runtime/character-profile.ts`, `src/runtime/snapshots.ts`, `src/runtime/index.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `tests/schema/validate.test.ts`, `tests/runtime/fixtures/packs.ts`, `tests/compiler/pipeline.test.ts`, `tests/compiler/stages.test.ts`, `tests/compiler/coverage-floor.test.ts`, `tests/runtime/feats.test.ts`, `tests/runtime/combat/feat-triggers.test.ts`, `tests/runtime/combat/movement.test.ts`, `tests/snapshots/character.test.ts`, `tests/snapshots/combat.test.ts`, `tests/proofs/movement-journey.test.ts`, `tests/proofs/rules-are-data.test.ts`, `tests/proofs/spells-journey.test.ts`, `tests/proofs/docs-run.test.ts`, `README.md` | pending | — | — | depends S02; 5 checkpoints; `movement.test.ts` added (F-P4) |
+| 03 | The feat column: trigger grammar, feats held + offered, snapshot envelope, README | M01, M03, M04 (content) | `src/schema/validate/helpers.ts`, `src/runtime/feats.ts`, `src/runtime/character.ts`, `src/runtime/runtime.ts`, `src/runtime/combat/triggers.ts`, `src/runtime/combat/combat.ts`, `src/runtime/combat/resolve.ts`, `src/runtime/character-profile.ts`, `src/runtime/snapshots.ts`, `src/runtime/index.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `tests/schema/validate.test.ts`, `tests/runtime/fixtures/packs.ts`, `tests/compiler/pipeline.test.ts`, `tests/compiler/stages.test.ts`, `tests/compiler/coverage-floor.test.ts`, `tests/runtime/feats.test.ts`, `tests/runtime/combat/feat-triggers.test.ts`, `tests/runtime/combat/movement.test.ts`, `tests/runtime/combat/combat.test.ts` (rev 2), `tests/snapshots/character.test.ts`, `tests/snapshots/combat.test.ts`, `tests/proofs/movement-journey.test.ts`, `tests/proofs/rules-are-data.test.ts`, `tests/proofs/spells-journey.test.ts`, `tests/proofs/docs-run.test.ts`, `README.md` | in-progress (lease rev 2; attempt 1 blocked at ck3 on an unowned DD-S14 pin) | 3/5 (`d9a6d71`, `e5e1a55`, `8d04c5e`) | — | depends S02; 5 checkpoints; `movement.test.ts` added (F-P4) |
 
 S02 and S03 share files (`combat.ts`, `snapshots.ts`, the themes, and several tests). That
 is allowed only because they never run at the same time; see the Wave Plan.
@@ -496,6 +496,8 @@ re-run, so 741/741 above is still the Planner-observed baseline.
 | exact `pendingTriggers` literal (`{triggerId, actorId, actionId, matchingEvent}`) | `tests/runtime/combat/movement.test.ts:388-395` | S03 ck3 makes `PendingTrigger.source` required; add `source: 'action'` | S03 ck3 (file added to S03's Owns, F-P4; in no other session's lease) |
 | exact `pendingTriggers` literal | `tests/proofs/movement-journey.test.ts:216-223` | same as above | S03 ck3 |
 | envelope exact key set | `tests/snapshots/combat.test.ts:79-89` | S03 ck4 always writes `phase` and `offeredCount` (add both; `offers` stays absent in that fight) | S03 ck4 |
+| restore after a declare = `awaiting-declare` (v1.5 derivation) | `tests/runtime/combat/combat.test.ts:448` | DD-S14 restores the envelope `phase` (`resolved`) | S03 ck4 (lease rev 2; missed at planning, found at attempt 1) |
+| narrow-journey `restored.step()` relying on the lost phase | `tests/runtime/combat/movement.test.ts` ~l.327 | DD-S14 | S03 ck4 (in lease; re-keyed to `phase === fight.state.phase`) |
 | R-GM-1 workaround | `tests/proofs/movement-journey.test.ts:263-264` | `offeredCount` restores | S03 ck4 |
 | feat pattern literals | `tests/runtime/fixtures/packs.ts:136`, `tests/compiler/pipeline.test.ts:67`, `tests/compiler/stages.test.ts:77` | DD-S13 grammar | S03 ck1 |
 | README ```ts block count = 4 | `tests/proofs/docs-run.test.ts:49` | Never in this feature: README additions use ```text/```json only | S03 ck5 (keeps 4) |
@@ -512,9 +514,9 @@ re-run, so 741/741 above is still the Planner-observed baseline.
 | CAP-S2 | A mid-fight snapshot keeps the spell spend, and restore continues it (FR-14) | `poolsSpent`/`slotsCast` (S02 ck4) | CA-S2; S01 contract | S02 ck4 | verified | `ab6d6f6` (Orchestrator: build/typecheck/lint/format/isolation/security 0, 793/793): `tests/snapshots/combat.test.ts` (+8) + journey restore | — |
 | CAP-S3 | After `combat-over`, `settleSpellCasts` writes the spend into the character, which persists in a character snapshot | combatant spend (S02 ck4) | CA-S3 | S02 ck4 | verified | `ab6d6f6` (Orchestrator: build/typecheck/lint/format/isolation/security 0, 793/793): `spells.test.ts` settlement + journey settle → character snapshot round-trip | — |
 | CAP-S4 | **First narrow journey:** the generated dark-fantasy pack (seed 42), through `dist/`. Steps: prepare (twice) → profile → start against **two** enemies (wight + shambles; the caster ≥ 3 cells from every burst center) → declare the real `ember-bloom` → the named in-between enemy declares (wight `stride`, shambles `stride`) → an empty-cell blast on the hexer's next turn → snapshot/restore → end via the hp-0-via-restore harness (asserted, with the reason) → settle → the character snapshot shows the slots emptied. Plus a wyldwood pool-spell leg (`hexer` / `hex-bolt`), with the same end route | all of the above; theme spell costs + ranges (S02 ck5) | CA-S1…S5, CA-S9 | S02 ck5 | verified | `ab6d6f6` (Orchestrator: build/typecheck/lint/format/isolation/security 0, 793/793): `tests/proofs/spells-journey.test.ts` through `dist/` built at `ab6d6f6` (hp-0-via-restore ending asserted) | the S03 feat leg depends on this proof; ledger/turn continuity across a restore is **not** claimed at S02 (no envelope `phase` until S03 ck4, CAP-S8) |
-| CAP-S5 | A character learns a feat; feats persist in character snapshots and reach combat (FR-5, FR-13) | `learnFeat` (S03 ck2), profile `feats` (S03 ck2) | CA-S6 | S03 ck2 | planned | — | — |
-| CAP-S6 | Reactive feats fire in generated play: offered, taken (effect on the holder) or declined, with no chaining (FR-12 proof 2, FR-13) | feat offers (S03 ck3), theme patterns (S03 ck1) | CA-S6, CA-S7 | S03 ck3 (unit), S03 ck5 (journey leg) | planned | — | — |
-| CAP-S7 | A trigger pattern the engine can never match is refused at load (FR-2) | `checkTrigger` (S03 ck1) | CA-S7 | S03 ck1 | planned | — | — |
+| CAP-S5 | A character learns a feat; feats persist in character snapshots and reach combat (FR-5, FR-13) | `learnFeat` (S03 ck2), profile `feats` (S03 ck2) | CA-S6 | S03 ck2 | verified | S03 ck2 `e5e1a55`: `tests/runtime/feats.test.ts` (7), `tests/snapshots/character.test.ts` +3 | — |
+| CAP-S6 | Reactive feats fire in generated play: offered, taken (effect on the holder) or declined, with no chaining (FR-12 proof 2, FR-13) | feat offers (S03 ck3), theme patterns (S03 ck1) | CA-S6, CA-S7 | S03 ck3 (unit), S03 ck5 (journey leg) | in-progress (unit proven S03 ck3 `8d04c5e`, `feat-triggers.test.ts` 8, no-chain negative control; journey leg S03 ck5 pending) | `tests/runtime/combat/feat-triggers.test.ts` | — |
+| CAP-S7 | A trigger pattern the engine can never match is refused at load (FR-2) | `checkTrigger` (S03 ck1) | CA-S7 | S03 ck1 | verified | S03 ck1 `d9a6d71`: `validate.test.ts` +4, `coverage-floor.test.ts` +3; negative control (theme `[self]`) refuses generation | — |
 | CAP-S8 | The combat snapshot keeps every open offer (action and feat), the offer counter and the phase (FR-14; R-GM-1/2) | envelope fields (S03 ck4) | CA-S8 | S03 ck4 | planned | — | — |
 
 **Production paths and acceptance assertions:**
@@ -571,8 +573,8 @@ which S03 consumes: recheck them at S02 receive.
 | CA-S3 | The fight never writes character state; the host settles explicitly | combatant spend → `settleSpellCasts` → `CharacterState.pools/slots` | see below | S02 ck4 | agreed (DB text rechecked vs `1639a19` database.md v1.6, no delta) | landed ck4 `45c6fce`; proof passed at `ab6d6f6` | `character-profile.ts:131-236` |
 | CA-S4 | Character → combatant parity (FR-16) | `CharacterState` → `profileFromCharacter` → `CombatantProfile` / `EconomyBalances` | `spells` = `knownSpells` (non-empty only); `castBlockedBy` = `armorBlockingCast` (set only); `balances.bindings` = deep copy of `state.slots`; `feats` = `state.feats` (non-empty only, S03) | S02 ck3; S03 ck2 | agreed (DB text rechecked vs `1639a19` database.md v1.6, no delta) | landed S02 ck3 `9ec0410` (spell half); feats S03 ck2 planned; proof passed at `ab6d6f6` | `character-profile.ts:58-117`, `pools.ts:208, 300-310` |
 | CA-S5 | Conditions restrict spells by tag in combat (FR-7, FR-9) | `content.conditions[*].restricts` → `restrictionRejection` → the exported `matchesRestriction` + `declaredTags` | DD-S10: kind `'action'` for every declare, plus kind `'spell'` for a spell declare; out of combat `isRestricted` unchanged (kind-exact) | S01 ck3 (DB text, combat-scoped); S02 ck1 (unit, incl. the out-of-combat `isRestricted` pin), ck3 (integrated) | agreed (DB text rechecked vs `1639a19` database.md v1.6, no delta) | landed ck1 `010d730`, ck3 `9ec0410`; proof passed at `ab6d6f6` | `combat.ts:732-757`, `conditions.ts:41-52, 55, 186-213`, `tests/runtime/conditions.test.ts:67-72` at `56476e9` |
-| CA-S6 | Reactive feats ride the trigger substrate (FR-13; mocks triggers/conditions) | `CharacterState.feats` → profile → `CombatantState.feats` → `offersForEvent` → `respond` | DD-S11/S12; `PendingTrigger.source`; `triggerId = <combatantId>.<id>` (ids are globally unique, E-DUP-01) | S03 ck2–ck3 | agreed (DB text rechecked vs `1639a19` database.md v1.6, no delta) | planned | `triggers.ts:44-81`, `combat.ts:690-709` (`respond`), `combat.ts:1237-1289` |
-| CA-S7 | The trigger pattern grammar is the `eventMatches` grammar, enforced at load | `pack.schema.json` `trigger.on` pattern → `checkTrigger` → `eventMatches` | DD-S13 regex; `E-FORM-01`; jsonPath `<base>.trigger.on` | S01 ck3; S03 ck1 | agreed (rechecked vs `1639a19`, no delta) | contract leg landed S01 ck3 `1639a19`; runtime S03 ck1 planned | `helpers.ts:296-325`, `triggers.ts:31-41` |
+| CA-S6 | Reactive feats ride the trigger substrate (FR-13; mocks triggers/conditions) | `CharacterState.feats` → profile → `CombatantState.feats` → `offersForEvent` → `respond` | DD-S11/S12; `PendingTrigger.source`; `triggerId = <combatantId>.<id>` (ids are globally unique, E-DUP-01) | S03 ck2–ck3 | agreed (DB text rechecked vs `1639a19` database.md v1.6, no delta) | landed S03 ck2 `e5e1a55`, ck3 `8d04c5e`; unit proof passed; journey ck5 pending | `triggers.ts:44-81`, `combat.ts:690-709` (`respond`), `combat.ts:1237-1289` |
+| CA-S7 | The trigger pattern grammar is the `eventMatches` grammar, enforced at load | `pack.schema.json` `trigger.on` pattern → `checkTrigger` → `eventMatches` | DD-S13 regex; `E-FORM-01`; jsonPath `<base>.trigger.on` | S01 ck3; S03 ck1 | agreed (rechecked vs `1639a19`, no delta) | contract leg landed S01 ck3 `1639a19`; runtime landed S03 ck1 `d9a6d71`; proof passed | `helpers.ts:296-325`, `triggers.ts:31-41` |
 | CA-S9 | Spell range and area center (FR-9, FR-11; human 2026-09-30) | `content.spells[id].targeting.{shape,radius,range}` → `Combat.declare` range gate / `at` → `resolveShape(center)` → executor `varsFor` | see below; DD-S8, DD-S19 | S01 ck3 (contract); S02 ck2 (unit), ck5 (journey) | agreed (rechecked vs `1639a19`, no delta) | contract leg landed S01 ck3 `1639a19`; runtime landed S02 ck2 `89a11e7`; proof passed (unit + journey) at `ab6d6f6` | `spatial.ts:45-63, 93-135`, `combat.ts:1064-1092`, `resolve.ts` `executeAgainst`/`effectVars`, `effect.ts:255-307, 383-393`, `content.ts:497-530` at `55b294f` |
 | CA-S8 | The combat envelope keeps offers/phase/counter (FR-14) | `Combat.pendingTriggers`/`state.phase`/`offeredCount` → envelope → `deserializeCombat` | DD-S14 | S01 ck3; S03 ck4 | agreed (rechecked vs `1639a19`, no delta) | contract leg landed S01 ck3 `1639a19`; runtime S03 ck4 planned | `snapshots.ts:461-610, 757-770`, `combat.ts:439` |
 
@@ -700,6 +702,7 @@ and B-S1) are unchanged.
 | — | — | None open. **B-S1 cleared** 2026-09-30 ("8a - yes 8b - fine 9 cost a turn 10 yes 11 yes 12 yes 13 yes 14 yes", recorded in Intent). DD-S9 was read as the whole turn; see the interpretation note under DD-S9. The planning-completeness review's blocking findings F-P1 … F-P6 are resolved by REPLAN-SIC-01 (see "Planning completeness review"), and S01 is dispatchable. | — | — |
 | C-S01-1 | `mocks/spatial.html:191` (derived-phase copy goes stale once S03 ck4 writes envelope `phase`) | Carried: an existing-mock copy change outside S01's authorized four-mock design-change; Designer re-entry after S03, listed in the Final Report | Designer (human-authorized design-change) | mock text matches DD-S14 |
 | C-S02-1 | CAP-S1, CA-S1 (12 theme sites: dark-fantasy :92/:261/:381/:405/:421/:437/:445, wyldwood :189/:535/:582, zombie-urban :100/:214; actions incl. `cold-grip`) | OWNER-M02-HALF: executor treats `damage(half)` whose save fail branch has no damage as no damage (no throw); regression on a combat cast | Orchestrator owner correction (effect.ts, effect.test.ts, spells.test.ts) | a passed save on such a spell resolves with no damage event, `action:resolved` emitted, no throw |
+| B-S03-1 | S03 ck4/ck5 | Lease revision 2 adds `tests/runtime/combat/combat.test.ts` (one pin re-key); resume S03 from ck3 with its preserved ck4 tree | Orchestrator (Controlled Lease Revision) | ck4 committed with whole suite green |
 
 ## Handoff Notes
 
@@ -934,3 +937,119 @@ Things you should know before S03:
   - `tests/proofs/grid-journey.test.ts`
   - `tests/proofs/rules-are-data.test.ts`
   - `tests/proofs/spells-journey.test.ts`
+
+### SESSION-03 attempt 1 — received 2026-09-30 (r-ZVpm, handle h-_FY8 / CYWgF): blocked at ck3
+
+**Orchestrator receive:** 3 commits (`d9a6d71`, `e5e1a55`, `8d04c5e`), every path inside the lease. ck4 is implemented but uncommitted in 5 lease paths, preserved in the tree and as `.program/history/spells-in-combat/SESSION-03.ck4-pending.attempt1.patch` (base `8d04c5e`). Blocker: the unowned pin `tests/runtime/combat/combat.test.ts:448`, which contradicts approved DD-S14. Disposition: Controlled Lease Revision 2 (one pin re-key), then resume the same worker context. `CombatantState.feats` optional (present only when non-empty) accepted: it matches the DD-S11 presence rule. CAP-S5/S7 verified; CAP-S6 unit proven.
+
+**Handoff summary (verbatim):**
+
+SESSION-03 is blocked at checkpoint 4. Checkpoints 1–3 are committed. Checkpoint 4 is fully written but left uncommitted, because one test outside my lease contradicts the approved snapshot rule (DD-S14) and it is the only thing keeping the whole suite red.
+
+**The blocker.** `tests/runtime/combat/combat.test.ts:448` expects a fight saved right after a declare to restore as `awaiting-declare`. Under DD-S14 the snapshot now records the phase, so that fight restores as `resolved`, its live phase. That is the R-GM-2 fix itself. The pin moves under the approved rule, but no plan row names it and it is in no session's lease. The fix is one expected value: `toBe('awaiting-declare')` → `toBe(fight.state.phase)` (`resolved`).
+
+**Landed:**
+- **ck1 (`d9a6d71`), CAP-S7:** trigger patterns that can never fire are refused at load (`E-FORM-01`). The 5 theme feat patterns and 3 test literals now read `condition:applied[target=self]`. A negative control with the old literal in one theme makes generation refuse the pack.
+- **ck2 (`e5e1a55`), CAP-S5:** characters can learn feats with `learnFeat`. Held feats survive a character snapshot, an unknown feat id is refused on restore, and held reactive feats reach the combat profile.
+- **ck3 (`8d04c5e`), CAP-S6 unit:** held feats are offered like reactions, act on their holder when taken, and never chain. A negative control with the no-chain rule switched off fails the take test.
+
+**Pending ck4 (uncommitted, in the working tree):** the combat snapshot now keeps every open offer, the offer counter and the phase. Everything else is green: 826/827 tests, typecheck/lint 0, prettier clean.
+
+**Decision for you:** the plan types `CombatantState.feats` as always present, but it also says to emit it only when non-empty in any JSON form. I made it present only when non-empty so both hold. Say if you want it the other way.
+
+The concurrent worker's files (`effect.ts`, `effect.test.ts`, `spells.test.ts`) did not affect any of my gates. The arch fragment for ck1–ck3 is written; ck4's delta will follow on resume.
+
+**Handoff (verbatim):**
+
+- **session:** 03
+- **status:** blocked
+- **checkpoint:** 3
+- **notes:** Lease revision 1. Landed:
+  - ck1 `d9a6d71` (CAP-S7, CA-S7 runtime leg: `TRIGGER_PATTERN`, `checkTrigger` E-FORM-01);
+  - ck2 `e5e1a55` (CAP-S5, CA-S4 feats half, CA-S6 part: `learnFeat`, `CharacterState.feats?`, `Character.learnFeat`, `PackIndex.featEffects`, character-snapshot `feats` + E-SNAP-01 refusal, `CombatantProfile.feats?`, `profileFromCharacter` feats);
+  - ck3 `8d04c5e` (CAP-S6 unit, CA-S6: `PendingTrigger.source`, `reactiveFeatsFor`, `offersForEvent(…, {feats?})`, `resolveFeat` take/invalid-target, the no-chain rule).
+  - ck4 (CAP-S8, CA-S8) is implemented but uncommitted. Base `8d04c5e`; pending paths (all in the lease, all modified, none untracked): `src/runtime/combat/combat.ts`, `src/runtime/snapshots.ts`, `tests/snapshots/combat.test.ts`, `tests/proofs/movement-journey.test.ts`, `tests/runtime/combat/movement.test.ts`. Orchestrator should preserve them at receive.
+  - Exact payloads as landed: `trigger:fired {triggerId, actionId, source, on, offerIndex}` and `trigger:declined {triggerId, actionId, source, on}`, `why.rule` `actions.<id>.trigger` | `content.feats.<id>.trigger`. A feat take's effect events carry `why.rule` `content.feats.<id>`.
+  - ck4 counter-restore mechanism (pending): `new Combat(runtime, state, rng?, { offeredCount? })` plus a read-only getter `offeredCount`.
+- **delivered:**
+  - **ck1:** `TRIGGER_PATTERN` in `helpers.ts`. A string `on` that fails the grammar is E-FORM-01 at `<base>.trigger.on`; the hint `did you mean "<base>[target=self]"?` is given for `[self]`. 5 theme feats re-keyed to `condition:applied[target=self]` (dark-fantasy:179, zombie-urban:183/188, wyldwood:362/369). Literal re-keys at `packs.ts:136`, `pipeline.test.ts:67`, `stages.test.ts:77`. Tests: `validate.test.ts` +4, `coverage-floor.test.ts` +3 (per-theme grammar check and `[target=self]` on every reactive feat).
+  - **ck2:**
+    - `src/runtime/feats.ts` (leaf; imports only `./errors` plus types) with `learnFeat`.
+    - Character feats, facade, `featEffects`; character snapshot feats with the refusal; the `snapshots.ts` doc line updated.
+    - Profile `feats` = held feats that declare a `trigger`, non-empty only.
+    - Barrel exports `learnFeat`.
+    - Tests: `tests/runtime/feats.test.ts` (7), `tests/snapshots/character.test.ts` +3.
+  - **ck3:**
+    - `CombatantState.feats?`; `PendingTrigger.source`, set to `'action'` at every existing construction including the legacy restore.
+    - Feat offers come after all action offers.
+    - Feat take/decline; the no-chain rule via `surfaceOffers(emitted, {feats: false})`.
+    - The `triggers.ts` grammar doc was corrected; the barrel exports `reactiveFeatsFor`.
+    - Pins re-keyed (`source: 'action'` only): `movement.test.ts` (old l.388–395), `movement-journey.test.ts` (old l.216–223).
+    - New `tests/runtime/combat/feat-triggers.test.ts` (8).
+  - **ck4 (pending):**
+    - Serialize always writes `phase` and `offeredCount`, writes `offers` (every open offer in queue order, action and feat) when non-empty, and no longer writes `pendingTrigger`.
+    - Restore follows DD-S14 precedence and reads legacy `pendingTrigger` only when `offers` is absent.
+    - E-SNAP-01 refusals, all collected: offers beside a pendingTrigger; an unknown actorId; an id the source does not hold; `combat-over` with no side defeated; plus a non-enum phase and an `offeredCount` that is not an integer ≥ 0.
+    - Pins re-keyed: `snapshots/combat.test.ts` key-set (9 → 11 keys, +`offeredCount`, +`phase`), old l.123–125 and l.606 → `snap.offers`. `movement-journey` R-GM-1 workaround removed, with an assertion that `offerIndex === snap.offeredCount > 0`.
+    - New envelope tests (5): two offers in order plus counter continuity; R-GM-2 use-raised `awaiting-declare` (and `resolved` once `phase` is deleted); the v1.5 envelope restoring as before; all refusals; combat-over accepted when a side is down.
+- **verification:**
+  - **ck1:** `pnpm build` 0. `pnpm test` 804/804 across 42 files; this includes the concurrent worker's in-flight tests (793 baseline + 7 mine + 4 theirs). typecheck 0 after a test-only typing fix made before the commit; lint 0. Narrow gate `pnpm exec vitest run tests/schema/validate.test.ts tests/compiler` → 287/287 in 6 files. Negative control: dark-fantasy reverted to `[self]` → coverage-floor fails at collect (stage-8 validation refuses); restored.
+  - **ck2:** typecheck 0; `pnpm exec vitest run tests/runtime tests/snapshots` → 346/346 in 20 files; lint 0; prettier clean.
+  - **ck3:** typecheck 0; build 0; `pnpm exec vitest run tests/runtime tests/snapshots tests/proofs` → 405/405 in 29 files; lint 0. Negative control: no-chain rule off → the take test fails; restored.
+  - **ck4 (pending):** typecheck 0, lint 0, prettier clean. `pnpm exec vitest run tests/snapshots/combat.test.ts tests/runtime/combat/movement.test.ts` → 58/58. Negative control: counter reset to 0 → the continuity test fails; restored.
+  - **Whole suite:** `pnpm build` (working tree at base `8d04c5e`) then `pnpm test` → 826/827 across 44 files. The only red is `tests/runtime/combat/combat.test.ts:448`.
+  - Every commit was checked with `git show --name-only`; all paths are inside the write set.
+- **surprises:**
+  - **Unowned pin (planning defect, outside the lease):** `tests/runtime/combat/combat.test.ts` "a mid-fight snapshot (one side partly downed) restores exactly as before: awaiting-declare at the frozen turn" (l.448). It asserts the v1.5 derivation after `declare('surge')`. DD-S14 restores the live envelope phase `resolved`, so the pin moves under the approved rule; it is in no session's lease and no "Pins that move" row.
+  - **Second pin of the same class, inside my lease:** `tests/runtime/combat/movement.test.ts` (narrow journey leg, about l.327). Its `restored.step()` relied on the lost phase. I replaced it with `expect(restored.state.phase).toBe(fight.state.phase)`, and the same-turn `strike` still succeeds. This goes beyond the plan's "only the l.388–395 change" for that file.
+  - **`CombatantState.feats` is optional** (present only when non-empty) so that "emit only when non-empty in any JSON form" holds; readers use `?? []`.
+  - **Offer ordering:** all action offers for an event come first (across combatants), then feat offers (the "actions first" rule).
+  - **Phase without an envelope `phase`:** the v1.5 derivation also treats envelope `offers` as `resolved`.
+  - **`Combat.use` surfaces only effect events, not `item:used`** (pre-existing). The R-GM-2 test uses a `damage:applied[target=brynn]` reaction.
+  - No CA-S6/S7/S8 mapping changed.
+- **followUp:**
+  - On a lease revision adding `tests/runtime/combat/combat.test.ts`: re-run whole-suite verification, commit ck4 ("The combat envelope keeps offers, counter and phase"), then ck5 (spells-journey feat leg, rules-are-data proof 2, README plus the docs-run guards and the `learnFeat` dist freshness assertion).
+  - Arch fragment `.program/signal/SESSION-03.arch.md` covers landed ck1–ck3; the ck4/ck5 delta follows in the resumed session.
+  - Remaining proof owners (S03 after resume): CAP-S8 / CA-S8 (ck4); CAP-S6 journey (ck5). CA-S6/CA-S7 runtime legs are landed and unit-proven.
+  - Carried open items:
+    - C-S01-1 `spatial.html:191` derived-phase copy — Designer, after ck4.
+    - C-S02-1 damage(half) — OWNER-M02-HALF.
+    - Out-of-combat restricts asymmetry — a future restricts feature.
+    - F-M2 reach floor and R-GM-3 resume provoke skip — owners as in grid-movement FINAL-REPORT.
+    - zombie-urban and wyldwood hedge-mage spell lists — the next content feature.
+    - FR-6 feat-slot cap — a future feat-progression feature.
+    - Self-buff actions target the opponent — a future feature that touches action targeting.
+    - C1 `isLivePattern` — carried.
+    - `heal`/`EFFECT_VOCABULARY`, item tags, `evalPackFormula` parse-once, browser determinism leg — owners as in prior ledgers.
+- **needsOwnerCorrection:**
+  - **kind:** mechanical-owner-seam
+  - **paths:** `tests/runtime/combat/combat.test.ts`
+  - **whyNeeded:** DD-S14 (approved) restores the frozen envelope `phase`. The test at l.448 pins the v1.5-derived `awaiting-declare` after a declare, when the live phase is `resolved`. The ck4 whole-suite commit gate cannot go green without this one-line re-key.
+  - **unblocks:** SESSION-03 ck4 and ck5
+  - **suggestedChange:** at l.448, `expect(restored.state.phase).toBe('awaiting-declare')` → `expect(restored.state.phase).toBe(fight.state.phase)` (= `'resolved'`). Optionally retitle "…: the live phase at the frozen turn". Every other assertion is unchanged. Requested as lease revision 2 adding this path to S03's write set (or an Orchestrator owner correction); last accepted checkpoint 3.
+- **needsDesignSource:** —
+- **blockedReason:** ck4 (CAP-S8 / CA-S8 proof due here) cannot commit green: the only whole-suite red (826/827) is the unowned outside-lease pin `tests/runtime/combat/combat.test.ts:448`, which contradicts the approved DD-S14 phase restore. Machine-actionable lease gap, not a product-design question. ck4 implementation is preserved uncommitted in the 5 lease paths listed in notes.
+- **filesTouched:**
+  - `src/schema/validate/helpers.ts`
+  - `src/compiler/themes/dark-fantasy.json`
+  - `src/compiler/themes/zombie-urban.json`
+  - `src/compiler/themes/wyldwood.json`
+  - `tests/runtime/fixtures/packs.ts`
+  - `tests/compiler/pipeline.test.ts`
+  - `tests/compiler/stages.test.ts`
+  - `tests/compiler/coverage-floor.test.ts`
+  - `tests/schema/validate.test.ts`
+  - `src/runtime/feats.ts`
+  - `src/runtime/character.ts`
+  - `src/runtime/runtime.ts`
+  - `src/runtime/snapshots.ts`
+  - `src/runtime/combat/resolve.ts`
+  - `src/runtime/character-profile.ts`
+  - `src/runtime/index.ts`
+  - `tests/runtime/feats.test.ts`
+  - `tests/snapshots/character.test.ts`
+  - `src/runtime/combat/combat.ts`
+  - `src/runtime/combat/triggers.ts`
+  - `tests/runtime/combat/feat-triggers.test.ts`
+  - `tests/runtime/combat/movement.test.ts`
+  - `tests/proofs/movement-journey.test.ts`

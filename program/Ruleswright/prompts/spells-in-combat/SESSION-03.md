@@ -5,7 +5,7 @@
 > **Modules:** M01, M03, M04 (theme content only)
 > **Depends on:** SESSION-02 (`CombatantState` spell fields, `profileFromCharacter` bridge, snapshot spend, `spells-journey.test.ts` landed; CA-S1 … S5 rechecked against them by Orchestrator)
 > **Concurrent with:** —
-> **Owns:** `src/schema/validate/helpers.ts`, `src/runtime/feats.ts`, `src/runtime/character.ts`, `src/runtime/runtime.ts`, `src/runtime/combat/triggers.ts`, `src/runtime/combat/combat.ts`, `src/runtime/combat/resolve.ts`, `src/runtime/character-profile.ts`, `src/runtime/snapshots.ts`, `src/runtime/index.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `tests/schema/validate.test.ts`, `tests/runtime/fixtures/packs.ts`, `tests/compiler/pipeline.test.ts`, `tests/compiler/stages.test.ts`, `tests/compiler/coverage-floor.test.ts`, `tests/runtime/feats.test.ts`, `tests/runtime/combat/feat-triggers.test.ts`, `tests/runtime/combat/movement.test.ts`, `tests/snapshots/character.test.ts`, `tests/snapshots/combat.test.ts`, `tests/proofs/movement-journey.test.ts`, `tests/proofs/rules-are-data.test.ts`, `tests/proofs/spells-journey.test.ts`, `tests/proofs/docs-run.test.ts`, `README.md`
+> **Owns:** `src/schema/validate/helpers.ts`, `src/runtime/feats.ts`, `src/runtime/character.ts`, `src/runtime/runtime.ts`, `src/runtime/combat/triggers.ts`, `src/runtime/combat/combat.ts`, `src/runtime/combat/resolve.ts`, `src/runtime/character-profile.ts`, `src/runtime/snapshots.ts`, `src/runtime/index.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `tests/schema/validate.test.ts`, `tests/runtime/fixtures/packs.ts`, `tests/compiler/pipeline.test.ts`, `tests/compiler/stages.test.ts`, `tests/compiler/coverage-floor.test.ts`, `tests/runtime/feats.test.ts`, `tests/runtime/combat/feat-triggers.test.ts`, `tests/runtime/combat/movement.test.ts`, `tests/runtime/combat/combat.test.ts` (lease rev 2, ck4 pin only), `tests/snapshots/character.test.ts`, `tests/snapshots/combat.test.ts`, `tests/proofs/movement-journey.test.ts`, `tests/proofs/rules-are-data.test.ts`, `tests/proofs/spells-journey.test.ts`, `tests/proofs/docs-run.test.ts`, `README.md`
 > **Reads:** `program/Ruleswright/specs/database.md` (v1.6), `src/schema/contracts/{pack,snapshots}.schema.json`, `src/schema/validate/sections/{actions,content}.ts`, `src/runtime/conditions.ts`, `src/runtime/events.ts`, `program/Ruleswright/mocks/{triggers,conditions,magic,api-map}.html`, `program/Ruleswright/prompts/spells-in-combat/STATE.md`
 > **Resources:** —
 > **Checkpoints:** 5
@@ -220,6 +220,9 @@ wins: report the difference.
 - prettier is clean.
 
 ### Checkpoint 4 — The combat envelope keeps offers, counter and phase (CAP-S8)
+
+> **Lease revision 2 (Orchestrator, 2026-09-30, Controlled Lease Revision after attempt 1 returned blocked at ck3).** `tests/runtime/combat/combat.test.ts` is added for ONE permitted edit: the pin at l.448 ("a mid-fight snapshot (one side partly downed) restores exactly as before") moves under DD-S14. Assert `restored.state.phase` is `'resolved'` (equal to `fight.state.phase`) and retitle it "…: the live phase at the frozen turn". Every other assertion in that test and file stays unchanged. Closing check: the whole suite is green with ck4. Attempt 1's ck4 work is preserved uncommitted in the tree (and as `.program/history/spells-in-combat/SESSION-03.ck4-pending.attempt1.patch`).
+
 
 1. **`combat.ts`:** the offer counter becomes restorable. Add a constructor option
    `{ offeredCount?: number }`, or a documented `restoreOfferCount(n)` used only by
