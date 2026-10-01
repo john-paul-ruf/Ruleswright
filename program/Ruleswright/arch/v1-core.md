@@ -935,3 +935,48 @@ callback on an existing interface (no import). `check:isolation` 0 at `ab6d6f6`.
 ### spells-in-combat OWNER-M02-HALF delta (Orchestrator mid-run append; commit 623a687)
 
 - Effect executor (`src/core/dsl/effect.ts`): in a passed save whose fail branch has no damage expression, `damage(half)` now resolves as no damage. It makes no `apply.damage` request, emits no `damage` outcome and draws no RNG. `damage(half)` reached outside a save's pass branch still throws (E-FORM-02), and the load-time check is unchanged (C-S02-1).
+
+<!-- spells-in-combat SESSION-03 -->
+### spells-in-combat SESSION-03 delta (Orchestrator mid-run append; ck1 d9a6d71 .. ck5 5cfad48)
+
+No new module, no new cross-module edge, no rule id. ck4 (`c6128bd`) and ck5 (`5cfad48`) landed after lease revision 2; their delta follows the ck1–ck3 sections below.
+
+##### M01 — `src/schema/validate/helpers.ts`
+- `export const TRIGGER_PATTERN = /^[a-z][a-z0-9-]*(:[a-z][a-z0-9-]*)*(\[(target|actor)=[a-z][a-z0-9-]*\])?$/` — the `eventMatches` grammar (DD-S13), equal to the v1.6 contract `trigger.on` pattern.
+- `checkTrigger`: a string `on` that passes the length check but fails `TRIGGER_PATTERN` is `E-FORM-01` at `<base>.trigger.on` (actions and feats alike), message `trigger pattern "<on>" can never fire — the grammar is <event> or <event>[target|actor=self|<id>].`, hint `did you mean "<base>[target=self]"?` when the pattern ends `[self]`. No new import.
+
+##### M03 — runtime
+- **New leaf `src/runtime/feats.ts`:** `learnFeat(runtime, character: CharacterState, featId): RuntimeEvent` — refusals `unknown-feat`, `feat-known` (RuntimeRuleError, nothing changes); appends to `character.feats`; emits `feat:learned {featId}` (actor = character id, `why.rule` `content.feats.<id>`). Value-imports only `./errors`. Value edge `character.ts → feats.ts` (no cycle: feats imports character types only).
+- `CharacterState.feats?: string[]` — absent until the first learn (DD-S11, the `equipped` presence rule); `Character.learnFeat(featId): void`.
+- `PackIndex.featEffects` — parse-once ASTs of the feats that declare `effect` (`compileEffects`).
+- Character snapshot: `feats` serialized only when present; restore refuses an unknown feat id (`E-SNAP-01` at `<path>.feats[i]`, all cards before applying).
+- `CombatantProfile.feats?: readonly string[]`; `profileFromCharacter` emits it = held feats with a `trigger`, only when non-empty (CA-S4).
+- `CombatantState.feats?: readonly string[]` — present only when non-empty (built by the exported `combatantFeats(profile)` in `startCombat` and `deserializeCombat`).
+- `PendingTrigger.source: 'action' | 'feat'` (required); `actionId` names the feat id for a feat offer.
+- `combat/triggers.ts`: new `reactiveFeatsFor(runtime, combatant)`; `offersForEvent(runtime, combatants, event, options?: { feats?: boolean })` returns every action offer (combatants in `Object.values` order), then every feat offer unless `feats: false`. `trigger:fired` payload `{triggerId, actionId, source, on, offerIndex}` and `trigger:declined` payload `{triggerId, actionId, source, on}`; `why.rule` `actions.<id>.trigger` or `content.feats.<id>.trigger`.
+- `Combat.respond` take on a feat (`resolveFeat`): `targetId` other than the holder → `declare:rejected invalid-target` (the offer has left the queue); otherwise the parse-once feat effect runs on the holder, no cost/restriction/reach gate, `why.rule` `content.feats.<id>`, phase unchanged; then `endIfSideDefeated` and `surfaceOffers(emitted, { feats: false })` — the no-chain rule (DD-S12).
+- Barrel (`src/runtime/index.ts`): `learnFeat`, `reactiveFeatsFor`.
+
+#### SESSION-03 — arch delta, ck4 (`c6128bd`) and ck5 (`5cfad48`)
+
+##### M03 — the combat envelope (DD-S14, CAP-S8)
+- `Combat` constructor: `new Combat(runtime, state, rng?, options?: { readonly offeredCount?: number })`. The offer counter resumes from `offeredCount` (absent = 0). Read-only getter `Combat.offeredCount`, the next `trigger:fired.offerIndex` (R-GM-1).
+- `snapshots.ts`: new exported type `SnapshotOffer {actorId, source: 'action' | 'feat', id, on}`. `CombatSnapshot` gains `phase?: CombatPhase`, `offeredCount?: number` and `offers?: readonly SnapshotOffer[]`. `SnapshotCombatant.pendingTrigger` is legacy: read on restore, never written.
+- `serializeCombat` always writes `phase` and `offeredCount`, writes `offers` (every open offer in queue order, actions and feats) only when non-empty, and no longer writes the per-combatant `pendingTrigger`.
+- `deserializeCombat` precedence:
+  - offers come from `offers` in order, else from the legacy `pendingTrigger`;
+  - phase = `combat-over` by the frozen hp, else the envelope `phase`, else the v1.5 derivation (which also treats envelope `offers` as `resolved`);
+  - the counter comes from `offeredCount`.
+- New E-SNAP-01 refusals, collected with the existing ones before anything is rebuilt:
+  - `offers` beside a `pendingTrigger`;
+  - an offer that is not `{actorId, source, id, on}`;
+  - an `actorId` not in the order;
+  - an `id` that is not a reactive action in the re-stated `actions` or a reactive feat in the re-stated `feats`, for its `source`;
+  - a non-enum `phase`;
+  - `phase` `combat-over` while the frozen hp defeat no side;
+  - an `offeredCount` that is not an integer ≥ 0.
+- Behavior change: a snapshot taken after a declare now restores in the live phase (`resolved`), not the v1.5-derived `awaiting-declare` (R-GM-2).
+
+##### Docs (ck5)
+- README: new section `## Spells and feats in combat` (after Grid combat). The `profileFromCharacter` bullet, the Grid combat burst prose and the armorCasting bullet are updated. The ```ts block count stays 4.
+- No public API change at ck5.
