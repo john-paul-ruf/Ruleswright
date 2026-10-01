@@ -61,6 +61,7 @@ rt.startCombat({ allies, enemies, positions?, terrain? }, opts?)  <span class="c
 char.knownSpells / char.slots / char.pools      <span class="com">// FR-8 · FR-9 · plain JSON</span>
 char.applyTheme(id) / char.removeTheme(id)      <span class="com">// conditions (FR-7)</span>
 char.prepare(spellId, slotRef)                  <span class="com">// memorize — a pack action (FR-9)</span>
+char.learnFeat(featId)                          <span class="com">// feats are character state (FR-5)</span>
 char.serialize() / Character.deserialize(json)  <span class="com">// FR-14 · serializer 1 of 3</span></code></pre>
     </div>
   </section>
@@ -71,11 +72,12 @@ char.serialize() / Character.deserialize(json)  <span class="com">// FR-14 · se
     <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
       <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>fight.step()                                    <span class="com">// begin → declare → resolve → end (FR-10)</span>
 fight.roundComplete                             <span class="com">// host paces the loop</span>
-fight.declare(actionId, { targetId?, to? })     <span class="com">// validity checked against pack (FR-4) · to = move destination (FR-11)</span>
+fight.declare(id, { targetId?, at?, to? })      <span class="com">// an action or a spell (FR-4, FR-9) · at = empty-cell area center (spells) · to = move destination (FR-11)</span>
 fight.respond(triggerId, choice)                <span class="com">// answer an offered trigger (FR-4, FR-13)</span>
 fight.on(fn) / fight.off(fn)                    <span class="com">// subscribe — never required (FR-13)</span>
-fight.events.sinceRound(n)                      <span class="com">// the provenance stream · move:leaving-reach · move:advanced · move:ended (FR-11)</span>
-fight.serialize() / Combat.deserialize(snap, pack)  <span class="com">// FR-14 · serializer 3 of 3 · rng included</span></code></pre>
+fight.events.sinceRound(n)                      <span class="com">// the provenance stream · move:leaving-reach · move:advanced · move:ended (FR-11) · spell:cast · trigger:fired (action | feat)</span>
+fight.serialize() / Combat.deserialize(snap, pack)  <span class="com">// FR-14 · serializer 3 of 3 · rng included</span>
+settleSpellCasts(rt, char, fight, id?)          <span class="com">// after combat-over: spell spend → character (FR-8)</span></code></pre>
     </div>
   </section>
 

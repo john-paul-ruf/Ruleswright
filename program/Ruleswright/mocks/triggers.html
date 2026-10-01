@@ -37,20 +37,19 @@
     <h2 class="font-display text-2xl mb-4">Anatomy</h2>
     <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
       <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">pack actions — one reactive action, one reactive feat</div>
-      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="str">"parry"</span>: {
-  <span class="kw">"trigger"</span>: <span class="str">"on:event(attack:rolled, target=self)"</span>,
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="str">"parry"</span>: {                                   <span class="com">// actions.parry</span>
+  <span class="kw">"trigger"</span>: { <span class="kw">"on"</span>: <span class="str">"attack:rolled[target=self]"</span> },
   <span class="kw">"cost"</span>: { <span class="kw">"slots"</span>: { <span class="str">"reaction"</span>: <span class="num">1</span> } },
-  <span class="kw">"effect"</span>: { <span class="kw">"opposed"</span>: <span class="str">"grace vs attacker.grace"</span>,
-             <span class="kw">"onWin"</span>: <span class="str">"negate(attack)"</span> }
+  <span class="kw">"effect"</span>: <span class="str">"sequence(attack(ac, grace), damage(1d6, sharp))"</span>
 }
 
-<span class="com">// a feat can be reactive too — same substrate</span>
-<span class="str">"second-wind"</span>: {
-  <span class="kw">"trigger"</span>: <span class="str">"on:event(condition:applied, target=self)"</span>,
-  <span class="kw">"once"</span>: <span class="str">"per:encounter"</span>,       <span class="com">// gating is pack data</span>
-  <span class="kw">"effect"</span>: { <span class="kw">"heal"</span>: <span class="str">"1d6 + vigor"</span> }
+<span class="com">// a feat can be reactive too — same substrate      // content.feats.second-gust</span>
+<span class="str">"second-gust"</span>: {
+  <span class="kw">"trigger"</span>: { <span class="kw">"on"</span>: <span class="str">"condition:applied[target=self]"</span> },
+  <span class="kw">"effect"</span>: <span class="str">"applyCondition(braced, 2)"</span>      <span class="com">// a feat costs nothing; it acts on its holder</span>
 }</code></pre>
     </div>
+    <p class="text-sm text-[#9A8F7E] mt-3">The grammar is <span class="font-data text-[13px]">&lt;event&gt;</span> or <span class="font-data text-[13px]">&lt;event&gt;[target|actor=self|&lt;id&gt;]</span>; anything else is refused at load (<span class="font-data text-[13px]">E-FORM-01</span>). Events raised by a feat never offer feats, so a feat cannot trigger itself.</p>
   </section>
 
   <!-- TIMELINE -->
@@ -70,7 +69,7 @@
         <span class="text-[#7BA05B]">attack:negated</span><span class="text-[#9A8F7E]">wight.claw negated by parry</span><span class="text-[#9A8F7E] ml-auto">why: parry.onWin · brynn.reaction 1→0</span>
       </div>
       <div class="rounded border border-[#3A322A] bg-[#241F1A] px-4 py-2 font-data text-[12px] flex flex-wrap gap-x-6 gap-y-1">
-        <span class="text-[#9A8F7E]">trigger:declined</span><span class="text-[#9A8F7E]">second-wind not taken · host prompt returned nothing</span><span class="text-[#9A8F7E] ml-auto">why: engine offers; the host decides pacing</span>
+        <span class="text-[#9A8F7E]">trigger:declined</span><span class="text-[#9A8F7E]">second-gust not taken · host prompt returned nothing</span><span class="text-[#9A8F7E] ml-auto">why: engine offers; the host decides pacing</span>
       </div>
     </div>
     <p class="text-sm text-[#9A8F7E] mt-3">The engine <em>offers</em> a trigger as an event; the host answers in its own pacing — prompt a player, let the AI answer, decline. Stepwise by construction (FR-10).</p>
@@ -81,7 +80,7 @@
     <h2 class="font-display text-2xl mb-4">The proof this page exists to make</h2>
     <div class="rounded-md border border-[#3A322A] bg-[#1E1A16] overflow-hidden">
       <div class="px-4 py-2 border-b border-[#3A322A] font-data text-xs text-[#9A8F7E]">CI — FR-12 proof 2</div>
-      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>test pack: <span class="str">"proof-reactive"</span>  — declares parry + second-wind
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>test pack: <span class="str">"proof-reactive"</span>  — declares parry + second-gust
   ✓ trigger fired on attack:rolled (event substrate)
   ✓ reaction consumed a declared slot
   ✓ combat outcome changed (negation happened)
