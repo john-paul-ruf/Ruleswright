@@ -167,11 +167,11 @@ values stay plain integers. **DD16** the positionless `fightScript` adjacency fa
 distance-3 shape was empirically proved a permanent stalemate — the engine ships no movement
 mechanic, so a gap can never close); skip actions must be **reach-neutral** in spatial packs. *(Stalemate retired by grid-movement:
 generated packs move, and the movement journey's 2v2 reaches `combat-over`.)*
-**DD17** combat `declare()` resolves actions **only** from `pack.actions` — generated packs'
-`content.spells` are not combat-declarable (no `bindSpell` symbol exists; the binding surface is
-`prepareSpell`); the journey proves bursts through pack data added at test setup (FR-12
-rules-are-data discipline, zero engine diffs); a "spells as combat actions" bridge is an engine
-design event (Author/DB re-entry class) for a future program; `declare()` returns
+**DD17** combat `declare()` resolved actions only from `pack.actions` until spells-in-combat
+(v1.6): `declare(id)` now looks the id up in `pack.actions`, then in `pack.content.spells`, and a
+spell rides the same pipeline (membership in `profile.spells`, range gate instead of reach,
+armor gate, binding pick, `spell:cast`); the grid journey casts the real `ember-bloom` (DD17a
+retired; the binding surface is still `prepareSpell`); `declare()` returns
 `events.sinceRound(round)` (the round's window — resumed-leg assertions need a fresh sink). *(Since
 grid-movement F-P1 the return value is unchanged, but **offers** are surfaced only for the
 events the current call emitted — see M03 combat.)*
@@ -189,7 +189,8 @@ once into `PackIndex.itemEffects`. **DD-EG4** `heal(formula)` is registry entry 
 a negative-amount `damage`; heal rule (R-2) `after = current >= cap ? current : min(cap,
 current + heal)` — never above the cap, never lowering hp already above it. **DD-EG5**
 armorCasting teeth at **slot** cast time only (an item is armor iff `grants.armor`); point-pool
-casting has no cast verb (DD17a), so wyldwood's charm armor is validation-only content.
+spells are cast in combat (`fight.declare`, v1.6) and are never armor-gated; out of combat point-pool
+casting still has no verb, so wyldwood's charm armor remains validation-only content.
 **DD-EG6/6a** `fight.use` draws on host-stated `balances.items` (fixed `itemBalances`, spent
 `itemsUsed`), is not a slot action, gate 0 copies `declare`'s phase/turn rule; the host calls
 `settleItemUses` after `combat-over` to drop the spent units — idempotent **per live fight
@@ -422,7 +423,8 @@ scope) only when `formulas.speed` is declared; `useItem` binds the `speed` effec
   `SlotLedger` transients (`freshLedger/replenish/spend/refund`; never character state).
   equipment-consumables S05: `EconomyBalances.items?` — host-stated item charges, like
   `pools`/`boundSlots`.
-- `combat/resolve.ts` (FR-3) — `parsePackEffects`/`checkPackDsl` (parse-once + load-time check);
+- `combat/resolve.ts` (FR-3) — `checkPackDsl` (load-time check; parse-once lives in `PackIndex`, and
+  `parsePackEffects` was deleted in spells-in-combat S02);
   `profileFromStatblock` — the one combatant constructor for characters and monsters;
   `attackBonusAgainst` (`byDefense[String(v)]` literal lookup); `attackRoll` (verdict-attached);
   `executeAgainst` (per-target vars, ordered roll history for `why.rolls`). grid-combat S03
@@ -439,7 +441,8 @@ scope) only when `formulas.speed` is declared; `useItem` binds the `speed` effec
   `step()/declare()/respond()/serialize()/eventsSince()/roundComplete`; initiative from the
   reserved formula or d20 fallback (CA-6); events emitted as CA-3 rows only; `displayRoll` =
   combat-loop.html roll anatomy. Declare gates ordered: no-action → not-yours → restricts →
-  target → cost → spend. grid-combat S03 integrated the spatial layer: `StartCombatRequest
+  target → cost → spend. v1.6 spells: membership → restricts (both kinds) → `at` legality →
+  target (any combatant) → range → armor → cost → binding pick → spend. grid-combat S03 integrated the spatial layer: `StartCombatRequest
   .positions?: Readonly<Record<string, Position>>`, `CombatantState.position?` (plain JSON,
   emitted only when set), the **reach gate** (`checkReach` wired at declare and
   `resolveReactive`, rejections exactly `kind: 'spatial'`, `rule: 'E-SPAT-01'`), the declare-time
@@ -709,12 +712,9 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   movement seam) → burst multi-target with mixed per-target save branches (out-of-radius
   untouched) → validity in/out pair → mid-fight snapshot → JSON → restore with gates
   re-enforced → 10-combatant spatial perf budget → seeded two-run determinism (byte-equal) →
-  wyldwood theater-parity capstone. No mocked boundary anywhere. The burst rides as **pack data
-  added at test setup** (data-only action, generated spell's verbatim cost + effect — FR-12
-  rules-are-data; zero engine diffs) because `declare()` resolves actions only from
-  `pack.actions`: generated packs' `content.spells` are not combat-declarable (CA-G4
-  consumer-shape amendment need recorded — a "spells as combat actions" bridge is an engine
-  design event, not a test defect).
+  wyldwood theater-parity capstone. No mocked boundary anywhere. Since spells-in-combat S02 the burst is the generated spell itself (`ember-bloom` /
+  `ember-halo`) declared through `fight.declare`; the test-setup action (`packWithBurstAction`) is
+  deleted.
 - The **equipment journey** (equipment-consumables S06 ck1 `dd6557c`,
   `tests/proofs/equipment-journey.test.ts`, 10 tests, every import from `../../dist/*.js`, seed
   42, nothing mocked): dist freshness (new symbols + generated `equipSlots`) → zombie-urban: equip
@@ -814,9 +814,10 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
 - **Declare gate order:** validity gate → spatial gate (reach for opponent actions; the
   **movement gate** for move actions, which target their actor and skip reach) → cost. Recorded
   in the source comment.
-- **Spells are not combat-declarable (grid-combat, S05 finding; DD17a):** `declare()` resolves
-  actions only from `pack.actions`. The "spells as combat actions" bridge is an engine design
-  event (Author/DB re-entry class) — carried.
+- **Spells are combat-declarable (spells-in-combat v1.6; DD17a retired):**
+  `declare()` resolves `pack.actions`, then `pack.content.spells`; spells pass the range gate
+  (`targeting.range`, absent = effective reach) where actions pass reach, and a burst spell may
+  take `{at}`.
 - **Dice/Rng on the runtime surface:** not exported (see Surfaces above) — the README's "dice"
   bullet is satisfied by the engine's injectable seam + snapshots, not by exported dice symbols.
   Next surface revision decides.
@@ -860,3 +861,72 @@ equipment-consumables SESSION-02..05 markers (f1563b1, 643fd76, 7c3db75, 7a479e6
 at the equipment-consumables final pass (original text recoverable at c39ef87); the
 grid-movement SESSION-02..04 markers (08a831b, e354139, c420843) were collapsed at the
 grid-movement final pass (original text recoverable at 6ab880a). -->
+
+<!-- spells-in-combat SESSION-02 -->
+### spells-in-combat SESSION-02 delta (Orchestrator mid-run append; replacements at DD17, DD-EG5, resolve.ts surface, gate list, grid journey and carried-gaps bullets applied in place)
+
+No new module, no new cross-module edge, no new rule id. New intra-M03 value edges:
+`combat/combat.ts → conditions.ts` (`matchesRestriction`, `declaredTags`; `conditions.ts` value-imports
+only `./errors`, so no cycle) and `character-profile.ts → pools.ts` (`knownSpells`,
+`armorBlockingCast`; `pools.ts` imports nothing from `character-profile`). M02 gains only an optional
+callback on an existing interface (no import). `check:isolation` 0 at `ab6d6f6`.
+
+#### Public API delta
+
+- **M01 `src/schema/artifacts.ts`:** `SpellTargeting.range?: number` (v1.6; max distance to the target
+  or area center in the pack's spatial distance; absent = the caster's effective reach,
+  `max(reach, spatial.reach.default)`). Validator `validate/sections/content.ts` `checkTargeting`
+  admits `range` (closed key set `{shape, radius, range}`); a non-integer or negative value is
+  `E-SCHEMA-01` at `<base>.targeting.range`, "targeting.range must be an integer >= 0.".
+- **M02 `src/core/dsl/effect.ts`:** `EffectApply.varsFor?(target): Readonly<Record<string, number>>`
+  (DD-S19). With it, `execSave` rolls each scoped target's save with `varsFor(target)` and
+  `execAttack` evaluates the defense formula per scoped target; the DC, the attack bonus and the
+  damage formulas keep `ctx.vars`. Absent = the pre-v1.6 executor.
+- **M03 `combat/resolve.ts`:** `CombatantProfile.spells?: readonly string[]` and
+  `CombatantProfile.castBlockedBy?: string`. `executeAgainst(…, resolveShapeTargets?, move?,
+  profileFor?)` — the new trailing `profileFor(id)` becomes `apply.varsFor =
+  effectVars(actor, profileFor(id))` (unresolvable ids fall back to the bound target's vars).
+  **`parsePackEffects` is deleted** (DD-S15; `PackIndex.spellEffects` is the parse-once source).
+- **M03 `combat/action-economy.ts`:** `EconomyBalances.bindings?: Readonly<Record<string, readonly
+  (string | null)[]>>` — the character's `slots` at fight start (FR-8), consumed by spell casts.
+- **M03 `combat/combat.ts`:**
+  - `CombatantState` gains `spells: readonly string[]`, `bindings?` (deep copy of
+    `balances.bindings`), `slotsCast: Record<L, number[]>`, `poolsSpent: Record<pool, number>`
+    (both `{}` at start) and `castBlockedBy?`. `bindings`/`castBlockedBy` are emitted only when
+    present. Exported helper `copyBindings` (consumed by `snapshots.ts`; not in the barrel).
+  - `DeclareOptions.at?: Position` — a burst spell's area center, possibly an empty cell (DD-S8);
+    spatial packs only, theater packs drop it.
+  - `DeclareRejection` gains `armor-not-castable` (`E-REF-01`, resource = the armor item id) and
+    `{kind: 'out-of-range'; rule: 'E-SPAT-01'; resource: targetId | "x,y"}`.
+  - `declare(id)` resolves `pack.actions[id]`, else `pack.content.spells[id]` as `{cost, effect,
+    tags}` with AST `index.spellEffects[id]` and rule base `content.spells.<id>`. Spell gate order:
+    membership (`actor.spells`, else `no-action` "does not know spell") → restricts (both pattern
+    kinds, DD-S10) → `at` legality (`invalid-target`: `at`+`targetId`, `at` on an action, a non-burst
+    spell, a root that is not `target(burst-…)`) → target (any combatant in the fight) → **range
+    gate** (replaces the reach gate for spells; `targeting.range ?? max(reachOf ?? default,
+    default)`; theater never consults it) → armor (vancian spells only) → `checkCost` → binding pick
+    (DD-S18) → `spend` → `applyNonSlotCosts` (records `poolsSpent`/`slotsCast`; also picks the slot
+    for a vancian **action**) → `spell:cast {spellId, targetId|at, cost, slotLevel?, slotIndex?,
+    pool?, amount?}` → effect events → `action:resolved {actionId, targetId}` or `{actionId, at}`.
+  - `resolveShape(shape, actor, center, bound)`: bursts resolve around `center` (the bound target's
+    position or the `at` cell). Every execute passes `profileFor`, so every burst uses per-target
+    defender values (DD-S19).
+  - `restrictionRejection(actor, def, kind = 'action')` calls the exported `matchesRestriction` +
+    `declaredTags`; the inline actions-only duplicate (C1) is deleted. Out of combat
+    `isRestricted`/`restrictedIds` are unchanged (kind-exact).
+- **M03 `pools.ts`:** `armorBlockingCast` is exported (body unchanged); barrel export added.
+- **M03 `character-profile.ts`:** `profileFromCharacter` emits `profile.spells` (= `knownSpells`,
+  only when non-empty), `profile.castBlockedBy` (only when armor blocks) and `balances.bindings`
+  (deep copy of `state.slots`). New **`settleSpellCasts(runtime, character, fight,
+  combatantId?)`** (CA-S3): `combat-not-over` / `unknown-target` preconditions; all refusals
+  before any change (`unknown-pool`, `insufficient-points`, `slot-mismatch`, `slot-unmapped`);
+  applies `pool:settled {combatantId, pool, amount}` (why `pools.<p>`) and `slot:settled
+  {combatantId, slotLevel, slotIndex, spellId}` (why `content.spells`); clears the combatant's
+  spend (a second call returns `[]`). Same v1 limits as `settleItemUses`. Barrel export added.
+- **M03 `snapshots.ts`:** `SnapshotCombatant.poolsSpent?` / `slotsCast?` (emitted only when
+  non-empty). Restore: `pools = re-stated − poolsSpent`, `boundSlots[L] = re-stated −
+  |slotsCast[L]|`, bindings/spells/castBlockedBy re-stated, spends copied. New `E-SNAP-01`
+  refusals at `combatants[i].poolsSpent.<p>` / `combatants[i].slotsCast.<L>[k]` (or
+  `.slotsCast.<L>` for a level with no re-stated slots), all cards before any rebuild.
+- **M04 themes:** every bundled spell (47) costs `slots {main: 1, move: 1}` (DD-S9) and declares
+  `targeting.range: 6` (DD-S8 b). No compiler source change.
