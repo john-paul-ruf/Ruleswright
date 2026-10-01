@@ -11,7 +11,10 @@ Intent section). S01 is dispatchable. If the human later edits a DD, amend the a
 CA rows and SESSION-01..03 before the affected session dispatches.
 
 **Recommended before S01:** a scoped Archivist planning-completeness pass over
-STATE.md and SESSION-01..03 (the promoted factual-premise convention). Route its findings
+STATE.md and SESSION-01..03 (the promoted factual-premise convention). The Archivist envelope is ready at
+`.program/prompts/ARCHIVIST-PREFLIGHT.spells-in-combat.prompt.md` (written by Planner at
+`fd20cfa`; Orchestrator spawns Archivist with it and saves the note to
+`.program/results/ARCHIVIST-PREFLIGHT.spells-in-combat.result.md`). Route its findings
 through a bounded replan before dispatch.
 
 **Solo run:** follow the protocol below. One agent works through the sessions serially.
