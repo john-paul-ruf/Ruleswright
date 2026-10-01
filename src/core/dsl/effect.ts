@@ -16,7 +16,9 @@
  * `half` is the reserved save-for-half marker (magic.html perTarget anatomy):
  * legal only as `damage(half)` inside a save's pass branch; it re-rolls the
  * fail branch's first damage expression and halves the total (rounded up —
- * mock: 3d6 → 10 → "half · 5 fire").
+ * mock: 3d6 → 10 → "half · 5 fire"). A fail branch with no damage expression
+ * leaves nothing to halve: `damage(half)` then resolves as no damage — no
+ * request, no outcome, no roll.
  *
  * `heal(formula)` (v1.4, CA-EG4) is not a new mutation: it is a damage request
  * with a negative amount. The rolled heal is negated whole (values, modifier,
@@ -219,7 +221,7 @@ function execStatement(
   node: FormulaAst,
   ctx: EffectContext,
   scope: readonly EffectTargetRef[],
-  halveFrom: HalveFrom | undefined,
+  halveFrom: HalveScope | undefined,
 ): readonly EffectResolution[] {
   if (node.kind !== 'call') {
     throw new Error(
@@ -313,7 +315,8 @@ function execSave(
     };
     const branch = passed ? passEffect : failEffect;
     const branchScope: readonly EffectTargetRef[] = [target];
-    const outcomes = execStatement(branch, ctx, branchScope, passed ? halveFromFail(failEffect) : undefined);
+    const halveFrom = passed ? (halveFromFail(failEffect) ?? NOTHING_TO_HALVE) : undefined;
+    const outcomes = execStatement(branch, ctx, branchScope, halveFrom);
     perTarget.push({ targetId: target.id, roll: judged, branch: passed ? 'pass' : 'fail', outcomes });
   }
   return [{ kind: 'save', saveName, dc, perTarget }];
@@ -324,26 +327,29 @@ function execDamage(
   args: readonly FormulaAst[],
   ctx: EffectContext,
   scope: readonly EffectTargetRef[],
-  halveFrom: HalveFrom | undefined,
+  halveFrom: HalveScope | undefined,
 ): readonly EffectResolution[] {
   const ownType = args[1]?.kind === 'name' ? (args[1].text ?? undefined) : undefined;
   const half = args[0]!.kind === 'name' && args[0]!.text === 'half';
-  if (half && halveFrom === undefined) {
-    throw new Error(
-      'damage(half) needs a save fail branch with a damage statement to halve — validate before execution (E-FORM-02)',
-    );
+  let source: HalveFrom | undefined;
+  if (half) {
+    if (halveFrom === undefined) {
+      throw new Error(
+        "damage(half) is only legal inside a save's pass branch — validate before execution (E-FORM-02)",
+      );
+    }
+    if (halveFrom === NOTHING_TO_HALVE) return [];
+    source = halveFrom;
   }
   const outcomes: DamageOutcome[] = [];
   for (const target of scope) {
-    const value = half
-      ? evalFormula(halveFrom!.expr, ctx.vars, ctx.rng)
-      : evalFormula(args[0]!, ctx.vars, ctx.rng);
+    const value = evalFormula(source?.expr ?? args[0]!, ctx.vars, ctx.rng);
     const rolled = toRoll(value, 'damage');
     const halvedTotal = Math.ceil(rolled.total / 2);
     const roll = half
       ? { ...rolled, modifier: rolled.modifier + (halvedTotal - rolled.total), total: halvedTotal }
       : rolled;
-    const effectiveType = half ? (halveFrom!.type ?? ownType) : ownType;
+    const effectiveType = source?.type ?? ownType;
     ctx.apply.damage(target, roll, effectiveType);
     outcomes.push({
       kind: 'damage',
@@ -396,7 +402,7 @@ function execTarget(
   args: readonly FormulaAst[],
   ctx: EffectContext,
   scope: readonly EffectTargetRef[],
-  halveFrom: HalveFrom | undefined,
+  halveFrom: HalveScope | undefined,
 ): readonly EffectResolution[] {
   const shape = args[0]?.kind === 'name' ? (args[0].text ?? '') : '';
   const resolved = ctx.apply.resolveTargets(shape);
@@ -408,7 +414,7 @@ function execSequence(
   args: readonly FormulaAst[],
   ctx: EffectContext,
   scope: readonly EffectTargetRef[],
-  halveFrom: HalveFrom | undefined,
+  halveFrom: HalveScope | undefined,
 ): readonly EffectResolution[] {
   const steps: EffectResolution[] = [];
   for (const arg of args) {
@@ -431,6 +437,10 @@ function execMove(args: readonly FormulaAst[], ctx: EffectContext): readonly Eff
 
 /** The fail branch's first damage expression + its declared type — what damage(half) re-rolls and halves (magic.html: "half · 5 fire"). */
 type HalveFrom = { expr: FormulaAst; type?: string };
+
+/** Inside a save pass branch whose fail branch has no damage expression: damage(half) halves nothing. */
+const NOTHING_TO_HALVE = 'nothing-to-halve';
+type HalveScope = HalveFrom | typeof NOTHING_TO_HALVE;
 
 function halveFromFail(node: FormulaAst): HalveFrom | undefined {
   if (node.kind !== 'call') return undefined;

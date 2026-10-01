@@ -242,6 +242,49 @@ describe('executeEffect', () => {
     expect(save.perTarget[0]!.roll.total).toBe(12); // 9 + grit 3 → tie passes (total >= dc)
   });
 
+  it('damage(half) with no fail-branch damage resolves as no damage on a pass: no throw, no request, no roll (C-S02-1)', () => {
+    const ast = mustParse('save(vigor, 12, applyCondition(sapped, 3), damage(half))');
+    const faces = scripted([10]);
+    let draws = 0;
+    const { apply, calls } = recordingApply();
+    const outcomes = executeEffect(ast, {
+      actor: null,
+      targets: [goblin],
+      rng: {
+        int(maxExclusive: number) {
+          draws += 1;
+          return faces.int(maxExclusive);
+        },
+      },
+      apply,
+      vars: { vigor: 2 },
+    });
+    expect(draws).toBe(1); // the save roll only
+    expect(calls).toEqual([]);
+    expect(outcomes).toHaveLength(1);
+    const save = outcomes[0] as Extract<EffectResolution, { kind: 'save' }>;
+    expect(save.kind).toBe('save');
+    expect(save.perTarget).toHaveLength(1);
+    expect(save.perTarget[0]!.branch).toBe('pass');
+    expect(save.perTarget[0]!.roll.total).toBe(12);
+    expect(save.perTarget[0]!.roll.verdict).toEqual({ defense: 'vigor', value: 12, result: 'pass' });
+    expect(save.perTarget[0]!.outcomes).toEqual([]);
+  });
+
+  it('the same save failed still applies its fail branch unchanged', () => {
+    const { apply, calls } = recordingApply();
+    const outcomes = executeEffect(mustParse('save(vigor, 12, applyCondition(sapped, 3), damage(half))'), {
+      actor: null,
+      targets: [goblin],
+      rng: scripted([5]),
+      apply,
+      vars: { vigor: 2 },
+    });
+    expect(calls).toEqual([{ op: 'condition', targetId: 'goblin', conditionId: 'sapped', duration: 3 }]);
+    const save = outcomes[0] as Extract<EffectResolution, { kind: 'save' }>;
+    expect(save.perTarget[0]!.branch).toBe('fail');
+  });
+
   it('heal(formula) is a negative-amount damage request (CA-EG4): negated total, halved false', () => {
     const requested: RollResult[] = [];
     const { apply, calls } = recordingApply();

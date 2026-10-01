@@ -228,6 +228,72 @@ describe('CAP-S1 — a known spell is declarable in combat (CA-S1, DD-S17, DD-S1
   });
 });
 
+describe('C-S02-1 — a passed save-for-half with no fail-branch damage resolves as no damage (CA-S1)', () => {
+  /** The 12 theme sites' shape (dark-fantasy dread-hush, wight-bell, …) as a fixture spell. */
+  function hushPack(): Pack {
+    const pack = spellPack();
+    return {
+      ...pack,
+      content: {
+        ...pack.content,
+        spells: {
+          ...pack.content.spells,
+          'dread-hush': {
+            name: 'Dread Hush',
+            magic: { level: 1, lists: ['hexer'] },
+            cost: { vancian: 1 },
+            effect: 'save(reason, 12, applyCondition(shaken, 2), damage(half))',
+            tags: ['casting'],
+          },
+        },
+      },
+    };
+  }
+
+  it('the wight passes: spell:cast → action:resolved, no damage, the bound slot spent once, no throw', () => {
+    const rt = new Runtime(hushPack());
+    const caster: Member = {
+      ...HEXER,
+      spells: ['dread-hush'],
+      balances: { boundSlots: { '1': 1 }, bindings: { '1': ['dread-hush'] } },
+    };
+    // Initiative 1, 1; the wight saves 10 + reason 3 = 13 ≥ 12. The script holds no further face.
+    const fight = fightOf(rt, [caster], [WIGHT], [1, 1, 10]);
+    let events: RuntimeEvent[] = [];
+    expect(() => {
+      events = during(rt, () => fight.declare('dread-hush', { targetId: 'wight' }));
+    }).not.toThrow();
+    expect(events.map((event) => event.type)).toEqual(['spell:cast', 'action:resolved']);
+    expect(events.every((event) => event.why.rule === 'content.spells.dread-hush')).toBe(true);
+    expect(events[0]!.payload).toEqual({
+      spellId: 'dread-hush',
+      targetId: 'wight',
+      cost: 'vancian',
+      slotLevel: '1',
+      slotIndex: 0,
+    });
+    expect(fight.state.combatants['wight']!.hp.current).toBe(40);
+    expect(fight.state.combatants['wight']!.conditions).toEqual([]);
+    const hexer = fight.state.combatants['hexer']!;
+    expect(hexer.slotsCast).toEqual({ '1': [0] });
+    expect(hexer.boundSlots['1']).toBe(0);
+    expect(fight.state.phase).toBe('resolved');
+  });
+
+  it('the wight fails: the fail branch applies shaken, as before', () => {
+    const rt = new Runtime(hushPack());
+    const caster: Member = {
+      ...HEXER,
+      spells: ['dread-hush'],
+      balances: { boundSlots: { '1': 1 }, bindings: { '1': ['dread-hush'] } },
+    };
+    const fight = fightOf(rt, [caster], [WIGHT], [1, 1, 2]);
+    const events = during(rt, () => fight.declare('dread-hush', { targetId: 'wight' }));
+    expect(events.map((event) => event.type)).toEqual(['spell:cast', 'condition:applied', 'action:resolved']);
+    expect(fight.state.combatants['wight']!.hp.current).toBe(40);
+  });
+});
+
 describe('the binding pick (DD-S18)', () => {
   it('consumes the lowest uncast index bound to the spell; a second cast of that binding is rejected E-VANC-01', () => {
     const rt = new Runtime(spellPack());
