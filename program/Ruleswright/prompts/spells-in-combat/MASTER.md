@@ -5,8 +5,9 @@
 Planner planned this. Coder builds it (./CODER.md). Orchestrator schedules it
 (./ORCHESTRATOR.md).
 
-**SESSION-01 is an Author re-entry session** (Designer → DB), not a Coder session. Its
-human gate is **B-S1**: the human confirms DD-S8 … DD-S14 (STATE.md Design Decisions).
+**SESSION-01 is an Author re-entry session** (Spec → Designer → DB), not a Coder session.
+Its human gate is **B-S1**: the human confirms DD-S8's sub-defaults and DD-S9 … DD-S14
+(STATE.md Design Decisions; DD-S8's direction was answered on 2026-09-30).
 **Do not dispatch S01 until B-S1 is cleared** and the answer is recorded in STATE.md's
 Intent section. If the human edits a DD, amend the affected CA rows and SESSION-01..03
 before dispatch.
@@ -31,7 +32,7 @@ commits its own lease at every checkpoint. This plan has no concurrent waves
    historical handoffs.
 3. Pick the next pending session whose dependencies are done and whose required Contract
    Agreements are agreed with ready producer inputs.
-   - Every CA is provisional against S01 ck2. Re-check it against the landed
+   - Every CA is provisional against S01 ck3. Re-check it against the landed
      database.md and contracts, and amend the dependent prompts before S02.
    - Re-check CA-S1 … S5 against S02's landed code before S03.
    - Do not require the session's own future proof yet.
@@ -47,11 +48,12 @@ commits its own lease at every checkpoint. This plan has no concurrent waves
    Record the actual results. Invalidate affected agreements and evidence when a contract
    changes or counterevidence disproves a claim.
 8. Update STATE.md (status, checkpoint, date, notes, handoff).
-9. Update the architecture if a public API changed. The M01/M03/M04 deltas land in
+9. Update the architecture if a public API changed. The M01/M02/M03/M04 deltas land in
    `arch/v1-core.md` under `<!-- spells-in-combat SESSION-NN -->`. They are:
    - new runtime verbs `settleSpellCasts`, `learnFeat`, `armorBlockingCast`;
    - the new leaf `src/runtime/feats.ts`;
    - `parsePackEffects` removed;
+   - `SpellTargeting.range` (M01), `EffectApply.varsFor` (M02), `DeclareOptions.at` (M03);
    - `TRIGGER_PATTERN` in M01.
 10. Loop. When all sessions are done, write the Final Report. Report any required
     capability still unverified as incomplete, with its owner and remaining proof.
@@ -69,7 +71,7 @@ commits its own lease at every checkpoint. This plan has no concurrent waves
 
 ## Stopping Conditions
 
-- **All sessions done** → Final Report. Product completion also requires CAP-S1 … CAP-S8
+- **All sessions done** → Final Report. Product completion also requires CAP-S1 … CAP-S9
   verified against current sources.
 - **Blocked** → set the session to blocked and skip to the next eligible one. There are
   no parallel alternatives in this plan.

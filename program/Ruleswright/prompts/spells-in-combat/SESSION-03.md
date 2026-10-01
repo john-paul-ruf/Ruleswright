@@ -277,7 +277,9 @@ wins: report the difference.
    - **A new section `## Spells and feats in combat`** after Grid combat, covering:
      - the declare;
      - the gate order;
-     - spells may target any combatant;
+     - spells may target any combatant, within the spell's `targeting.range`
+       (default: the caster's reach); a burst may be centered on an empty cell with
+       `{ at: { x, y } }`;
      - the `main` turn cost in the sample themes;
      - snapshot spend;
      - `settleSpellCasts`;
