@@ -930,3 +930,8 @@ callback on an existing interface (no import). `check:isolation` 0 at `ab6d6f6`.
   `.slotsCast.<L>` for a level with no re-stated slots), all cards before any rebuild.
 - **M04 themes:** every bundled spell (47) costs `slots {main: 1, move: 1}` (DD-S9) and declares
   `targeting.range: 6` (DD-S8 b). No compiler source change.
+
+<!-- spells-in-combat OWNER-M02-HALF -->
+### spells-in-combat OWNER-M02-HALF delta (Orchestrator mid-run append; commit 623a687)
+
+- Effect executor (`src/core/dsl/effect.ts`): in a passed save whose fail branch has no damage expression, `damage(half)` now resolves as no damage. It makes no `apply.damage` request, emits no `damage` outcome and draws no RNG. `damage(half)` reached outside a save's pass branch still throws (E-FORM-02), and the load-time check is unchanged (C-S02-1).
