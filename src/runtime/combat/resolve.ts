@@ -28,7 +28,6 @@ import type { DslCheckRequest } from '../../schema/validate';
 import { packDslChecker } from '../../core/dsl/checker';
 import { parseFormula, evalFormula } from '../../core/dsl/formula';
 import {
-  parseEffect,
   executeEffect,
   EFFECT_SCALARS,
   type EffectAst,
@@ -92,6 +91,10 @@ export interface CombatantProfile {
   readonly attackTable?: readonly { level: number; byDefense: Record<string, number> }[];
   /** Ascending attack bonus for classes that declare the bonus convention instead of a table. */
   readonly attackBonus?: number;
+  /** v1.6 — spell ids this combatant may declare (characters: knownSpells; absent = none, DD-S2/S4). */
+  readonly spells?: readonly string[];
+  /** v1.6 — the equipped armor item that blocks vancian casting (CA-EG3); absent = not blocked (DD-S6). */
+  readonly castBlockedBy?: string;
 }
 
 /** Which side a combatant fights for — also the encounter sides. */
@@ -109,40 +112,6 @@ export interface BoundAction {
   readonly id: string;
   readonly def: ActionDef;
   readonly ast: EffectAst;
-}
-
-/** Effect DSL strings are parsed once when combat binds the pack (CA-2). */
-export function parsePackEffects(pack: Pack): Map<string, EffectAst> {
-  const asts = new Map<string, EffectAst>();
-  for (const [id, def] of Object.entries(pack.actions)) {
-    const parsed = parseEffect(def.effect);
-    if (!parsed.ok) {
-      throw new Error(
-        `pack action "${id}" failed to parse at play time — a validated pack never reaches here: ${parsed.reason}`,
-      );
-    }
-    asts.set(id, parsed.value);
-  }
-  for (const [id, spell] of Object.entries(pack.content.spells ?? {})) {
-    const parsed = parseEffect(spell.effect);
-    if (!parsed.ok) {
-      throw new Error(
-        `pack spell "${id}" failed to parse at play time — a validated pack never reaches here: ${parsed.reason}`,
-      );
-    }
-    asts.set(id, parsed.value);
-  }
-  for (const [id, feat] of Object.entries(pack.content.feats ?? {})) {
-    if (feat.effect === undefined) continue;
-    const parsed = parseEffect(feat.effect);
-    if (!parsed.ok) {
-      throw new Error(
-        `pack feat "${id}" failed to parse at play time — a validated pack never reaches here: ${parsed.reason}`,
-      );
-    }
-    asts.set(id, parsed.value);
-  }
-  return asts;
 }
 
 /** Load-check every effect/formula/valid DSL string in a pack through the real checker (S01+S03 seams; empty = valid). */

@@ -73,6 +73,12 @@ export interface EconomyBalances {
   readonly boundSlots?: Readonly<Record<string, number>>;
   /** Item id -> held count of a consumable at fight start (CA-EG5): the fight's item charges, fixed for the fight. */
   readonly items?: Readonly<Record<string, number>>;
+  /**
+   * v1.6 — spell level -> the character's `slots` at fight start (FR-8): which spell each
+   * slot holds (`null` = empty). Needed for spell casts — a vancian spell consumes a slot
+   * bound to it (DD-S18); absent = the count-only host form (`boundSlots` alone).
+   */
+  readonly bindings?: Readonly<Record<string, readonly (string | null)[]>>;
 }
 
 /** Why an unaffordable action cannot fire: the exact resource and how much is missing. */

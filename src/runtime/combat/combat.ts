@@ -66,6 +66,7 @@ import {
 } from './spatial';
 import { evalFormula, evalValidity, valueOfFormula, type FormulaAst } from '../../core/dsl/formula';
 import { RuntimeRuleError, ruleCard } from '../errors';
+import { declaredTags, matchesRestriction } from '../conditions';
 import { displayRoll } from '../display-roll';
 import type { ErrorCard } from '../../schema/error-card';
 
@@ -95,6 +96,16 @@ export interface CombatantState {
   /** v1.5 — the profile's movement budget (`formulas.speed`); absent when the pack declares none. */
   readonly speed?: number;
   readonly actions: readonly string[];
+  /** v1.6 — spell ids this combatant may declare (`profile.spells`; empty = none, DD-S4). */
+  readonly spells: readonly string[];
+  /** v1.6 — spell level → the slot bindings at fight start (`balances.bindings`, deep copy); absent = count-only. */
+  readonly bindings?: Readonly<Record<string, readonly (string | null)[]>>;
+  /** v1.6 — spell level → slot indices cast in this fight (CA-S2); `boundSlots` = start − cast. */
+  slotsCast: Record<string, number[]>;
+  /** v1.6 — pool id → points SPENT in this fight (CA-S2); `pools` = start − spent. */
+  poolsSpent: Record<string, number>;
+  /** v1.6 — the equipped armor that blocks vancian casts (`profile.castBlockedBy`, DD-S6); absent = not blocked. */
+  readonly castBlockedBy?: string;
   readonly attackTable?: readonly { level: number; byDefense: Record<string, number> }[];
   readonly attackBonus?: number;
   /** The host-declared grid position (FR-11); absent in theater-of-mind packs. */
@@ -159,6 +170,7 @@ export type DeclareRejection =
         | 'restricted'
         | 'invalid-target'
         | 'unknown-target'
+        | 'armor-not-castable'
         | 'unknown-item'
         | 'not-consumable'
         | 'no-charges';
@@ -298,6 +310,11 @@ export function startCombat(runtime: Runtime, request: StartCombatRequest): Comb
       initiativeBonus: entry.profile.initiativeBonus,
       ...(entry.profile.speed !== undefined ? { speed: entry.profile.speed } : {}),
       actions: [...entry.profile.actions],
+      spells: [...(entry.profile.spells ?? [])],
+      ...(entry.balances.bindings !== undefined ? { bindings: copyBindings(entry.balances.bindings) } : {}),
+      slotsCast: {},
+      poolsSpent: {},
+      ...(entry.profile.castBlockedBy !== undefined ? { castBlockedBy: entry.profile.castBlockedBy } : {}),
       attackTable: entry.profile.attackTable
         ? entry.profile.attackTable.map((row) => ({ level: row.level, byDefense: { ...row.byDefense } }))
         : undefined,
@@ -330,6 +347,15 @@ export function startCombat(runtime: Runtime, request: StartCombatRequest): Comb
     why: { rule: 'combat.startCombat', rolls: whyRolls },
   });
   return fight;
+}
+
+/** A plain-JSON copy of slot bindings (FR-14: state never aliases host objects). */
+export function copyBindings(
+  bindings: Readonly<Record<string, readonly (string | null)[]>>,
+): Record<string, (string | null)[]> {
+  const copy: Record<string, (string | null)[]> = {};
+  for (const [level, slots] of Object.entries(bindings)) copy[level] = [...slots];
+  return copy;
 }
 
 /** Plain-JSON copies of host terrain cells (FR-14: state never aliases host objects). */
@@ -518,7 +544,17 @@ export class Combat {
     const actorId = this.state.active;
     const actor = this.state.combatants[actorId]!;
     const pack = this.runtime.pack;
-    const def = pack.actions[actionId];
+    // A spell is an action plus metadata (FR-9, CA-S1): ids are unique across
+    // actions and spells (E-DUP-01), so at most one lookup hits.
+    const spell = pack.actions[actionId] === undefined ? pack.content.spells?.[actionId] : undefined;
+    const def: ActionDef | undefined =
+      spell === undefined
+        ? pack.actions[actionId]
+        : {
+            cost: spell.cost,
+            effect: spell.effect,
+            ...(spell.tags !== undefined ? { tags: spell.tags } : {}),
+          };
     if (def === undefined) {
       return [
         this.rejectionEvent(actorId, {
@@ -529,24 +565,30 @@ export class Combat {
         }),
       ];
     }
-    if (!actor.actions.includes(actionId)) {
+    if (spell === undefined ? !actor.actions.includes(actionId) : !actor.spells.includes(actionId)) {
       return [
         this.rejectionEvent(actorId, {
           kind: 'no-action',
           rule: 'E-REF-01',
           resource: actionId,
-          message: `combatant "${actorId}" does not have action "${actionId}".`,
+          message:
+            spell === undefined
+              ? `combatant "${actorId}" does not have action "${actionId}".`
+              : `combatant "${actorId}" does not know spell "${actionId}".`,
         }),
       ];
     }
-    const restriction = this.restrictionRejection(actor, def);
+    const restriction = this.restrictionRejection(actor, def, spell === undefined ? 'action' : 'spell');
     if (restriction !== undefined) {
       return [this.rejectionEvent(actorId, restriction)];
     }
     // A move action targets its actor: no opponent resolution, no reach gate (DD-M9).
+    // Spells never move (a spell `move` is E-FORM-02), so the budget is action-only.
     const budgetAst = moveBudgetAst(this.runtime, actionId);
     const target =
-      budgetAst !== undefined ? { combatant: actor } : this.resolveTarget(actor, options.targetId);
+      budgetAst !== undefined
+        ? { combatant: actor }
+        : this.resolveTarget(actor, options.targetId, spell !== undefined);
     if ('rejection' in target) {
       return [this.rejectionEvent(actorId, target.rejection)];
     }
@@ -584,18 +626,50 @@ export class Combat {
         return [this.rejectionEvent(actorId, spatial)];
       }
     }
+    // DD-S6: equipped armor blocks a vancian spell exactly as outside combat.
+    if (spell !== undefined && def.cost.vancian !== undefined && actor.castBlockedBy !== undefined) {
+      return [
+        this.rejectionEvent(actorId, {
+          kind: 'armor-not-castable',
+          rule: 'E-REF-01',
+          resource: actor.castBlockedBy,
+          message: `"${actor.castBlockedBy}" is equipped armor of a kind none of the caster's classes lists in armorCasting — no slot cast (FR-9).`,
+        }),
+      ];
+    }
     const costRejection = checkCost(def.cost, this.grants, this.balancesOf(actor));
     if (costRejection !== undefined) {
       return [this.rejectionEvent(actorId, costRejection)];
+    }
+    // DD-S18: a vancian spell consumes a slot bound to it — chosen before any spend, recorded after.
+    let slot: CastSlot | undefined;
+    if (spell !== undefined && def.cost.vancian !== undefined) {
+      const level = String(spell.magic.level);
+      const index = this.pickSlot(actor, level, actionId);
+      if (index === undefined) {
+        return [
+          this.rejectionEvent(actorId, {
+            kind: 'vancian',
+            rule: 'E-VANC-01',
+            resource: level,
+            message: `no uncast level-${level} slot is bound to "${actionId}"`,
+          }),
+        ];
+      }
+      slot = { level, index };
     }
     // All gates passed — commit the spend and resolve.
     const spendRejection = spend(actor.slots, this.grants, def.cost);
     if (spendRejection !== undefined) {
       return [this.rejectionEvent(actorId, spendRejection)];
     }
-    this.applyNonSlotCosts(actor, def.cost);
+    slot = this.applyNonSlotCosts(actor, def.cost, slot);
+    const cast =
+      spell === undefined
+        ? undefined
+        : castPayload(actionId, def.cost, { targetId: target.combatant.id }, slot);
     const { result: events, emitted } = this.collect(() =>
-      this.resolve(actor, actionId, def, target.combatant, move),
+      this.resolve(actor, actionId, def, target.combatant, move, cast),
     );
     this.surfaceOffers(emitted);
     return events;
@@ -639,7 +713,7 @@ export class Combat {
         }),
       ];
     }
-    // F-E15: an item-only synthetic action; spells never ride this path (DD17a).
+    // F-E15: an item-only synthetic action; spells are declared through declare() (v1.6), never use().
     const def: ActionDef = { cost: {}, effect: item.use };
     const restriction = this.restrictionRejection(actor, def);
     if (restriction !== undefined) {
@@ -729,36 +803,47 @@ export class Combat {
     return { pools: actor.pools, boundSlots: actor.boundSlots };
   }
 
-  private restrictionRejection(actor: CombatantState, def: ActionDef): DeclareRejection | undefined {
-    const blocked = new Set<string>();
+  /**
+   * The restricts gate (v1.1 matcher, `conditions.ts`): the first active
+   * condition pattern, in condition order, matching one of the declared tags
+   * blocks the declare. A spell is an action (FR-9): in combat either pattern
+   * kind blocks it (DD-S10); an action matches `actions.tagged:` only.
+   */
+  private restrictionRejection(
+    actor: CombatantState,
+    def: ActionDef,
+    kind: 'action' | 'spell' = 'action',
+  ): DeclareRejection | undefined {
+    const tags = def.tags ?? [];
+    if (tags.length === 0 || actor.conditions.length === 0) return undefined;
+    const declared = declaredTags(this.runtime);
     for (const active of actor.conditions) {
-      const condition = this.runtime.pack.content.conditions?.[active.conditionId];
-      for (const pattern of condition?.restricts ?? []) {
-        if (!pattern.startsWith('actions.tagged:')) continue;
-        blocked.add(pattern.slice('actions.tagged:'.length));
-      }
-    }
-    if (blocked.size === 0) return undefined;
-    // The pack index is the tag vocabulary's authority (v1.1): the validator
-    // (S01) enforced restricts integrity at load; this matcher re-consults the
-    // pack's own tags, never re-derives tag existence.
-    const defTags = new Set([...(def.tags ?? [])]);
-    for (const tag of blocked) {
-      if (defTags.has(tag)) {
+      for (const pattern of this.runtime.pack.content.conditions?.[active.conditionId]?.restricts ?? []) {
+        const hit =
+          matchesRestriction(pattern, 'action', tags, declared) ||
+          (kind === 'spell' && matchesRestriction(pattern, 'spell', tags, declared));
+        if (!hit) continue;
+        const tag = pattern.slice(pattern.indexOf(':') + 1);
         return {
           kind: 'restricted',
           rule: 'E-REF-01',
           resource: tag,
-          message: `action "${def.tags?.join(',')}" carries tag "${tag}", which an active condition restricts (v1.1 restricts matcher).`,
+          message: `action "${tags.join(',')}" carries tag "${tag}", which an active condition restricts (v1.1 restricts matcher).`,
         };
       }
     }
     return undefined;
   }
 
+  /**
+   * The declared target, else the only opponent. An action targets opponents
+   * only; a spell (`anyCombatant`) may name any combatant in the fight — either
+   * side, the caster included (DD-S8).
+   */
   private resolveTarget(
     actor: CombatantState,
     targetId: string | undefined,
+    anyCombatant = false,
   ): { combatant: CombatantState } | { rejection: DeclareRejection } {
     const opponents = this.state.order.filter((id) => this.state.combatants[id]!.side !== actor.side);
     if (opponents.length === 0) {
@@ -786,7 +871,7 @@ export class Combat {
         },
       };
     }
-    if (target.side === actor.side) {
+    if (target.side === actor.side && !anyCombatant) {
       return {
         rejection: {
           kind: 'invalid-target',
@@ -1102,18 +1187,50 @@ export class Combat {
     return reach[id] ?? reach.default;
   }
 
-  private applyNonSlotCosts(actor: CombatantState, cost: ActionCost): void {
+  /**
+   * Spend the non-slot costs and record them (CA-S2): pool points into
+   * `poolsSpent`, a vancian slot index into `slotsCast`; the live `pools` and
+   * `boundSlots` decrement as before. A spell passes its pre-chosen slot; a
+   * vancian action's slot is chosen here (DD-S18). Returns the slot consumed.
+   */
+  private applyNonSlotCosts(
+    actor: CombatantState,
+    cost: ActionCost,
+    chosen?: CastSlot,
+  ): CastSlot | undefined {
     if (cost.points !== undefined) {
-      const pools = { ...actor.pools };
-      pools[cost.points.pool] = (pools[cost.points.pool] ?? 0) - cost.points.amount;
-      actor.pools = pools;
+      const { pool, amount } = cost.points;
+      actor.pools = { ...actor.pools, [pool]: (actor.pools[pool] ?? 0) - amount };
+      actor.poolsSpent = { ...actor.poolsSpent, [pool]: (actor.poolsSpent[pool] ?? 0) + amount };
     }
-    if (cost.vancian !== undefined) {
-      const level = String(cost.vancian);
-      const bound = { ...actor.boundSlots };
-      bound[level] = (bound[level] ?? 0) - 1;
-      actor.boundSlots = bound;
+    if (cost.vancian === undefined) return undefined;
+    const level = chosen?.level ?? String(cost.vancian);
+    const index = chosen?.index ?? this.pickSlot(actor, level);
+    actor.boundSlots = { ...actor.boundSlots, [level]: (actor.boundSlots[level] ?? 0) - 1 };
+    if (index === undefined) return undefined;
+    actor.slotsCast = { ...actor.slotsCast, [level]: [...(actor.slotsCast[level] ?? []), index] };
+    return { level, index };
+  }
+
+  /**
+   * DD-S18 — the slot index a vancian cost consumes at `level`: for a spell,
+   * the lowest uncast index bound to it (count-only combatants have none);
+   * for an action, the lowest uncast non-null binding, or — without bindings —
+   * the lowest uncast index below the fight-start count.
+   */
+  private pickSlot(actor: CombatantState, level: string, spellId?: string): number | undefined {
+    const cast = actor.slotsCast[level] ?? [];
+    const bindings = actor.bindings === undefined ? undefined : (actor.bindings[level] ?? []);
+    if (bindings !== undefined) {
+      const index = bindings.findIndex(
+        (binding, i) => !cast.includes(i) && (spellId === undefined ? binding !== null : binding === spellId),
+      );
+      return index === -1 ? undefined : index;
     }
+    if (spellId !== undefined) return undefined;
+    const start = (actor.boundSlots[level] ?? 0) + cast.length;
+    for (let i = 0; i < start; i += 1) if (!cast.includes(i)) return i;
+    return undefined;
   }
 
   private resolve(
@@ -1122,7 +1239,19 @@ export class Combat {
     def: ActionDef,
     target: CombatantState,
     move?: (budget: number) => void,
+    cast?: Readonly<Record<string, unknown>>,
   ): readonly RuntimeEvent[] {
+    if (cast !== undefined) {
+      // DD-S17: `spell:cast` precedes the effect's events, inside the declare's own collection.
+      this.setClock();
+      this.runtime.events.emit({
+        type: 'spell:cast',
+        actor: actor.id,
+        ...(typeof cast['targetId'] === 'string' ? { target: cast['targetId'] } : {}),
+        payload: cast,
+        why: { rule: this.ruleBaseOf(actionId), rolls: [] },
+      });
+    }
     this.execute(actor, this.boundActionOf(actionId, def), target, this.ruleBaseOf(actionId), move);
     this.state = { ...this.state, phase: 'resolved' };
     this.runtime.events.emit({
@@ -1288,8 +1417,9 @@ export class Combat {
     return this.resolveReactive(offer, targetId);
   }
 
+  /** A declared id's bound action: its parse-once AST from the action index, else the spell index (CA-S1). */
   private boundActionOf(actionId: string, def: ActionDef): BoundAction {
-    const ast = this.runtime.index.actionEffects[actionId];
+    const ast = this.runtime.index.actionEffects[actionId] ?? this.runtime.index.spellEffects[actionId];
     if (ast === undefined) {
       throw new Error(
         `action "${actionId}" has no parse-once AST — Runtime load compiles every action (CA-2)`,
@@ -1315,8 +1445,12 @@ export class Combat {
     };
   }
 
+  /** The pack path every `why.rule` of a declare names: `content.spells.<id>` for a spell, else `actions.<id>`. */
   private ruleBaseOf(actionId: string): string {
-    return `actions.${actionId}`;
+    return this.runtime.pack.actions[actionId] === undefined &&
+      this.runtime.pack.content.spells?.[actionId] !== undefined
+      ? `content.spells.${actionId}`
+      : `actions.${actionId}`;
   }
 
   private applyMutation(target: CombatantState, request: MutationRequest): void {
@@ -1390,6 +1524,28 @@ export class Combat {
     };
     return { kind: 'turn-ended', combatantId: previousId };
   }
+}
+
+/** A vancian slot a cast consumes: the spell level and the slot index (DD-S18). */
+interface CastSlot {
+  readonly level: string;
+  readonly index: number;
+}
+
+/** The `spell:cast` payload (DD-S17): the spell, its aim, and what the cast spent. */
+function castPayload(
+  spellId: string,
+  cost: ActionCost,
+  aim: { readonly targetId: string } | { readonly at: Position },
+  slot: CastSlot | undefined,
+): Record<string, unknown> {
+  return {
+    spellId,
+    ...aim,
+    cost: cost.vancian !== undefined ? 'vancian' : cost.points !== undefined ? 'points' : 'none',
+    ...(slot !== undefined ? { slotLevel: slot.level, slotIndex: slot.index } : {}),
+    ...(cost.points !== undefined ? { pool: cost.points.pool, amount: cost.points.amount } : {}),
+  };
 }
 
 /** Move statements evaluate their dice-free budget without consuming the fight's dice (DD-M8). */

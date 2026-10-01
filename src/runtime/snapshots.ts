@@ -42,6 +42,7 @@ import { buildCharacter, validateBuild } from './progression';
 import { Character, reserveValue } from './character';
 import {
   Combat,
+  copyBindings,
   copyTerrain,
   defeatedSide,
   moveBudgetAst,
@@ -567,6 +568,11 @@ export function deserializeCombat(
       initiativeBonus: entry.profile.initiativeBonus,
       ...(entry.profile.speed !== undefined ? { speed: entry.profile.speed } : {}),
       actions: [...entry.profile.actions],
+      spells: [...(entry.profile.spells ?? [])],
+      ...(entry.balances?.bindings !== undefined ? { bindings: copyBindings(entry.balances.bindings) } : {}),
+      slotsCast: {},
+      poolsSpent: {},
+      ...(entry.profile.castBlockedBy !== undefined ? { castBlockedBy: entry.profile.castBlockedBy } : {}),
       attackTable: entry.profile.attackTable
         ? entry.profile.attackTable.map((row) => ({ level: row.level, byDefense: { ...row.byDefense } }))
         : undefined,
