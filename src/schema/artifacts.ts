@@ -51,6 +51,8 @@ export interface SpellTargeting {
   shape: 'single' | 'burst';
   /** Required iff shape is "burst". */
   radius?: number;
+  /** v1.6 — max distance to the target or area center (pack spatial distance); absent = the caster's effective reach, max(reach, default) (DD-S8). */
+  range?: number;
 }
 
 /** $defs/content/properties/spells/additionalProperties — a spell is an action + metadata (FR-9). */

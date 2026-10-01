@@ -157,6 +157,8 @@ export interface DeclareOptions {
   readonly targetId?: string;
   /** v1.5 — a move action's destination (FR-11); ignored by theater-of-mind packs. */
   readonly to?: Position;
+  /** v1.6 — a burst spell's area center; may be an empty cell (DD-S8). Spatial packs only; theater packs ignore it. */
+  readonly at?: Position;
 }
 
 /** Why a declare was rejected — one ErrorCard-shaped object, play-time economy family. */
@@ -180,6 +182,12 @@ export type DeclareRejection =
     }
   | SpatialRejection
   | MoveRejection
+  | {
+      kind: 'out-of-range';
+      rule: 'E-SPAT-01';
+      resource: string;
+      message: string;
+    }
   | {
       kind: 'valid';
       rule: 'E-REF-01';
@@ -582,11 +590,18 @@ export class Combat {
     if (restriction !== undefined) {
       return [this.rejectionEvent(actorId, restriction)];
     }
+    // DD-S8: `at` centers a burst spell on a cell (spatial packs only; theater packs drop it).
+    // An `at` cast binds the caster as the nominal executor target — no statement reads it.
+    const at = this.runtime.spatial.enabled ? options.at : undefined;
+    if (at !== undefined) {
+      const refusal = this.atRefusal(actionId, options.targetId);
+      if (refusal !== undefined) return [this.rejectionEvent(actorId, refusal)];
+    }
     // A move action targets its actor: no opponent resolution, no reach gate (DD-M9).
     // Spells never move (a spell `move` is E-FORM-02), so the budget is action-only.
     const budgetAst = moveBudgetAst(this.runtime, actionId);
     const target =
-      budgetAst !== undefined
+      budgetAst !== undefined || at !== undefined
         ? { combatant: actor }
         : this.resolveTarget(actor, options.targetId, spell !== undefined);
     if ('rejection' in target) {
@@ -600,7 +615,7 @@ export class Combat {
       const ok = evalValidity(
         validity,
         this.validityVars(actor),
-        (shape) => this.resolveShape(shape, actor, target.combatant).length > 0,
+        (shape) => this.resolveShape(shape, actor, target.combatant.position, target.combatant).length > 0,
       );
       if (!ok) {
         return [
@@ -620,6 +635,12 @@ export class Combat {
         return [this.rejectionEvent(actorId, gate.rejection)];
       }
       move = gate.move;
+    } else if (spell !== undefined) {
+      // CA-S9: a spell passes the range gate where an action passes the reach gate.
+      const range = this.rangeGate(actor, actionId, spell.targeting?.range, at ?? target.combatant);
+      if (range !== undefined) {
+        return [this.rejectionEvent(actorId, range)];
+      }
     } else {
       const spatial = this.spatialGate(actor, target.combatant);
       if (spatial !== undefined) {
@@ -664,12 +685,10 @@ export class Combat {
       return [this.rejectionEvent(actorId, spendRejection)];
     }
     slot = this.applyNonSlotCosts(actor, def.cost, slot);
-    const cast =
-      spell === undefined
-        ? undefined
-        : castPayload(actionId, def.cost, { targetId: target.combatant.id }, slot);
+    const aim = at !== undefined ? { at: { x: at.x, y: at.y } } : { targetId: target.combatant.id };
+    const cast = spell === undefined ? undefined : castPayload(actionId, def.cost, aim, slot);
     const { result: events, emitted } = this.collect(() =>
-      this.resolve(actor, actionId, def, target.combatant, move, cast),
+      this.resolve(actor, actionId, def, target.combatant, { move, cast, at }),
     );
     this.surfaceOffers(emitted);
     return events;
@@ -897,6 +916,85 @@ export class Combat {
       { id: target.id, position: target.position },
       this.runtime.pack.spatial?.reach.default ?? 1,
     );
+  }
+
+  /**
+   * Why an `at` declare is refused (DD-S8, CA-S9): `at` with a `targetId`; `at`
+   * on an action; `at` on a spell that is not a burst (absent targeting =
+   * single); `at` on a burst spell whose parse-once root is not
+   * `target(burst-…)`. Each is `invalid-target`, nothing changes.
+   */
+  private atRefusal(actionId: string, targetId: string | undefined): DeclareRejection | undefined {
+    const refuse = (resource: string, message: string): DeclareRejection => ({
+      kind: 'invalid-target',
+      rule: 'E-REF-01',
+      resource,
+      message,
+    });
+    if (targetId !== undefined) {
+      return refuse(targetId, `declare "${actionId}" with either targetId or at, not both.`);
+    }
+    const spell = this.runtime.pack.content.spells?.[actionId];
+    if (this.runtime.pack.actions[actionId] !== undefined || spell === undefined) {
+      return refuse(
+        actionId,
+        `action "${actionId}" cannot be centered on a cell — only a burst spell takes at.`,
+      );
+    }
+    if (spell.targeting?.shape !== 'burst') {
+      return refuse(
+        actionId,
+        `spell "${actionId}" is not a burst (shape ${spell.targeting?.shape ?? 'single'}) — only a burst spell takes at.`,
+      );
+    }
+    const root = this.runtime.index.spellEffects[actionId];
+    const shape = root?.kind === 'call' && root.text === 'target' ? root.args?.[0] : undefined;
+    if (shape?.kind !== 'name' || !(shape.text ?? '').startsWith('burst-')) {
+      return refuse(
+        actionId,
+        `spell "${actionId}" cannot be centered on a cell — its effect root is not target(burst-…).`,
+      );
+    }
+    return undefined;
+  }
+
+  /**
+   * The range gate (CA-S9), where an action passes the reach gate: the
+   * distance from the caster to the center — the target's position or the
+   * `at` cell — must not exceed the spell's `targeting.range`, else the
+   * caster's effective reach `max(reach, spatial.reach.default)` (the
+   * `canReach` value, so absent-range packs behave as under the reach gate).
+   * Theater-of-mind packs never consult range.
+   */
+  private rangeGate(
+    actor: CombatantState,
+    spellId: string,
+    declared: number | undefined,
+    aim: CombatantState | Position,
+  ): DeclareRejection | undefined {
+    const geometry = this.runtime.spatial;
+    if (!geometry.enabled) return undefined;
+    const isCell = !('id' in aim);
+    const center = isCell ? aim : aim.position;
+    const resource = isCell ? `${aim.x},${aim.y}` : aim.id;
+    if (actor.position === undefined || center === undefined) {
+      return {
+        kind: 'spatial',
+        rule: 'E-SPAT-01',
+        resource,
+        message: `this pack declares a spatial model, but combatant positions are missing (from: ${actor.position === undefined ? 'absent' : 'set'}, target ${resource}: ${center === undefined ? 'absent' : 'set'}).`,
+      };
+    }
+    const floor = this.runtime.pack.spatial?.reach.default ?? 1;
+    const range = declared ?? Math.max(this.reachOf(actor.id) ?? floor, floor);
+    const distance = geometry.distance(actor.position, center);
+    if (distance <= range) return undefined;
+    return {
+      kind: 'out-of-range',
+      rule: 'E-SPAT-01',
+      resource,
+      message: `spell "${spellId}" has range ${range}; ${isCell ? `(${resource})` : resource} is ${distance} away.`,
+    };
   }
 
   /**
@@ -1143,12 +1241,19 @@ export class Combat {
   /**
    * The one shape resolver (CA-G4): the executor's resolveTargets, the
    * validity gate's hasTarget, and target() statements all resolve shapes
-   * here — once, combat-side. Theater-of-mind: every shape answers with the
-   * bound targets (the no-op discipline — spatial.html's absent-column).
+   * here — once, combat-side. A burst resolves around `center`: the bound
+   * target's position, or an `at` cell (DD-S8). Theater-of-mind: every shape
+   * answers with the bound targets (the no-op discipline — spatial.html's
+   * absent-column).
    */
-  private resolveShape(shape: string, actor: CombatantState, target: CombatantState): readonly string[] {
+  private resolveShape(
+    shape: string,
+    actor: CombatantState,
+    center: Position | undefined,
+    bound: CombatantState,
+  ): readonly string[] {
     const geometry = this.runtime.spatial;
-    if (!geometry.enabled) return [target.id];
+    if (!geometry.enabled) return [bound.id];
     if (shape === 'adjacent') {
       return this.state.order.filter((id) => {
         const other = this.state.combatants[id]!;
@@ -1163,14 +1268,14 @@ export class Combat {
     }
     if (shape.startsWith('burst-')) {
       const radius = Number(shape.slice('burst-'.length));
-      if (target.position === undefined) return [];
+      if (center === undefined) return [];
       const candidates: (readonly [string, Position])[] = [];
       for (const id of this.state.order) {
         const combatant = this.state.combatants[id]!;
         if (combatant.hp.current <= 0 || combatant.position === undefined) continue;
         candidates.push([id, combatant.position]);
       }
-      return geometry.inBurst(target.position, radius, candidates);
+      return geometry.inBurst(center, radius, candidates);
     }
     return [];
   }
@@ -1238,8 +1343,17 @@ export class Combat {
     actionId: string,
     def: ActionDef,
     target: CombatantState,
-    move?: (budget: number) => void,
-    cast?: Readonly<Record<string, unknown>>,
+    {
+      move,
+      cast,
+      at,
+    }: {
+      readonly move?: ((budget: number) => void) | undefined;
+      /** A spell's `spell:cast` payload (DD-S17); absent for actions. */
+      readonly cast?: Readonly<Record<string, unknown>> | undefined;
+      /** An empty-cell burst's center (DD-S8): `action:resolved` carries it instead of `targetId`. */
+      readonly at?: Position | undefined;
+    },
   ): readonly RuntimeEvent[] {
     if (cast !== undefined) {
       // DD-S17: `spell:cast` precedes the effect's events, inside the declare's own collection.
@@ -1252,12 +1366,12 @@ export class Combat {
         why: { rule: this.ruleBaseOf(actionId), rolls: [] },
       });
     }
-    this.execute(actor, this.boundActionOf(actionId, def), target, this.ruleBaseOf(actionId), move);
+    this.execute(actor, this.boundActionOf(actionId, def), target, this.ruleBaseOf(actionId), move, at);
     this.state = { ...this.state, phase: 'resolved' };
     this.runtime.events.emit({
       type: 'action:resolved',
       actor: actor.id,
-      payload: { actionId, targetId: target.id },
+      payload: at !== undefined ? { actionId, at: { x: at.x, y: at.y } } : { actionId, targetId: target.id },
       why: { rule: `${this.ruleBaseOf(actionId)}`, rolls: [] },
     });
     this.endIfSideDefeated();
@@ -1276,6 +1390,7 @@ export class Combat {
     target: CombatantState,
     rule: string,
     move?: (budget: number) => void,
+    at?: Position,
   ): RuntimeEvent[] {
     const emitted: RuntimeEvent[] = [];
     const sink = (event: RuntimeEvent) => {
@@ -1315,8 +1430,13 @@ export class Combat {
             why: { rule, rolls: request.rolls.map((roll) => displayRoll(roll)) },
           });
         },
-        (shape) => this.resolveShape(shape, actor, target),
+        (shape) => this.resolveShape(shape, actor, at ?? target.position, target),
         move,
+        (id) => {
+          // DD-S19: every target a shape scope names saves and defends with its own values.
+          const combatant = this.state.combatants[id];
+          return combatant === undefined ? undefined : this.profileOf(combatant);
+        },
       );
       // Attack outcomes are events too (attack:rolled) — one per target, with the verdict.
       // The executor nests statements in sequence/target/save wrappers; flatten first.
@@ -1406,7 +1526,7 @@ export class Combat {
     }
     this.applyNonSlotCosts(reactor, def.cost);
     const { result: events, emitted } = this.collect(() =>
-      this.resolve(reactor, offer.actionId, def, target.combatant),
+      this.resolve(reactor, offer.actionId, def, target.combatant, {}),
     );
     this.surfaceOffers(emitted);
     return events;

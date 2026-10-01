@@ -72,6 +72,8 @@ export interface EffectApply {
   condition(target: EffectTargetRef, conditionId: string, duration: number): void;
   /** v1.5 — host movement (FR-11): spend up to `budget` movement points toward the declared destination. Absent = the host has no movement support. */
   move?(budget: number): void;
+  /** v1.6 — per-target vars for statements inside a shape scope (FR-9 per-target saves). Absent = ctx.vars for every target. */
+  varsFor?(target: EffectTargetRef): Readonly<Record<string, number>>;
 }
 
 /** Play-time context: actor (opaque, host identity), scope targets, RNG, mutation callbacks, actor-state scalars. */
@@ -259,11 +261,15 @@ function execAttack(
       'attack statement is missing its prebuilt d20 recipe — parse effects through parseEffect (E-FORM-01)',
     );
   }
-  const defense = valueOfFormula(evalFormula(args[0]!, ctx.vars, ctx.rng));
+  // DD-S19: with `varsFor` each scoped target presents its own defense; without it, one shared value.
+  const shared =
+    ctx.apply.varsFor === undefined ? valueOfFormula(evalFormula(args[0]!, ctx.vars, ctx.rng)) : undefined;
   const bonus = valueOfFormula(evalFormula(args[1]!, ctx.vars, ctx.rng));
   const defenseName = args[0]!.kind === 'name' ? (args[0]!.text ?? 'defense') : 'defense';
   const outcomes: AttackOutcome[] = [];
   for (const target of scope) {
+    const defense =
+      shared ?? valueOfFormula(evalFormula(args[0]!, ctx.apply.varsFor?.(target) ?? ctx.vars, ctx.rng));
     const rolled = rollRecipe(effectNode.attackRecipe, ctx.rng, {}, 'attack');
     const roll: RollResult = { ...rolled, modifier: rolled.modifier + bonus, total: rolled.total + bonus };
     const hit = roll.total >= defense;
@@ -293,7 +299,13 @@ function execSave(
   const [failEffect, passEffect] = [args[2]!, args[3]!];
   const perTarget: SaveTargetOutcome[] = [];
   for (const target of scope) {
-    const roll = rollRecipe(effectNode.saveRecipe, ctx.rng, ctx.vars, saveName);
+    // DD-S19: each scoped target saves with its own value; the DC stays ctx.vars.
+    const roll = rollRecipe(
+      effectNode.saveRecipe,
+      ctx.rng,
+      ctx.apply.varsFor?.(target) ?? ctx.vars,
+      saveName,
+    );
     const passed = roll.total >= dc;
     const judged: RollResult = {
       ...roll,

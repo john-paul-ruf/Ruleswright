@@ -351,7 +351,8 @@ describe('CAP-G7 — the grid journey on the real generated pack (dark-fantasy, 
     // [hexer, wight, brynn] (the +100 foe ties the caster, allies break ties
     // first); execSave interleaves save → branch per target. The script lands
     // a MIX: hexer PASSES (20 + 3 ≥ 12 → damage(half) re-rolls 3d6[4,2,3]=9
-    // → 5), wight and brynn FAIL (full 3d6 each).
+    // → 5), wight and brynn FAIL (full 3d6 each). Each target saves with its
+    // OWN reason (DD-S19): hexer +3, wight +3, the warden brynn +0.
     const dice = new ScriptedRng([
       1,
       1,
@@ -368,7 +369,7 @@ describe('CAP-G7 — the grid journey on the real generated pack (dark-fantasy, 
       6,
       2,
       2,
-      2, // brynn: save 6 < 12 → fail branch → 3d6 = 6
+      2, // brynn: save 6 + its own reason 0 = 6 < 12 (DD-S19) → fail branch → 3d6 = 6
     ]);
     const { fight, events } = startFight(
       rt,

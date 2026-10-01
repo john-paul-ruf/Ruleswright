@@ -376,7 +376,9 @@ describe('burst resolution through the executor (CAP-G3, CA-G4)', () => {
     };
     // Burst scope follows initiative order: [hexer, wight, brynn, shambles]
     // (shambles and brynn tie at −100; the tie breaks by declared order —
-    // allies before enemies). execSave interleaves save → branch per target.
+    // allies before enemies). execSave interleaves save → branch per target,
+    // each target rolling with its OWN reason (DD-S19): the barrow-wight
+    // frames +3, the shambles +0 — every branch still fails against 12.
     const dice = diceScript([
       2,
       1,
@@ -397,7 +399,7 @@ describe('burst resolution through the executor (CAP-G3, CA-G4)', () => {
       6,
       4,
       4,
-      4, // shambles: save 6 (fail), 3d6 = 12
+      4, // shambles: save 6 + its own reason 0 = 6 (fail; DD-S19), 3d6 = 12
     ]);
     const { fight: brawl, events } = fight(
       spatialRuntime(),

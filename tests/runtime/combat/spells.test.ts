@@ -12,7 +12,7 @@
  * and throws on exhaustion).
  */
 import { describe, expect, it } from 'vitest';
-import { emberMarchesPack } from '../fixtures/packs';
+import { emberMarchesPack, emberMarchesSpatialPack, withSpatial } from '../fixtures/packs';
 import { Runtime } from '../../../src/runtime/runtime';
 import { profileFromStatblock, type CombatantProfile } from '../../../src/runtime/combat/resolve';
 import { Combat, startCombat, type StartCombatRequest } from '../../../src/runtime/combat/combat';
@@ -412,5 +412,239 @@ describe('spell targets (DD-S8): any combatant in the fight', () => {
       'invalid-target',
       'E-REF-01',
     );
+  });
+});
+
+/**
+ * The spatial fixture with ranges (test-local pack data): `grave-light` single
+ * at range 3, `ember-bloom` burst-2 at range 6, and `ember-ring`, a burst
+ * spell whose effect root is `save(...)` rather than `target(burst-…)`.
+ */
+function rangedPack(): Pack {
+  const pack = spellPack();
+  const spells = pack.content.spells!;
+  return withSpatial(
+    {
+      ...pack,
+      content: {
+        ...pack.content,
+        spells: {
+          ...spells,
+          'grave-light': { ...spells['grave-light']!, targeting: { shape: 'single', range: 3 } },
+          'ember-bloom': { ...spells['ember-bloom']!, targeting: { shape: 'burst', radius: 2, range: 6 } },
+          'ember-ring': {
+            name: 'Ember Ring',
+            magic: { level: 2, lists: ['hexer'] },
+            cost: { vancian: 2 },
+            targeting: { shape: 'burst', radius: 2, range: 6 },
+            effect: 'save(reason, 12, damage(2d6, fire), damage(half))',
+            tags: ['casting'],
+          },
+        },
+      },
+    },
+    { model: 'grid', reach: { default: 1 }, shapes: ['single', 'burst'] },
+  );
+}
+
+const CASTER: Member = {
+  id: 'hexer',
+  spells: ['grave-light', 'ember-bloom', 'ember-ring'],
+  initiativeBonus: 100,
+  hp: 40,
+  balances: {
+    boundSlots: { '1': 1, '2': 2 },
+    bindings: { '1': ['grave-light'], '2': ['ember-bloom', 'ember-ring'] },
+  },
+};
+
+describe('CAP-S9 — the range gate (CA-S9, DD-S8)', () => {
+  it('range 3: distance 3 casts; distance 4 is one out-of-range (E-SPAT-01) with nothing changed', () => {
+    const near = new Runtime(rangedPack());
+    const inRange = fightOf(near, [CASTER], [WIGHT], [1, 1, 2], {
+      hexer: { x: 0, y: 0 },
+      wight: { x: 3, y: 1 },
+    });
+    const cast = during(near, () => inRange.declare('grave-light', { targetId: 'wight' }));
+    expect(cast.map((event) => event.type)).toContain('spell:cast');
+
+    const far = new Runtime(rangedPack());
+    const outOfRange = fightOf(far, [CASTER], [WIGHT], [1, 1], {
+      hexer: { x: 0, y: 0 },
+      wight: { x: 4, y: 0 },
+    });
+    const rejected = expectRejected(
+      far,
+      outOfRange,
+      () => outOfRange.declare('grave-light', { targetId: 'wight' }),
+      'out-of-range',
+      'E-SPAT-01',
+    );
+    expect(rejected.payload['resource']).toBe('wight');
+    expect(rejected.payload['message']).toBe('spell "grave-light" has range 3; wight is 4 away.');
+  });
+
+  it("no range: the caster's effective reach applies (reach 1 — distance 2 is out of range)", () => {
+    const rt = new Runtime(emberMarchesSpatialPack());
+    const fight = fightOf(rt, [HEXER], [WIGHT], [1, 1], { hexer: { x: 0, y: 0 }, wight: { x: 2, y: 0 } });
+    const rejected = expectRejected(
+      rt,
+      fight,
+      () => fight.declare('grave-light', { targetId: 'wight' }),
+      'out-of-range',
+      'E-SPAT-01',
+    );
+    expect(rejected.payload['message']).toBe('spell "grave-light" has range 1; wight is 2 away.');
+  });
+
+  it('no range: a reach entry below spatial.reach.default still gets the default, as canReach does (F-M2 floor)', () => {
+    // A reach entry must be >= 1 at load, so the floor is shown as entry 1 under default 2:
+    // the caster's own entry alone would refuse distance 2.
+    const rt = new Runtime(
+      withSpatial(spellPack(), {
+        model: 'grid',
+        reach: { default: 2, hexer: 1 },
+        shapes: ['single', 'burst'],
+      }),
+    );
+    const fight = fightOf(rt, [HEXER], [WIGHT], [1, 1, 2], { hexer: { x: 0, y: 0 }, wight: { x: 2, y: 1 } });
+    const events = during(rt, () => fight.declare('grave-light', { targetId: 'wight' }));
+    expect(events.some((event) => event.type === 'declare:rejected')).toBe(false);
+    expect(events[0]!.type).toBe('spell:cast');
+  });
+});
+
+describe('CAP-S9 — empty-cell bursts (CA-S9, DD-S8, DD-S19)', () => {
+  // hexer (0,0); ally brynn (5,1) and enemy wight (4,2) stand within 2 of the
+  // empty cell (4,0); shambles (9,0) does not; the caster is 4 away.
+  const POSITIONS = {
+    hexer: { x: 0, y: 0 },
+    brynn: { x: 5, y: 1 },
+    wight: { x: 4, y: 2 },
+    shambles: { x: 9, y: 0 },
+  };
+  const BRYNN: Member = { id: 'brynn', statblock: 'grave-shambles', initiativeBonus: -50, hp: 40 };
+  const SHAMBLES: Member = { id: 'shambles', statblock: 'grave-shambles', initiativeBonus: -150, hp: 40 };
+
+  function blastFight(rt: Runtime, faces: readonly number[]): Combat {
+    return fightOf(rt, [CASTER, BRYNN], [WIGHT, SHAMBLES], [1, 1, 1, 1, ...faces], POSITIONS);
+  }
+
+  it('hits exactly the standing combatants within radius 2 of the cell, both sides, each saving with its own value', () => {
+    const rt = new Runtime(rangedPack());
+    // brynn (reason 0): save 10 + 0 < 12 → fail, 3d6 = 9; wight (reason 3): save 10 + 3 ≥ 12 → pass, half of 9 = 5.
+    const fight = blastFight(rt, [10, 2, 3, 4, 10, 2, 3, 4]);
+    const center = { x: 4, y: 0 };
+    const expected = fight.state.order.filter((id) => {
+      const combatant = fight.state.combatants[id]!;
+      const p = combatant.position!;
+      return combatant.hp.current > 0 && Math.max(Math.abs(p.x - center.x), Math.abs(p.y - center.y)) <= 2;
+    });
+    expect(expected).toEqual(['brynn', 'wight']);
+    const events = during(rt, () => fight.declare('ember-bloom', { at: center }));
+    expect(events.map((event) => event.type)).toEqual([
+      'spell:cast',
+      'damage:applied',
+      'damage:applied',
+      'action:resolved',
+    ]);
+    const damage = events.filter((event) => event.type === 'damage:applied');
+    expect(damage.map((event) => event.target)).toEqual(expected);
+    expect(damage.map((event) => event.payload['amount'])).toEqual([9, 5]);
+    expect(fight.state.combatants['shambles']!.hp.current).toBe(40);
+    expect(fight.state.combatants['hexer']!.hp.current).toBe(40);
+    expect(events[0]!.target).toBeUndefined();
+    expect(events[0]!.payload).toEqual({
+      spellId: 'ember-bloom',
+      at: { x: 4, y: 0 },
+      cost: 'vancian',
+      slotLevel: '2',
+      slotIndex: 0,
+    });
+    expect(events[3]!.payload).toEqual({ actionId: 'ember-bloom', at: { x: 4, y: 0 } });
+  });
+
+  it('a blast that catches nobody is a legal cast: the bound slot is spent, no effect events', () => {
+    const rt = new Runtime(rangedPack());
+    const fight = blastFight(rt, []);
+    const slotsBefore = { ...fight.state.combatants['hexer']!.slots.remaining };
+    const events = during(rt, () => fight.declare('ember-bloom', { at: { x: 0, y: 5 } }));
+    expect(events.map((event) => event.type)).toEqual(['spell:cast', 'action:resolved']);
+    const hexer = fight.state.combatants['hexer']!;
+    expect(hexer.slotsCast).toEqual({ '2': [0] });
+    expect(hexer.boundSlots['2']).toBe(1);
+    // The fixture ember-bloom costs { vancian: 2 } only: no turn slot moves.
+    expect(hexer.slots.remaining).toEqual(slotsBefore);
+  });
+
+  it('each at refusal is one invalid-target with nothing changed', () => {
+    const rt = new Runtime(rangedPack());
+    const fight = blastFight(rt, []);
+    const at = { x: 4, y: 0 };
+    const both = expectRejected(
+      rt,
+      fight,
+      () => fight.declare('ember-bloom', { at, targetId: 'wight' }),
+      'invalid-target',
+      'E-REF-01',
+    );
+    expect(both.payload['message']).toContain('either targetId or at');
+    const single = expectRejected(
+      rt,
+      fight,
+      () => fight.declare('grave-light', { at }),
+      'invalid-target',
+      'E-REF-01',
+    );
+    expect(single.payload['message']).toContain('not a burst');
+    const action = expectRejected(
+      rt,
+      fight,
+      () => fight.declare('strike', { at }),
+      'invalid-target',
+      'E-REF-01',
+    );
+    expect(action.payload['message']).toContain('only a burst spell takes at');
+    const root = expectRejected(
+      rt,
+      fight,
+      () => fight.declare('ember-ring', { at }),
+      'invalid-target',
+      'E-REF-01',
+    );
+    expect(root.payload['message']).toContain('not target(burst-');
+  });
+
+  it('an at beyond range is out-of-range with resource "x,y"', () => {
+    const rt = new Runtime(rangedPack());
+    const fight = blastFight(rt, []);
+    const rejected = expectRejected(
+      rt,
+      fight,
+      () => fight.declare('ember-bloom', { at: { x: 8, y: 0 } }),
+      'out-of-range',
+      'E-SPAT-01',
+    );
+    expect(rejected.payload['resource']).toBe('8,0');
+    expect(rejected.payload['message']).toBe('spell "ember-bloom" has range 6; (8,0) is 8 away.');
+  });
+});
+
+describe('CAP-S9 — theater of mind never consults range or at (DD-M11 discipline)', () => {
+  it('any distance passes, and at is dropped: the burst resolves to the bound target', () => {
+    const rt = new Runtime(spellPack());
+    const caster: Member = { ...CASTER, spells: ['grave-light', 'ember-bloom'] };
+    const fight = fightOf(rt, [caster], [WIGHT], [1, 1, 3, 1, 1, 1, 1], {
+      hexer: { x: 0, y: 0 },
+      wight: { x: 40, y: 0 },
+    });
+    const far = during(rt, () => fight.declare('grave-light', { targetId: 'wight' }));
+    expect(far[0]!.type).toBe('spell:cast');
+    const bloom = during(rt, () => fight.declare('ember-bloom', { at: { x: 4, y: 0 } }));
+    expect(bloom[0]!.payload).toMatchObject({ spellId: 'ember-bloom', targetId: 'wight' });
+    expect(bloom[0]!.payload['at']).toBeUndefined();
+    expect(bloom.filter((event) => event.type === 'damage:applied').map((event) => event.target)).toEqual([
+      'wight',
+    ]);
   });
 });

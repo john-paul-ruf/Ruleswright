@@ -303,6 +303,11 @@ export function attackBonusAgainst(attacker: CombatantProfile, defenseValue: num
  *
  * `move` (optional, combat-injected, v1.5) becomes `apply.move`: the host's
  * movement walk. Without it a `move(...)` statement fails closed (CA-M2).
+ *
+ * `profileFor` (optional, combat-injected, v1.6) becomes `apply.varsFor`:
+ * each target a shape scope names saves and defends with its own values
+ * (DD-S19), `effectVars(actor, <its profile>)`. Ids it cannot resolve fall
+ * back to the bound target's vars.
  */
 export function executeAgainst(
   action: BoundAction,
@@ -312,6 +317,7 @@ export function executeAgainst(
   sink: MutationSink,
   resolveShapeTargets?: (shape: string) => readonly string[],
   move?: (budget: number) => void,
+  profileFor?: (id: string) => CombatantProfile | undefined,
 ): readonly EffectResolution[] {
   const rolls: RollResult[] = [];
   const vars = effectVars(actor.profile, target.profile);
@@ -330,6 +336,10 @@ export function executeAgainst(
       sink({ targetId: ref.id, kind: 'condition', conditionId, duration, rolls: [...rolls] });
     },
     ...(move !== undefined ? { move } : {}),
+    varsFor: (ref: EffectTargetRef) => {
+      const profile = profileFor?.(ref.id);
+      return profile === undefined ? vars : effectVars(actor.profile, profile);
+    },
   };
   const ctx: EffectContext = { actor: actor.id, targets: [{ id: target.id }], rng, apply, vars };
   const outcomes = executeEffect(action.ast, ctx);

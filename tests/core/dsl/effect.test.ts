@@ -410,3 +410,68 @@ describe('move(formula) — v1.5 host movement (CA-M2)', () => {
     ).toThrow(/needs host movement support/);
   });
 });
+
+describe('varsFor — per-target defender values inside a shape scope (v1.6, DD-S19)', () => {
+  const values: Record<string, Readonly<Record<string, number>>> = {
+    goblin: { reason: 0, ac: 18 },
+    brynn: { reason: 5, ac: 10 },
+  };
+
+  it('each scoped target rolls its save with its own value; the DC stays ctx.vars', () => {
+    const ast = mustParse('target(burst-2, save(reason, dc, damage(3d6, fire), damage(half)))');
+    const { apply } = recordingApply(['goblin', 'brynn']);
+    const outcomes = executeEffect(ast, {
+      actor: null,
+      targets: [],
+      // goblin: save 10 + 0 = 10 < 12 (fail) then 3d6; brynn: save 10 + 5 = 15 ≥ 12 (pass) then half.
+      rng: scripted([10, 2, 3, 4, 10, 2, 3, 4]),
+      apply: { ...apply, varsFor: (target: { id: string }) => values[target.id]! },
+      vars: { reason: 3, dc: 12 },
+    });
+    const scoped = outcomes[0] as Extract<EffectResolution, { kind: 'target' }>;
+    const save = scoped.outcomes[0] as Extract<EffectResolution, { kind: 'save' }>;
+    expect(save.dc).toBe(12);
+    expect(save.perTarget.map((entry) => [entry.targetId, entry.roll.total, entry.branch])).toEqual([
+      ['goblin', 10, 'fail'],
+      ['brynn', 15, 'pass'],
+    ]);
+  });
+
+  it('each scoped target presents its own defense to an attack; the bonus stays ctx.vars', () => {
+    const ast = mustParse('target(burst-2, attack(ac, bonus))');
+    const { apply } = recordingApply(['goblin', 'brynn']);
+    const outcomes = executeEffect(ast, {
+      actor: null,
+      targets: [],
+      rng: scripted([12, 12]),
+      apply: { ...apply, varsFor: (target: { id: string }) => values[target.id]! },
+      vars: { ac: 14, bonus: 2 },
+    });
+    const scoped = outcomes[0] as Extract<EffectResolution, { kind: 'target' }>;
+    const attacks = scoped.outcomes as Extract<EffectResolution, { kind: 'attack' }>[];
+    expect(
+      attacks.map((attack) => [attack.targetId, attack.roll.total, attack.roll.verdict!.value, attack.hit]),
+    ).toEqual([
+      ['goblin', 14, 18, false],
+      ['brynn', 14, 10, true],
+    ]);
+  });
+
+  it('without varsFor every scoped target uses ctx.vars (the pre-v1.6 executor, unchanged)', () => {
+    const ast = mustParse('target(burst-2, save(reason, 12, damage(3d6, fire), damage(half)))');
+    const { apply } = recordingApply(['goblin', 'brynn']);
+    const outcomes = executeEffect(ast, {
+      actor: null,
+      targets: [],
+      rng: scripted([10, 2, 3, 4, 10, 2, 3, 4]),
+      apply,
+      vars: { reason: 3 },
+    });
+    const scoped = outcomes[0] as Extract<EffectResolution, { kind: 'target' }>;
+    const save = scoped.outcomes[0] as Extract<EffectResolution, { kind: 'save' }>;
+    expect(save.perTarget.map((entry) => [entry.roll.total, entry.branch])).toEqual([
+      [13, 'pass'],
+      [13, 'pass'],
+    ]);
+  });
+});

@@ -95,6 +95,37 @@ describe('structural pass', () => {
     ).toBe(true);
   });
 
+  it('targeting.range (v1.6, CA-S9): an integer >= 0 loads clean; anything else is one E-SCHEMA-01 at the path', () => {
+    const withRange = (range: unknown) =>
+      errorsFor((pack) => {
+        const targeting = pack.content.spells?.['grave-light']?.targeting;
+        if (targeting === undefined) throw new Error('fixture missing targeting');
+        (targeting as unknown as Record<string, unknown>).range = range;
+      });
+    expect(withRange(0)).toEqual([]);
+    expect(withRange(6)).toEqual([]);
+    for (const bad of [-1, 1.5, '6']) {
+      const cards = withRange(bad);
+      expect(cards).toHaveLength(1);
+      expect(cards[0]).toMatchObject({
+        rule: 'E-SCHEMA-01',
+        jsonPath: 'content.spells.grave-light.targeting.range',
+        message: 'targeting.range must be an integer >= 0.',
+      });
+    }
+  });
+
+  it('targeting stays closed beyond {shape, radius, range} (E-SCHEMA-02)', () => {
+    const cards = errorsFor((pack) => {
+      const targeting = pack.content.spells?.['grave-light']?.targeting;
+      if (targeting === undefined) throw new Error('fixture missing targeting');
+      (targeting as unknown as Record<string, unknown>).reach = 2;
+    });
+    expect(
+      cards.some((card) => card.rule === 'E-SCHEMA-02' && card.jsonPath.endsWith('targeting.reach')),
+    ).toBe(true);
+  });
+
   it('both attack conventions on one class violates the XOR rule', () => {
     const cards = errorsFor((pack) => {
       const warden = pack.progression.warden;

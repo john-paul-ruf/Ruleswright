@@ -506,12 +506,17 @@ function checkTargeting(ctx: Ctx, value: unknown, artifactId: string, basePath: 
   if (!isPlainObject(value)) {
     add(
       ctx,
-      makeErrorCard('E-SCHEMA-01', artifactId, basePath, 'targeting must be an object {shape, radius?}.'),
+      makeErrorCard(
+        'E-SCHEMA-01',
+        artifactId,
+        basePath,
+        'targeting must be an object {shape, radius?, range?}.',
+      ),
     );
     return;
   }
   reqFields(ctx, value, ['shape'], artifactId, basePath);
-  forbidUnknown(ctx, value, ['shape', 'radius'], artifactId, basePath);
+  forbidUnknown(ctx, value, ['shape', 'radius', 'range'], artifactId, basePath);
   const shape = value['shape'];
   if (shape !== undefined && shape !== 'single' && shape !== 'burst') {
     add(
@@ -539,6 +544,18 @@ function checkTargeting(ctx: Ctx, value: unknown, artifactId: string, basePath: 
         artifactId,
         `${basePath}.radius`,
         'shape "burst" requires a radius (radius iff burst).',
+      ),
+    );
+  }
+  const range = value['range'];
+  if (range !== undefined && (!isInteger(range) || range < 0)) {
+    add(
+      ctx,
+      makeErrorCard(
+        'E-SCHEMA-01',
+        artifactId,
+        `${basePath}.range`,
+        'targeting.range must be an integer >= 0.',
       ),
     );
   }
