@@ -74,7 +74,7 @@ describe('stage 3 · feats', () => {
   it('contributes content.feats including the reactive one (FR-12 proof 2 shape)', () => {
     const pack = generate(microTheme());
     expect(pack.content.feats?.ironhide).toBeDefined();
-    expect(pack.content.feats?.['second-gust']?.trigger?.on).toBe('condition:applied[self]');
+    expect(pack.content.feats?.['second-gust']?.trigger?.on).toBe('condition:applied[target=self]');
   });
 
   it('a theme with no reactive feat is rejected, located (FR-21 floor)', () => {

@@ -180,12 +180,12 @@
       "cold-brew": { "name": "Cold Brew", "passive": "1" },
       "second-gust": {
         "name": "Second Gust",
-        "trigger": { "on": "condition:applied[self]" },
+        "trigger": { "on": "condition:applied[target=self]" },
         "effect": "applyCondition(braced, 2)"
       },
       "last-legs": {
         "name": "Last Legs",
-        "trigger": { "on": "condition:applied[self]" },
+        "trigger": { "on": "condition:applied[target=self]" },
         "effect": "applyCondition(spiked, 2)"
       }
     },

@@ -64,7 +64,7 @@ export function microTheme(): ThemeTemplate {
         ironhide: { name: 'Ironhide' },
         'second-gust': {
           name: 'Second Gust',
-          trigger: { on: 'condition:applied[self]' },
+          trigger: { on: 'condition:applied[target=self]' },
           effect: 'applyCondition(braced, 2)',
         },
       },

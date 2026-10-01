@@ -19,6 +19,7 @@ import { describe, expect, it } from 'vitest';
 import { runPipeline } from '../../src/compiler/pipeline';
 import { DARK_FANTASY, ZOMBIE_URBAN, WYLDWOOD } from '../../src/compiler/theme-loader';
 import { validatePack } from '../../src/schema/validate';
+import { TRIGGER_PATTERN } from '../../src/schema/validate/helpers';
 import { packDslChecker } from '../../src/core/dsl/checker';
 import { packContentHash } from '../../src/schema/version';
 import type { Pack } from '../../src/schema/pack';
@@ -259,6 +260,24 @@ describe('FR-21 floor — the shared bullets, enumerated against both packs', ()
         (feat) => feat.trigger?.on !== undefined,
       );
       expect(reactiveFeat?.trigger?.on).toMatch(/condition:applied/);
+    });
+
+    it(`${name}: every trigger pattern fits the eventMatches grammar, and every reactive feat targets self (CAP-S7)`, () => {
+      const patterns: [string, string][] = [
+        ...Object.entries(pack.actions).flatMap(([id, action]): [string, string][] =>
+          action.trigger === undefined ? [] : [[`actions.${id}`, action.trigger.on]],
+        ),
+        ...Object.entries(pack.content.feats ?? {}).flatMap(([id, feat]): [string, string][] =>
+          feat.trigger === undefined ? [] : [[`content.feats.${id}`, feat.trigger.on]],
+        ),
+      ];
+      expect(patterns.length).toBeGreaterThan(0);
+      for (const [path, on] of patterns) expect(on, path).toMatch(TRIGGER_PATTERN);
+      const featPatterns = Object.values(pack.content.feats ?? {}).flatMap((feat) =>
+        feat.trigger === undefined ? [] : [feat.trigger.on],
+      );
+      expect(featPatterns.length).toBeGreaterThan(0);
+      for (const on of featPatterns) expect(on.endsWith('[target=self]'), on).toBe(true);
     });
   }
 });

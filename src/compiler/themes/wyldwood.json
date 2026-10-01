@@ -359,14 +359,14 @@
       "second-gust": {
         "name": "Second Gust",
         "trigger": {
-          "on": "condition:applied[self]"
+          "on": "condition:applied[target=self]"
         },
         "effect": "applyCondition(braced, 2)"
       },
       "gloam-step": {
         "name": "Gloam Step",
         "trigger": {
-          "on": "condition:applied[self]"
+          "on": "condition:applied[target=self]"
         },
         "effect": "applyCondition(warded, 1)"
       }

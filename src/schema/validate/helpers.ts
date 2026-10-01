@@ -12,6 +12,9 @@ import { runDslChecker } from './dsl';
 /** Kebab-id grammar every map key, id field, and tag must match. */
 export const ID_PATTERN = /^[a-z][a-z0-9-]*$/;
 
+/** v1.6 — the eventMatches grammar (triggers.ts): <type>[:<sub>]* with an optional [target|actor=<self|id>] clause. */
+export const TRIGGER_PATTERN = /^[a-z][a-z0-9-]*(:[a-z][a-z0-9-]*)*(\[(target|actor)=[a-z][a-z0-9-]*\])?$/;
+
 export const HD_DICE: readonly string[] = ['d6', 'd8', 'd10', 'd12'];
 export const MAX_SPELL_LEVEL = 9;
 
@@ -319,6 +322,18 @@ export function checkTrigger(
         artifactId,
         `${basePath}.on`,
         `${basePath}.on must be a string of at least ${onMinLength} character(s).`,
+      ),
+    );
+  } else if (typeof on === 'string' && !TRIGGER_PATTERN.test(on)) {
+    const selfClause = on.endsWith('[self]') ? on.slice(0, -'[self]'.length) : undefined;
+    add(
+      ctx,
+      makeErrorCard(
+        'E-FORM-01',
+        artifactId,
+        `${basePath}.on`,
+        `trigger pattern "${on}" can never fire — the grammar is <event> or <event>[target|actor=self|<id>].`,
+        selfClause !== undefined ? `did you mean "${selfClause}[target=self]"?` : undefined,
       ),
     );
   }

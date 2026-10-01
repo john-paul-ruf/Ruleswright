@@ -901,3 +901,60 @@ describe('movement DSL cross checks (v1.5, CA-M2/CA-M7) — move placement + spe
     }
   });
 });
+
+describe('v1.6 trigger grammar (DD-S13, CAP-S7) — checkTrigger enforces the eventMatches grammar', () => {
+  function onCards(on: string) {
+    return errorsFor((pack) => (pack.actions['step-aside']!.trigger = { on })).filter(
+      (card) => card.jsonPath === 'actions.step-aside.trigger.on',
+    );
+  }
+
+  it('accepts the bare, sub-typed and clause forms', () => {
+    for (const on of ['attack:rolled', 'attack:rolled[target=self]', 'x[actor=wight]', 'enemy-approaches']) {
+      expect(onCards(on), on).toEqual([]);
+    }
+  });
+
+  it('refuses condition:applied[self] as E-FORM-01, hinting the target=self form', () => {
+    expect(onCards('condition:applied[self]')).toEqual([
+      {
+        severity: 'error',
+        artifactId: 'step-aside',
+        jsonPath: 'actions.step-aside.trigger.on',
+        rule: 'E-FORM-01',
+        message:
+          'trigger pattern "condition:applied[self]" can never fire — the grammar is <event> or <event>[target|actor=self|<id>].',
+        hint: 'did you mean "condition:applied[target=self]"?',
+      },
+    ]);
+  });
+
+  it('refuses call notation, a bare clause key and upper case (E-FORM-01, no hint)', () => {
+    for (const on of ['on:event(a, b)', 'a[target]', 'A:b']) {
+      const cards = onCards(on);
+      expect(cards, on).toMatchObject([{ rule: 'E-FORM-01' }]);
+      expect(cards[0]!.hint, on).toBeUndefined();
+    }
+  });
+
+  it('a feat and an action each report at their own jsonPath', () => {
+    const cards = errorsFor((pack) => {
+      pack.actions['step-aside']!.trigger = { on: 'condition:applied[self]' };
+      pack.content.feats!['vengeful-strike']!.trigger = { on: 'damaged[self]' };
+    });
+    expect(cards.map((card) => [card.rule, card.artifactId, card.jsonPath, card.hint])).toEqual([
+      [
+        'E-FORM-01',
+        'step-aside',
+        'actions.step-aside.trigger.on',
+        'did you mean "condition:applied[target=self]"?',
+      ],
+      [
+        'E-FORM-01',
+        'vengeful-strike',
+        'content.feats.vengeful-strike.trigger.on',
+        'did you mean "damaged[target=self]"?',
+      ],
+    ]);
+  });
+});
