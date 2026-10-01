@@ -6,7 +6,7 @@
 > **Depends on:** — (dispatch gate **B-S1** cleared 2026-09-30)
 > **Concurrent with:** —
 > **Owns:** `program/Ruleswright/specs/requirements.md`, `program/Ruleswright/mocks/magic.html`, `program/Ruleswright/mocks/api-map.html`, `program/Ruleswright/mocks/triggers.html`, `program/Ruleswright/mocks/conditions.html`, `program/Ruleswright/specs/database.md`, `src/schema/contracts/pack.schema.json`, `src/schema/contracts/snapshots.schema.json`
-> **Reads:** `program/Ruleswright/specs/design.md`, `program/Ruleswright/mocks/combat-loop.html`, `program/Ruleswright/mocks/spatial.html`, `src/runtime/combat/combat.ts`, `src/runtime/combat/spatial.ts`, `src/runtime/combat/triggers.ts`, `src/runtime/snapshots.ts`, `src/runtime/pools.ts`, `src/runtime/character-profile.ts`, `src/schema/validate/helpers.ts`, `program/Ruleswright/prompts/spells-in-combat/STATE.md` (Design Decisions, Contract Agreements)
+> **Reads:** `program/Ruleswright/specs/design.md`, `program/Ruleswright/mocks/combat-loop.html`, `program/Ruleswright/mocks/spatial.html`, `src/runtime/combat/combat.ts`, `src/runtime/combat/spatial.ts`, `src/runtime/combat/triggers.ts`, `src/runtime/snapshots.ts`, `src/runtime/pools.ts`, `src/runtime/character-profile.ts`, `src/schema/validate/helpers.ts`, `src/schema/validate/sections/cross.ts`, `src/runtime/conditions.ts`, `program/Ruleswright/prompts/spells-in-combat/STATE.md` (Design Decisions, Contract Agreements, Planning completeness review)
 > **Resources:** —
 > **Checkpoints:** 3
 
@@ -91,6 +91,21 @@ CA-S9; every value below comes from them.
 - `RULE_IDS` has 15 entries (`error-card.ts`). `E-FORM-01` already exists; reuse it.
 - `checkTrigger` (`helpers.ts:296`) checks only that `on` is a non-empty string.
 - database.md line 313 says "point-pool spells have no cast verb in v1 (DD17a)".
+- Three more texts go stale at v1.6 and are rewritten below (review F-P6, checked at `56476e9`):
+  - `snapshots.schema.json:222`, the `itemsUsed` description, contrasts the recorded item
+    spend with pools/boundSlots, which are only re-stated;
+  - `snapshots.schema.json:243`, the `pendingMove` description, ends "Restore derives the
+    resolved phase when any combatant carries pendingMove or pendingTrigger (no envelope
+    field).";
+  - `database.md:390-391` says "the envelope carries no phase, and none is added".
+- Restricts (review F-P5, checked at `56476e9`):
+  - `database.md:296` describes `restricts` as action tag patterns, and l.297 says spells use
+    "the same matcher as actions".
+  - The runtime matcher `matchesRestriction` (`conditions.ts:41-52`) is kind-exact: an
+    `actions.tagged:` pattern never matches a spell (`tests/runtime/conditions.test.ts:67-72`).
+    The out-of-combat `isRestricted`/`restrictedIds` use it.
+  - Load-time tag integrity checks `actions.tagged:` patterns only (`helpers.ts:526`
+    `RESTRICTS_PREFIX`, `sections/cross.ts:56`).
 
 ## Files to Create/Modify
 
@@ -102,8 +117,8 @@ CA-S9; every value below comes from them.
 | `program/Ruleswright/mocks/triggers.html` | modify | Anatomy uses the real grammar; reactive feat as a pack feat; the no-chain note; `once` removed |
 | `program/Ruleswright/mocks/conditions.html` | modify | l.109 copy `on:condition:applied[target=self]` |
 | `src/schema/contracts/pack.schema.json` | modify | spells `targeting.range`; `trigger.on` `pattern` (actions and feats); descriptions (spell casting, feats held) |
-| `src/schema/contracts/snapshots.schema.json` | modify | combatant `poolsSpent`, `slotsCast`; envelope `offers`, `phase`, `offeredCount`; `pendingTrigger` description |
-| `program/Ruleswright/specs/database.md` | modify | status v1.6; §actions/§content trigger grammar, spells, feats; Snapshot Envelopes v1.6; Registry note; Access Patterns; Version Registry row 7 |
+| `src/schema/contracts/snapshots.schema.json` | modify | combatant `poolsSpent`, `slotsCast`; envelope `offers`, `phase`, `offeredCount`; `pendingTrigger`, `itemsUsed` (l.222) and `pendingMove` (l.243) descriptions |
+| `program/Ruleswright/specs/database.md` | modify | status v1.6; §actions/§content trigger grammar, spells (incl. the combat-scoped DD-S10 restricts rule, the range fallback, the DD-S19 consequence), feats; Snapshot Envelopes v1.6, incl. the v1.5 derived-phase bullet (l.390-391); Registry note; Access Patterns; Version Registry row 7 |
 
 ## Implementation
 
@@ -229,7 +244,7 @@ diff reviewable):
    "range": {
      "type": "integer",
      "minimum": 0,
-     "description": "v1.6 — optional: the farthest distance (the pack's spatial distance: grid Chebyshev, hex axial) from the caster to the target or area center. Absent = the caster's reach. Spells are range-gated instead of reach-gated; theater-of-mind packs ignore it. A burst spell may be centered on an empty cell (declare option at)."
+     "description": "v1.6 — optional: the farthest distance (the pack's spatial distance: grid Chebyshev, hex axial) from the caster to the target or area center. Absent = the caster's effective reach: max(its reach entry, spatial.reach.default), the value the reach gate uses. Spells are range-gated instead of reach-gated; theater-of-mind packs ignore it. A burst spell may be centered on an empty cell (declare option at)."
    }
    ```
 3. Spells' description (or the spells map description): append `"v1.6 — declarable in
@@ -283,6 +298,14 @@ diff reviewable):
    ```
 3. Add to `pendingTrigger`'s description: `" v1.6: legacy — read on restore when offers is
    absent; v1.6 writers no longer emit it."`
+4. **`itemsUsed` description (l.222).** In the clause "the same way pools and boundSlots
+   are re-stated, and this snapshot value wins for the spend", insert after "re-stated":
+   `" (since v1.6 their spend is recorded too, in poolsSpent and slotsCast)"`. Keep every
+   other sentence byte-identical.
+5. **`pendingMove` description (l.243).** Replace the last sentence, "Restore derives the
+   resolved phase when any combatant carries pendingMove or pendingTrigger (no envelope
+   field).", with `"Restore phase: the envelope phase when present (v1.6); otherwise the
+   v1.5 derivation, resolved when any combatant carries pendingMove or pendingTrigger."`
 
 Format with Prettier before committing: `pnpm exec prettier --write
 src/schema/contracts/pack.schema.json src/schema/contracts/snapshots.schema.json`. The
@@ -302,6 +325,25 @@ was skipped.
      **vancian** casting only (DD-EG5, kept in v1.6). Point-pool spells are cast in
      combat (v1.6) and are not armor-gated." Delete "point-pool spells have no cast verb
      in v1 (DD17a)".
+   - **Restricts and spells, scoped to combat (DD-S10; review F-P5).** Write it as a
+     combat-declare rule, in these words or the same meaning: "In combat, a spell declare
+     is blocked while an active condition carries `actions.tagged:<t>` or
+     `spells.tagged:<t>` and `<t>` is one of the spell's tags (a spell is an action,
+     FR-9). Out of combat, the v1.1 matcher is unchanged in v1.6: `isRestricted` and
+     `restrictedIds` match by kind, so only `spells.tagged:` restricts a spell there.
+     Load-time tag integrity still checks `actions.tagged:` patterns only." Touch the
+     conditions bullet (l.296) only to append "(v1.6: combat declares also match spells
+     against `actions.tagged:`; see spells)". Do not rewrite its v1.1 integrity rule. The
+     "same matcher as actions" phrase (l.297) gains "in combat (v1.6)".
+   - **Range fallback (DD-S8 a; review F-P7):** "absent `targeting.range` = the caster's
+     effective reach: max(its reach entry, `spatial.reach.default`), the value the reach
+     gate uses, so a pack without ranges behaves as it did under the reach gate."
+   - **DD-S19 consequence (review F-P9):** "Per-target values apply to saves and defenses
+     inside a shape scope. A DC or an attack bonus is still evaluated from the caster's vars
+     bound to the primary target, so it sees the primary target's saves (for an `at` cast,
+     the caster's own). Evaluating a defense per target draws dice per target only when
+     the defense formula rolls dice. No bundled pack's does, so bundled RNG order is
+     unchanged."
    - **feats:** add DD-S11 and DD-S12 in meaning, including the v1 limit "no feat-slot
      cap (progression declares none)".
 4. §Snapshot Envelopes: a **v1.6 fields** table in the style of the v1.5 one. Use the
@@ -313,6 +355,11 @@ was skipped.
    - `slotsUsed` still records the remaining per-turn ledger;
    - the host settles spells with `settleSpellCasts` (a runtime verb, not a contract
      field), following CA-S3.
+
+   Rewrite the v1.5 **"Derived restore phase"** bullet (l.390-391): "the envelope carries no
+   phase, and none is added" becomes "v1.5 envelopes carry no phase. v1.6 adds the optional
+   envelope `phase` (v1.6 fields above), and this derivation is the fallback when it is
+   absent." Keep the rest of the bullet.
 
    Under `characterState`, note that `feats` is now written: it is emitted only when the
    character holds a feat, and restore refuses an unknown id (`E-SNAP-01`).
@@ -337,6 +384,8 @@ was skipped.
 - `pnpm exec prettier --check src/schema/contracts/ program/Ruleswright/specs/database.md`
   is 0;
 - `pnpm typecheck` is 0 (no TS touched);
+- the stale texts are gone: `grep -n "(no envelope field)" src/schema/contracts/snapshots.schema.json`
+  and `grep -n "none is added" program/Ruleswright/specs/database.md` both print nothing;
 - `pnpm exec vitest run tests/schema` passes. The hand-rolled validator does not read
   the contract files at run time, so this must stay green. If it is red, stop and
   report.
@@ -351,7 +400,9 @@ was skipped.
   - `api-map.html` names equal database.md's (`settleSpellCasts`, `learnFeat`,
     `spell:cast`, `pool:settled`, `slot:settled`, `feat:learned`);
   - the `triggers.html` grammar sentence equals the `pattern` and the database.md text.
-- **Cross-reference:** the DD-S4 … DD-S18 statements in database.md agree in meaning
+- **Cross-reference:** the DD-S10 text names combat declares only, states the
+  out-of-combat stance (unchanged, kind-exact), and agrees with the magic.html gate list.
+- **Cross-reference:** the DD-S4 … DD-S19 statements in database.md agree in meaning
   with STATE.md. Report every wording you changed.
 - The whole-repo fast gates (`typecheck`, `lint`, `format:check`) are Orchestrator's
   receive check. You run the role-scoped set above.

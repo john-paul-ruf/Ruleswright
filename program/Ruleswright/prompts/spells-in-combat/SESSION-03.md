@@ -5,7 +5,7 @@
 > **Modules:** M01, M03, M04 (theme content only)
 > **Depends on:** SESSION-02 (`CombatantState` spell fields, `profileFromCharacter` bridge, snapshot spend, `spells-journey.test.ts` landed; CA-S1 … S5 rechecked against them by Orchestrator)
 > **Concurrent with:** —
-> **Owns:** `src/schema/validate/helpers.ts`, `src/runtime/feats.ts`, `src/runtime/character.ts`, `src/runtime/runtime.ts`, `src/runtime/combat/triggers.ts`, `src/runtime/combat/combat.ts`, `src/runtime/combat/resolve.ts`, `src/runtime/character-profile.ts`, `src/runtime/snapshots.ts`, `src/runtime/index.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `tests/schema/validate.test.ts`, `tests/runtime/fixtures/packs.ts`, `tests/compiler/pipeline.test.ts`, `tests/compiler/stages.test.ts`, `tests/compiler/coverage-floor.test.ts`, `tests/runtime/feats.test.ts`, `tests/runtime/combat/feat-triggers.test.ts`, `tests/snapshots/character.test.ts`, `tests/snapshots/combat.test.ts`, `tests/proofs/movement-journey.test.ts`, `tests/proofs/rules-are-data.test.ts`, `tests/proofs/spells-journey.test.ts`, `tests/proofs/docs-run.test.ts`, `README.md`
+> **Owns:** `src/schema/validate/helpers.ts`, `src/runtime/feats.ts`, `src/runtime/character.ts`, `src/runtime/runtime.ts`, `src/runtime/combat/triggers.ts`, `src/runtime/combat/combat.ts`, `src/runtime/combat/resolve.ts`, `src/runtime/character-profile.ts`, `src/runtime/snapshots.ts`, `src/runtime/index.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `tests/schema/validate.test.ts`, `tests/runtime/fixtures/packs.ts`, `tests/compiler/pipeline.test.ts`, `tests/compiler/stages.test.ts`, `tests/compiler/coverage-floor.test.ts`, `tests/runtime/feats.test.ts`, `tests/runtime/combat/feat-triggers.test.ts`, `tests/runtime/combat/movement.test.ts`, `tests/snapshots/character.test.ts`, `tests/snapshots/combat.test.ts`, `tests/proofs/movement-journey.test.ts`, `tests/proofs/rules-are-data.test.ts`, `tests/proofs/spells-journey.test.ts`, `tests/proofs/docs-run.test.ts`, `README.md`
 > **Reads:** `program/Ruleswright/specs/database.md` (v1.6), `src/schema/contracts/{pack,snapshots}.schema.json`, `src/schema/validate/sections/{actions,content}.ts`, `src/runtime/conditions.ts`, `src/runtime/events.ts`, `program/Ruleswright/mocks/{triggers,conditions,magic,api-map}.html`, `program/Ruleswright/prompts/spells-in-combat/STATE.md`
 > **Resources:** —
 > **Checkpoints:** 5
@@ -15,7 +15,7 @@
 | ID | Module | Read | Why |
 |----|--------|------|-----|
 | M01 | Schema validator | `validate/helpers.ts` `checkTrigger` (l.296–325); its callers `sections/actions.ts:61`, `sections/content.ts:393` | One site enforces the grammar for actions and feats |
-| M03 | Runtime | `combat/triggers.ts` (all), `combat/combat.ts` (`respond` l.~619, `surfaceOffers` l.~1237, `resolveReactive` l.~1255, `offeredCount` l.439, constructor), `snapshots.ts` (character serialize/restore l.131–410; combat l.410–800), `character.ts` (`CharacterState` l.68, the `Character` facade l.~105–200), `runtime.ts` (`PackIndex`, `compileEffects`), `character-profile.ts` | Feats held, offered, resolved, snapshotted |
+| M03 | Runtime | `combat/triggers.ts` (all), `combat/combat.ts` (`respond` l.690–709, `surfaceOffers` l.~1237, `resolveReactive` l.~1255, `offeredCount` l.439, constructor), `snapshots.ts` (character serialize/restore l.131–410; combat l.410–800), `character.ts` (`CharacterState` l.68, the `Character` facade l.~105–200), `runtime.ts` (`PackIndex`, `compileEffects`), `character-profile.ts` | Feats held, offered, resolved, snapshotted |
 | M04 | Themes | `content.feats` in all three | Pattern fix |
 
 Line numbers are those at `55b294f`. S02 shifts `combat.ts`, `snapshots.ts` and
@@ -62,7 +62,13 @@ wins: report the difference.
 - every other `trigger.on` literal in `src/` and `tests/` matches the DD-S13 regex
   (fixtures `enemy-approaches` and `damaged` do);
 - `serializeCombat` still writes the per-combatant `pendingTrigger`, keeping the first
-  offer only.
+  offer only;
+- `grep -rn "matchingEvent: '" tests` lists exactly the two `pendingTriggers` literal
+  pins that ck3 re-keys: `tests/runtime/combat/movement.test.ts:393` (block l.388–395) and
+  `tests/proofs/movement-journey.test.ts:221` (block l.216–223). Line numbers are at
+  `56476e9`; S02 does not touch either file;
+- `tests/snapshots/combat.test.ts:79-89` pins the exact sorted envelope key set
+  (`combatants, kind, order, pack, pairsWith, rng, round, snapshotVersion, turn`).
 
 ## Files to Create/Modify
 
@@ -85,9 +91,10 @@ wins: report the difference.
 | `tests/runtime/feats.test.ts` | create | CAP-S5 |
 | `tests/runtime/combat/feat-triggers.test.ts` | create | CAP-S6 unit |
 | `tests/snapshots/character.test.ts` | modify | feats round-trip; refusal; byte-exact without feats |
-| `tests/snapshots/combat.test.ts` | modify | re-key l.123–125 and l.606 to `offers`; envelope tests |
-| `tests/proofs/movement-journey.test.ts` | modify | remove the R-GM-1 workaround (l.263–264) |
-| `tests/proofs/rules-are-data.test.ts` | modify | proof 2 adds the reactive feat |
+| `tests/runtime/combat/movement.test.ts` | modify | ck3: re-key the `pendingTriggers` literal (l.388–395) with `source: 'action'`; every other assertion unchanged |
+| `tests/snapshots/combat.test.ts` | modify | ck4: re-key l.123–125 and l.606 to `offers`, and the envelope key-set pin (l.79–89) to add `offeredCount` and `phase`; envelope tests |
+| `tests/proofs/movement-journey.test.ts` | modify | ck3: re-key the `pendingTriggers` literal (l.216–223) with `source: 'action'`; ck4: remove the R-GM-1 workaround (l.263–264) |
+| `tests/proofs/rules-are-data.test.ts` | modify | proof 2 adds the reactive feat, held by a character (`learnFeat` + `profileFromCharacter`; the fixture `warden` class gains `actions` as pack data) |
 | `tests/proofs/spells-journey.test.ts` | modify | the feat leg |
 | `README.md`, `tests/proofs/docs-run.test.ts` | modify | spells/feats docs; anatomy guards (```ts count stays **4**) |
 
@@ -169,6 +176,10 @@ wins: report the difference.
      emit it only when non-empty in any JSON form.
    - `PendingTrigger` gains `readonly source: 'action' | 'feat'`. Every existing
      construction sets `'action'`.
+   - **Pins that move here** (review F-P4; both in this lease): the exact
+     `pendingTriggers` literals at `tests/runtime/combat/movement.test.ts:388-395` and
+     `tests/proofs/movement-journey.test.ts:216-223` gain `source: 'action'`. That is the
+     only change to either block.
 2. **`triggers.ts`:**
    - `reactiveActionsFor` stays as it is; add `reactiveFeatsFor` over `combatant.feats`
      (only feats with `trigger`);
@@ -198,8 +209,9 @@ wins: report the difference.
    - decline → one `trigger:declined`;
    - `targetId` = an enemy → `invalid-target`, and the queue is empty;
    - a reactive action and a feat on the same event both queue, actions first;
-   - the existing `tests/runtime/combat/movement.test.ts` suite stays green unchanged,
-     which shows that the queue-empty resume rule still holds with `source` on every offer.
+   - `tests/runtime/combat/movement.test.ts`, with only its l.388–395 literal re-keyed
+     (above), stays green. That shows the queue-empty resume rule still holds with
+     `source` on every offer.
 
 **Commit when:**
 - `pnpm typecheck` 0;
@@ -231,6 +243,9 @@ wins: report the difference.
      - `phase` `combat-over` while no side is defeated.
 3. **Re-key:** `tests/snapshots/combat.test.ts:123-125` and `:606` now assert
    `snap.offers` entries (`{actorId, source: 'action', id: 'parry' | 'opportunist', on}`).
+   The envelope key-set pin at `tests/snapshots/combat.test.ts:79-89` gains `offeredCount`
+   and `phase`, which are always written (the sorted list grows to 11). `offers` stays
+   absent there because that fight has no open offer (review F-P4).
    **Remove the workaround** at `tests/proofs/movement-journey.test.ts:263-264`, and
    assert that `offerIndex` continues across the restore.
 4. **New tests in `combat.test.ts`:**
@@ -258,15 +273,39 @@ wins: report the difference.
    4. serialize → JSON → restore: `offers` holds it, and `offeredCount` is preserved;
    5. `respond(take)`: `condition:applied {braced}` on the hexer, and no second
       `trigger:fired`;
-   6. on the hexer's turn, `declare('ember-bloom')` → `restricted` (hexbound carries
-      `spells.tagged:casting`, `dark-fantasy.json:440`, DD-S10), with nothing spent;
+   6. `step()` → `turn-ended` (`wight`); `step()` → `turn-started` (`hexer`). The hexer is
+      next in the order, so no in-between declare is needed. `step()` never passes a turn
+      by itself (`combat.ts:467-497`); the wight's turn is over because it declared
+      `grave-gaze`. Then `declare('ember-bloom', {targetId: 'wight'})` → `restricted`
+      (hexbound carries `spells.tagged:casting`, `dark-fantasy.json:440`, DD-S10), with
+      nothing spent;
    7. learn → `serializeCharacter` → `restoreCharacter` keeps `feats`.
 
    Use the payload field names exactly as ck3 landed them.
-2. **`rules-are-data.test.ts` proof 2:** add the reactive feat on the fixture pack
-   (data only). It is offered on `condition:applied[target=self]`, taken, and its effect
-   lands on the holder, with zero engine diffs. The baseline is the same pack without the
-   feat held: no offer.
+2. **`rules-are-data.test.ts` proof 2** gains a reactive-feat leg, data only (review F-P3).
+   `runFight` builds statblock profiles (`rules-are-data.test.ts:59`), and a statblock holds
+   no feats (DD-S2), so this leg builds its own fight. The exact construction:
+   - **Data delta:** on `fixturePack()`, give the fixture `warden` class combat actions,
+     `pack.content.classes!['warden']!.actions = ['strike']` (a v1.2 class field and pack
+     data; without it `profileFromCharacter` throws `no-combat-actions`). The fixture
+     already declares `second-gust` (re-keyed at ck1 to `condition:applied[target=self]`,
+     effect `applyCondition(braced, 2)`) and `grave-gaze` (both save branches apply
+     `hexbound`). `validatePack` stays `[]`.
+   - **Holder:** `runtime.createCharacter({ name: 'Brynn', race: 'ashling', classes: [{ id:
+     'warden', level: 1 }] })` → `character.learnFeat('second-gust')` →
+     `profileFromCharacter(runtime, character, 'brynn')`, with `initiativeBonus: -100`.
+   - **Enemy:** `profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!,
+     'wight')` with `actions: ['grave-gaze']` and `initiativeBonus: 100`. The fight is
+     theater (no positions), started with `startCombat`.
+   - **Play:**
+     1. the wight is active at start and declares `grave-gaze` with `targetId: 'brynn'`;
+     2. `condition:applied {hexbound}` on brynn is followed by `trigger:fired` with
+        `source: 'feat'` for `second-gust`;
+     3. `respond(take)` gives `condition:applied {braced}` on brynn, with `why.rule`
+        `content.feats.second-gust`, and no second `trigger:fired`.
+   - **Baseline:** the same pack and fight with a character that never learned the feat:
+     no `trigger:fired`.
+   - Zero engine diffs, as in the rest of the trio.
 3. **README** (no new ```ts block; the docs-run pin stays 4):
    - **l.139–142 (`profileFromCharacter`):** add "the spells it knows, its slot bindings,
      any armor that blocks slot casting, and its reactive feats".

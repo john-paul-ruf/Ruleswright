@@ -10,12 +10,11 @@ Its human gate, **B-S1**, was cleared on 2026-09-30 ("8a - yes 8b - fine 9 cost 
 Intent section). S01 is dispatchable. If the human later edits a DD, amend the affected
 CA rows and SESSION-01..03 before the affected session dispatches.
 
-**Recommended before S01:** a scoped Archivist planning-completeness pass over
-STATE.md and SESSION-01..03 (the promoted factual-premise convention). The Archivist envelope is ready at
-`.program/prompts/ARCHIVIST-PREFLIGHT.spells-in-combat.prompt.md` (written by Planner at
-`fd20cfa`; Orchestrator spawns Archivist with it and saves the note to
-`.program/results/ARCHIVIST-PREFLIGHT.spells-in-combat.result.md`). Route its findings
-through a bounded replan before dispatch.
+**Planning-completeness pass: done.** Archivist AXluF reviewed the plan at `56476e9`
+(`.program/results/ARCHIVIST-PREFLIGHT.spells-in-combat.result.md`). It found 6 blocking
+findings (F-P1 … F-P6) and 11 informational ones (F-P7 … F-P17). REPLAN-SIC-01 verified all
+of them against the source and applied them; the dispositions are in STATE.md "Planning
+completeness review (2026-09-30, r-ZVpm)". S01 is dispatchable.
 
 **Solo run:** follow the protocol below. One agent works through the sessions serially.
 
@@ -56,6 +55,11 @@ commits its own lease at every checkpoint. This plan has no concurrent waves
    - `parsePackEffects` removed;
    - `SpellTargeting.range` (M01), `EffectApply.varsFor` (M02), `DeclareOptions.at` (M03);
    - `TRIGGER_PATTERN` in M01.
+
+   At S02's receive, Orchestrator also replaces the stale DD17/DD17a text
+   ("spells are not combat-declarable" / "point-pool casting has no cast verb") at
+   `arch/v1-core.md:170-171, 192, 425`, and the same claim at `:715` and `:817`. Use the
+   replacement text from S02's arch fragment (review F-P12).
 10. Loop. When all sessions are done, write the Final Report. Report any required
     capability still unverified as incomplete, with its owner and remaining proof.
 
@@ -92,8 +96,21 @@ Contents:
 - files created/modified;
 - architecture impact;
 - verification;
-- residual gaps: the carried rows in STATE "Inherited findings", especially action
-  self-targeting, zombie-urban spell lists, FR-6 feat slots, R-GM-3 and F-M2;
+- residual gaps: the carried rows in STATE "Inherited findings", especially:
+  - action self-targeting;
+  - the zombie-urban spell lists;
+  - wyldwood `hedge-mage` lists;
+  - FR-6 feat slots;
+  - R-GM-3;
+  - F-M2, which the range fallback now inherits;
+  - the `spells.tagged:` load-time integrity gap;
+- **for the human (a product question, not asked during the run):** in combat, a spell is
+  restricted by `actions.tagged:` or `spells.tagged:` (DD-S10). Out of combat,
+  `isRestricted`/`restrictedIds` stay kind-exact. Should out-of-combat restricts follow
+  combat? The owner is a future restricts feature;
+- **doc duty for the final Archivist pass:** PROGRAM-CONFIG Custom Rule 4 still says combat
+  `declare()` resolves only `pack.actions` and that point-pool spells have no cast verb.
+  Both go stale after S02 (review F-P12);
 - follow-up.
 
 Derive the counts (tests, files, edges) from the tree, not from handoffs (Archivist row

@@ -37,8 +37,8 @@
   - DD-S9: "cost a turn", given twice (once before Planner's A/B question, once after
     it). Planner reads it as option **B, the whole turn**: every bundled spell costs
     `main` **and** `move`; the reaction stays available. DD-S9 is rewritten accordingly.
-    If the human meant only the main action, revert DD-S9 to `main: 1` and the four
-    S02 edits listed under DD-S9; nothing else depends on it.
+    If the human meant only the main action, revert DD-S9 to `main: 1` and the S02/S03
+    edits listed under DD-S9; nothing else depends on it.
   - DD-S10 … DD-S14: confirmed as written.
   - The confirmation authorizes S01's design-change class for `magic.html`,
     `api-map.html`, `triggers.html` and `conditions.html`.
@@ -46,6 +46,9 @@
   Plan committed at `ac0e225`; amended for the DD-S8 answer (S01 gains Spec ck1; S02 gains
   ck2 "range and area targeting" and widens to M01/M02); amended again for the B-S1
   answer (DD-S9 whole-turn cost; the theater-of-mind grid-journey test is now leased work).
+  Replanned at `56476e9` by REPLAN-SIC-01, after the Archivist planning-completeness
+  review (F-P1 … F-P17; see "Planning completeness review" below). Source is unchanged since
+  `55b294f`.
 - **Sessions:** 3. They run serially: S01 Author re-entry (Spec → Designer → DB) → S02 the spell
   column → S03 the feat/trigger column, snapshot envelope and README.
 
@@ -54,8 +57,8 @@
 | # | Session | Modules | Owns | Status | Checkpoint | Completed | Notes |
 |---|---------|---------|------|--------|------------|-----------|-------|
 | 01 | Author re-entry: FR-9/FR-11 spell range, magic/api-map/triggers/conditions mocks + contract v1.6 | — (Author: Spec, Designer, DB) | `program/Ruleswright/specs/requirements.md`, `program/Ruleswright/mocks/magic.html`, `program/Ruleswright/mocks/api-map.html`, `program/Ruleswright/mocks/triggers.html`, `program/Ruleswright/mocks/conditions.html`, `program/Ruleswright/specs/database.md`, `src/schema/contracts/pack.schema.json`, `src/schema/contracts/snapshots.schema.json` | pending | — | — | Author roles, not Coder; 3 checkpoints (Spec added for DD-S8); B-S1 cleared 2026-09-30 |
-| 02 | The spell column: declare spells, range + empty-cell bursts, spend + snapshot, settlement, generated spells, spell journey | M01 (mirror/validator), M02 (executor), M03, M04 (content) | `src/schema/artifacts.ts`, `src/schema/validate/sections/content.ts`, `src/core/dsl/effect.ts`, `src/runtime/combat/combat.ts`, `src/runtime/combat/action-economy.ts`, `src/runtime/combat/resolve.ts`, `src/runtime/character-profile.ts`, `src/runtime/pools.ts`, `src/runtime/snapshots.ts`, `src/runtime/index.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `tests/schema/validate.test.ts`, `tests/core/dsl/effect.test.ts`, `tests/runtime/combat/spells.test.ts`, `tests/runtime/combat/combat-spatial.test.ts`, `tests/runtime/combat/character-profile.test.ts`, `tests/runtime/fixtures/packs.ts`, `tests/snapshots/combat.test.ts`, `tests/proofs/grid-journey.test.ts`, `tests/proofs/rules-are-data.test.ts`, `tests/proofs/spells-journey.test.ts` | pending | — | — | depends S01; 5 checkpoints |
-| 03 | The feat column: trigger grammar, feats held + offered, snapshot envelope, README | M01, M03, M04 (content) | `src/schema/validate/helpers.ts`, `src/runtime/feats.ts`, `src/runtime/character.ts`, `src/runtime/runtime.ts`, `src/runtime/combat/triggers.ts`, `src/runtime/combat/combat.ts`, `src/runtime/combat/resolve.ts`, `src/runtime/character-profile.ts`, `src/runtime/snapshots.ts`, `src/runtime/index.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `tests/schema/validate.test.ts`, `tests/runtime/fixtures/packs.ts`, `tests/compiler/pipeline.test.ts`, `tests/compiler/stages.test.ts`, `tests/compiler/coverage-floor.test.ts`, `tests/runtime/feats.test.ts`, `tests/runtime/combat/feat-triggers.test.ts`, `tests/snapshots/character.test.ts`, `tests/snapshots/combat.test.ts`, `tests/proofs/movement-journey.test.ts`, `tests/proofs/rules-are-data.test.ts`, `tests/proofs/spells-journey.test.ts`, `tests/proofs/docs-run.test.ts`, `README.md` | pending | — | — | depends S02 |
+| 02 | The spell column: declare spells, range + empty-cell bursts, spend + snapshot, settlement, generated spells, spell journey | M01 (mirror/validator), M02 (executor), M03, M04 (content) | `src/schema/artifacts.ts`, `src/schema/validate/sections/content.ts`, `src/core/dsl/effect.ts`, `src/runtime/combat/combat.ts`, `src/runtime/combat/action-economy.ts`, `src/runtime/combat/resolve.ts`, `src/runtime/character-profile.ts`, `src/runtime/pools.ts`, `src/runtime/snapshots.ts`, `src/runtime/index.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `tests/schema/validate.test.ts`, `tests/core/dsl/effect.test.ts`, `tests/runtime/combat/spells.test.ts`, `tests/runtime/combat/combat-spatial.test.ts`, `tests/runtime/combat/character-profile.test.ts`, `tests/runtime/fixtures/packs.ts`, `tests/snapshots/combat.test.ts`, `tests/proofs/grid-journey.test.ts`, `tests/proofs/rules-are-data.test.ts`, `tests/proofs/spells-journey.test.ts` | pending | — | — | depends S01; 5 checkpoints; replanned (F-P1/P2/P3/P5/P7/P8/P12/P13) |
+| 03 | The feat column: trigger grammar, feats held + offered, snapshot envelope, README | M01, M03, M04 (content) | `src/schema/validate/helpers.ts`, `src/runtime/feats.ts`, `src/runtime/character.ts`, `src/runtime/runtime.ts`, `src/runtime/combat/triggers.ts`, `src/runtime/combat/combat.ts`, `src/runtime/combat/resolve.ts`, `src/runtime/character-profile.ts`, `src/runtime/snapshots.ts`, `src/runtime/index.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `tests/schema/validate.test.ts`, `tests/runtime/fixtures/packs.ts`, `tests/compiler/pipeline.test.ts`, `tests/compiler/stages.test.ts`, `tests/compiler/coverage-floor.test.ts`, `tests/runtime/feats.test.ts`, `tests/runtime/combat/feat-triggers.test.ts`, `tests/runtime/combat/movement.test.ts`, `tests/snapshots/character.test.ts`, `tests/snapshots/combat.test.ts`, `tests/proofs/movement-journey.test.ts`, `tests/proofs/rules-are-data.test.ts`, `tests/proofs/spells-journey.test.ts`, `tests/proofs/docs-run.test.ts`, `README.md` | pending | — | — | depends S02; 5 checkpoints; `movement.test.ts` added (F-P4) |
 
 S02 and S03 share files (`combat.ts`, `snapshots.ts`, the themes, and several tests). That
 is allowed only because they never run at the same time; see the Wave Plan.
@@ -159,13 +162,18 @@ Sources inspected at `55b294f`:
 | R-GM-2: a `use`-raised offer restores into `resolved` | grid-movement FINAL-REPORT | **Implemented:** S03 ck4 (envelope `phase`). |
 | Latent (new): pool and vancian spend is lost on combat restore | Planner source read: `snapshots.ts:559-560`, `combat.ts:1105-1117` | **Implemented:** S02 ck4 (`poolsSpent`, `slotsCast`). |
 | Latent (new): only the first open offer per combatant is serialized | `snapshots.ts:462-465` (`offeredBy` keeps the first) | **Implemented:** S03 ck4 (envelope `offers`, all of them, in order). |
-| Latent (new): `spells.tagged:` restricts never bite in combat | `combat.ts:737` reads `actions.tagged:` only; `dark-fantasy.json:440` hexbound | **Implemented for spells:** S02 ck1 (DD-S10). Action matching is unchanged. |
+| Latent (new): `spells.tagged:` restricts never bite in combat | `combat.ts:737` reads `actions.tagged:` only; `dark-fantasy.json:440` hexbound | **Implemented for spells in combat:** S02 ck1 (DD-S10), through the exported `matchesRestriction`. Action matching is unchanged; out of combat, see the carried asymmetry row below. |
 | Per-target save modifiers: in a burst every target saves with the primary target's value | grid-combat S03 note; `effect.ts:292-296`, `resolve.ts` `effectVars` | **Implemented:** S02 ck2 (DD-S19), required by DD-S8's empty-cell blasts. |
 | Action/spell id collision | Planner's earlier claim | **Disproved:** `helpers.ts:105` `registerId` registers every action (`actions.ts:39`) and spell (`content.ts:420`) id in one namespace, and a duplicate is `E-DUP-01`. No DB change (DD-S16). |
 | Self-buff actions (`withdraw`, `brace`, `ward-glint`) apply their condition to the declared opponent | `combat.ts:759-806` resolves to opponents only; `dark-fantasy.json` actions | **Carried, unchanged for actions.** Spells may target any combatant (DD-S8), and feats target their holder (DD-S12). Owner: a future feature that touches action targeting. |
 | zombie-urban classes declare empty `spellLists`, so no character knows its 4 spells | theme read at `55b294f` | **Carried:** content decision. S02 still adds the turn cost to those spells for consistency. Owner: the next content feature. |
 | FR-6 feat slots: no progression field exists | `artifacts.ts` `ClassProgression` | **Carried:** v1 `learnFeat` has no slot limit (DD-S11), and the docs say so. Owner: a future feat-progression feature (schema event). |
-| R-GM-3 resume provoke skip; F-M2 reach floor; `heal` missing from `EFFECT_VOCABULARY`; `useItem` duration display; restricts-matcher API; item tags; med-kit vigor; wyldwood charm armor; `evalPackFormula` parse-once; browser determinism leg | prior ledgers | **Carried, untouched:** this feature edits no provoke, reach, DSL vocabulary or item code. Owners as recorded in grid-movement's FINAL-REPORT. |
+| R-GM-3 resume provoke skip; `heal` missing from `EFFECT_VOCABULARY`; `useItem` duration display; item tags; med-kit vigor; wyldwood charm armor; `evalPackFormula` parse-once; browser determinism leg | prior ledgers | **Carried, untouched:** this feature edits no provoke, DSL vocabulary or item code. Owners as recorded in grid-movement's FINAL-REPORT. |
+| F-M2 reach floor (`canReach` compares against `max(reach, defaultReach)`, so a reach entry below the default is ignored) | grid-movement ledger; `spatial.ts:99-100, 125` | **Carried; now interacts with the range fallback** (review F-P7). A spell without `targeting.range` uses the same `max(reachOf ?? default, default)` value (DD-S8 a, CA-S9), so it inherits the floor deliberately: absent-range packs behave exactly as today's reach gate. Fixing F-M2 later must change both sites together. Owner as recorded in grid-movement's FINAL-REPORT. |
+| Restricts-matcher API (C1: `matchesRestriction`/`isLivePattern`/`declaredTags` had no non-test consumer; combat ran its own actions-only matcher) | ARCHIVIST-LOG C1 | **Partially touched** (review F-P5). S02 ck1 makes `combat.ts` `restrictionRejection` call the exported `matchesRestriction` + `declaredTags` for both kinds, deleting the inline duplicate; `conditions.ts` is not edited. `isLivePattern` still has no non-test consumer (carried). If the call turns out to need a `conditions.ts` edit, S02 keeps a local helper and C1 stays carried. |
+| Restricts asymmetry (new): (a) in combat, a spell is blocked by `actions.tagged:` **or** `spells.tagged:` (DD-S10), while out of combat `isRestricted`/`restrictedIds` stay kind-exact, so `actions.tagged:` never restricts a spell there; (b) load-time tag integrity checks `actions.tagged:` patterns only (`helpers.ts:526` `RESTRICTS_PREFIX`, `src/schema/validate/sections/cross.ts:56`), so a `spells.tagged:` pattern naming an undeclared tag loads silently and now bites in combat | review F-P5 (checked at `56476e9`) | **Carried.** Conservative default: no existing out-of-combat behavior changes in v1.6. S01 ck3 states the stance in database.md, and S02 ck1 pins (a) with an `isRestricted` assertion. Owner: a future restricts feature. Whether out-of-combat `isRestricted` should follow combat is a **product question**, listed for the human in the Final Report, not asked now. |
+| Wyldwood `hedge-mage` knows no spells: the class declares `spellLists ['hedge']` (`wyldwood.json:270`), but its 4 spells (`gloam-veil`, `wyrd-bloom`, `verge-light`, `briar-word`) list `hedge-mage` (`wyldwood.json:458, 473, 492, 507`). The review said 5; the generated pack has 4 | review F-P10 (generated pack probed at `56476e9`) | **Carried:** content decision. The S02 pool leg uses the wyldwood `hexer` / `hex-bolt` instead. Owner: the next content feature. |
+| Theme feats exercised only by grammar: zombie-urban `second-gust`/`last-legs` and wyldwood `second-gust`/`gloam-step` are never offered in a test; only dark-fantasy `second-gust` is | review F-P11 | **Accepted:** S03 ck1's per-theme `coverage-floor` grammar check covers them; the offer path is proven once (dark-fantasy). ARCHIVIST-LOG C11's "generated-hash pins will move" is **disproved**: no literal hash pins exist in `tests/` (grep at `56476e9`). |
 | Framework wording items (Spec/DB "never spawned", the STATE row matcher, the await idle timeout, etc.) | ARCHIVIST-LOG | **Out of scope:** these concern role documents, not the product. |
 
 ## Design Decisions
@@ -250,9 +258,12 @@ DD-S9 (as "cost a turn", read as the whole turn), DD-S10 … DD-S14.
    - **Theater-of-mind packs:** range is never consulted and `at` is ignored (DD-M11
      discipline); a burst resolves to the bound target, as today.
    - **Sub-default (a) — confirm:** `targeting.range` is **optional**. Absent → the
-     caster's reach (`spatial.reach`, today's gate), so third-party packs keep loading and
-     behaving as in v1.5. *Alternative:* required on every spell of a spatial pack, a load
-     error otherwise (a compatibility break).
+     caster's effective reach, which is the `canReach` value
+     `max(reachOf(actor) ?? spatial.reach.default, spatial.reach.default)` (the F-M2 floor;
+     `spatial.ts:99-100, 125`). Absent-range packs therefore behave exactly as today's
+     reach gate, and third-party packs keep loading and behaving as in v1.5 (review F-P7
+     corrected the earlier `reachOf ?? default` wording). *Alternative:* required on every
+     spell of a spatial pack, a load error otherwise (a compatibility break).
    - **Sub-default (b) — confirm:** every bundled spell declares `range: 6`. Spells with no
      `targeting` block gain `"targeting": { "shape": "single", "range": 6 }`; burst spells
      keep their shape and radius and gain `"range": 6`. *Alternative:* per-spell ranges
@@ -272,18 +283,38 @@ DD-S9 (as "cost a turn", read as the whole turn), DD-S10 … DD-S14.
      `move`, so no `slot-ungranted` risk.
    - **Interpretation note:** Planner offered A (main only) and B (main + move); the
      human answered "cost a turn" both times. B is the literal reading. Reverting to A
-     touches only: the theme edit and its one-liner (S02 ck5 item 1), the grid-journey
-     pins (`:409`, `:433`), the theater test's turn advance, and the journey's
-     move-rejection assertion.
+     touches only these (completed by review F-P14):
+     - the theme edit and its one-liner (S02 ck5 item 1);
+     - the grid-journey pins (`:409`, `:433`);
+     - the theater test's same-turn `strike` rejection (it would stay `slot-exhausted`
+       only through `main`; the in-between declares are unaffected);
+     - the spells-journey move-rejection assertion (S02 ck5 vancian step 4);
+     - the spells-journey freshness assertion `slots: { main: 1, move: 1 }`;
+     - the CAP-S9/CAP-S1 "`main` spent" style assertions that name `move`;
+     - the README whole-turn text (S03 ck5, "the whole-turn cost in the sample themes").
    - Without a cost, the shipped spells cost no turn slot, so a caster could cast every
      prepared spell in one turn.
-10. **DD-S10 — restricts and spells (human-confirmed, B-S1).**
-    - A spell declare is blocked when an active condition carries `actions.tagged:<t>`
-      **or** `spells.tagged:<t>` and `<t>` is among the spell's tags. A spell is an action
-      (FR-9), and database.md:297 says spells use "the same matcher as actions".
+10. **DD-S10 — restricts and spells in combat (human-confirmed, B-S1; scoped by review
+    F-P5).**
+    - **In combat,** a spell declare is blocked when an active condition carries
+      `actions.tagged:<t>` **or** `spells.tagged:<t>` and `<t>` is among the spell's tags.
+      A spell is an action (FR-9), and database.md:297 says spells use "the same matcher as
+      actions".
+    - **Mechanism:** `combat.ts` `restrictionRejection` calls the exported
+      `matchesRestriction` (`conditions.ts:41-52`) with `declaredTags`. It checks kind
+      `'action'` for every declare, plus kind `'spell'` for a spell declare. The inline
+      duplicate matcher (C1) is deleted, and `conditions.ts` is not edited.
     - Action declares are unchanged (`actions.tagged:` only).
+    - **Out of combat, unchanged (conservative default):** `isRestricted`/`restrictedIds`
+      stay kind-exact (`tests/runtime/conditions.test.ts:67-72`). The resulting asymmetry,
+      and the missing load-time integrity check for `spells.tagged:`, are carried (see
+      Inherited findings). Whether out-of-combat behavior should follow combat is a
+      product question for the Final Report.
+    - S01 ck3's database.md text states the rule as a combat-declare rule, together with
+      the out-of-combat stance.
     - Effect on dark-fantasy: `hexbound` (`spells.tagged:casting`, line 440) now stops
-      casting.
+      casting in a fight. The fixture `hexbound` (`actions.tagged:casting`, `packs.ts:159`)
+      also blocks a fixture spell in a fight, but not `isRestricted(…, 'spell', …)`.
 11. **DD-S11 — characters hold feats (human-confirmed, B-S1).**
     - New verb `learnFeat(runtime, state, featId)` plus the facade `character.learnFeat(id)`.
     - It rejects an unknown feat (`unknown-feat`) and a feat already held
@@ -324,7 +355,7 @@ DD-S9 (as "cost a turn", read as the whole turn), DD-S10 … DD-S14.
     - Anything else is **`E-FORM-01`**, on actions and feats alike (`helpers.ts:296`
       `checkTrigger`). No new rule id.
     - Themes: `condition:applied[self]` → `condition:applied[target=self]` (5 sites:
-      dark-fantasy:179, zombie-urban:183/188, wyldwood:361/368).
+      dark-fantasy:179, zombie-urban:183/188, wyldwood:362/369).
     - Mock copy: `conditions.html:109` and the `triggers.html` anatomy (which uses
       `on:event(…)` notation and the unsupported `once`) are aligned to the real grammar.
     - **Compatibility caveat:** a v1.5 pack with any other bracket form now fails load.
@@ -398,6 +429,13 @@ DD-S9 (as "cost a turn", read as the whole turn), DD-S10 … DD-S14.
       statement reads (the DD-S8 root guard puts every statement inside the burst scope).
     - Pins move: burst save values in `combat-spatial.test.ts` and `grid-journey.test.ts`
       (S02 ck2 re-keys both). Rollback: drop `varsFor`.
+    - **Documented consequence (review F-P9; no code change):** a DC and an attack bonus
+      keep `ctx.vars = effectVars(actor, bound)` (`resolve.ts:348, 381-395`), where the
+      bound target's saves shadow the caster's. A `targetId` cast's DC therefore sees the
+      **primary target's** saves, and an `at` cast's DC sees the **caster's**. Every bundled
+      DC is a literal, so no shipped spell changes. Per-target `execAttack` defense
+      evaluation changes RNG order only for defense formulas that roll dice; no bundled
+      pack has one. S01 ck3 writes this into database.md.
 
 ## Verification Baseline
 
@@ -417,31 +455,63 @@ DD-S9 (as "cost a turn", read as the whole turn), DD-S10 … DD-S14.
 **Known hazards.** None open. No hanging tests are recorded for this suite, and every
 run in prior cycles finished in seconds.
 
+**REPLAN-SIC-01 probes at `56476e9` (actual; read-only).** These were `/tmp` esbuild
+bundles of `src/`, plus reads of the generated packs through the existing `dist/` (built
+2026-09-30 19:16; source unchanged since `55b294f`). The repo test suite was **not**
+re-run, so 741/741 above is still the Planner-observed baseline.
+- **Theater sequence (F-P1).** The wyldwood pack was stripped of `spatial`, with a test
+  action carrying `ember-halo`'s cost plus `slots {main:1, move:1}`. Turn order:
+  `caster, ally, foe`. The cast used dice `20,4,2,3` (wolf `7→2`). The same-turn
+  `strike` was `slot-exhausted`/`main`, with no die drawn and `serialize()` unchanged.
+  Then `step()`×2, ally `glide` (no die), `step()`×2, wolf `glide` (no die), `step()` →
+  `round-completed`, `step()` → caster `turn-started`. The final `strike` used `5,6`
+  (16 damage) → `combat-over`, `{winner: 'allies', defeated: 'enemies'}`.
+- **Vancian journey layout (F-P2).** Dark-fantasy, default `Rng(0)`, with a test action
+  carrying `ember-bloom`'s cost plus the turn slots (reach widened only so that the
+  action stands in for the range gate). Positions: hexer `(0,0)`, wight `(4,0)`,
+  shambles `(10,0)`; order `hexer, wight, shambles`.
+  - The cast left the wight at 15 → 10 hp. The hexer's same-turn `stride {to:(0,1)}` was
+    `slot-exhausted`/`move`.
+  - The wight's `stride {to:(5,0)}` and the shambles' `stride {to:(10,1)}` each
+    resolved, and the hexer's next turn began.
+  - Restore → `awaiting-declare`. Every enemy `hp: 0` in the snapshot → restore
+    `combat-over`.
+- **Generated facts.**
+  - Dark-fantasy: level-3 hexer slots `{'1':[×4], '2':[×3]}`, hp 29, `ember` 18; wight
+    hp 15; shambles hp 11; level-1 hexer slots `{'1':[×3]}`; `grave-light` L1 `{vancian:1}`.
+  - Wyldwood: `hexer` knows `hex-bolt`/`cold-clasp`/`thorn-wake`, motes 16; `thorn-wolf`
+    hp 7; `briar-shade` hp 9; `hedge-mage` knows nothing (F-P10).
+
 **Pins that move in this feature** (the pin-lease ownership convention):
 
 | Pin | File:line | Moves when | Owner |
 |---|---|---|---|
 | burst leaves `main` at 1 | `tests/proofs/grid-journey.test.ts:409` | DD-S9 adds the whole-turn cost: `main` **0** and `move` **0** | S02 ck5 |
 | rejected cast leaves `main` at 1 | `tests/proofs/grid-journey.test.ts:433` | unchanged value; add `move` stays 1 | S02 ck5 |
-| theater-of-mind parity: `ember-halo` burst then `strike` in the same turn | `tests/proofs/grid-journey.test.ts:595-645` | `packWithBurstAction` is deleted, and the real spell now costs `main`, so the same-turn `strike` is `slot-exhausted` | S02 ck5 (see its item 2) |
+| theater-of-mind parity: `ember-halo` burst then `strike` in the same turn | `tests/proofs/grid-journey.test.ts:595-642` | `packWithBurstAction` is deleted, and the real spell now costs `main` + `move`, so the same-turn `strike` is `slot-exhausted` (`E-ECON-01`, no die, `serialize()` unchanged). `step()` cannot pass a turn (`combat.ts:467-497`), so the test reaches the caster's next turn through two named in-between declares: the ally `glide`, then the wolf `glide`, both dice-free. The script stays `[1,1,1,20,4,2,3,5,6]`, and the next-turn `strike` ends the fight (Planner probe, `56476e9`) | S02 ck5 (see its item 2) |
 | burst per-target save values | `tests/runtime/combat/combat-spatial.test.ts:294-362`, `tests/proofs/grid-journey.test.ts:342-410` | DD-S19 rolls each target's save with its own value | S02 ck2 (re-key; recompute each expected total from the target's own save) |
 | whole-profile shape | `tests/runtime/combat/character-profile.test.ts:313-330` | S02 adds `spells`/`castBlockedBy` (both emitted only when set; the zombie-urban survivor knows no spells, so it probably does not move) | S02 ck3 (re-key if red) |
 | spell targeting closed shape | `tests/schema/validate.test.ts` (any `targeting` unknown-key assertion) | `range` becomes a known key | S02 ck2 |
 | serialized `pendingTrigger` | `tests/snapshots/combat.test.ts:123-125`, `:606` | DD-S14 stops writing it | S03 ck4 |
+| exact `pendingTriggers` literal (`{triggerId, actorId, actionId, matchingEvent}`) | `tests/runtime/combat/movement.test.ts:388-395` | S03 ck3 makes `PendingTrigger.source` required; add `source: 'action'` | S03 ck3 (file added to S03's Owns, F-P4; in no other session's lease) |
+| exact `pendingTriggers` literal | `tests/proofs/movement-journey.test.ts:216-223` | same as above | S03 ck3 |
+| envelope exact key set | `tests/snapshots/combat.test.ts:79-89` | S03 ck4 always writes `phase` and `offeredCount` (add both; `offers` stays absent in that fight) | S03 ck4 |
 | R-GM-1 workaround | `tests/proofs/movement-journey.test.ts:263-264` | `offeredCount` restores | S03 ck4 |
 | feat pattern literals | `tests/runtime/fixtures/packs.ts:136`, `tests/compiler/pipeline.test.ts:67`, `tests/compiler/stages.test.ts:77` | DD-S13 grammar | S03 ck1 |
 | README ```ts block count = 4 | `tests/proofs/docs-run.test.ts:49` | Never in this feature: README additions use ```text/```json only | S03 ck5 (keeps 4) |
 | `RULE_IDS` 15 / DSL `REGISTRY` 14 | `tests/schema/registry.test.ts` | Never: no id is added | — |
+| kind-exact restricts matcher ("wrong-kind prefix never matches") | `tests/runtime/conditions.test.ts:67-72` | Never: `conditions.ts` is not edited; combat calls the matcher once per kind (DD-S10) | — |
+| combatant / character-state key sets | `tests/snapshots/combat.test.ts:103`, `tests/snapshots/character.test.ts:45` | Never: `poolsSpent`/`slotsCast` are emitted only when non-empty, and `feats` only after a learn | — |
 
 ## Capability Readiness
 
 | ID | Approved behavior / entry point | Required facts + producer owners | CA IDs / prerequisites | Integration owner / checkpoint | Status | Proof / checked sources | Open gaps + correction owners |
 |----|--------------------------------|---------------------------------|------------------------|--------------------------------|--------|-------------------------|-------------------------------|
-| CAP-S1 | A character casts a known spell in combat: `fight.declare(spellId, {targetId?})` → gates → spend → effect → events (FR-9, FR-10) | known spells (`knownSpells`, `pools.ts`), bindings (character `slots`), armor (`armorBlockingCast`) → profile/balances (S02 ck3); spell AST (`index.spellEffects`, landed) | CA-S1, CA-S4, CA-S5; S01 | S02 ck3 | planned | — | — |
-| CAP-S9 | A spell is gated by its pack-declared range; a burst spell may be centered on an empty cell, hitting everyone in radius with per-target saves (FR-9, FR-11; human 2026-09-30) | `targeting.range` (S01 contract, S02 ck2 mirror/validator), `runtime.spatial.distance` (landed), `varsFor` (S02 ck2), theme ranges (S02 ck5) | CA-S9; S01 | S02 ck2 (unit), S02 ck5 (journey empty-cell leg) | planned | — | — |
+| CAP-S1 | A character casts a known spell in combat: `fight.declare(spellId, {targetId?})` → gates → spend → effect → events (FR-9, FR-10) | known spells (`knownSpells`, `pools.ts`), bindings (character `slots`), armor (`armorBlockingCast`) → profile/balances (S02 ck3); spell AST (`index.spellEffects`, landed); restricts (`matchesRestriction`/`declaredTags`, `conditions.ts`, landed) | CA-S1, CA-S4, CA-S5; S01 | S02 ck3 (src integration on the dark-fantasy generated pack; the fixture hexer has no class actions, F-P3) | planned | — | out-of-combat restricts asymmetry carried (owner: future restricts feature) |
+| CAP-S9 | A spell is gated by its pack-declared range; a burst spell may be centered on an empty cell, hitting everyone in radius with per-target saves (FR-9, FR-11; human 2026-09-30) | `targeting.range` (S01 contract, S02 ck2 mirror/validator), `runtime.spatial.distance` (landed), the absent-range fallback = the `canReach` value (`spatial.ts:99-100, 125`, landed), `varsFor` (S02 ck2), theme ranges (S02 ck5) | CA-S9; S01 | S02 ck2 (unit), S02 ck5 (journey empty-cell leg) | planned | — | F-M2 floor inherited by the fallback (carried) |
 | CAP-S2 | A mid-fight snapshot keeps the spell spend, and restore continues it (FR-14) | `poolsSpent`/`slotsCast` (S02 ck4) | CA-S2; S01 contract | S02 ck4 | planned | — | — |
 | CAP-S3 | After `combat-over`, `settleSpellCasts` writes the spend into the character, which persists in a character snapshot | combatant spend (S02 ck4) | CA-S3 | S02 ck4 | planned | — | — |
-| CAP-S4 | **First narrow journey:** the generated dark-fantasy pack (seed 42), through `dist/`: prepare → profile → start → declare the real `ember-bloom` → an empty-cell blast → snapshot/restore → finish → settle → character snapshot shows the slots emptied; plus a wyldwood pool-spell leg | all of the above; theme spell costs + ranges (S02 ck5) | CA-S1…S5, CA-S9 | S02 ck5 | planned | — | the S03 feat leg depends on this proof |
+| CAP-S4 | **First narrow journey:** the generated dark-fantasy pack (seed 42), through `dist/`. Steps: prepare (twice) → profile → start against **two** enemies (wight + shambles; the caster ≥ 3 cells from every burst center) → declare the real `ember-bloom` → the named in-between enemy declares (wight `stride`, shambles `stride`) → an empty-cell blast on the hexer's next turn → snapshot/restore → end via the hp-0-via-restore harness (asserted, with the reason) → settle → the character snapshot shows the slots emptied. Plus a wyldwood pool-spell leg (`hexer` / `hex-bolt`), with the same end route | all of the above; theme spell costs + ranges (S02 ck5) | CA-S1…S5, CA-S9 | S02 ck5 | planned | — | the S03 feat leg depends on this proof; ledger/turn continuity across a restore is **not** claimed at S02 (no envelope `phase` until S03 ck4, CAP-S8) |
 | CAP-S5 | A character learns a feat; feats persist in character snapshots and reach combat (FR-5, FR-13) | `learnFeat` (S03 ck2), profile `feats` (S03 ck2) | CA-S6 | S03 ck2 | planned | — | — |
 | CAP-S6 | Reactive feats fire in generated play: offered, taken (effect on the holder) or declined, with no chaining (FR-12 proof 2, FR-13) | feat offers (S03 ck3), theme patterns (S03 ck1) | CA-S6, CA-S7 | S03 ck3 (unit), S03 ck5 (journey leg) | planned | — | — |
 | CAP-S7 | A trigger pattern the engine can never match is refused at load (FR-2) | `checkTrigger` (S03 ck1) | CA-S7 | S03 ck1 | planned | — | — |
@@ -469,13 +539,21 @@ run in prior cycles finished in seconds.
   - A second settle returns `[]`.
   - Refusals with no change: the character changed after the fight (`slot-mismatch`,
     `insufficient-points`), and `combat-not-over`.
+- **CAP-S4:**
+  - `step()` never passes a turn (`combat.ts:467-497`): every enemy turn between two
+    hexer turns is a named successful declare (S02 ck5).
+  - The fight ends through the restore harness (every enemy `hp: 0` in the snapshot →
+    `deserializeCombat` derives `combat-over`, `snapshots.ts:585-593`). Only how the fight
+    ends is harnessed; spend, restore, settlement and the character round-trip are real.
 - **CAP-S9:**
   - Path: `Combat.declare(spellId, {targetId} | {at})` → range gate → `resolveShape`
     around the center → `executeAgainst` with `varsFor` → events.
+  - Absent `targeting.range` → `max(reachOf ?? default, default)`, the `canReach` value.
   - Asserts: in range succeeds, one step beyond is `out-of-range` with `serialize()`
     unchanged; an empty-cell `ember-bloom` hits exactly the standing combatants within
     radius 2 of the cell on both sides, each save rolled with that target's own save value;
-    a blast on a cell with nobody in radius spends the cost and emits no effect events;
+    a blast on a cell with nobody in radius spends the cost (in the fixture: the bound slot
+    only, since its `ember-bloom` costs `{vancian: 2}`, F-P8) and emits no effect events;
     each `at` refusal; theater-of-mind ignores range and `at`.
 - **CAP-S5 … CAP-S8:** see S03's Verification.
 
@@ -492,8 +570,8 @@ which S03 consumes: recheck them at S02 receive.
 | CA-S2 | A spend is recorded; balances are re-stated; restore = re-stated − spend (the `itemsUsed` precedent) | `CombatantState.poolsSpent/slotsCast` → snapshot combatant → `deserializeCombat` | see below | S01 ck3 (contract); S02 ck4 | agreed | planned | `snapshots.ts:413-430, 515-596`, `snapshots.schema.json:185-247` |
 | CA-S3 | The fight never writes character state; the host settles explicitly | combatant spend → `settleSpellCasts` → `CharacterState.pools/slots` | see below | S02 ck4 | agreed | planned | `character-profile.ts:131-236` |
 | CA-S4 | Character → combatant parity (FR-16) | `CharacterState` → `profileFromCharacter` → `CombatantProfile` / `EconomyBalances` | `spells` = `knownSpells` (non-empty only); `castBlockedBy` = `armorBlockingCast` (set only); `balances.bindings` = deep copy of `state.slots`; `feats` = `state.feats` (non-empty only, S03) | S02 ck3; S03 ck2 | agreed | planned | `character-profile.ts:58-117`, `pools.ts:208, 300-310` |
-| CA-S5 | Conditions restrict spells by tag (FR-7, FR-9) | `content.conditions[*].restricts` → `restrictionRejection` | DD-S10 | S02 ck1 (unit), ck3 (integrated) | agreed | planned | `combat.ts:732-757`, `conditions.ts:41` |
-| CA-S6 | Reactive feats ride the trigger substrate (FR-13; mocks triggers/conditions) | `CharacterState.feats` → profile → `CombatantState.feats` → `offersForEvent` → `respond` | DD-S11/S12; `PendingTrigger.source`; `triggerId = <combatantId>.<id>` (ids are globally unique, E-DUP-01) | S03 ck2–ck3 | agreed | planned | `triggers.ts:44-81`, `combat.ts:619-640, 1237-1289` |
+| CA-S5 | Conditions restrict spells by tag in combat (FR-7, FR-9) | `content.conditions[*].restricts` → `restrictionRejection` → the exported `matchesRestriction` + `declaredTags` | DD-S10: kind `'action'` for every declare, plus kind `'spell'` for a spell declare; out of combat `isRestricted` unchanged (kind-exact) | S01 ck3 (DB text, combat-scoped); S02 ck1 (unit, incl. the out-of-combat `isRestricted` pin), ck3 (integrated) | agreed | planned | `combat.ts:732-757`, `conditions.ts:41-52, 55, 186-213`, `tests/runtime/conditions.test.ts:67-72` at `56476e9` |
+| CA-S6 | Reactive feats ride the trigger substrate (FR-13; mocks triggers/conditions) | `CharacterState.feats` → profile → `CombatantState.feats` → `offersForEvent` → `respond` | DD-S11/S12; `PendingTrigger.source`; `triggerId = <combatantId>.<id>` (ids are globally unique, E-DUP-01) | S03 ck2–ck3 | agreed | planned | `triggers.ts:44-81`, `combat.ts:690-709` (`respond`), `combat.ts:1237-1289` |
 | CA-S7 | The trigger pattern grammar is the `eventMatches` grammar, enforced at load | `pack.schema.json` `trigger.on` pattern → `checkTrigger` → `eventMatches` | DD-S13 regex; `E-FORM-01`; jsonPath `<base>.trigger.on` | S01 ck3; S03 ck1 | agreed | planned | `helpers.ts:296-325`, `triggers.ts:31-41` |
 | CA-S9 | Spell range and area center (FR-9, FR-11; human 2026-09-30) | `content.spells[id].targeting.{shape,radius,range}` → `Combat.declare` range gate / `at` → `resolveShape(center)` → executor `varsFor` | see below; DD-S8, DD-S19 | S01 ck3 (contract); S02 ck2 (unit), ck5 (journey) | agreed | planned | `spatial.ts:45-63, 93-135`, `combat.ts:1064-1092`, `resolve.ts` `executeAgainst`/`effectVars`, `effect.ts:255-307, 383-393`, `content.ts:497-530` at `55b294f` |
 | CA-S8 | The combat envelope keeps offers/phase/counter (FR-14) | `Combat.pendingTriggers`/`state.phase`/`offeredCount` → envelope → `deserializeCombat` | DD-S14 | S01 ck3; S03 ck4 | agreed | planned | `snapshots.ts:461-610, 757-770`, `combat.ts:439` |
@@ -524,8 +602,10 @@ which S03 consumes: recheck them at S02 receive.
   Validator: `checkTargeting` admits `range`; a non-integer or negative value is
   `E-SCHEMA-01` at `<base>.targeting.range`.
 - **Declare options:** `DeclareOptions.at?: Position`. `at` + `targetId` → `invalid-target`.
-- **Effective range** (spatial packs only): `targeting.range` if declared, else the caster's
-  reach (`reachOf(actor.id)`, the same number `spatialGate` uses today).
+- **Effective range** (spatial packs only): `targeting.range` if declared. Otherwise it is
+  `max(reachOf(actor.id) ?? spatial.reach.default, spatial.reach.default)`, the value
+  `canReach` compares against (`spatial.ts:99-100, 125`; the F-M2 floor), so absent-range
+  packs behave exactly as under today's reach gate (review F-P7).
 - **Distance:** `runtime.spatial.distance(actor.position, center)`; `center` = the target's
   position, or `at`. `distance > range` → `{kind: 'out-of-range', rule: 'E-SPAT-01',
   resource: targetId | "x,y"}`.
@@ -584,11 +664,40 @@ which S03 consumes: recheck them at S02 receive.
   pools.
 - **Finish:** clear `poolsSpent` and `slotsCast` on the combatant; return the events.
 
+## Planning completeness review (2026-09-30, r-ZVpm)
+
+**Source:** `.program/results/ARCHIVIST-PREFLIGHT.spells-in-combat.result.md`, Archivist
+AXluF at `56476e9`. It found 6 blocking and 11 informational findings. Each one was
+verified against the committed source by REPLAN-SIC-01 at `56476e9`, and **none was
+disproved**. The Orchestrator decisions applied here are recorded in
+`.program/decisions.md` (they are not human questions). The human answers (Intent quotes
+and B-S1) are unchanged.
+
+| ID | Class | Finding (short) | Verified evidence | Disposition |
+|----|-------|-----------------|-------------------|-------------|
+| F-P1 | blocking | `step()` cannot pass a turn; the "advance with `step()`" steps cannot run | `combat.ts:467-497`; theater order `caster, ally, foe` (probe) | **Applied.** S02 ck5 theater rewrite with the named in-between declares (ally `glide`, wolf `glide`; script unchanged; probe-verified). The spells journey names the wight's and the shambles' `stride` declares. The S03 feat leg says why none is needed there. The pin row is corrected. No text claims that `step()` passes a turn. |
+| F-P2 | blocking | The spells journey can end before its later legs; caster inside its own burst; no end route | `snapshots.ts:585-593`; `combat.ts:516`; probe | **Applied.** The caster stands ≥ 3 cells from every burst center; a second enemy (`grave-shambles`); both legs end through the hp-0-via-restore harness, asserted with its reason; no ledger/turn continuity is asserted across an S02 restore. |
+| F-P3 | blocking | The fixture hexer has no class `actions` | `packs.ts:121`; `character-profile.ts:73-84`; `rules-are-data.test.ts:59` | **Applied.** Proof 3's data delta gives the fixture hexer `actions: ['strike']`. The S02 ck3 src integration names the dark-fantasy generated pack. S03 proof 2 uses `learnFeat` + `profileFromCharacter` on a fixture warden whose class gains `actions` (exact construction in SESSION-03). |
+| F-P4 | blocking | Pins missing from STATE; `movement.test.ts` outside S03's lease | `movement.test.ts:388-395`; `movement-journey.test.ts:216-223`; `snapshots/combat.test.ts:79-89` | **Applied.** `movement.test.ts` added to S03's Owns (in no other lease). Three pin rows added with their owners. The "stays green unchanged" claim is removed. |
+| F-P5 | blocking | DD-S10 builds a second matcher; the inherited "untouched" note is stale | `conditions.ts:41-52`; `conditions.test.ts:67-72`; `helpers.ts:526`; `sections/cross.ts:56` | **Applied.** In combat, DD-S10 is kept and implemented by calling the exported `matchesRestriction` for both kinds (no `conditions.ts` edit). Out of combat it is unchanged. S01 ck3 scopes the DB text. The matcher row is re-dispositioned as partially touched. A carried row records the asymmetry and the `spells.tagged:` integrity gap; it goes to the human in the Final Report. |
+| F-P6 | blocking | S01 ck3 leaves stale contract/DB text | `snapshots.schema.json:222, 243`; `database.md:390-391` | **Applied.** The three edits are added to S01 ck3, with a grep commit check. |
+| F-P7 | info | The range fallback is not the reach gate's number | `spatial.ts:99-100, 125`; `combat.ts:1099-1103` | **Applied.** The fallback is the `canReach` value; CA-S9, S02 ck2, DD-S8 (a) and the F-M2 row are updated. |
+| F-P8 | info | The "catches nobody" assertion contradicts the fixture cost | `packs.ts:151` | **Applied.** S02 ck2 asserts the bound slot only; no fixture spell is added. |
+| F-P9 | info | DD-S19: the DC still sees the primary target's saves | `resolve.ts:348, 381-395` | **Recorded** in DD-S19 as a documented consequence; S01 ck3 DB text. No code change. |
+| F-P10 | info | Wyldwood `hedge-mage` knows no spells; feat line numbers | `wyldwood.json:270, 362, 369` (probe) | **Applied.** Carried row (owner: next content feature); refs corrected to 362/369. Minor count correction: 4 hedge-mage spells, not 5. |
+| F-P11 | info | Only dark-fantasy `second-gust` is ever offered; the C11 hash premise | grep `tests/` (no literal hashes) | **Recorded** as accepted; the C11 "hash pins move" premise is disproved. |
+| F-P12 | info | DD17/DD17a doc drift without owners | `combat.ts:642`; `arch/v1-core.md:170-171, 192, 425` (also `:715`, `:817`); PROGRAM-CONFIG Custom Rule 4; `database.md:313`; `README.md:342-343` | **Applied.** The `combat.ts:642` comment → S02 ck1. `arch/v1-core.md` → Orchestrator's S02 arch-delta duty (S02's arch fragment states the replacement text). PROGRAM-CONFIG Custom Rule 4 → final Archivist pass. `database.md:313` stays with S01; `README.md:342-343` stays with S03 ck5. |
+| F-P13 | info | Citation drift | `combat.ts:690-709`; `grid-journey.test.ts:595-642`, `:148` | **Applied** in CA-S6, SESSION-03, the pin table and SESSION-02. |
+| F-P14 | info | The DD-S9 revert list is incomplete | DD-S9 text | **Applied.** The list now includes the README whole-turn text, the spells-journey freshness assertion and the `move` spent assertions. |
+| F-P15 | info | The C6 deletion is justified | `runtime.ts:121`; `resolve.ts:31` | **Confirmed;** no change (S02 ck1 already drops the import). |
+| F-P16 | info | The S02 receive gate is clean | structural/relative pins | **Confirmed;** no change. |
+| F-P17 | info | Premises confirmed | as listed in the review | **Confirmed;** no change. |
+
 ## Current Blockers
 
 | ID | Affects | Next action | Owner | Evidence to clear |
 |----|---------|-------------|-------|-------------------|
-| — | — | None open. **B-S1 cleared** 2026-09-30 ("8a - yes 8b - fine 9 cost a turn 10 yes 11 yes 12 yes 13 yes 14 yes", recorded in Intent). DD-S9 was read as the whole turn; see the interpretation note under DD-S9. | — | — |
+| — | — | None open. **B-S1 cleared** 2026-09-30 ("8a - yes 8b - fine 9 cost a turn 10 yes 11 yes 12 yes 13 yes 14 yes", recorded in Intent). DD-S9 was read as the whole turn; see the interpretation note under DD-S9. The planning-completeness review's blocking findings F-P1 … F-P6 are resolved by REPLAN-SIC-01 (see "Planning completeness review"), and S01 is dispatchable. | — | — |
 
 ## Handoff Notes
 

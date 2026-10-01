@@ -16,7 +16,7 @@
 |----|--------|------|-----|
 | M01 | Schema | `artifacts.ts` (`SpellTargeting` l.48–55), `validate/sections/content.ts` (`checkTargeting` l.497–530) | `targeting.range` mirror and validator |
 | M02 | Core | `dsl/effect.ts` (`EffectApply` l.67–75, `execAttack` l.250–275, `execSave` l.279–307, `execTarget` l.383–393) | per-target defender values (DD-S19) |
-| M03 | Runtime | `combat/combat.ts` (`declare` l.515–604, `restrictionRejection` l.732, `resolveTarget` l.759, `spatialGate` l.808, `resolveShape` l.1064, `reachOf` l.1099, `applyNonSlotCosts` l.1105, `resolve` l.1119, `execute` l.1144, `boundActionOf` l.1291, `profileOf` l.1301, `ruleBaseOf` l.1318), `combat/spatial.ts` (`SpatialGeometry.distance` l.45), `combat/action-economy.ts` (`EconomyBalances` l.91, `checkCost` l.108), `combat/resolve.ts` (`CombatantProfile`, `parsePackEffects` l.115, `executeAgainst`, `effectVars`), `character-profile.ts` (all), `pools.ts` (`prepareSpell`, `armorBlockingCast` l.208, `castSpell` l.230, `knownSpells`), `snapshots.ts` (l.410–632, refusals l.633–800), `runtime.ts` (`PackIndex.spellEffects`) | The whole spell path |
+| M03 | Runtime | `combat/combat.ts` (`declare` l.515–604, `restrictionRejection` l.732, `resolveTarget` l.759, `spatialGate` l.808, `resolveShape` l.1064, `reachOf` l.1099, `applyNonSlotCosts` l.1105, `resolve` l.1119, `execute` l.1144, `boundActionOf` l.1291, `profileOf` l.1301, `ruleBaseOf` l.1318), `combat/spatial.ts` (`SpatialGeometry.distance` l.45), `combat/action-economy.ts` (`EconomyBalances` l.91, `checkCost` l.108), `combat/resolve.ts` (`CombatantProfile`, `parsePackEffects` l.115, `executeAgainst`, `effectVars`), `character-profile.ts` (all), `pools.ts` (`prepareSpell`, `armorBlockingCast` l.208, `castSpell` l.230, `knownSpells`), `snapshots.ts` (l.410–632, refusals l.633–800), `runtime.ts` (`PackIndex.spellEffects`), `conditions.ts` (`matchesRestriction` l.41–52, `declaredTags` l.55; read only) | The whole spell path |
 | M04 | Compiler content | `themes/*.json` `content.spells` | DD-S9 whole-turn cost (`main` + `move`); DD-S8(b) range |
 
 ## Context
@@ -73,7 +73,20 @@ database.md wins: report the difference.
 - `content.ts:514` `checkTargeting` forbids every key but `shape`/`radius`;
 - `effect.ts` `execSave` rolls with `ctx.vars` for every scoped target, and `execAttack`
   evaluates the defense once from `ctx.vars`;
-- the landed `pack.schema.json` spells `targeting.range` is `{integer, minimum 0}`.
+- the landed `pack.schema.json` spells `targeting.range` is `{integer, minimum 0}`;
+- `conditions.ts` exports `matchesRestriction` (l.41–52) and `declaredTags` (l.55), and
+  `combat.ts` does not yet import `../conditions`;
+- `combat.ts:642` reads `// F-E15: an item-only synthetic action; spells never ride this path (DD17a).`;
+- `step()` (`combat.ts:467-497`) never passes a turn: in `awaiting-declare` it replenishes
+  and returns `turn-started` again; only a successful declare moves the phase to
+  `resolved`;
+- `spatial.ts:99-100, 125`: `canReach` compares against `max(reach, defaultReach)` (the
+  F-M2 floor);
+- the fixture `hexer` class declares no `actions` (`tests/runtime/fixtures/packs.ts:121`),
+  so `profileFromCharacter` on a fixture hexer throws `no-combat-actions`
+  (`character-profile.ts:73-84`); the fixture `ember-bloom` costs `{vancian: 2}` only
+  (`packs.ts:151`), and the fixture `hexbound` restricts `actions.tagged:casting`
+  (`packs.ts:159`).
 
 Report any mismatch before changing code.
 
@@ -86,7 +99,7 @@ Report any mismatch before changing code.
 | `src/core/dsl/effect.ts` | modify | optional `EffectApply.varsFor`; per-target save/defense values (DD-S19) |
 | `src/runtime/combat/resolve.ts` | modify | `CombatantProfile.spells?`, `castBlockedBy?`; `executeAgainst` `profileFor` → `varsFor`; delete `parsePackEffects` |
 | `src/runtime/combat/action-economy.ts` | modify | `EconomyBalances.bindings?`; `CostRejection` unchanged |
-| `src/runtime/combat/combat.ts` | modify | `CombatantState` spell fields; spell lookup, membership, target rule, `at`, range gate, `resolveShape(center)`, armor gate, binding pick, spend recording, `spell:cast`, rule base; restricts for spells; `DeclareOptions.at`; `DeclareRejection` kinds `armor-not-castable`, `out-of-range` |
+| `src/runtime/combat/combat.ts` | modify | `CombatantState` spell fields; spell lookup, membership, target rule, `at`, range gate, `resolveShape(center)`, armor gate, binding pick, spend recording, `spell:cast`, rule base; `restrictionRejection` calls the exported `matchesRestriction` (both kinds for a spell, DD-S10); `DeclareOptions.at`; `DeclareRejection` kinds `armor-not-castable`, `out-of-range`; the `use()` DD17a comment (l.642) |
 | `src/runtime/pools.ts` | modify | export `armorBlockingCast` (unchanged body) |
 | `src/runtime/character-profile.ts` | modify | profile `spells`/`castBlockedBy`, balances `bindings`; `settleSpellCasts` |
 | `src/runtime/snapshots.ts` | modify | `SnapshotCombatant.poolsSpent/slotsCast`; serialize; restore = re-stated − spend; refusals |
@@ -99,9 +112,9 @@ Report any mismatch before changing code.
 | `tests/runtime/fixtures/packs.ts` | modify (only if needed) | e.g. a ranged spell, a spell with `cost.points`, a leather item; extend, never change existing values |
 | `tests/runtime/combat/character-profile.test.ts` | modify | new assertions (`spells`, `castBlockedBy`, `bindings`); re-key the l.313–330 pin only if red |
 | `tests/snapshots/combat.test.ts` | modify | spend round-trip and refusals |
-| `tests/proofs/grid-journey.test.ts` | modify | ck2: re-key burst save pins; ck5: cast the real `ember-bloom` / `ember-halo`, delete `packWithBurstAction`, `main`/`move` 1 → 0, theater test strikes on the next turn |
-| `tests/proofs/rules-are-data.test.ts` | modify | proof 3 gains a combat leg |
-| `tests/proofs/spells-journey.test.ts` | create | CAP-S4 through `dist/`, including an empty-cell blast |
+| `tests/proofs/grid-journey.test.ts` | modify | ck2: re-key burst save pins; ck5: cast the real `ember-bloom` / `ember-halo`, delete `packWithBurstAction`, `main`/`move` 1 → 0, theater test reaches the caster's next turn through the named in-between declares (ally `glide`, wolf `glide`) and strikes there |
+| `tests/proofs/rules-are-data.test.ts` | modify | proof 3 gains a combat leg; its data delta also gives the fixture `hexer` class `actions` |
+| `tests/proofs/spells-journey.test.ts` | create | CAP-S4 through `dist/`: two enemies, named in-between declares, an empty-cell blast, the hp-0-via-restore end for both legs |
 
 ## Implementation
 
@@ -160,9 +173,45 @@ Report any mismatch before changing code.
    - emit `spell:cast` (DD-S17 payload) **before** `execute`, inside the same per-call
      collection, so `surfaceOffers` sees it;
    - `action:resolved` keeps `{actionId, targetId}`.
-7. **`restrictionRejection(actor, def, kind)`:** for a spell, read both
-   `actions.tagged:` and `spells.tagged:` patterns (DD-S10). For an action, the behavior
-   is unchanged.
+7. **`restrictionRejection(actor, def, kind)` reuses the exported v1.1 matcher (DD-S10;
+   review F-P5).** Delete the inline actions-only loop (l.732–757). Call
+   `matchesRestriction` and `declaredTags`, imported from `../conditions`. Both are already
+   exported (`conditions.ts:41-52, 55`). `conditions.ts` is **not** edited and is not in this
+   lease. The import adds no cycle: `conditions.ts` value-imports only `./errors`.
+   ```ts
+   private restrictionRejection(
+     actor: CombatantState,
+     def: ActionDef,
+     kind: 'action' | 'spell' = 'action',
+   ): DeclareRejection | undefined {
+     const tags = def.tags ?? [];
+     if (tags.length === 0 || actor.conditions.length === 0) return undefined;
+     const declared = declaredTags(this.runtime);
+     for (const active of actor.conditions) {
+       for (const pattern of this.runtime.pack.content.conditions?.[active.conditionId]?.restricts ?? []) {
+         // A spell is an action (FR-9): in combat either pattern kind blocks it (DD-S10).
+         const hit =
+           matchesRestriction(pattern, 'action', tags, declared) ||
+           (kind === 'spell' && matchesRestriction(pattern, 'spell', tags, declared));
+         if (!hit) continue;
+         const tag = pattern.slice(pattern.indexOf(':') + 1);
+         return { kind: 'restricted', rule: 'E-REF-01', resource: tag, message: /* today's text, unchanged */ };
+       }
+     }
+     return undefined;
+   }
+   ```
+   - **Actions behave as today.** The first matching pattern in condition order wins, as
+     the inline loop's insertion-ordered set did. The declared-tag set holds every tag an
+     action carries.
+   - The four existing callers keep the default `'action'`: `declare`, `use`, the movement
+     check at l.996 and `resolveReactive` at l.1258. Only the spell declare passes
+     `'spell'`.
+   - **Out of combat, nothing changes.** `isRestricted`/`restrictedIds` stay kind-exact.
+     That asymmetry is carried and recorded in STATE.
+   - This retires the C1 duplicate matcher instead of growing it. If calling the matcher
+     turns out to need any `conditions.ts` edit, keep a local helper instead and report C1
+     as carried.
 8. **`DeclareRejection`:** add
    `{kind: 'armor-not-castable'; rule: 'E-REF-01'; resource: string; message: string}`.
 9. **`tests/runtime/combat/spells.test.ts`** (hand-built profiles on
@@ -179,13 +228,21 @@ Report any mismatch before changing code.
      - a vancian *action* on a count-only combatant consumes index 0.
    - **Rejections, each one `declare:rejected` with `serialize()` unchanged:**
      - not in `spells` → `no-action`;
-     - under `hexbound` → `restricted`;
+     - under the fixture `hexbound` (`actions.tagged:casting`, `packs.ts:159`) →
+       `restricted`, resource `casting` (DD-S10, in combat);
      - `castBlockedBy` set, vancian → `armor-not-castable`;
      - `castBlockedBy` set, points spell → succeeds;
      - a pool short → `points`/`E-POINTS-01`;
      - a statblock profile → `no-action`.
    - **Targets:** an ally `targetId` succeeds for a spell; the same `targetId` on an
      action is still `invalid-target`.
+   - **Out-of-combat stance pinned (carried asymmetry):** a character whose state carries
+     the fixture `hexbound` still has `isRestricted(rt, state, 'spell', 'grave-light') ===
+     false`. That is unchanged v1.1 behavior; the human decides it in a future restricts
+     feature.
+10. **`use()` comment (l.642):** `// F-E15: an item-only synthetic action; spells never ride
+    this path (DD17a).` becomes `// F-E15: an item-only synthetic action; spells are
+    declared through declare() (v1.6), never use().` (DD17a is retired; review F-P12).
 
 **Commit when:**
 - `pnpm typecheck` 0;
@@ -197,7 +254,7 @@ Report any mismatch before changing code.
 
 1. **M01 mirror + validator (CA-S9 contract leg):**
    - `artifacts.ts` `SpellTargeting`: add
-     `/** v1.6 — max distance to the target or area center (pack spatial distance); absent = caster reach (DD-S8). */ range?: number;`
+     `/** v1.6 — max distance to the target or area center (pack spatial distance); absent = the caster's effective reach, max(reach, default) (DD-S8). */ range?: number;`
    - `content.ts` `checkTargeting`: add `'range'` to the `forbidUnknown` list (l.514);
      a present `range` that is not an integer ≥ 0 is `E-SCHEMA-01` at
      `<base>.targeting.range`, message `targeting.range must be an integer >= 0.`
@@ -235,8 +292,12 @@ Report any mismatch before changing code.
      `E-REF-01`, with messages naming the reason. In a theater pack `at` is dropped and
      the declare proceeds as if it were absent.
    - **Range gate** (spells, spatial packs, replaces `spatialGate` for spells):
-     `range = spell.targeting?.range ?? this.reachOf(actor.id) ?? spatial.reach.default`;
-     `center = at ?? target.position`; when `distance(actor.position, center) > range`
+     `const floor = this.runtime.pack.spatial?.reach.default ?? 1;`
+     `range = spell.targeting?.range ?? Math.max(this.reachOf(actor.id) ?? floor, floor)`.
+     This is the `canReach` value (`spatial.ts:99-100, 125`, the F-M2 floor), so a pack
+     without ranges behaves exactly as under today's reach gate (review F-P7).
+     `center = at ?? target.position`;
+     when `distance(actor.position, center) > range`
      → `out-of-range`, resource `targetId` or `"x,y"`, message
      `spell "<id>" has range <r>; <targetId | (x,y)> is <d> away.` Actions keep
      `spatialGate` untouched.
@@ -261,14 +322,19 @@ Report any mismatch before changing code.
    - a spell with `range: 3` at distance 3 succeeds; at distance 4 it is one
      `declare:rejected {kind: 'out-of-range', rule: 'E-SPAT-01'}` with `serialize()`
      unchanged;
-   - no `range` → the caster's reach applies (reach-1 caster: distance 2 is
-     `out-of-range`);
+   - no `range` → the caster's effective reach applies (reach-1 caster: distance 2 is
+     `out-of-range`). A caster whose reach entry is below `spatial.reach.default` still
+     gets the default, as `canReach` does: use a test-local `withSpatial` variant whose
+     `reach` map gives the caster's combatant id `0` under a default of 1, and distance 1
+     passes;
    - `ember-bloom` with `{ at }` on an empty cell: exactly the standing combatants within
      radius 2 of the cell, both sides, take per-target saves, each against its own save
      value (scripted dice); the out-of-radius combatant is untouched; `spell:cast` and
      `action:resolved` carry `at`;
-   - a blast that catches nobody: the bound slot and `main` are spent, no
-     `damage:applied`/`condition:applied`;
+   - a blast that catches nobody: the bound slot is spent (`slotsCast['2']` gains the
+     index and `boundSlots['2']` drops by 1). `slots.remaining` is unchanged, because the
+     fixture `ember-bloom` costs `{vancian: 2}` only (`packs.ts:151`; do not add a fixture
+     spell for this). There is no `damage:applied`/`condition:applied`;
    - each `at` refusal (`at` + `targetId`, single spell, action, non-`target` root via a
      fixture burst spell) is one `invalid-target` with no change;
    - an `at` beyond range is `out-of-range` with resource `"x,y"`;
@@ -297,10 +363,22 @@ Report any mismatch before changing code.
      - a warded-mail hexer has `castBlockedBy: 'warded-mail'` (dark-fantasy, where the
        hexer's `armorCasting` is `['leather']`);
      - re-key the l.313–330 whole-profile pin only if it goes red.
-   - `spells.test.ts`: a **src integration** case:
-     `rt.createCharacter` (hexer) → `character.prepare('grave-light')` →
-     `profileFromCharacter` → `startCombat` → `declare('grave-light', {targetId})`
-     succeeds. A character that never prepared it is rejected `vancian`.
+   - `spells.test.ts`: a **src integration** case on the **dark-fantasy generated pack**,
+     `new Runtime(generateCampaign({ theme: loadTheme('dark-fantasy'), seed: 42 }))`
+     (import from `../../../src/compiler`, as the grid journey does). **Not**
+     `emberMarchesPack()`: its `hexer` class declares no `actions`
+     (`tests/runtime/fixtures/packs.ts:121`), so `profileFromCharacter` throws
+     `no-combat-actions` (`character-profile.ts:73-84`).
+     - `rt.createCharacter` → a level-1 `hexer` (slots `{'1': [null, null, null]}`);
+     - `character.prepare('grave-light')` (dark-fantasy `grave-light`: level 1, hexer
+       list, `{vancian: 1}`, tags `['casting']`);
+     - `profileFromCharacter` → `startCombat` against a `spawnMonster` `barrow-wight`.
+       It is a grid pack, so give positions: hexer `(0,0)`, wight `(1,0)`. Keep them
+       adjacent: at ck3 the themes declare no `range` yet, so the reach fallback (1)
+       applies;
+     - `declare('grave-light', {targetId: 'wight'})` succeeds.
+
+     A character that never prepared it is rejected `vancian`.
 
 **Commit when:**
 - `pnpm typecheck` 0;
@@ -367,68 +445,169 @@ Report any mismatch before changing code.
    - delete `packWithBurstAction` and its DD17a header paragraph (l.23–31);
    - the burst and vancian-gate tests load `darkFantasyPack()` directly and declare the
      real `ember-bloom`. The caster's spells come from `profileFromCharacter` (`hexer`
-     knows `ember-bloom`, as the existing guard at l.145 checks), so `extraAction` is no
+     knows `ember-bloom`, as the existing guard at l.148 checks), so `extraAction` is no
      longer needed for spells;
    - the assertion at l.409 becomes `main` **0**, and add `move` **0**: the spell now
      costs the whole turn (DD-S9);
    - the vancian-gate test (l.411–433): `main` stays 1 as today; add `move` stays 1;
-   - **the theater-of-mind parity test (l.595–645)** also uses `packWithBurstAction`
+   - **the theater-of-mind parity test (l.595–642)** also uses `packWithBurstAction`
      (`ember-halo` → `thorn-bloom-rite`, wyldwood). Rewrite it to declare the real
-     `ember-halo`: the `warden` class's `spellLists` is `['warden']` and `ember-halo` is on
-     that list, so `profileFromCharacter` gives the caster the spell (confirm at ck0 that
-     `heroEntry` builds the profile through `profileFromCharacter`; if it does not, give
-     the entry `spells: ['ember-halo']` explicitly). `why.rule` filters change from
-     `actions.thorn-bloom-rite` to `content.spells.ember-halo`. The `strike` in the same
-     turn is now `slot-exhausted`: assert that rejection (with no RNG drawn), then
-     advance to the caster's next turn with `fight.step()` calls, as l.580–584 do, and
-     strike there. Check that no step consumes a scripted die; if one does, extend the
-     `ScriptedRng` faces and record why in a comment. `combat-over` and the
-     `combat:ended` payload stay as asserted;
+     `ember-halo`:
+     - The `warden` class's `spellLists` is `['warden']` and `ember-halo` is on that list.
+       `heroEntry` builds the profile through `profileFromCharacter`, so after ck3 the
+       caster knows the spell. Drop its `extraAction`.
+     - `why.rule` filters change from `actions.thorn-bloom-rite` to
+       `content.spells.ember-halo`.
+     - **`step()` never passes a turn** (`combat.ts:467-497`), so every combatant between
+       the caster's two turns must declare. The turn order is `caster` (+100), `ally`
+       (−100) and `foe` (`foeEntry`'s default −100; allies break ties first).
+
+     The rewritten sequence, verified by Planner's probe at `56476e9` (an esbuild bundle
+     of `src/`, with the spell's cost plus `slots {main: 1, move: 1}` carried by a test
+     action):
+     1. `declare('ember-halo', { targetId: 'foe' })` with dice `20, 4, 2, 3` as today: the
+        wolf passes and takes the halved 5 (`7→2`); motes drop by 4;
+     2. `declare('strike', { targetId: 'foe' })` in the same turn → one `declare:rejected`
+        `slot-exhausted` (`E-ECON-01`, resource `main`). No die is drawn (the scripted
+        cursor does not move) and `fight.serialize()` is unchanged;
+     3. `step()` → `turn-ended` (`caster`); `step()` → `turn-started` (`ally`);
+     4. **the ally's in-between declare:** `fight.declare('glide')`, the wyldwood hexer's
+        move action (`move(speed)`; a theater pack walks nowhere, DD-M11) →
+        `action:resolved`. No die is drawn and nothing is offered;
+     5. `step()` → `turn-ended`; `step()` → `turn-started` (`foe`);
+     6. **the wolf's in-between declare:** `fight.declare('glide')` (on the `thorn-wolf`'s
+        action list) → `action:resolved`. No die is drawn and nothing is offered;
+     7. `step()` → `round-completed`; `step()` → `turn-started` (`caster`, round 2);
+     8. `declare('strike', { targetId: 'foe' })` with the remaining faces `5, 6`: a hit for
+        16, so `combat-over`. The `combat:ended` payload stays
+        `{ winner: 'allies', defeated: 'enemies' }`, as asserted today.
+
+     Assert each `step()` outcome's `kind` and combatant. The two in-between declares draw
+     no dice, so the script stays `[1, 1, 1, 20, 4, 2, 3, 5, 6]` and nothing is appended.
+     If, at the landed tree, either in-between declare does draw a die, append its faces
+     to the script (choosing faces that leave the wolf standing) and record why in a
+     comment. Never write that `step()` passes a turn. The fallback, only if this sequence
+     is shown infeasible from source, is to end the fight with the next actor's (the ally's)
+     strike; give the reason in the handoff;
    - the positions already put the target within range 6 (hexer (4,2) → wight (4,3));
    - every other assertion as re-keyed at ck2 must hold unchanged. Dice: the spell adds
      no roll before the save.
-3. **`rules-are-data.test.ts` proof 3:** append a combat leg on the same mutated pack:
-   prepare `wither-light` → `profileFromCharacter` → `startCombat` →
-   `declare('wither-light', {targetId})` → `spell:cast` with
-   `why.rule === 'content.spells.wither-light'`. The baseline pack has no such spell, so
-   the declare is `no-action`. The engine still has zero diffs inside the proof.
+3. **`rules-are-data.test.ts` proof 3** gains a combat leg (review F-P3):
+   - **The data delta grows by one line:** besides adding `wither-light`, proof 3 also gives
+     the fixture `hexer` class combat actions,
+     `pack.content.classes!['hexer']!.actions = ['strike']`. That is pack data (a v1.2
+     class field; `strike` is a fixture action), so the engine still has zero diffs.
+     Without it, `profileFromCharacter` throws `no-combat-actions`
+     (`tests/runtime/fixtures/packs.ts:121`, `character-profile.ts:73-84`).
+   - `validatePack` on the mutated pack stays `[]`.
+   - **Combat leg:**
+     1. prepare `wither-light` again (the out-of-combat cast emptied the slot), or use a
+        fresh level-1 hexer;
+     2. `profileFromCharacter` with `initiativeBonus: 100` on its profile, so the caster is
+        active at start (the grid-journey idiom; do not use `stepToDeclare`, which cannot
+        pass a turn whose actor fails its skip declare);
+     3. `startCombat` against a `profileFromStatblock` `barrow-wight` with
+        `actions: ['wight-claw']` (theater, as `runFight`);
+     4. `declare('wither-light', {targetId: 'wight'})` → `spell:cast` with
+        `why.rule === 'content.spells.wither-light'`.
+   - **Baseline:** the fixture with the class-`actions` line only (no `wither-light`).
+     There, `declare('wither-light')` is `no-action`.
 4. **`tests/proofs/spells-journey.test.ts`** (new; the dist idiom of
    `equipment-journey.test.ts`: import from `../../dist/runtime.js` and
    `../../dist/compiler.js`):
    - **Freshness:** `typeof runtimeDist.settleSpellCasts === 'function'`, and the
      generated dark-fantasy `ember-bloom` has cost `{ vancian: 2, slots: { main: 1, move: 1 } }`
-     and `targeting` `{ shape: 'burst', radius: 2, range: 6 }`.
-   - **Vancian leg** (dark-fantasy seed 42, grid, positions as in grid-journey's burst
-     test):
-     1. a level-3 hexer prepares `ember-bloom` **twice** if its level-2 slots allow it
-        (assert the slot count from the generated progression at ck0; with one slot, the
-        empty-cell blast in step 5 runs in a second fight instead);
-     2. `profileFromCharacter`;
-     3. `startCombat` with a `barrow-wight` adjacent to the target;
-     4. `declare('ember-bloom', {targetId})`, which emits `spell:cast {slotLevel: '2',
-        slotIndex: 0}`. Then, in the same turn, a move-costing action the hexer's profile
-        holds (pick it at ck0, e.g. `stride` with a `to`) is one `declare:rejected`
-        `slot-exhausted` with `resource: 'move'` and `serialize()` unchanged: the cast
-        took the whole turn (DD-S9);
-     5. **empty-cell blast:** on the hexer's next turn, `declare('ember-bloom', { at })` on
-        an empty cell within range 6 whose radius 2 covers the wight: the wight is hit,
-        `spell:cast` carries `at`; then an `at` 8 steps away is `out-of-range` with
-        nothing changed;
-     6. `serializeCombat` → JSON → `deserializeCombat` with the **same** fight-start
-        request; the restored `slotsCast['2']` equals the live fight's, and another
-        declare is `vancian`;
-     7. drive the fight to `combat-over` with plain `strike`/`hurl` declares and
-        `step()`. If it does not end in a bounded loop (≤ 50 steps), set hp via
-        restore: build the snapshot with the target's `hp: 0`, a documented harness
-        move;
-     8. `settleSpellCasts`: the character's cast `slots['2'][i]` become `null`;
-     9. `serializeCharacter` → `restoreCharacter` keeps them `null`.
-   - **Pool leg** (wyldwood seed 42, hex): a character of a class whose `spellLists`
-     include a list a pool spell belongs to. **Pick the class and spell at ck0 from the
-     generated pack, and assert that choice in the test.** Cast it within range;
-     `poolsSpent` equals the spell's amount; snapshot/restore; settle draws the pool.
-   - Dice are not scripted. Assert structure and spend only, plus determinism: two runs
-     with the same seed produce `JSON.stringify`-equal event streams.
+     and `targeting` `{ shape: 'burst', radius: 2, range: 6 }`. The `move: 1` part is a
+     DD-S9 revert item.
+   - **Harness facts** (Planner probe at `56476e9`, reviews F-P1 and F-P2):
+     - `startCombat` without `rng` uses `new Rng(0)` (`combat.ts:237`), and the dist
+       surface exports no `Rng`, so the journey's dice are seeded, not scripted;
+     - **`step()` never passes a turn** (`combat.ts:467-497`). Every enemy turn between the
+       hexer's turns therefore needs a successful declare; each one is named below;
+     - pin the turn order with profile `initiativeBonus` overrides (the grid-journey
+       idiom): hexer `+100`, wight `0`, second enemy `−100`.
+   - **Vancian leg** (dark-fantasy seed 42, grid; one hexer against **two** enemies):
+     - **Layout:**
+       - the hexer at `(0,0)`;
+       - `barrow-wight` instance `wight` at `(4,0)`;
+       - `grave-shambles` instance `shambles` at `(10,0)`. This second enemy is a seeded
+         statblock from the generated bestiary (hp 11). It stands outside every burst, so no
+         blast can end the fight before the later steps run (review F-P2).
+     - The hexer stands at least 3 cells from every burst center, so it is never inside
+       its own radius-2 burst.
+     - All facts below were checked by Planner at `56476e9`.
+     1. A level-3 hexer has three level-2 slots (`{'2': [null, null, null]}`). It prepares
+        `ember-bloom` **twice**: bindings `['ember-bloom', 'ember-bloom', null]`. Assert
+        that.
+     2. `profileFromCharacter` (hexer hp 29).
+     3. `startCombat` with the layout above.
+     4. `declare('ember-bloom', {targetId: 'wight'})`. The wight is at distance 4, within
+        range 6. The burst around `(4,0)` misses the hexer (4 away) and the shambles (6
+        away). It emits `spell:cast {slotLevel: '2', slotIndex: 0}`. Then, in the same
+        turn, `declare('stride', { to: { x: 0, y: 1 } })` is one `declare:rejected`
+        `slot-exhausted` with `resource: 'move'`, and `serialize()` is unchanged: the cast
+        took the whole turn (DD-S9; a DD-S9 revert item).
+     5. **In-between declares (the enemies' turns):**
+        - `step()` → `turn-ended`; `step()` → `turn-started` (`wight`);
+        - **the wight declares `stride` with `to: { x: 5, y: 0 }`.** Its reach (2) cannot
+          reach the hexer 4 away, so a stride is its one legal declare. `move(speed)`
+          draws no die;
+        - `step()`, `step()` → `turn-started` (`shambles`);
+        - **the shambles declares `stride` with `to: { x: 10, y: 1 }`**;
+        - `step()` → `round-completed`; `step()` → `turn-started` (`hexer`).
+
+        If step 4 downs the wight, `step()` skips its turn (`advanceFrom` skips downed
+        combatants). Assert whichever branch the seeded run takes, and record it in the
+        handoff. Planner's emulation (same draw count, default `Rng(0)`) left the wight
+        standing at 10 hp.
+     6. **Empty-cell blast**, on the hexer's next turn:
+        `declare('ember-bloom', { at: { x: 4, y: 1 } })`. This empty cell is 4 from the
+        hexer; its radius 2 covers the wight at `(5,0)` and neither the hexer (4 away) nor
+        the shambles at `(10,1)` (6 away).
+        - The hit set equals exactly the standing combatants within radius 2 of the cell,
+          computed in the test from `fight.state`.
+        - `spell:cast` carries `at` and no `targetId`, with `slotIndex: 1`.
+        - Then `declare('ember-bloom', { at: { x: 8, y: 0 } })` is `out-of-range`
+          (resource `"8,0"`, 8 away), with nothing changed.
+     7. `serializeCombat` → JSON → `deserializeCombat` with the **same** fight-start
+        request.
+        - The restored `slotsCast['2']` equals the live fight's (`[0, 1]`).
+        - `declare('ember-bloom', { at: { x: 4, y: 1 } })` on the restored fight is
+          `vancian`/`E-VANC-01`: no uncast slot is bound to it, and the binding pick runs
+          before the turn-slot spend (CA-S1).
+        - **Do not assert ledger or turn continuity across this restore.** Until S03 ck4
+          the envelope has no `phase`, so restore derives `awaiting-declare`
+          (`snapshots.ts:585-593`), and a later `step()` would re-grant the hexer's turn.
+     8. **End of the fight (harness):**
+        - serialize the restored fight, set `hp` to 0 on every enemy combatant in the
+          snapshot JSON, and `deserializeCombat` it with the same request;
+        - restore derives `combat-over` because a side is defeated
+          (`snapshots.ts:585-593`; Planner's probe confirmed it). Assert
+          `phase === 'combat-over'`;
+        - comment why: a seeded fight has no bounded guarantee of ending, so the harness
+          replaces only **how** the fight ends. The spend, the restore, the settlement and
+          the character round-trip stay real.
+     9. `settleSpellCasts(rt, hexerCharacter, endedFight, 'hexer')`: the character's
+        `slots['2'][0]` and `[1]` become `null`.
+     10. `serializeCharacter` → `restoreCharacter` keeps them `null`.
+   - **Pool leg** (wyldwood seed 42, hex):
+     - **Caster:** a level-3 wyldwood `hexer`. Its `spellLists` is `['hexer']`; it knows
+       `hex-bolt`, `cold-clasp` and `thorn-wake`; its motes are 16. Do **not** use
+       `hedge-mage`: its `spellLists` `['hedge']` matches no spell (carried).
+     - **Spell:** **`hex-bolt`**, single target, `{points: {pool: 'motes', amount: 2}}`.
+       Assert the class/spell choice in the test.
+     - **Fight:** the hexer at `+100` initiative casts on a `thorn-wolf` (hp 7) at hex
+       distance 3, which is within range. A second enemy, a `briar-shade` (hp 9), stands
+       out of the way.
+     - **Spend and restore:** `poolsSpent` equals `{ motes: 2 }`. Snapshot → JSON →
+       restore with the fight-start request keeps it, and the restored `pools.motes` is
+       16 − 2.
+     - **End:** the **same hp-0-via-restore harness**; assert that it was used and why.
+     - **Settle and round-trip:** `settleSpellCasts` draws the pool (the character's motes
+       go 16 → 14), and the character snapshot round-trip keeps that.
+     - Do not assert ledger continuity across the restore.
+   - Dice are seeded, not scripted. Assert structure and spend only, plus determinism: two
+     runs with the same seed produce `JSON.stringify`-equal event streams.
 
 **Commit when:**
 - `pnpm build` then `pnpm test` green: the whole suite, 741 + new;
@@ -461,6 +640,10 @@ Controlled Lease Revision; do not widen the lease yourself.
 - **CAP-S4 artifact identity:** the journey imports `dist/` built by `pnpm build` at the
   checkpoint's tree. The freshness test fails on a stale build. Record the HEAD SHA the
   build ran at in the handoff.
+- **CAP-S4 end of fight:** both legs end through the hp-0-via-restore harness, and the
+  test asserts it. The spend, restore, settlement and character round-trip are the real
+  production path. Ledger and turn continuity across a restore are **not** S02 claims;
+  they need the envelope `phase` (S03 ck4).
 - **Architecture:** the runtime never imports the compiler (`check:isolation`). M02 gains
   only an optional callback type (no runtime import). No new module. `pools.ts` stays
   free of `character-profile` imports.
@@ -473,7 +656,12 @@ Report:
   `SpellTargeting.range`, `settleSpellCasts`, the `armorBlockingCast` export, the
   `armor-not-castable` and `out-of-range` kinds);
 - every burst pin re-keyed at ck2, old → new value;
-- the wyldwood class/spell chosen for the pool leg, and how the empty-cell leg was staged;
+- the pool leg's class/spell (planned: `hexer` / `hex-bolt`), whether the wight stood
+  after the first blast, and whether any in-between declare drew a die;
+- the arch fragment: the replacement text for `arch/v1-core.md:170-171` (DD17), `:192`
+  (DD-EG5 "point-pool casting has no cast verb (DD17a)") and `:425` (`parsePackEffects`
+  in the resolve.ts surface line). The same "not combat-declarable" claim also stands at
+  `:715` and `:817`. Orchestrator applies the delta (review F-P12);
 - the new test count;
 - any CA-S1 … S5 / CA-S9 mapping that changed while you implemented it (exact text);
 - surprises.
