@@ -390,6 +390,7 @@ describe('provoke: leaving reach pauses the move (CAP-M4, CA-M4)', () => {
         triggerId: 'wight.opportunist',
         actorId: 'wight',
         actionId: 'opportunist',
+        source: 'action',
         matchingEvent: 'move:leaving-reach',
       },
     ]);

@@ -45,6 +45,7 @@ import { buildCharacter, validateBuild } from './progression';
 import { Character, reserveValue } from './character';
 import {
   Combat,
+  combatantFeats,
   copyBindings,
   copyTerrain,
   defeatedSide,
@@ -606,6 +607,7 @@ export function deserializeCombat(
       slotsCast: copySlotsCast(frozenState.slotsCast ?? {}),
       poolsSpent: { ...(frozenState.poolsSpent ?? {}) },
       ...(entry.profile.castBlockedBy !== undefined ? { castBlockedBy: entry.profile.castBlockedBy } : {}),
+      ...combatantFeats(entry.profile),
       attackTable: entry.profile.attackTable
         ? entry.profile.attackTable.map((row) => ({ level: row.level, byDefense: { ...row.byDefense } }))
         : undefined,
@@ -642,6 +644,7 @@ export function deserializeCombat(
       triggerId: `${combatant.id}.${combatant.pendingTrigger}`,
       actorId: combatant.id,
       actionId: combatant.pendingTrigger,
+      source: 'action',
       // The live offer's `event.type`: the pattern's base before `[` (eventMatches' base).
       matchingEvent: bracket === -1 ? pattern : pattern.slice(0, bracket),
     });

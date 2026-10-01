@@ -7,16 +7,20 @@
  * a first-class outcome (`trigger:declined`); taking rides the same resolution
  * pipeline as a declared action (no magic subsystem, FR-9's discipline).
  *
- * Pattern language (the documented v1 grammar, from the mocks):
+ * Pattern language (the v1 grammar; v1.6 enforces it at load, E-FORM-01,
+ * `TRIGGER_PATTERN` in schema/validate/helpers.ts):
  *   `<eventType>`                     — matches the event type exactly
- *   `<eventType>[target=self]`        — matches when the event's target is the reactor
- *   `<eventType>[actor=self]`         — matches when the event's actor is the reactor
- * Anything else is a pack-literal pattern matched verbatim against the type.
+ *   `<eventType>[target=self|<id>]`   — matches when the event's target is the reactor (or <id>)
+ *   `<eventType>[actor=self|<id>]`    — matches when the event's actor is the reactor (or <id>)
  * The engine has never heard of "parry" (FR-4) — patterns are data.
+ *
+ * Reactive feats (v1.6, DD-S12) ride the same substrate: a combatant's held
+ * `feats` with a `trigger` are offered exactly like reactive actions, with
+ * `source: 'feat'` on the offer and its events.
  */
 import type { Runtime } from '../runtime';
 import type { RuntimeEvent } from '../events';
-import type { ActionDef } from '../../schema/artifacts';
+import type { ActionDef, FeatDef } from '../../schema/artifacts';
 import type { Combat, CombatantState, PendingTrigger } from './combat';
 
 /** A reactive action registered from the pack: the action id + its pattern. */
@@ -53,31 +57,61 @@ export function reactiveActionsFor(
   return held;
 }
 
+/** Reactive feats one combatant holds (DD-S12): its `feats` that declare a `trigger`. */
+export function reactiveFeatsFor(
+  runtime: Runtime,
+  combatant: CombatantState,
+): readonly { featId: string; def: FeatDef; pattern: string }[] {
+  const held: { featId: string; def: FeatDef; pattern: string }[] = [];
+  for (const featId of combatant.feats ?? []) {
+    const def = runtime.pack.content.feats?.[featId];
+    if (def?.trigger !== undefined) held.push({ featId, def, pattern: def.trigger.on });
+  }
+  return held;
+}
+
 /**
- * After an event lands, every OTHER combatant's reactive actions whose pattern
- * matches become offers. The engine never resolves them on its own — offering
- * is the whole mechanism (triggers.html: "the engine offers; the host decides
- * pacing").
+ * After an event lands, every combatant's reactive actions whose pattern
+ * matches become offers, then (unless `feats: false`, the no-chain rule,
+ * DD-S12) every combatant's matching reactive feats — each pass in
+ * `Object.values` order. The engine never resolves them on its own —
+ * offering is the whole mechanism (triggers.html: "the engine offers; the
+ * host decides pacing").
  */
 export function offersForEvent(
   runtime: Runtime,
   combatants: Readonly<Record<string, CombatantState>>,
   event: RuntimeEvent,
+  options: { readonly feats?: boolean } = {},
 ): readonly PendingTrigger[] {
   const offers: PendingTrigger[] = [];
+  const offer = (combatant: CombatantState, id: string, source: PendingTrigger['source']) =>
+    offers.push({
+      triggerId: `${combatant.id}.${id}`,
+      actorId: combatant.id,
+      actionId: id,
+      source,
+      matchingEvent: event.type,
+    });
   for (const combatant of Object.values(combatants)) {
     for (const reactive of reactiveActionsFor(runtime, combatant)) {
-      if (eventMatches(reactive.pattern, event, combatant.id)) {
-        offers.push({
-          triggerId: `${combatant.id}.${reactive.actionId}`,
-          actorId: combatant.id,
-          actionId: reactive.actionId,
-          matchingEvent: event.type,
-        });
-      }
+      if (eventMatches(reactive.pattern, event, combatant.id)) offer(combatant, reactive.actionId, 'action');
+    }
+  }
+  if (options.feats === false) return offers;
+  for (const combatant of Object.values(combatants)) {
+    for (const reactive of reactiveFeatsFor(runtime, combatant)) {
+      if (eventMatches(reactive.pattern, event, combatant.id)) offer(combatant, reactive.featId, 'feat');
     }
   }
   return offers;
+}
+
+/** The offered artifact's trigger path: `actions.<id>.trigger` or `content.feats.<id>.trigger`. */
+function triggerRule(offer: PendingTrigger): string {
+  return offer.source === 'feat'
+    ? `content.feats.${offer.actionId}.trigger`
+    : `actions.${offer.actionId}.trigger`;
 }
 
 /** The `trigger:fired` event — the offer itself is provenance (FR-12 proof 2 shape). */
@@ -85,8 +119,14 @@ export function emitOffer(runtime: Runtime, offer: PendingTrigger, offerIndex: n
   runtime.events.emit({
     type: 'trigger:fired',
     actor: offer.actorId,
-    payload: { triggerId: offer.triggerId, actionId: offer.actionId, on: offer.matchingEvent, offerIndex },
-    why: { rule: `actions.${offer.actionId}.trigger`, rolls: [] },
+    payload: {
+      triggerId: offer.triggerId,
+      actionId: offer.actionId,
+      source: offer.source,
+      on: offer.matchingEvent,
+      offerIndex,
+    },
+    why: { rule: triggerRule(offer), rolls: [] },
   });
 }
 
@@ -95,8 +135,13 @@ export function emitDeclined(runtime: Runtime, offer: PendingTrigger): void {
   runtime.events.emit({
     type: 'trigger:declined',
     actor: offer.actorId,
-    payload: { triggerId: offer.triggerId, actionId: offer.actionId, on: offer.matchingEvent },
-    why: { rule: `actions.${offer.actionId}.trigger`, rolls: [] },
+    payload: {
+      triggerId: offer.triggerId,
+      actionId: offer.actionId,
+      source: offer.source,
+      on: offer.matchingEvent,
+    },
+    why: { rule: triggerRule(offer), rolls: [] },
   });
 }
 

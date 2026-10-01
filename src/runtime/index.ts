@@ -152,6 +152,7 @@ export {
 export {
   eventMatches,
   reactiveActionsFor,
+  reactiveFeatsFor,
   offersForEvent,
   emitOffer,
   emitDeclined,

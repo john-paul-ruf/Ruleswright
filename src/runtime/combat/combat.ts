@@ -106,6 +106,8 @@ export interface CombatantState {
   poolsSpent: Record<string, number>;
   /** v1.6 — the equipped armor that blocks vancian casts (`profile.castBlockedBy`, DD-S6); absent = not blocked. */
   readonly castBlockedBy?: string;
+  /** v1.6 — the reactive feats this combatant holds (`profile.feats`, DD-S12); present only when non-empty (absent = none). */
+  readonly feats?: readonly string[];
   readonly attackTable?: readonly { level: number; byDefense: Record<string, number> }[];
   readonly attackBonus?: number;
   /** The host-declared grid position (FR-11); absent in theater-of-mind packs. */
@@ -143,11 +145,14 @@ export interface PendingAction {
   readonly targetId: string | undefined;
 }
 
-/** An offered reactive action awaiting `respond()` (FR-4/FR-13, triggers.html). */
+/** An offered reactive action or feat awaiting `respond()` (FR-4/FR-13, triggers.html; feats v1.6, DD-S12). */
 export interface PendingTrigger {
   readonly triggerId: string;
   readonly actorId: string;
+  /** The offered id: a reactive action id, or a feat id when `source` is `'feat'`. */
   readonly actionId: string;
+  /** v1.6 — what is offered: a reactive action, or a held reactive feat (DD-S12). */
+  readonly source: 'action' | 'feat';
   /** The event that matched, as the offer's provenance. */
   readonly matchingEvent: string;
 }
@@ -323,6 +328,7 @@ export function startCombat(runtime: Runtime, request: StartCombatRequest): Comb
       slotsCast: {},
       poolsSpent: {},
       ...(entry.profile.castBlockedBy !== undefined ? { castBlockedBy: entry.profile.castBlockedBy } : {}),
+      ...combatantFeats(entry.profile),
       attackTable: entry.profile.attackTable
         ? entry.profile.attackTable.map((row) => ({ level: row.level, byDefense: { ...row.byDefense } }))
         : undefined,
@@ -794,7 +800,8 @@ export class Combat {
       const declined = this.runtime.events.sinceRound(this.state.round);
       events = [declined[declined.length - 1]!];
     } else {
-      events = this.resolveReactive(offer, targetId);
+      events =
+        offer.source === 'feat' ? this.resolveFeat(offer, targetId) : this.resolveReactive(offer, targetId);
     }
     // Every answer — a decline, a take, even a refused take — leaves the queue;
     // once it is empty a paused move resumes (DD-M10).
@@ -1481,15 +1488,16 @@ export class Combat {
    * substrate); none once the fight is over. Callers pass only the events
    * their own call emitted (per-call surfacing, F-P1), and an event already
    * surfaced is skipped, so each (reactor, event) pair is offered once.
-   * Returns how many offers were raised.
+   * Returns how many offers were raised. `feats: false` is the no-chain rule
+   * (DD-S12): events a taken feat emitted offer reactive actions only.
    */
-  private surfaceOffers(events: readonly RuntimeEvent[]): number {
+  private surfaceOffers(events: readonly RuntimeEvent[], options: { readonly feats?: boolean } = {}): number {
     if (this.state.phase === 'combat-over') return 0;
     let raised = 0;
     for (const event of events) {
       if (this.surfaced.has(event)) continue;
       this.surfaced.add(event);
-      for (const offer of offersForEvent(this.runtime, this.state.combatants, event)) {
+      for (const offer of offersForEvent(this.runtime, this.state.combatants, event, options)) {
         if (isDowned(this.state.combatants[offer.actorId]!)) continue;
         this.pendingTriggers.push(offer);
         emitOffer(this.runtime, offer, this.offeredCount);
@@ -1530,6 +1538,39 @@ export class Combat {
     );
     this.surfaceOffers(emitted);
     return events;
+  }
+
+  /**
+   * Take a reactive feat (DD-S12): feats declare no cost and pass no
+   * restriction or reach gate; the parse-once effect runs with the holder as
+   * its target and `why.rule` `content.feats.<id>`. A `targetId` other than
+   * the holder is `invalid-target` (the offer has still left the queue).
+   * Events it emits never offer feats — the no-chain rule.
+   */
+  private resolveFeat(offer: PendingTrigger, targetId: string | undefined): readonly RuntimeEvent[] {
+    const holder = this.state.combatants[offer.actorId]!;
+    if (targetId !== undefined && targetId !== holder.id) {
+      return [
+        this.rejectionEvent(holder.id, {
+          kind: 'invalid-target',
+          rule: 'E-REF-01',
+          resource: targetId,
+          message: `feat "${offer.actionId}" acts on its holder "${holder.id}" only (DD-S12).`,
+        }),
+      ];
+    }
+    const feat = this.runtime.pack.content.feats?.[offer.actionId];
+    const ast = this.runtime.index.featEffects[offer.actionId];
+    if (feat?.effect === undefined || ast === undefined) return [];
+    const emitted = this.execute(
+      holder,
+      { id: offer.actionId, def: { cost: {}, effect: feat.effect }, ast },
+      holder,
+      `content.feats.${offer.actionId}`,
+    );
+    this.endIfSideDefeated();
+    this.surfaceOffers(emitted, { feats: false });
+    return emitted;
   }
 
   /** A reactive action resolving outside the declare flow (host took a trigger offer). */
@@ -1644,6 +1685,11 @@ export class Combat {
     };
     return { kind: 'turn-ended', combatantId: previousId };
   }
+}
+
+/** The combatant `feats` field from a profile: present only when non-empty (DD-S12). */
+export function combatantFeats(profile: CombatantProfile): { feats?: readonly string[] } {
+  return profile.feats !== undefined && profile.feats.length > 0 ? { feats: [...profile.feats] } : {};
 }
 
 /** A vancian slot a cast consumes: the spell level and the slot index (DD-S18). */

@@ -218,6 +218,7 @@ describe('CAP-M6 — generated themes move (wyldwood hex, seed 42)', () => {
         triggerId: 'foe.bramble-snap',
         actorId: 'foe',
         actionId: 'bramble-snap',
+        source: 'action',
         matchingEvent: 'move:leaving-reach',
       },
     ]);
