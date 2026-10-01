@@ -213,13 +213,13 @@
               },
               "pendingTrigger": {
                 "type": ["null", "string"],
-                "description": "Reactive action currently offered (FR-4/13)"
+                "description": "Reactive action currently offered (FR-4/13). v1.6: legacy — read on restore when offers is absent; v1.6 writers no longer emit it."
               },
               "itemsUsed": {
                 "type": "object",
                 "propertyNames": { "pattern": "^[a-z][a-z0-9-]*$" },
                 "additionalProperties": { "type": "integer", "minimum": 0 },
-                "description": "v1.4 — optional: item id -> units this combatant has SPENT in this fight (not units remaining). Deliberately unlike slotsUsed, which serializes the remaining per-turn ledger: fight-start item balances are not in the snapshot — restore takes them from the host's re-stated CombatRestoreRequest balances (balances.items), the same way pools and boundSlots are re-stated, and this snapshot value wins for the spend. Remaining = restated balance - itemsUsed. An unknown item id or a spend exceeding the restated balance = E-SNAP-01. Absent = nothing spent."
+                "description": "v1.4 — optional: item id -> units this combatant has SPENT in this fight (not units remaining). Deliberately unlike slotsUsed, which serializes the remaining per-turn ledger: fight-start item balances are not in the snapshot — restore takes them from the host's re-stated CombatRestoreRequest balances (balances.items), the same way pools and boundSlots are re-stated (since v1.6 their spend is recorded too, in poolsSpent and slotsCast), and this snapshot value wins for the spend. Remaining = restated balance - itemsUsed. An unknown item id or a spend exceeding the restated balance = E-SNAP-01. Absent = nothing spent."
               },
               "maxHp": {
                 "type": "integer",
@@ -240,10 +240,50 @@
                   },
                   "remaining": { "type": "integer", "minimum": 0 }
                 },
-                "description": "v1.5 — optional: a move paused by open leaving-reach offers (FR-11). Resumes when the offer queue empties. Unknown or non-move actionId = E-SNAP-01. Absent = no paused move. Restore derives the resolved phase when any combatant carries pendingMove or pendingTrigger (no envelope field)."
+                "description": "v1.5 — optional: a move paused by open leaving-reach offers (FR-11). Resumes when the offer queue empties. Unknown or non-move actionId = E-SNAP-01. Absent = no paused move. Restore phase: the envelope phase when present (v1.6); otherwise the v1.5 derivation, resolved when any combatant carries pendingMove or pendingTrigger."
+              },
+              "poolsSpent": {
+                "type": "object",
+                "propertyNames": { "pattern": "^[a-z][a-z0-9-]*$" },
+                "additionalProperties": { "type": "integer", "minimum": 1 },
+                "description": "v1.6 — optional: pool id -> points this combatant has SPENT in this fight (the itemsUsed precedent). Restore: pool = re-stated balances.pools - poolsSpent. Unknown pool or over-spend = E-SNAP-01. Absent = nothing spent."
+              },
+              "slotsCast": {
+                "type": "object",
+                "propertyNames": { "pattern": "^[1-9]$" },
+                "additionalProperties": {
+                  "type": "array",
+                  "uniqueItems": true,
+                  "items": { "type": "integer", "minimum": 0 }
+                },
+                "description": "v1.6 — optional: spell level -> indices of the fight-start bindings consumed in this fight (by a spell, the lowest uncast index bound to it; by a vancian action, the lowest uncast non-null index, or the lowest uncast index below boundSlots for a count-only combatant). Restore: boundSlots = re-stated count - indices; an index out of range, on a null binding, or for a level with no re-stated slots = E-SNAP-01. Absent = nothing cast."
               }
             }
           }
+        },
+        "phase": {
+          "enum": ["awaiting-declare", "resolved", "awaiting-trigger-response", "combat-over"],
+          "description": "v1.6 — optional: the fight's phase when frozen. Restore: frozen hp satisfying the end rule -> combat-over; else this value; else the v1.5 derivation. combat-over while no side is defeated = E-SNAP-01."
+        },
+        "offeredCount": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "v1.6 — optional: offers raised so far; the next trigger:fired.offerIndex continues from it. Absent = 0."
+        },
+        "offers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["actorId", "source", "id", "on"],
+            "properties": {
+              "actorId": { "type": "string" },
+              "source": { "enum": ["action", "feat"] },
+              "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+              "on": { "type": "string", "description": "The live event type that raised the offer" }
+            }
+          },
+          "description": "v1.6 — optional: every open trigger offer, in queue order. v1.6 writers emit this (when non-empty) instead of the per-combatant pendingTrigger. Present together with any pendingTrigger = E-SNAP-01. An unknown actor, or an id that is not a reactive action/feat that actor holds = E-SNAP-01."
         }
       }
     }

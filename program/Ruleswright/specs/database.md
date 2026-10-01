@@ -1,6 +1,6 @@
 # Database Design — Ruleswright
 
-> **Status:** v1.5, revised — DB, schema-change Author re-entry (builder-authorized 2026-09-29, grid-movement: hex model, pack-declared terrain vocabulary, `move(formula)` + reserved `speed`, snapshot `pendingMove`; additive-optional with one documented `speed` compatibility caveat, no rule id added; v1.4: builder-authorized 2025-09-27, equipment-consumables: slot-based equipment + consumables + the `heal` effect, snapshot `equipped`/`itemsUsed`/`maxHp`; v1.3: optional spatial section (FR-11) + E-SPAT-01 registration; v1.2: UI B-1 class combat actions; v1.1: S-CONTRACT-GAP).
+> **Status:** v1.6, revised — DB, schema-change Author re-entry (builder-authorized 2026-09-30, spells-in-combat: spells declarable in combat with a pack-declared range and empty-cell area centers, spend recorded in combat snapshots, characters hold feats, reactive feats offered, trigger grammar enforced, combat envelope offers/phase/offeredCount; additive-optional with two documented compatibility caveats — the `trigger.on` grammar and the legacy-read-only per-combatant `pendingTrigger` — no rule id added; v1.5: builder-authorized 2026-09-29, grid-movement: hex model, pack-declared terrain vocabulary, `move(formula)` + reserved `speed`, snapshot `pendingMove`; additive-optional with one documented `speed` compatibility caveat, no rule id added; v1.4: builder-authorized 2025-09-27, equipment-consumables: slot-based equipment + consumables + the `heal` effect, snapshot `equipped`/`itemsUsed`/`maxHp`; v1.3: optional spatial section (FR-11) + E-SPAT-01 registration; v1.2: UI B-1 class combat actions; v1.1: S-CONTRACT-GAP).
 > v1.0 (phase `database`, final Author phase) approved; v1.1 adds the turn-economy
 > declaration (`economy.turnSlots`) and action/spell `tags` with `restricts`
 > reference semantics. Read with `specs/architecture.md` (approved),
@@ -235,9 +235,18 @@ Map `actionId → ActionDef`:
 |---|---|---|---|
 | `cost` | object | ≥ 1 of: `slots` (map slotName→uint), `points` ({pool, amount}), `vancian` (uint level) | Generic slot/points economy (FR-4); `vancian` consumes a **bound** slot (FR-8) |
 | `valid` | string? | formula DSL | Validity conditions, e.g. `hasTarget(adjacent)` |
-| `trigger` | object? | `{on: eventPattern}` | Presence makes the action reactive; rides the event substrate (FR-4/13) |
+| `trigger` | object? | `{on: eventPattern}` | Presence makes the action reactive; rides the event substrate (FR-4/13). **v1.6:** `on` must match the `eventMatches` grammar (DD-S13, below); any other form is `E-FORM-01` |
 | `effect` | string | effect DSL, required | Parsed once at load → AST (FR-3); parse failure → `E-FORM-01` |
 | `tags` | string[]? | unique, kebab ids | Coarse categories for `restricts` matching (FR-7) — e.g. `["main"]`, `["casting"]`. Not a targeting mechanism; the tag vocabulary is pack-local, engine-blind (v1.1) |
+
+**Trigger grammar (v1.6, DD-S13).** `trigger.on` — on actions and feats alike — is the
+`eventMatches` grammar: `<eventType>` or `<eventType>[target|actor=self|<id>]` (`self` = the
+reactor), i.e. the regex `^[a-z][a-z0-9-]*(:[a-z][a-z0-9-]*)*(\[(target|actor)=[a-z][a-z0-9-]*\])?$`
+(the `pattern` in `pack.schema.json`). Any other form can never fire and is refused at
+load with `E-FORM-01` at `<base>.trigger.on`; no new rule id. The bare forms
+(`enemy-approaches`, `damaged`) still pass. This follows the v1.1 tag-integrity precedent:
+a pattern that can never fire is a broken reference, not a silent no-op. Compatibility
+caveat (a), Version Registry row 7.
 
 ### `formulas`
 Map `formulaId → {params?: string[], expr: string}`. Pure data; the function registry is
@@ -292,11 +301,97 @@ revision is that event**. No new rule id: an unknown function remains `E-FORM-02
 Seven maps, keyed by id: `classes`, `races`, `skills`, `feats`, `spells`, `conditions`, `items`.
 Highlights (full field lists in the JSON Schema):
 
-- **conditions**: `duration` (uint ≥ 1), `stacking` (`refresh | stack | ignore` — pack-declared policy, FR-7), `restricts?` (array of action tag patterns — the "teeth", e.g. blocks casting actions). **v1.1:** each pattern `actions.tagged:<tag>` must reference a tag declared on at least one action or spell → `E-REF-01` (see *Tag integrity*).
+- **conditions**: `duration` (uint ≥ 1), `stacking` (`refresh | stack | ignore` — pack-declared policy, FR-7), `restricts?` (array of action tag patterns — the "teeth", e.g. blocks casting actions). **v1.1:** each pattern `actions.tagged:<tag>` must reference a tag declared on at least one action or spell → `E-REF-01` (see *Tag integrity*). (v1.6: combat declares also match spells against `actions.tagged:`; see spells)
 - **classes** (v1.2): optional `actions` — unique action ids a character of this class may declare in combat, the character-side mirror of `Statblock.actions` (FR-16: monsters and characters ride the same action machinery). Each id must be a key of the pack's `actions` map → `E-REF-01`. Absent = the class grants no combat actions. No level gating in v1 (all listed actions are available from class level 1); level-gated grants are a future additive field.
-- **spells**: `magic` ({level: 1–9, lists: class ids}) + `cost` (vancian level or pool draw) + `effect` + optional `targeting` ({shape: `single | burst`, radius: uint, required iff burst}) + optional `tags` (same matching semantics as action tags — spells participate in `restricts` checks through the same matcher as actions, FR-9). A spell is an action with metadata — there is no magic subsystem (FR-9). Class/armor casting restrictions live on classes (pack data).
+- **spells**: `magic` ({level: 1–9, lists: class ids}) + `cost` (vancian level or pool draw) + `effect` + optional `targeting` = `{shape, radius?, range?}` ({shape: `single | burst`, radius: uint, required iff burst; range: uint, optional, v1.6}) + optional `tags` (same matching semantics as action tags — spells participate in `restricts` checks through the same matcher as actions in combat (v1.6), FR-9).
+  **v1.6 — spells in combat** (builder-authorized 2026-09-30; STATE DD-S2, DD-S4, DD-S5,
+  DD-S8, DD-S10, DD-S17, DD-S18, DD-S19):
+
+  - **No cast verb (DD-S4).** A spell is declared like an action:
+    `fight.declare(spellId, { targetId? | at? })`. Lookup is `actions[id]` first, then
+    `content.spells[id]` (one id namespace, `E-DUP-01`). A combatant may declare a spell only
+    if the id is in its `spells` list (`profileFromCharacter` sets it to the character's known
+    spells, emitted only when non-empty); otherwise `no-action` (`E-REF-01`),
+    `combatant "<id>" does not know spell "<spellId>".` **Only characters cast (DD-S2):**
+    statblocks gain no spell field, so a monster declaring a spell id is `no-action`.
+    Every `why.rule` of the cast uses the rule base `content.spells.<id>`.
+  - **Gate order:** restriction → target or `at` → **range** (spells; actions keep the reach
+    gate) → armor (vancian only) → cost (turn slots, then the bound slot or pool points). A
+    rejected declare is one `declare:rejected` and changes nothing — slots, pools,
+    `slotsCast`, `poolsSpent`, RNG.
+  - **Pool spells are cast in combat (DD-S5).** A `cost.points` spell draws from the
+    combatant's pool and records `poolsSpent`. Out-of-combat pool casting is still not a verb.
+  - **Range (DD-S8).** `targeting.range` is an optional integer ≥ 0 in the pack's own
+    distance (`runtime.spatial.distance`: grid Chebyshev steps, hex axial steps), measured
+    from the caster's position to the target combatant's position or to the `at` cell; range
+    0 = the caster's own cell only. A spell declare never runs the reach gate; it runs the
+    range gate instead. Out of range → `{kind: 'out-of-range', rule: 'E-SPAT-01', resource:
+    <targetId> | "<x>,<y>"}`, message `spell "<id>" has range <r>; <target> is <d> away.`,
+    nothing changes. **Range fallback (DD-S8 a):** absent `targeting.range` = the caster's
+    effective reach: max(its reach entry, `spatial.reach.default`), the value the reach gate
+    uses, so a pack without ranges behaves as it did under the reach gate.
+  - **Empty-cell area centers (DD-S8).** A `burst` spell may be declared with
+    `{ at: { x, y } }` instead of a `targetId`; the cell may be empty, occupied or terrain.
+    The burst resolves every standing combatant within its radius of that cell, both sides
+    (the caster included when inside). A blast that catches nobody is a legal cast: the cost
+    is spent, `spell:cast` and `action:resolved` are emitted, and there are no effect events.
+    **`at` refusals** (`invalid-target`, `E-REF-01`, nothing changes): `at` together with
+    `targetId`; `at` on a spell whose shape is not `burst` (absent `targeting` = single);
+    `at` on an action; `at` on a burst spell whose parse-once effect root is not
+    `target(burst-…)`.
+  - **Targets (DD-S8).** A spell's `targetId` may name any combatant, either side, the caster
+    included. With neither `targetId` nor `at`: the only opponent, else `no-target`. **No line
+    of sight** in v1; terrain never blocks a spell. **Theater-of-mind** packs never consult
+    range, ignore `at`, and resolve a burst to the bound target.
+  - **Restricts and spells, scoped to combat (DD-S10).** In combat, a spell declare is
+    blocked while an active condition carries `actions.tagged:<t>` or `spells.tagged:<t>` and
+    `<t>` is one of the spell's tags (a spell is an action, FR-9). Action declares are
+    unchanged (`actions.tagged:` only). Out of combat, the v1.1 matcher is unchanged in v1.6:
+    `isRestricted` and `restrictedIds` match by kind, so only `spells.tagged:` restricts a
+    spell there. Load-time tag integrity still checks `actions.tagged:` patterns only.
+  - **Binding pick (DD-S18).** A vancian spell at level `L = magic.level` consumes the
+    **lowest** index `i` with `bindings[L][i] === spellId` and `i` not in `slotsCast[L]`; none
+    → `{kind: 'vancian', rule: 'E-VANC-01', resource: L}`,
+    `no uncast level-L slot is bound to "<spellId>"`. A vancian **action** consumes the
+    lowest uncast index whose binding is non-null, or, for a count-only combatant (no
+    `bindings`), the lowest uncast index `< boundSlots[L]`. The index is recorded in
+    `slotsCast[L]` and `boundSlots[L]` decrements.
+  - **Events (DD-S17).** A successful spell declare emits, in order: `spell:cast {spellId,
+    targetId? | at?, cost: 'vancian' | 'points' | 'none', slotLevel?, slotIndex?, pool?,
+    amount?}` (actor = caster; exactly one of `targetId`/`at`); the effect's events
+    (`why.rule` `content.spells.<id>`); then `action:resolved {actionId: spellId, targetId}`
+    — or `{actionId: spellId, at}` for an empty-cell cast. The out-of-combat `spell:cast`
+    payload is unchanged.
+  - **Per-target defender values (DD-S19).** Inside a shape scope, every scoped target saves
+    with its **own** save value and an attack compares against its **own** defense, not the
+    primary target's. **Consequence (no code change):** per-target values apply to saves and
+    defenses inside a shape scope. A DC or an attack bonus is still evaluated from the
+    caster's vars bound to the primary target, so it sees the primary target's saves (for an
+    `at` cast, the caster's own). Evaluating a defense per target draws dice per target only
+    when the defense formula rolls dice. No bundled pack's does, so bundled RNG order is
+    unchanged.
+  - **Spend and settlement.** The fight never writes the character; the spend is recorded on
+    the combatant (`poolsSpent`, `slotsCast`; see Snapshot Envelopes v1.6) and the host
+    settles it after `combat-over` with `settleSpellCasts` (CA-S3). A spell is an action with metadata — there is no magic subsystem (FR-9). Class/armor casting restrictions live on classes (pack data).
 - **races**: `caps?` (map classId → uint max level — the classic cap curve, FR-6); unknown classId → `E-REF-02`. `size?` (`small | medium | large`, default medium, documented no-op for adjacency in v1 — FR-11 seam).
 - **feats**: passive or reactive (`trigger.on`); the sample packs ship ≥ 1 reactive feat (FR-12 proof 2).
+  **v1.6 — feats held and offered** (STATE DD-S11, DD-S12, DD-S13):
+  - **Characters hold feats (DD-S11).** `learnFeat(runtime, state, featId)` (facade
+    `character.learnFeat(id)`) rejects an unknown feat (`unknown-feat`) and a feat already
+    held (`feat-known`), and emits `feat:learned {featId}`. `CharacterState.feats` is absent
+    until the first learn (the `equipped` presence rule). **v1 limit:** no feat-slot cap
+    (progression declares none).
+  - **Reactive feats in combat (DD-S12).** A combatant's `feats` hold every reactive feat
+    the character has learned. A matching event offers the feat exactly as a reactive action
+    is offered (per call, once per (reactor, event), never to a downed combatant);
+    `trigger:fired` carries `source: 'feat'` and `why.rule` `content.feats.<id>.trigger`.
+    **Take:** the feat costs nothing and passes no restriction or reach gate; its parse-once
+    effect runs with the **holder** as its target (`why.rule` `content.feats.<id>`); a
+    `targetId` other than the holder is `invalid-target`. **Decline:** one
+    `trigger:declined`. **No chain:** events emitted while a feat resolves never offer feats
+    (reactive actions may still be offered), so a feat cannot trigger itself.
+  - **Grammar (DD-S13):** feat `trigger.on` follows the same `eventMatches` grammar as
+    actions (see §actions); anything else is `E-FORM-01`.
 - **skills**: `ability` (must name an ability declared in `stats`).
 - **items** (v1.4): `name`, `kind?` (free string; the armor type `armorCasting` names), plus
   three optional fields:
@@ -309,10 +404,12 @@ Highlights (full field lists in the JSON Schema):
 
   **Armor marker (CA-EG3):** an item is armor iff its grants include the reserved key
   `armor`; casting a slot-prepared spell while armor-equipped requires one of the
-  character's classes to declare the item's `kind` in `armorCasting`. **Scope: slot
-  casting only** — point-pool spells have no cast verb in v1 (DD17a), so `armorCasting`
-  governs slot (vancian) casting only (DD-EG5); packs whose casters are point-pool-only
-  carry armor content as validation coverage. The rejection is a runtime rule error
+  character's classes to declare the item's `kind` in `armorCasting`. Scope: **vancian** casting only (DD-EG5, kept in v1.6). Point-pool
+  spells are cast in combat (v1.6) and are not armor-gated. Packs whose casters are
+  point-pool-only carry armor content as validation coverage. In combat (v1.6, DD-S6) a
+  vancian spell declared while the combatant's `castBlockedBy` is set is rejected
+  `{kind: 'armor-not-castable', rule: 'E-REF-01', resource: <itemId>}`, after the
+  target/range gates and before cost. The rejection is a runtime rule error
   (`armor-not-castable`), not a load-time card.
 
 ### `progression`
@@ -371,7 +468,7 @@ its state; `savedAt` is host metadata if a host wants it, never engine state.
 |---|---|
 | `character` | name, race, classes `[{id, level, xp?}]`, abilities (map name→score), skill ranks, feats, knownSpells, `pools` (map poolId→current), `slots` (per level: array of bindings — `null` or spell id), active conditions `[{id, remaining}]`, inventory `[{id, qty}]`, optional `equipped` `[{slot, itemId}]` (v1.4). All plain JSON — no class instances, no closures (FR-5) |
 | `party` | `members` (array of character state) |
-| `combat` | `pairsWith` (party snapshot id — the documented pairing), `round`, `turn`, `order`, per-combatant state incl. transients (optional `itemsUsed` and `maxHp`, v1.4; optional `pendingMove`, v1.5), **`rng: {a, b, c, d}`** — four uint32 sfc32 words (FR-1 state export; resume test: next roll equals the uninterrupted fight's next roll) |
+| `combat` | `pairsWith` (party snapshot id — the documented pairing), `round`, `turn`, `order`, per-combatant state incl. transients (optional `itemsUsed` and `maxHp`, v1.4; optional `pendingMove`, v1.5; optional `poolsSpent`/`slotsCast`, v1.6), optional envelope `phase`/`offeredCount`/`offers` (v1.6), **`rng: {a, b, c, d}`** — four uint32 sfc32 words (FR-1 state export; resume test: next roll equals the uninterrupted fight's next roll) |
 
 **v1.4 fields** (additive-optional; `snapshotVersion` stays 1; no `required` array changed):
 
@@ -387,7 +484,26 @@ its state; `savedAt` is host metadata if a host wants it, never engine state.
 |---|---|---|---|---|
 | `pendingMove` | combatant | `{actionId: string, to: {x: integer, y: integer}, remaining: integer ≥ 0}`? — all three required inside, `additionalProperties: false` | A move paused by open leaving-reach offers (FR-11); it resumes when the offer queue empties. **Absent = no paused move** | Serialized only when set. Restore refuses an unknown action id or a non-move action → `E-SNAP-01`. Positions and terrain keep the host-re-stated discipline (`CombatRestoreRequest.positions` / `terrain?`, the latter mirroring `startCombat` with the same refusals). Restore precedence is otherwise unchanged |
 
-- **Derived restore phase (v1.5):** the envelope carries no phase, and none is added. Restore
+**v1.6 fields** (additive-optional; `snapshotVersion` stays 1; no `required` array changed):
+
+| Field | Where | Type | Meaning | Restore precedence |
+|---|---|---|---|---|
+| `poolsSpent` | combatant | object? pool id → integer ≥ 1 | Points this combatant has **spent** in this fight (the `itemsUsed` precedent). Emitted only when non-empty. **Absent = nothing spent** | pool = re-stated `balances.pools` − `poolsSpent`. Unknown pool or over-spend → `E-SNAP-01` |
+| `slotsCast` | combatant | object? spell level (`"1"`–`"9"`) → unique integers ≥ 0 | Indices of the fight-start bindings consumed in this fight (by a spell, the lowest uncast index bound to it; by a vancian action, the lowest uncast non-null index, or the lowest uncast index below `boundSlots` for a count-only combatant). Emitted only when non-empty. **Absent = nothing cast** | `boundSlots[L]` = re-stated count − `\|slotsCast[L]\|`; `bindings` re-stated. `E-SNAP-01` for: a level with no re-stated slots; an index ≥ the re-stated binding length (or ≥ `boundSlots[L]` with no bindings); an index whose re-stated binding is `null`; a duplicate index. All cards collected before any rebuild |
+| `phase` | envelope | enum? `awaiting-declare \| resolved \| awaiting-trigger-response \| combat-over` | The fight's phase when frozen. v1.6 writers always emit it | 1) frozen hp satisfying the end rule → `combat-over`; 2) else this value; 3) else the v1.5 derivation. `combat-over` while no side is defeated → `E-SNAP-01` |
+| `offeredCount` | envelope | integer? ≥ 0 | Offers raised so far | Restored into the fight's offer counter, so the next `trigger:fired.offerIndex` continues from it. **Absent = 0** |
+| `offers` | envelope | `[{actorId, source: action \| feat, id, on}]`? — all four required, `additionalProperties: false` | Every open trigger offer, in queue order; `on` is the live event type that raised it. v1.6 writers emit it (when non-empty) **instead of** the per-combatant `pendingTrigger` | Read when present; otherwise the legacy per-combatant `pendingTrigger`. Both present → `E-SNAP-01`. An unknown actor, or an id that is not a reactive action/feat that actor holds → `E-SNAP-01` |
+
+- **`characterState.feats` is now written (v1.6).** The field already existed; it is emitted
+  only when the character holds a feat (absent until the first `learnFeat`), and restore
+  refuses an unknown feat id (`E-SNAP-01`).
+- **`pendingTrigger` is legacy-read-only (v1.6).** It is still read on restore when `offers`
+  is absent; v1.6 writers no longer emit it (compatibility caveat (b), Version Registry
+  row 7).
+
+- **Derived restore phase (v1.5):** v1.5 envelopes carry no phase. v1.6 adds the optional
+  envelope `phase` (v1.6 fields above), and this derivation is the fallback when it is
+  absent. Restore
   sets the phase to **`resolved`** when any restored combatant carries `pendingMove` or
   `pendingTrigger`; otherwise it keeps the existing rule (`awaiting-declare`, or
   `combat-over` when a side is defeated). A restored paused fight's `step()` therefore
@@ -401,6 +517,19 @@ Note the deliberate asymmetry: `slotsUsed` serializes the **remaining** per-turn
 has no host-stated source), whereas `itemsUsed` records the **spend** because the host
 re-states fight-start item balances. A fight never writes back to character state; the
 host settles item spend explicitly after `combat-over` (runtime verb, not a contract field).
+
+**v1.6 spend asymmetry.** `itemsUsed`, `poolsSpent` and `slotsCast` all record **spend**
+against host-re-stated fight-start balances; `slotsUsed` still records the **remaining**
+per-turn ledger. The host settles spells with `settleSpellCasts(runtime, character, fight,
+combatantId?)` — a runtime verb, not a contract field (CA-S3): it runs only at
+`combat-over` (else `combat-not-over`; an unknown combatant is `unknown-target`); every
+refusal is collected before any change — per spent pool, `unknown-pool` (the character
+lacks it) or `insufficient-points`; per cast index, `slot-mismatch` (the character's
+`slots[L][i]` no longer equals the combatant's binding) or `slot-unmapped` (a count-only
+combatant has no bindings to map). It then draws `pools[p] -= spent` (`pool:settled
+{combatantId, pool, amount}`, `why.rule` `pools.<p>`) and empties `slots[L][i] = null`
+(`slot:settled {combatantId, slotLevel, slotIndex, spellId}`, `why.rule` `content.spells`),
+clears the combatant's spend, and returns the events, so a second call returns `[]`.
 
 **Load discipline:** pack identity check first — `id + schemaVersion + contentHash` must
 all match. Mismatch → loud refusal `E-SNAP-01`; stale `snapshotVersion` → `E-SNAP-02`.
@@ -419,7 +548,7 @@ existing ids only. v1.4 (equipment-consumables) adds no id: its load-time duties
 `E-SCHEMA-01` (structure) and `E-REF-01` (slot/grant references), and restore reuses
 `E-SNAP-01`. v1.5 (grid-movement) adds no id: `E-SPAT-01` gains documented scope (movement-gate
 rejections and terrain placement), `move` misuse reuses `E-FORM-02`, an undeclared `speed`
-reuses `E-REF-01`, and a bad `pendingMove` reuses `E-SNAP-01`. No id has been renamed or retired.
+reuses `E-REF-01`, and a bad `pendingMove` reuses `E-SNAP-01`. v1.6 (spells-in-combat) adds no id: the trigger grammar reuses `E-FORM-01`; snapshot refusals reuse `E-SNAP-01`; combat cast refusals reuse `E-REF-01`, `E-SPAT-01` (`out-of-range`), `E-VANC-01`, `E-POINTS-01` and `E-ECON-01`. No id has been renamed or retired.
 
 | Rule id | Family | Meaning |
 |---|---|---|
@@ -463,6 +592,8 @@ all built or compiled once at load (architecture: parse once, play many):
 | Movement (v1.5) | `declare(moveAction, {to})` → movement gate → cheapest legal path within `speed` | fixed-order neighbor set + region-bounded Dijkstra over positions and host-placed terrain (terrain map built per fight at `startCombat` / restore) |
 | Equipment composition (v1.4) | equipped items → ability/save adds + `gear-*` sums → formulas | per-item grants read from the id→artifact Map; one composition site |
 | Consumable use (v1.4) | item id → pre-parsed `use` effect | item-effect AST index, compiled once at load (items declaring `use` only) |
+| Spell declare (v1.6) | content.spells[id] + index.spellEffects | action pipeline, rule base content.spells.<id> |
+| Reactive offers (v1.6) | actions + feats with trigger.on | eventMatches, per call |
 
 ---
 
@@ -491,6 +622,7 @@ request back to DB, never a scope adjustment for Coder** (DB.md contract).
 | 4 | 1 (v1.3) | **grid-combat resolution (builder-authorized 2026-09-27):** optional spatial section (FR-11 opt-in: model/reach/shapes) + E-SPAT-01 registration (resolves the v1-core pending DB decision). Pre-release in-place revision: purely additive-optional, no field removed/renamed, no rule id added/renamed/retired except the new E-SPAT-01, schemaVersion stays 1 | pack.schema.json revised |
 | 5 | 1 (v1.4) | builder-authorized 2025-09-27: slot-based equipment + consumables + the `heal` effect (registry 12→13); purely additive-optional; no field removed or renamed; no rule id added; schemaVersion stays 1 | `pack.schema.json` · `snapshots.schema.json` revised |
 | 6 | 1 (v1.5) | builder-authorized 2026-09-29, grid-movement: hex model, terrain vocabulary, move(formula) + reserved speed (registry 13→14), snapshot pendingMove; additive-optional fields, no field removed/renamed, no rule id added, schemaVersion stays 1 — **one compatibility caveat:** a pack using a formula-position token `speed` in an effect without `formulas.speed` now fails E-REF-01 (see §formulas); no bundled theme affected | pack.schema.json · snapshots.schema.json revised |
+| 7 | 1 (v1.6) | builder-authorized 2026-09-30, spells-in-combat: combat spell casting, spells targeting.range (optional; absent = caster reach), snapshot combatant poolsSpent/slotsCast, envelope offers/phase/offeredCount, character feats written, trigger.on grammar pattern; no field removed/renamed, no rule id added, schemaVersion stays 1 — **two compatibility caveats:** (a) a trigger.on outside the eventMatches grammar now fails E-FORM-01 (bundled themes corrected in the same feature); (b) v1.6 writers emit offers instead of the per-combatant pendingTrigger, which v1.6 still reads | pack.schema.json · snapshots.schema.json revised |
 
 **Versioning discipline (FR-23, formalized):**
 - Additive optional fields within v1 = compatible (minor).

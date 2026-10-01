@@ -152,7 +152,8 @@
             "on": {
               "type": "string",
               "minLength": 1,
-              "description": "Event pattern; presence makes the action reactive (FR-4/FR-13)"
+              "pattern": "^[a-z][a-z0-9-]*(:[a-z][a-z0-9-]*)*(\\[(target|actor)=[a-z][a-z0-9-]*\\])?$",
+              "description": "Event pattern; presence makes the action reactive (FR-4/FR-13). v1.6 — the eventMatches grammar: <eventType> or <eventType>[target|actor=self|<id>] (self = the reactor). Any other form can never fire and is E-FORM-01 at load."
             }
           }
         },
@@ -309,6 +310,7 @@
         "feats": {
           "type": "object",
           "propertyNames": { "$ref": "#/$defs/idPattern" },
+          "description": "v1.6 — characters hold feats (learnFeat). A reactive feat is offered in combat like a reactive action; it costs nothing and its effect targets its holder; events raised by a feat never offer feats.",
           "additionalProperties": {
             "type": "object",
             "additionalProperties": false,
@@ -320,7 +322,13 @@
                 "type": "object",
                 "additionalProperties": false,
                 "required": ["on"],
-                "properties": { "on": { "type": "string" } }
+                "properties": {
+                  "on": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]*(:[a-z][a-z0-9-]*)*(\\[(target|actor)=[a-z][a-z0-9-]*\\])?$",
+                    "description": "v1.6 — the eventMatches grammar: <eventType> or <eventType>[target|actor=self|<id>] (self = the reactor). Any other form can never fire and is E-FORM-01 at load."
+                  }
+                }
               },
               "effect": { "$ref": "#/$defs/dslString" }
             }
@@ -329,6 +337,7 @@
         "spells": {
           "type": "object",
           "propertyNames": { "$ref": "#/$defs/idPattern" },
+          "description": "v1.6 — declarable in combat via fight.declare(spellId, {targetId} | {at}) by a combatant that knows it, within targeting.range; the cost spends turn slots like an action's, then the bound slot holding that spell (vancian) or pool points. armorCasting gates vancian casts only (DD-EG5).",
           "additionalProperties": {
             "type": "object",
             "additionalProperties": false,
@@ -355,7 +364,12 @@
                     "enum": ["single", "burst"],
                     "description": "v1 shapes only; cone/line deferred as engine geometry (FR-11)"
                   },
-                  "radius": { "type": "integer", "minimum": 1 }
+                  "radius": { "type": "integer", "minimum": 1 },
+                  "range": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "v1.6 — optional: the farthest distance (the pack's spatial distance: grid Chebyshev, hex axial) from the caster to the target or area center. Absent = the caster's effective reach: max(its reach entry, spatial.reach.default), the value the reach gate uses. Spells are range-gated instead of reach-gated; theater-of-mind packs ignore it. A burst spell may be centered on an empty cell (declare option at)."
+                  }
                 },
                 "allOf": [
                   {
