@@ -26,7 +26,7 @@
 |---|---|---|---|---|---|---|---|
 | 01 | Author re-entry (DB): contract v1.7 (`self` shape, self actions, `ability(name)`) | — (DB) | `program/Ruleswright/specs/database.md`, `src/schema/contracts/pack.schema.json` | done | 2/2 (`64dc746`, `f622431`) | 2026-10-01 | v1.7 landed; CA-A1..A3 rechecked, no delta; receive gates typecheck/lint/format 0, tests/schema 111/111 |
 | 02 | Self-targeting column: `target(self, …)`, self actions and reactions, 10 theme actions, first journey | M03, M04 | `src/runtime/combat/combat.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `README.md`, `tests/runtime/combat/self-target.test.ts`, `tests/proofs/self-target-journey.test.ts` | done | 3/3 (`63f6e78`, `83c7939`, `05d4fbf`) | 2026-10-01 | receive gates typecheck/lint/format/build/isolation/security 0; `pnpm test` 46 files 854/854; arch `a84dd52`; CA-A2 rechecked vs landed code |
-| 03 | Ability column: `ability(name)`, med-kit, `heal` vocabulary, spell lists | M01, M02, M03, M04 | `src/core/dsl/registry.ts`, `src/core/dsl/formula.ts`, `src/core/dsl/effect.ts`, `src/runtime/combat/resolve.ts`, `src/runtime/equipment.ts`, `src/schema/validate/sections/cross.ts`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `README.md`, `tests/core/dsl/checker.test.ts`, `tests/core/dsl/ability.test.ts`, `tests/proofs/equipment-journey.test.ts`, `tests/proofs/spells-journey.test.ts`, `tests/compiler/spell-lists.test.ts` | pending | — | — | depends on S01, S02 (shared theme files and README) |
+| 03 | Ability column: `ability(name)`, med-kit, `heal` vocabulary, spell lists | M01, M02, M03, M04 | `src/core/dsl/registry.ts`, `src/core/dsl/formula.ts`, `src/core/dsl/effect.ts`, `src/runtime/combat/resolve.ts`, `src/runtime/equipment.ts`, `src/schema/validate/sections/cross.ts`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `README.md`, `tests/core/dsl/checker.test.ts`, `tests/core/dsl/ability.test.ts`, `tests/proofs/equipment-journey.test.ts`, `tests/proofs/spells-journey.test.ts`, `tests/compiler/spell-lists.test.ts` | done | 3/3 (`4c1e1e6`, `7c1b8b6`, `3cce108`) | 2026-10-01 | receive gates typecheck/lint/format/build/isolation/security 0; `pnpm test` 48 files 878/878; CA-A3 rechecked vs landed code |
 
 ## Wave Plan
 
@@ -161,10 +161,10 @@ Commands run at plan HEAD:
 | CAP-A1 | FR-3/FR-9 targeting: `fight.declare('<self action>')` puts its condition on the actor, with any number of opponents at any distance, in spatial and theater packs | actor identity (combat `state.active`); effect root (`runtime.index.actionEffects`); condition apply (`applyMutation`) — S02 ck1 | CA-A1, CA-A2; S01 | S02 ck1 (unit), ck3 (journey) | **verified** | `self-target.test.ts` (12) + `self-target-journey.test.ts` (13) at `05d4fbf`; journey: generated dark-fantasy seed 42 → Runtime → createCharacter → profileFromCharacter → startCombat → declare → serialize/deserialize, theater leg; negative control vs `5b4abca` 13/13 fail; whole suite 854/854 (Orchestrator) | — |
 | CAP-A2 | FR-4 reactions: taking `ward-glint` / `dodge-roll` / `ward-step` puts the condition on the reactor, with no reach gate | offer (`triggers.ts`, unchanged); `resolveReactive` binding — S02 ck1 | CA-A2; S01 | S02 ck1, ck3 | **verified** | `self-target.test.ts` self-reaction cases + journey `ward-glint` take → `warded` on the reactor, `05d4fbf`; 854/854 | — |
 | CAP-A3 | Bundled content: the 10 self-buff actions affect their user (DD-A3) | theme JSON — S02 ck2 | CA-A1; S01 | S02 ck2, ck3 | **verified** | 10 actions wrapped `target(self, …)` at `83c7939`; journey step 6 (7 checks across zombie-urban, wyldwood) + `brace` roots its user, `05d4fbf`; 854/854 | — (`brace` confirmed, B-AT-1) |
-| CAP-A4 | FR-3: an effect can read an ability hidden by a same-named save, via `ability(name)`, in combat and out | registry/check/eval — S03 ck1; var bindings `effectVars` / `useItem` — S03 ck1 | CA-A3; S01 | S03 ck1 | planned | — | — |
-| CAP-A5 | Med-kit heals `2 + vigor ability` (human 2026-10-01) | theme JSON — S03 ck3 | CA-A3; CAP-A4 | S03 ck3 | planned | — | — (line fixed: `heal(2 + ability(vigor))`, heals 12; B-AT-1) |
-| CAP-A6 | `EFFECT_VOCABULARY` covers `heal` | registry — S03 ck1 | — | S03 ck1 | planned | — | — |
-| CAP-A7 | FR-9 known spells: medic/fixer know their spells; hedge-mage knows its 4 | theme JSON — S03 ck2 | CA-A4 | S03 ck2 | planned | — | — |
+| CAP-A4 | FR-3: an effect can read an ability hidden by a same-named save, via `ability(name)`, in combat and out | registry/check/eval — S03 ck1; var bindings `effectVars` / `useItem` — S03 ck1 | CA-A3; S01 | S03 ck1 | **verified** | `tests/core/dsl/ability.test.ts` (12) at `4c1e1e6` through real `packDslChecker`/`evalFormula`/`executeAgainst`→`effectVars`/`validatePack`; negative control 3/12 fail; out of combat via equipment-journey `useItem`, `3cce108`; 878/878 | — |
+| CAP-A5 | Med-kit heals `2 + vigor ability` (human 2026-10-01) | theme JSON — S03 ck3 | CA-A3; CAP-A4 | S03 ck3 | **verified** | zombie-urban `use: heal(2 + ability(vigor))` at `3cce108`; equipment-journey steps 4-5 heal 12 through generated pack → dist Runtime → `useItem` and `fight.use`, discriminating assertion save 0 vs ability 10; negative control fails; 878/878 | — (line fixed: `heal(2 + ability(vigor))`, heals 12; B-AT-1) |
+| CAP-A6 | `EFFECT_VOCABULARY` covers `heal` | registry — S03 ck1 | — | S03 ck1 | **verified** | `checker.test.ts` exact-membership pin (F-A7) at `4c1e1e6`; 878/878 | — |
+| CAP-A7 | FR-9 known spells: medic/fixer know their spells; hedge-mage knows its 4 | theme JSON — S03 ck2 | CA-A4 | S03 ck2 | **verified** | `tests/compiler/spell-lists.test.ts` (10) at `7c1b8b6` (`knownSpells` medic/fixer/hedge-mage; scavenger `[]`); negative control 6/10 fail; character-profile pin green; 878/878 | — (`mending` content-meaning question carried to the human) |
 
 **Production paths and assertions:**
 - **CAP-A1/A2/A3 (first narrow journey, S02 ck3):** `generateCampaign({theme: loadTheme('dark-fantasy'), seed: 42})` → `new Runtime(pack)` → `createCharacter` warden and hexer → `profileFromCharacter` → `startCombat` with two enemies placed **beyond reach** → `declare('withdraw')` with no `targetId`.
@@ -182,8 +182,8 @@ Commands run at plan HEAD:
 |---|---|---|---|---|---|---|---|
 | CA-A1 | `self` names the acting combatant, never a foe | `combat.ts resolveShape` → `EffectApply.resolveTargets` (`resolve.ts` l.327) → `effect.ts execTarget` | `'self'` → `[actor.id]` before the theater early-return; every other shape unchanged; a downed actor never acts, so there is no special case | DB S01 ck1 (`64dc746`); implementation and proof S02 ck1 | agreed — DB text landed `64dc746` (database.md §actions "The `self` shape"), rechecked by Orchestrator 2026-10-01, no delta | **ready** — `resolveShape` `'self'` → `[actor.id]` before theater return, `63f6e78` | **proven** — `self-target.test.ts` + journey theater leg, `63f6e78`/`05d4fbf`; 854/854 |
 | CA-A2 | A self action's target is its actor (authority: the actor) | `combat.ts declare` / `resolveReactive` → `execute(actor, bound, target = actor)` → events | root `target(self, …)` on an action ⇒ skip `resolveTarget` and `spatialGate`; `targetId` ∉ {undefined, actor.id} ⇒ `{kind: 'invalid-target', rule: 'E-REF-01', resource: targetId}`; restriction → validity → cost order unchanged; spells excluded | DB S01 ck1 (`64dc746`); implementation and proof S02 ck1; journey S02 ck3 | agreed — DB text landed `64dc746` (§actions "Self actions", "Root-only rule", "Gates", "Events"; `targetId` = actor accepted, explicit), rechecked 2026-10-01, no delta | **ready** — `declare`/`resolveReactive` + `isSelfAction` + `selfTargetRefusal`, `63f6e78`; Orchestrator recheck 2026-10-01: gate order restriction → (at refusal) → self `targetId` refusal (the same position where `resolveTarget` refuses ordinary actions) → validity → cost; spells excluded; root-only | **proven** — `self-target.test.ts` (incl. F-A2 second-gust offer, no chain) + journey `invalid-target` deep-equal, `05d4fbf`; 854/854 |
-| CA-A3 | `ability(n)` = the actor's composed ability `n`; never a save; never the target's | `registry.ts` / `formula.ts` (check + eval) → var builders `resolve.ts effectVars`, `equipment.ts useItem` → `evalFormula` | vars key `ability:<n>` = `actor.abilities[n]` (combat profile: equipment-composed) / `view.abilities[n]` (`useItem`); checker: effect-kind only (`E-FORM-02` elsewhere), `n ∈ stats.abilities` (`E-FORM-03`); missing key at play → throw; M01 mirror `NON_FORMULA_ARGS.ability = [0]` | DB S01 ck1-2 (`64dc746`, `f622431`); implementation and proof S03 ck1; content S03 ck3 | agreed — DB text landed (§formulas "`ability(name)`"; clarifications: never an effect scalar; name position so `ability(speed)` is not a `speed` reference), rechecked 2026-10-01, no delta | planned (S03 ck1) | planned: `tests/core/dsl/ability.test.ts`, `equipment-journey.test.ts` |
-| CA-A4 | A class knows a spell iff a spellList string equals a spell's `magic.lists` entry | theme JSON → `pools.ts knownSpells` → `profileFromCharacter().profile.spells` | exact string match (no change to `knownSpells`) | S03 ck2 | agreed (existing behavior, no contract change) | ready (`pools.ts:307`) | planned: `tests/compiler/spell-lists.test.ts` |
+| CA-A3 | `ability(n)` = the actor's composed ability `n`; never a save; never the target's | `registry.ts` / `formula.ts` (check + eval) → var builders `resolve.ts effectVars`, `equipment.ts useItem` → `evalFormula` | vars key `ability:<n>` = `actor.abilities[n]` (combat profile: equipment-composed) / `view.abilities[n]` (`useItem`); checker: effect-kind only (`E-FORM-02` elsewhere), `n ∈ stats.abilities` (`E-FORM-03`); missing key at play → throw; M01 mirror `NON_FORMULA_ARGS.ability = [0]` | DB S01 ck1-2 (`64dc746`, `f622431`); implementation and proof S03 ck1; content S03 ck3 | agreed — DB text landed (§formulas "`ability(name)`"; clarifications: never an effect scalar; name position so `ability(speed)` is not a `speed` reference), rechecked 2026-10-01, no delta | **ready** — `REGISTRY.ability`, `checkAbilityCall`, `evalCall` fail-closed, `checkEffect` sole `allowAbility`, `effectVars`/`useItem` bind `ability:<n>`, `NON_FORMULA_ARGS.ability=[0]`, `4c1e1e6`; Orchestrator recheck 2026-10-01 | **proven** — `ability.test.ts` `4c1e1e6`; `equipment-journey.test.ts` `3cce108`; 878/878 |
+| CA-A4 | A class knows a spell iff a spellList string equals a spell's `magic.lists` entry | theme JSON → `pools.ts knownSpells` → `profileFromCharacter().profile.spells` | exact string match (no change to `knownSpells`) | S03 ck2 | agreed (existing behavior, no contract change) | ready (`pools.ts:307`) | **proven** — `tests/compiler/spell-lists.test.ts` `7c1b8b6`; 878/878 |
 
 **Provisional rows:** CA-A1 … CA-A3 were provisional against S01's landed text — **rechecked against `f622431` on 2026-10-01: no delta; no longer provisional.**
 - After S01, Orchestrator re-checks each mapping above against `database.md` v1.7 before dispatching S02, and dispatches S02/S03 against the **amended** text.
@@ -193,7 +193,7 @@ Commands run at plan HEAD:
 
 | ID | Affects | Next action | Owner | Evidence to clear |
 |---|---|---|---|---|
-| — | none open | S03 is dispatchable (S01, S02 done). | — | — |
+| — | none open | All sessions done; Final Report. | — | — |
 
 **Cleared:**
 
@@ -353,3 +353,84 @@ Session 2 is finished: self actions now act on whoever uses them, the 10 bundled
   - `tests/proofs/self-target-journey.test.ts`
 
 [CfWmI · coder · 2026-10-01T22:24:10-05:00] session ended · tokens=3502192
+
+### SESSION-03 — received 2026-10-01 (handle h-252g / CL5py, base `0dfe8f8`) — verbatim
+
+All three checkpoints are committed and every gate passes. `ability(name)` works in effects and item `use`, the med-kit now heals 12, and the medic, fixer and hedge-mage know their spells. The whole suite passes: 48 files, 878/878.
+
+## Handoff
+
+- **session:** SESSION-03 (action-targeting), lease revision 1
+- **status:** done
+- **checkpoint:** 3 of 3
+  - ck1 `4c1e1e6`: `ability(name)` checks, evaluates and binds; `heal` added to the vocabulary
+  - ck2 `7c1b8b6`: spell lists reach their spells
+  - ck3 `3cce108`: the med-kit reads the ability
+- **notes:** CAP-A4, CAP-A5, CAP-A6 and CAP-A7 are all proven here. CA-A3 is implemented and proven. CA-A4 is proven with no producer change.
+  - **Checkpoint-0 recheck, done before editing:**
+    - `database.md` v1.7 §formulas (l.334-351) matches the CA-A3 bullets: effect-kind only, else `E-FORM-02`; the name must be in `stats.abilities`, else `E-FORM-03` with did-you-mean; the `ability:<name>` key; a missing key throws; never a save, an effect scalar or the target's; a name position.
+    - The registry had 14 entries.
+    - `grep -rn "executeEffect(" src` found exactly 2 callers: `resolve.ts:347` and `equipment.ts:332`.
+    - S02's ck2 `83c7939` is in the log for `zombie-urban.json`.
+    - **No mapping changed.**
+  - **Code that landed:**
+    - `REGISTRY.ability = { arity: 1, kind: 'formula', signature: ['ability-name'] }` (15 entries).
+    - `EFFECT_VOCABULARY` gains `'heal'`; `FORMULA_VOCABULARY` gains `'ability'`.
+    - `FormulaCheckContext.allowAbility`, plus a private helper `checkAbilityCall` and an `ability` case in `evalCall`.
+    - `checkEffect` sets `allowAbility: true`. This is the only place it is set.
+    - `effectVars` binds `ability:<n>` from `actor.abilities`, after the target-save layer. `useItem` binds `ability:<n>` from `view.abilities`.
+    - `NON_FORMULA_ARGS.ability = [0]`.
+  - **Med-kit line used:** `heal(2 + ability(vigor))`, as decided by the human (B-AT-1).
+- **delivered:**
+  - **ck1:** the engine change described in notes.
+    - `tests/core/dsl/ability.test.ts` (12 tests) covers cases (a) to (h), plus two extra checks: a save that is not an ability gives `E-FORM-03`, and a bare `heal(speed)` still gives `E-REF-01` (the negative control for h).
+    - `checker.test.ts`: the registry pin moved from 14 to 15 and the title now says v1.7. F-A7 is added: `EFFECT_VOCABULARY` must equal exactly the effect-kind registry entries. There is also an `ability` entry check.
+  - **ck2:** zombie-urban medic is now `["medic"]` and fixer `["fixer"]`; scavenger stays `[]`. wyldwood hedge-mage is now `["hedge-mage"]`.
+    - `tests/compiler/spell-lists.test.ts` (10 tests): for all three themes, every class list matches a spell and every spell list is drawn by a class; plus the `knownSpells` checks for medic, fixer, scavenger (`[]`) and hedge-mage.
+    - The `spells-journey` comment is updated.
+  - **ck3:** the med-kit line is changed.
+    - `equipment-journey` steps 4-5 are re-keyed: step 4 is `-12`, `'23→27'`, `'d0[]-12=-12'`, `cap - 4 + 12`; step 5 is `-12`, `'26→27'`, `'d0[]-12=-12'`.
+    - A discriminating assertion was added: the profile has `saves.vigor` 0 and `abilities.vigor` 10.
+    - The header comment is updated (F-A4).
+    - README: the med-kit JSON line, the prose (now "heals 12"), the expected-output lines, and one sentence about `ability(name)` in the Consumables bullet. No ```ts block was added.
+  - The arch fragment is at `.program/signal/SESSION-03.arch.md`, uncommitted.
+- **verification:**
+  - **ck1:** `pnpm typecheck` 0. `pnpm exec vitest run tests/core tests/schema tests/runtime`: 30 files, 547/547. `pnpm lint` 0.
+    - Negative control: with the `effectVars` binding and the mirror removed, `ability.test.ts` failed 3 of 12: (f), (g) and (h).
+    - The proofs use the real `packDslChecker`, `evalFormula`, `executeAgainst` → `effectVars`, and `validatePack` on `clonePack()`. Only the profiles are hand-built.
+  - **ck2:** `pnpm exec vitest run tests/compiler tests/runtime/combat/character-profile.test.ts`: 7 files, 240/240, so the scavenger non-caster pin holds.
+    - Negative control: with the theme files from HEAD~ (before ck2), `spell-lists` failed 6 of 10.
+    - `pnpm build` 0. `pnpm exec vitest run tests/proofs`: 9 files, 66/66. `pnpm format:check` 0.
+  - **ck3:** `pnpm build` was run before deriving the values (F-A1). `equipment-journey` plus `docs-run`: 13/13.
+    - Negative control: rebuilt with the old `heal(2 + vigor)` line, steps 4 and 5 failed. I then rebuilt again from the committed line.
+    - This exercises the real path: generated zombie-urban pack (seed 42) → dist `Runtime` → `useItem` and `startCombat` → `fight.use`.
+  - **Final run:**
+    - `pnpm typecheck`, `lint`, `format:check`, `check:isolation`, `check:security` and `build` all exit 0.
+    - `pnpm test`: 48 files, 878/878. The expected count is 854 + 12 + 2 + 10 = 878, and 46 + 2 files, so nothing was under- or over-selected.
+- **surprises:**
+  - README l.381 said "zombie-urban's classes know no spells". This was not in the plan's pin audit. It became false at ck2, and I corrected it in ck3's README edit (now "…any number of feats).").
+  - The behavior pins moved exactly as planned: `checker.test.ts` 14 → 15, `equipment-journey` steps 4-5 and its header, and the `spells-journey` comment.
+- **followUp:**
+  - **Open content question for the Final Report** (owner: the human, a content-meaning decision): the medic now knows `bind-the-bite` (`damage(1d8 - vigor, mending)`). It deals damage reduced by the target's vigor save rather than healing. wyldwood `bind-wound` is the same.
+  - `tests/runtime/combat/character-profile.test.ts:381` still has the stale "med-kit = heal(2 + vigor)" comment. It was accepted as stale and is carried to the next cleanup run.
+  - Orchestrator: integrate the arch fragment.
+- **needsOwnerCorrection:** —
+- **needsDesignSource:** —
+- **blockedReason:** —
+- **filesTouched:**
+  - `src/core/dsl/registry.ts`
+  - `src/core/dsl/formula.ts`
+  - `src/core/dsl/effect.ts`
+  - `src/runtime/combat/resolve.ts`
+  - `src/runtime/equipment.ts`
+  - `src/schema/validate/sections/cross.ts`
+  - `tests/core/dsl/checker.test.ts`
+  - `tests/core/dsl/ability.test.ts`
+  - `src/compiler/themes/zombie-urban.json`
+  - `src/compiler/themes/wyldwood.json`
+  - `tests/compiler/spell-lists.test.ts`
+  - `tests/proofs/spells-journey.test.ts`
+  - `tests/proofs/equipment-journey.test.ts`
+  - `README.md`
+
+[CL5py · coder · 2026-10-01T22:30:04-05:00] session ended · tokens=3921505
