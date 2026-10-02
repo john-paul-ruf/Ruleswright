@@ -11,7 +11,7 @@ Actions can now affect their user. Contract v1.7 adds the `self` shape word of `
 
 ## Files created and modified
 
-Command: `git diff --name-status 0b5787e..HEAD` (`0b5787e` = last commit before this feature) → **26 paths: 9 added (A), 17 modified (M)**. Breakdowns:
+Command: `git diff --name-status 0b5787e..ebf081c` (`0b5787e` = last commit before this feature; `ebf081c` = final STATE commit before this report — pinned per the final Archivist finding (b), since `..HEAD` also counts this report) → **26 paths: 9 added (A), 17 modified (M)**. Breakdowns:
 
 | Group | Count | Paths |
 |---|---:|---|
@@ -23,7 +23,7 @@ Command: `git diff --name-status 0b5787e..HEAD` (`0b5787e` = last commit before 
 | Program bookkeeping | 7 | M `program/Ruleswright/specs/database.md`, M `program/Ruleswright/arch/v1-core.md`, A `program/Ruleswright/prompts/action-targeting/{MASTER,STATE,SESSION-01,SESSION-02,SESSION-03}.md` |
 | **Total** | **26** | 7 + 3 + 1 + 7 + 1 + 7 = 26. Added: 4 tests + 5 prompts = 9. Modified: 17 |
 
-Code diff, from `git diff --shortstat 0b5787e..HEAD -- src tests README.md`: 19 files changed, 1035 insertions(+), 37 deletions(-). The 19 files are src 11 + tests 7 + README 1.
+Code diff, from `git diff --shortstat 0b5787e..ebf081c -- src tests README.md`: 19 files changed, 1035 insertions(+), 37 deletions(-). The 19 files are src 11 + tests 7 + README 1.
 
 ## Architecture impact
 
@@ -57,7 +57,7 @@ Each count matches its parts. 854 = 829 + 12 (self-target) + 13 (journey). 878 =
 
 ## Residual gaps
 
-- **`mending` spells (carried to the human; content-meaning decision).** zombie-urban `bind-the-bite` and wyldwood `bind-wound` are written as `damage(1d8 - vigor, mending)`: damage reduced by the target's vigor save, not a heal. S03 made `bind-the-bite` reachable for the medic. The open question is whether these should be heals.
+- **`mending` spells (carried to the human; content-meaning decision).** zombie-urban `bind-the-bite`, wyldwood `bind-wound` and dark-fantasy `bind-wound` (`dark-fantasy.json:273`, warden list, reachable before this feature; third site found by the final Archivist) are written as `damage(1d8 - vigor, mending)`-style lines: damage reduced by the target's vigor save, not a heal. S03 made `bind-the-bite` reachable for the medic. The open question is whether these should be heals.
 - **Restricts symmetry (carried to the human).** Unchanged: it is still the open question from the spells-in-combat FINAL-REPORT.
 - **Root-only self actions (documented limitation, database.md v1.7).** `sequence(target(self, …), …)` is still an ordinary action. No bundled content is affected.
 - **Stale comment.** `tests/runtime/combat/character-profile.test.ts:381` ("med-kit = heal(2 + vigor)") is outside every lease. It was accepted as stale (auto-decision) and is carried to the next cleanup run.
@@ -74,7 +74,7 @@ Each count matches its parts. 854 = 829 + 12 (self-target) + 13 (journey). 878 =
 **Binding:** Native (`mcp__demiurge__spawn_subagent` / `await_subagent_result`), run r-kw1N.
 **Wall clock:** about 30 min, from the preflight Archivist (ended 22:11) to the final STATE commit `ebf081c` (22:34). The preflight launch time was not recorded. Worker end times, from the session logs: preflight 22:11:15, S01 22:21:48, S02 22:24:10, S03 22:30:04. The commit dates do not match these end times, so no per-session duration is claimed.
 **Sessions run:** 3 planned sessions, plus 1 Archivist planning-completeness pass. The final Archivist pass follows this report.
-**Checkpoints committed by Coder:** 8. Command: `git log --oneline --grep='SESSION-0[123]: checkpoint' 0b5787e..HEAD | wc -l` → 8 = S01 2 + S02 3 + S03 3.
+**Checkpoints committed by Coder:** 8. Command: `git log --oneline --grep='SESSION-0[123]: checkpoint' 0b5787e..ebf081c | wc -l` → 8 = S01 2 + S02 3 + S03 3.
 
 ### Wave plan as executed
 | Wave | Sessions | Notes |
@@ -162,4 +162,68 @@ No required capability is still planned, blocked or stale.
 | S03 surprises | the behavior pins moved exactly as planned | **retired**: confirmed by the 878/878 run |
 
 ### Archivist's Note
-{pending — appended verbatim after the final Archivist pass}
+<!-- Final Archivist h-AZMv (ATcqx), synthesis b625ffa; return appended verbatim. Orchestrator applied its findings (a) third mending site and (b) end-SHA citation above. -->
+
+- **role:** archivist
+- **registryUpdated:** true. The module registry is reconciled to `535247d`. `git diff 0b5787e..535247d -- src` adds or removes no `import`/`export … from` line, so the value-import graph is unchanged from `94d40f3`. There is no new module ID, cross-module edge or rule id. M01→M04 key files now list the v1.7 additions.
+- **reconciled:**
+  - `program/Ruleswright/arch/v1-core.md`: the S02 and S03 delta sections (`a84dd52`, `42a1fd3`) are folded into the M01/M02/M03/M04/M05 sections and their markers removed. DD-A1..A9 are under Cross-cutting decisions, and the header and gates show the fresh run at `535247d`. Drift notes:
+    - **Closed:** `heal` in the vocabulary, self-buffs, spell lists, and the med-kit shadowing question.
+    - **Added:** an action-targeting residuals block.
+  - `program/Ruleswright/PROGRAM-CONFIG.MD`:
+    - header note and registry;
+    - Custom Rule 1 (v1.7 contract and caveat c), Rule 2 (`ability(name)`; a save still hides a same-named ability) and Rule 4 (self actions are pack data);
+    - Verification Commands, Git Config, Stack and Author Sources are unchanged.
+  - `program/Ruleswright/ARCHIVIST-LOG.md`: the dated entry is appended. Everything is committed at `b625ffa`, by explicit pathspec.
+- **conventionsAdded:**
+  - **Pin-lease ownership widened to doc pins** (row 1cc46f93; cycles axis: 4 cycles, 6 instances). When a session changes a content fact, the pin audit now greps `README.md` and the docs as well as `tests/`.
+    - The trigger was the README l.381 miss: "zombie-urban's classes know no spells" went false at S03 ck2 and S03 fixed it inside its lease at ck3.
+  - Evidence notes only, no new rules:
+    - premise verification held for a 6th cycle (30 instances);
+    - authorization quoted in the envelope held for a 5th cycle.
+- **proposedForFramework:**
+  - **New, c3c94358 (1 cycle, 1 instance):** the Final Report should cite commands against an explicit end SHA, not `HEAD`. The report says `git diff --name-status 0b5787e..HEAD` gives 26 paths. That was true when written, but after the report's own commit the same command gives 27.
+  - **f4621ac1 (3 cycles, 4 instances):** the PLANNER.md pin-audit grep should cover README and docs, not just `tests/`.
+  - **760b67f1 (2 cycles, 2 instances):** when the "newly reachable content" scan raises a content question, grep the same pattern across all themes. This cycle the Planner ran the scan voluntarily and it worked, but it missed one site.
+  - **a3680390 (5 cycles, 5 instances):** reconcile the "never spawned" wording in SPEC.md/AUTHOR.md with planned Author re-entry sessions.
+  - **cecd2115 (4 cycles, ≥7 instances):** ORCHESTRATOR.md should name the 300 s await idle timeout as a non-crash.
+  - No row is adopted. The role-doc mtimes are still 2026-09-25 and the content was checked row by row. PLANNER, CODER, UI-CODER and ORCHESTRATOR.md are byte-identical (sha1 checked before and after).
+- **logEntry:** the 2026-10-01 entry, appended to ARCHIVIST-LOG.md. Findings for Orchestrator:
+  - **(a) A third `mending` site.** The Final Report lists two `mending` spells. A source grep finds a third: dark-fantasy `bind-wound` (`dark-fantasy.json:273`, warden list, reachable before this feature). The human content question should name all three. It affects no capability.
+  - **(b) The `..HEAD` path count no longer reproduces.** This is cosmetic and is the new row c3c94358 above.
+  - **(c) Everything else checked out:**
+    - contract agreements CA-A1..A4 match source with no mismatch (file:line citations are in the log);
+    - CAP-A1..A7 are consistent;
+    - lease audit clean on all 8 checkpoints;
+    - +1035/−37 lines over 19 files, matching the report;
+    - fresh gates: typecheck 0, build 0, isolation 0, 878/878 tests across 48 files, proofs 66/66 across 9;
+    - lint, format and security were not re-run (taken from the Orchestrator receive at `3cce108`).
+
+### cleanupBriefs
+
+[] — no new campaign crosses a threshold. The 2026-09-28 duplicated-logic brief (C1 narrowed to `isLivePattern`, and C2 `MAX_TABLE_DEPTH`) carries forward unaccepted.
+- **Closed:** C12 (`4c1e1e6`) and C13 (`0b5787e`).
+- **New:** C14, the stale comment at `character-profile.test.ts:381`. It is tracking (high confidence, trivial), with the next cleanup run as owner.
+
+### standingRecommendations
+
+- **pattern:** large single-session builds exhaust context on checkpoint-0 read sweeps · **cycles:** 2 · **instances:** 2 · **firstSeen:** v1-core · **status:** open
+- **pattern:** subagent fabricates tool inputs under long-recovery prompts · **cycles:** 2 · **instances:** 8 · **firstSeen:** v1-core · **status:** open
+- **pattern:** public surface/barrel completeness gaps found at integration · **cycles:** 2 · **instances:** 3 · **firstSeen:** v1-core · **status:** open
+- **pattern:** run tool drops/misroutes argv · **cycles:** 2 · **instances:** 3 · **firstSeen:** v1-core · **status:** open
+- **pattern:** commit_pathspec-style commits fail on deleted files · **cycles:** 1 · **instances:** 1 · **firstSeen:** v1-core · **status:** open
+- **pattern:** cross-suite/behavior/doc pins land without a named owner · **cycles:** 4 · **instances:** 6 · **firstSeen:** loot-inventory · **status:** promoted (widened to doc pins 2026-10-01)
+- **pattern:** envelope factual premises reach sessions unverified · **cycles:** 6 · **instances:** 30 · **firstSeen:** loot-inventory · **status:** promoted
+- **pattern:** whole-repo fast gates go red at role-scoped receives · **cycles:** 4 · **instances:** 4 · **firstSeen:** v1-core · **status:** promoted
+- **pattern:** provider aborts kill subagents mid-session; recovery from preserved tree · **cycles:** 3 · **instances:** 5 · **firstSeen:** loot-inventory · **status:** open (promotion held because the cycle attribution is ambiguous)
+- **pattern:** bare npx misresolves; use pnpm exec vitest run · **cycles:** 2 · **instances:** 3 · **firstSeen:** loot-inventory · **status:** open
+- **pattern:** aborted final Archivist pass leaves a double synthesis · **cycles:** 2 · **instances:** 2 · **firstSeen:** loot-inventory · **status:** open
+- **pattern:** session gates hard-code a plan-time base SHA made stale by replan · **cycles:** 1 · **instances:** 1 · **firstSeen:** equipment-consumables · **status:** open
+- **pattern:** host await idle timeout (300 s); re-await reattaches · **cycles:** 4 · **instances:** 7 · **firstSeen:** equipment-consumables · **status:** promoted; framework wording open
+- **pattern:** Final Report mechanical facts transcribed, not derived · **cycles:** 3 · **instances:** 3 · **firstSeen:** v1-core · **status:** promoted; framework wording open
+- **pattern:** role docs say Spec/DB never spawned vs planned Author re-entry sessions · **cycles:** 5 · **instances:** 5 · **firstSeen:** grid-combat · **status:** promoted; framework wording open
+- **pattern:** STATE row matcher hits a CA-ID column inside the CAP table · **cycles:** 1 · **instances:** 2 · **firstSeen:** grid-movement · **status:** open
+- **pattern:** pin audits miss behavior pins (and doc pins) · **cycles:** 3 · **instances:** 4 · **firstSeen:** grid-combat · **status:** open
+- **pattern:** newly reachable content hazards without a planning-time scan · **cycles:** 2 · **instances:** 2 · **firstSeen:** spells-in-combat · **status:** open
+- **pattern:** concurrent disjoint-lease sessions share one working tree · **cycles:** 1 · **instances:** 2 · **firstSeen:** spells-in-combat · **status:** open
+- **pattern:** Final Report cites `<base>..HEAD`, and its own commit moves HEAD so the command no longer reproduces the count · **cycles:** 1 · **instances:** 1 · **firstSeen:** action-targeting · **status:** open
