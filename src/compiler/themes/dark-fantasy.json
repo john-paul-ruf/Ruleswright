@@ -66,10 +66,14 @@
     },
     "withdraw": {
       "cost": { "slots": { "move": 1 } },
-      "effect": "applyCondition(braced, 2)",
+      "effect": "target(self, applyCondition(braced, 2))",
       "tags": ["move"]
     },
-    "brace": { "cost": { "slots": { "move": 1 } }, "effect": "applyCondition(rooted, 2)", "tags": ["move"] },
+    "brace": {
+      "cost": { "slots": { "move": 1 } },
+      "effect": "target(self, applyCondition(rooted, 2))",
+      "tags": ["move"]
+    },
     "parry": {
       "cost": { "slots": { "reaction": 1 } },
       "trigger": { "on": "attack:rolled[target=self]" },
@@ -79,7 +83,7 @@
     "ward-glint": {
       "cost": { "slots": { "reaction": 1 } },
       "trigger": { "on": "attack:rolled[target=self]" },
-      "effect": "applyCondition(warded, 1)",
+      "effect": "target(self, applyCondition(warded, 1))",
       "tags": ["reaction"]
     },
     "grave-gaze": {

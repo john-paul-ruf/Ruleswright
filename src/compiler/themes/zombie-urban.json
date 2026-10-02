@@ -70,18 +70,18 @@
     },
     "fall-back": {
       "cost": { "slots": { "move": 1 } },
-      "effect": "applyCondition(braced, 2)",
+      "effect": "target(self, applyCondition(braced, 2))",
       "tags": ["move"]
     },
     "barricade": {
       "cost": { "slots": { "move": 1 }, "points": { "pool": "adrenaline", "amount": 2 } },
-      "effect": "applyCondition(fortified, 3)",
+      "effect": "target(self, applyCondition(fortified, 3))",
       "tags": ["move"]
     },
     "dodge-roll": {
       "cost": { "slots": { "reaction": 1 } },
       "trigger": { "on": "attack:rolled[target=self]" },
-      "effect": "applyCondition(braced, 1)",
+      "effect": "target(self, applyCondition(braced, 1))",
       "tags": ["reaction"]
     },
     "wrench-parry": {
@@ -92,7 +92,7 @@
     },
     "adrenal-spike": {
       "cost": { "points": { "pool": "adrenaline", "amount": 3 } },
-      "effect": "applyCondition(spiked, 3)",
+      "effect": "target(self, applyCondition(spiked, 3))",
       "tags": ["free"]
     },
     "infection-word": {
