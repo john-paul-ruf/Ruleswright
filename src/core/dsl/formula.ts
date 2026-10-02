@@ -59,6 +59,8 @@ export interface FormulaCheckContext {
   readonly scalars?: readonly string[];
   /** Which call vocabulary the expression allows: formula (default) or validity (`valid` fields). */
   readonly allow?: 'formula' | 'validity';
+  /** v1.7 — ability(name) is legal (effect fields only, DD-A4). */
+  readonly allowAbility?: boolean;
 }
 
 /** Names every formula may reference without declaring: the actor's level (FR-3/FR-5). */
@@ -368,6 +370,15 @@ function negateRoll(roll: RollResult): RollResult {
 }
 
 function evalCall(ast: FormulaAst, ctx: FormulaContext, rng: RandomSource): FormulaValue {
+  if (ast.text === 'ability') {
+    const name = ast.args?.[0]?.text ?? '';
+    const value = ctx[`ability:${name}`];
+    if (value === undefined)
+      throw new Error(
+        `ability("${name}") has no binding — effects bind ability:<name> (DD-A4); validate before evaluation (E-FORM-03)`,
+      );
+    return value;
+  }
   const scalars = (ast.args ?? []).map((arg) => valueOfFormula(evalFormula(arg, ctx, rng)));
   switch (ast.text) {
     case 'min':
@@ -522,6 +533,7 @@ export function checkFormulaAst(
           message: `function "${name}" takes ${minArgs === maxArgs ? minArgs : `${minArgs}-${maxArgs}`} argument(s), got ${count}.`,
         };
       }
+      if (name === 'ability') return checkAbilityCall(ast, ctx);
       for (const arg of ast.args ?? []) {
         const failure = checkFormulaAst(arg, ctx, insideValidity);
         if (failure !== undefined) return failure;
@@ -538,6 +550,25 @@ export function checkFormulaAst(
     case 'number':
       return undefined;
   }
+}
+
+/** v1.7 (DD-A4): effect fields only; the argument is a bare name declared in stats.abilities. */
+function checkAbilityCall(ast: FormulaAst, ctx: FormulaCheckContext): SemanticFailure | undefined {
+  if (ctx.allowAbility !== true) {
+    return { rule: 'E-FORM-02', message: '`ability(...)` is legal only inside effects.' };
+  }
+  const arg = ast.args![0]!;
+  if (arg.kind !== 'name') {
+    return { rule: 'E-FORM-02', message: 'the argument of "ability" must be a bare ability name.' };
+  }
+  const name = arg.text ?? '';
+  if (ctx.abilities.includes(name)) return undefined;
+  const near = nearestName(name, ctx.abilities);
+  return {
+    rule: 'E-FORM-03',
+    message: `unknown ability "${name}" — not declared in stats.abilities.`,
+    hint: near === undefined ? undefined : `did you mean "${near}"?`,
+  };
 }
 
 function isFormulaName(name: string, ctx: FormulaCheckContext): boolean {

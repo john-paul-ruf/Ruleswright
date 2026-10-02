@@ -13,6 +13,11 @@
  * v1.5 (contract schema event, database.md §formulas, FR-11): 13 → 14 with
  * `move(formula)` — host movement up to a dice-free budget; legal only as the
  * root statement of a non-triggered action effect (misuse = E-FORM-02).
+ *
+ * v1.7 (contract schema event, database.md §formulas, DD-A4): 14 → 15 with
+ * `ability(name)` — the actor's ability, unshadowed by a same-named save, read
+ * from the reserved effect var `ability:<name>`. Legal only inside effect-kind
+ * fields (misuse = E-FORM-02); the name must be a declared ability (E-FORM-03).
  */
 export const REGISTRY: Readonly<Record<string, FunctionSpec>> = Object.freeze({
   attack: { arity: 2, kind: 'effect', signature: ['formula', 'formula'] },
@@ -28,6 +33,7 @@ export const REGISTRY: Readonly<Record<string, FunctionSpec>> = Object.freeze({
   max: { arity: 2, kind: 'formula', signature: ['formula', 'formula'] },
   floor: { arity: 1, kind: 'formula', signature: ['formula'] },
   ceil: { arity: 1, kind: 'formula', signature: ['formula'] },
+  ability: { arity: 1, kind: 'formula', signature: ['ability-name'] },
   half: { arity: 0, kind: 'reserved', signature: [] },
 });
 
@@ -54,6 +60,7 @@ export const EFFECT_VOCABULARY: readonly string[] = [
   'attack',
   'save',
   'damage',
+  'heal',
   'applyCondition',
   'target',
   'sequence',
@@ -64,4 +71,4 @@ export const EFFECT_VOCABULARY: readonly string[] = [
 export const VALIDITY_VOCABULARY: readonly string[] = ['hasTarget'];
 
 /** Formula vocabulary the registry must cover. */
-export const FORMULA_VOCABULARY: readonly string[] = ['min', 'max', 'floor', 'ceil'];
+export const FORMULA_VOCABULARY: readonly string[] = ['min', 'max', 'floor', 'ceil', 'ability'];

@@ -357,7 +357,8 @@ export function executeAgainst(
  * The per-target effect vars: the actor's abilities/saves, level and the
  * engine-derived scalars (hp/ac/initiative/speed — they shadow same-named
  * abilities), then the defender's saves and `ac` under their pack names.
- * `speed` binds `profile.speed ?? 0` (DD-M7).
+ * `speed` binds `profile.speed ?? 0` (DD-M7). `ability:<name>` binds the
+ * actor's own abilities unshadowed, for `ability(name)` (v1.7, DD-A4).
  */
 export function effectVars(actor: CombatantProfile, target: CombatantProfile): Record<string, number> {
   const vars: Record<string, number> = {
@@ -373,6 +374,7 @@ export function effectVars(actor: CombatantProfile, target: CombatantProfile): R
     vars[saveName] = value;
   }
   vars['ac'] = target.ac;
+  for (const [name, value] of Object.entries(actor.abilities)) vars[`ability:${name}`] = value;
   return vars;
 }
 

@@ -496,6 +496,7 @@ export function checkEffect(request: DslCheckRequest): ErrorCard[] {
     abilities: request.abilities,
     saves: request.saves,
     scalars: EFFECT_SCALARS,
+    allowAbility: true,
   };
   const failure = checkEffectAst(parsed.value, ctx, false, true, true);
   if (failure === undefined) return [];

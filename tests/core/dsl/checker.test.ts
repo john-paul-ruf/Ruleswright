@@ -9,8 +9,9 @@ import {
 import { validatePack } from '../../../src/schema/validate';
 
 describe('registry freeze (CA-2: extension is a schema event, never a code change)', () => {
-  it('asserts the exact v1.5 membership (14: move joined as the v1.5 schema event, after heal in v1.4) — additive id check, mirroring CA-1 discipline', () => {
+  it('asserts the exact v1.7 membership (15: ability joined as the v1.7 schema event, after move in v1.5 and heal in v1.4) — additive id check, mirroring CA-1 discipline', () => {
     expect(Object.keys(REGISTRY).sort()).toEqual([
+      'ability',
       'applyCondition',
       'attack',
       'ceil',
@@ -37,6 +38,19 @@ describe('registry freeze (CA-2: extension is a schema event, never a code chang
   it('the effect vocabulary includes move (v1.5)', () => {
     expect(EFFECT_VOCABULARY).toContain('move');
     expect(REGISTRY['move']).toEqual({ arity: 1, kind: 'effect', signature: ['formula'] });
+  });
+
+  it('the effect vocabulary is exactly the effect-kind registry entries (heal included, v1.7 / CAP-A6)', () => {
+    expect(EFFECT_VOCABULARY).toContain('heal');
+    const effectKind = Object.entries(REGISTRY)
+      .filter(([, spec]) => spec.kind === 'effect')
+      .map(([name]) => name);
+    expect([...EFFECT_VOCABULARY].sort()).toEqual(effectKind.sort());
+  });
+
+  it('the formula vocabulary includes ability (v1.7)', () => {
+    expect(FORMULA_VOCABULARY).toContain('ability');
+    expect(REGISTRY['ability']).toEqual({ arity: 1, kind: 'formula', signature: ['ability-name'] });
   });
 
   it('is frozen at runtime', () => {

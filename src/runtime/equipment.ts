@@ -280,6 +280,7 @@ export function useItem(
       runtime.index.formulaAsts['initiative'] === undefined ? 0 : scopedFormula(runtime, 'initiative', scope),
     speed: runtime.index.formulaAsts['speed'] === undefined ? 0 : scopedFormula(runtime, 'speed', scope),
   };
+  for (const [name, value] of Object.entries(view.abilities)) vars[`ability:${name}`] = value;
   const rule = `content.items.${itemId}`;
 
   if (held === 1) state.inventory.splice(index, 1);

@@ -78,12 +78,13 @@ export function checkRestrictsTags(ctx: Ctx, content: unknown): void {
 /** A root `move(` statement — exact because core's checkEffect already makes move root-only. */
 const MOVE_ROOT = /^\s*move\s*\(/;
 
-/** Mirrors core effect.ts ARG_CATEGORIES: positions whose argument is a name, not a formula. M01 imports no core value. */
+/** Mirrors core effect.ts ARG_CATEGORIES and the formula registry's `ability-name` position (v1.7): positions whose argument is a name, not a formula. M01 imports no core value. */
 const NON_FORMULA_ARGS: Readonly<Record<string, readonly number[]>> = {
   damage: [1], // type
   applyCondition: [0], // condition-id
   target: [0], // shape
   save: [0], // save-name
+  ability: [0], // ability name (v1.7)
 };
 
 /** DSL tokens for the speed scan: names (core lexer grammar), numbers/dice, call punctuation, any other operator character. */
