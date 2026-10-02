@@ -184,6 +184,18 @@ sides, each taking its own save; a pool-based theme casts with no binding,
 while a vancian theme (dark-fantasy) must prepare the spell into a slot first —
 an empty slot cannot cast (`E-VANC-01`).
 
+An action whose effect is wrapped in `target(self, …)` is a _self action_: it acts on
+whoever uses it. Dark-fantasy's `withdraw` (`target(self, applyCondition(braced, 2))`),
+`brace` and `ward-glint`, zombie-urban's `fall-back`, `barricade`, `dodge-roll` and
+`adrenal-spike`, and wyldwood's `fall-back`, `circle-path` and `ward-step` all work this
+way. A self action needs no target and has no reach gate. It works with any number of
+opponents at any distance, on a grid, a hex map or in theater of mind, and a taken self
+reaction lands on the reactor. Naming anyone else, as in
+`fight.declare('withdraw', { targetId: 'wight-1' })`, is refused as `invalid-target`
+(rule `E-REF-01`) and changes nothing. Restrictions still apply, so a warden rooted by its
+own `brace` cannot `stride`. Spells are not self actions: a caster wards itself by naming
+its own id as the `targetId`.
+
 ### Movement, hex and terrain
 
 Movement is pack data, not an engine verb. A pack declares a move action whose
