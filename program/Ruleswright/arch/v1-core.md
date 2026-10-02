@@ -1068,3 +1068,11 @@ grid-movement SESSION-02..04 markers (08a831b, e354139, c420843) were collapsed 
 grid-movement final pass (original text recoverable at 6ab880a); the spells-in-combat
 SESSION-02, OWNER-M02-HALF and SESSION-03 markers (4caf973, ae0f480, da4665c) were collapsed at
 the spells-in-combat final pass (original text recoverable at 94d40f3). -->
+
+<!-- action-targeting SESSION-02 -->
+### action-targeting SESSION-02 — M03 Runtime (combat) delta
+
+- **New export** `isSelfAction(runtime: Runtime, actionId: string): boolean` in `src/runtime/combat/combat.ts`, next to `moveBudgetAst`. It is true when the action's parse-once effect root (`runtime.index.actionEffects[actionId]`) is `target(self, …)`. It reads only the action index, so spells are never self actions (DD-A2, root-only rule). It is not re-exported from the `src/runtime` barrel.
+- **`self` shape (CA-A1, DD-A1):** `Combat.resolveShape('self', actor, …)` returns `[actor.id]` before the theater-of-mind early return. This covers grid, hex and theater packs, and applies to the executor's `resolveTargets`, the validity gate's `hasTarget` and nested `target(self, …)`. Every other shape is unchanged.
+- **Self-action binding (CA-A2, DD-A2):** `declare` (actions only) and `resolveReactive` bind the actor or reactor as the target. They skip `resolveTarget` and `spatialGate`. A `targetId` other than the actor gives `declare:rejected {kind: 'invalid-target', rule: 'E-REF-01', resource: targetId}`, raised before validity and cost, and nothing changes. Gate order: restriction → (at refusal) → self `targetId` refusal → validity → cost/spend.
+- **Internal:** `resolveReactive` now ends in a private `resolveReactiveAgainst(offer, def, reactor, target)`, which holds the shared cost gate, spend and resolve. The module-private `selfTargetRefusal` builds the rejection.
