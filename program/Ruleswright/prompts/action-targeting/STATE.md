@@ -24,7 +24,7 @@
 
 | # | Session | Modules | Owns | Status | Checkpoint | Completed | Notes |
 |---|---|---|---|---|---|---|---|
-| 01 | Author re-entry (DB): contract v1.7 (`self` shape, self actions, `ability(name)`) | — (DB) | `program/Ruleswright/specs/database.md`, `src/schema/contracts/pack.schema.json` | pending | — | — | B-AT-1 cleared 2026-10-01; dispatchable |
+| 01 | Author re-entry (DB): contract v1.7 (`self` shape, self actions, `ability(name)`) | — (DB) | `program/Ruleswright/specs/database.md`, `src/schema/contracts/pack.schema.json` | done | 2/2 (`64dc746`, `f622431`) | 2026-10-01 | v1.7 landed; CA-A1..A3 rechecked, no delta; receive gates typecheck/lint/format 0, tests/schema 111/111 |
 | 02 | Self-targeting column: `target(self, …)`, self actions and reactions, 10 theme actions, first journey | M03, M04 | `src/runtime/combat/combat.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `README.md`, `tests/runtime/combat/self-target.test.ts`, `tests/proofs/self-target-journey.test.ts` | pending | — | — | depends on S01 |
 | 03 | Ability column: `ability(name)`, med-kit, `heal` vocabulary, spell lists | M01, M02, M03, M04 | `src/core/dsl/registry.ts`, `src/core/dsl/formula.ts`, `src/core/dsl/effect.ts`, `src/runtime/combat/resolve.ts`, `src/runtime/equipment.ts`, `src/schema/validate/sections/cross.ts`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `README.md`, `tests/core/dsl/checker.test.ts`, `tests/core/dsl/ability.test.ts`, `tests/proofs/equipment-journey.test.ts`, `tests/proofs/spells-journey.test.ts`, `tests/compiler/spell-lists.test.ts` | pending | — | — | depends on S01, S02 (shared theme files and README) |
 
@@ -180,12 +180,12 @@ Commands run at plan HEAD:
 
 | ID | Required meaning / authority | Producer → boundary → consumer | Mapping / constraints | Correction + proof owners / checkpoints | Agreement | Producer | Proof / evidence / checked sources |
 |---|---|---|---|---|---|---|---|
-| CA-A1 | `self` names the acting combatant, never a foe | `combat.ts resolveShape` → `EffectApply.resolveTargets` (`resolve.ts` l.327) → `effect.ts execTarget` | `'self'` → `[actor.id]` before the theater early-return; every other shape unchanged; a downed actor never acts, so there is no special case | DB S01 ck1; implementation and proof S02 ck1 | agreed (B-AT-1, 2026-10-01; provisional vs S01 text) | planned | planned: `tests/runtime/combat/self-target.test.ts` |
-| CA-A2 | A self action's target is its actor (authority: the actor) | `combat.ts declare` / `resolveReactive` → `execute(actor, bound, target = actor)` → events | root `target(self, …)` on an action ⇒ skip `resolveTarget` and `spatialGate`; `targetId` ∉ {undefined, actor.id} ⇒ `{kind: 'invalid-target', rule: 'E-REF-01', resource: targetId}`; restriction → validity → cost order unchanged; spells excluded | DB S01 ck1; implementation and proof S02 ck1; journey S02 ck3 | agreed (B-AT-1, 2026-10-01; provisional vs S01 text) | planned | planned |
-| CA-A3 | `ability(n)` = the actor's composed ability `n`; never a save; never the target's | `registry.ts` / `formula.ts` (check + eval) → var builders `resolve.ts effectVars`, `equipment.ts useItem` → `evalFormula` | vars key `ability:<n>` = `actor.abilities[n]` (combat profile: equipment-composed) / `view.abilities[n]` (`useItem`); checker: effect-kind only (`E-FORM-02` elsewhere), `n ∈ stats.abilities` (`E-FORM-03`); missing key at play → throw; M01 mirror `NON_FORMULA_ARGS.ability = [0]` | DB S01 ck1-2; implementation and proof S03 ck1; content S03 ck3 | agreed (B-AT-1, 2026-10-01; provisional vs S01 text) | planned | planned: `tests/core/dsl/ability.test.ts`, `equipment-journey.test.ts` |
+| CA-A1 | `self` names the acting combatant, never a foe | `combat.ts resolveShape` → `EffectApply.resolveTargets` (`resolve.ts` l.327) → `effect.ts execTarget` | `'self'` → `[actor.id]` before the theater early-return; every other shape unchanged; a downed actor never acts, so there is no special case | DB S01 ck1 (`64dc746`); implementation and proof S02 ck1 | agreed — DB text landed `64dc746` (database.md §actions "The `self` shape"), rechecked by Orchestrator 2026-10-01, no delta | planned (S02 ck1) | planned: `tests/runtime/combat/self-target.test.ts` |
+| CA-A2 | A self action's target is its actor (authority: the actor) | `combat.ts declare` / `resolveReactive` → `execute(actor, bound, target = actor)` → events | root `target(self, …)` on an action ⇒ skip `resolveTarget` and `spatialGate`; `targetId` ∉ {undefined, actor.id} ⇒ `{kind: 'invalid-target', rule: 'E-REF-01', resource: targetId}`; restriction → validity → cost order unchanged; spells excluded | DB S01 ck1 (`64dc746`); implementation and proof S02 ck1; journey S02 ck3 | agreed — DB text landed `64dc746` (§actions "Self actions", "Root-only rule", "Gates", "Events"; `targetId` = actor accepted, explicit), rechecked 2026-10-01, no delta | planned (S02 ck1) | planned |
+| CA-A3 | `ability(n)` = the actor's composed ability `n`; never a save; never the target's | `registry.ts` / `formula.ts` (check + eval) → var builders `resolve.ts effectVars`, `equipment.ts useItem` → `evalFormula` | vars key `ability:<n>` = `actor.abilities[n]` (combat profile: equipment-composed) / `view.abilities[n]` (`useItem`); checker: effect-kind only (`E-FORM-02` elsewhere), `n ∈ stats.abilities` (`E-FORM-03`); missing key at play → throw; M01 mirror `NON_FORMULA_ARGS.ability = [0]` | DB S01 ck1-2 (`64dc746`, `f622431`); implementation and proof S03 ck1; content S03 ck3 | agreed — DB text landed (§formulas "`ability(name)`"; clarifications: never an effect scalar; name position so `ability(speed)` is not a `speed` reference), rechecked 2026-10-01, no delta | planned (S03 ck1) | planned: `tests/core/dsl/ability.test.ts`, `equipment-journey.test.ts` |
 | CA-A4 | A class knows a spell iff a spellList string equals a spell's `magic.lists` entry | theme JSON → `pools.ts knownSpells` → `profileFromCharacter().profile.spells` | exact string match (no change to `knownSpells`) | S03 ck2 | agreed (existing behavior, no contract change) | ready (`pools.ts:307`) | planned: `tests/compiler/spell-lists.test.ts` |
 
-**Provisional rows:** CA-A1 … CA-A3 are provisional against S01's landed text.
+**Provisional rows:** CA-A1 … CA-A3 were provisional against S01's landed text — **rechecked against `f622431` on 2026-10-01: no delta; no longer provisional.**
 - After S01, Orchestrator re-checks each mapping above against `database.md` v1.7 before dispatching S02, and dispatches S02/S03 against the **amended** text.
 - After S02 ck1, Orchestrator re-checks CA-A2 against the landed `declare`/`resolveReactive` code before S03.
 
@@ -193,7 +193,7 @@ Commands run at plan HEAD:
 
 | ID | Affects | Next action | Owner | Evidence to clear |
 |---|---|---|---|---|
-| — | none open | S01 is dispatchable. | — | — |
+| — | none open | S02 is dispatchable (S01 done). | — | — |
 
 **Cleared:**
 
@@ -223,3 +223,69 @@ Commands run at plan HEAD:
 ## Handoff Notes
 
 <!-- Orchestrator writes here after each session — Coder's Handoff, verbatim. -->
+
+### SESSION-01 — received 2026-10-01 (handle h-b0oG / DN7tI, base `a1d0174`) — verbatim
+
+Both checkpoints are committed. The v1.7 contract is in `database.md` and `pack.schema.json`, and the schema checks pass. No product decision was made beyond what B-AT-1 approved.
+
+## Handoff
+
+- **session:** SESSION-01 (action-targeting), lease revision 1, Author re-entry in the DB role (schema-change class)
+- **status:** complete
+- **checkpoint:** 2 of 2
+  - ck1 `64dc746` "checkpoint 1 — database.md v1.7"
+  - ck2 `f622431` "checkpoint 2 — pack.schema.json description + Version Registry row 8"
+- **notes:**
+  - **Checkpoint-0 recheck:** all three rechecks matched STATE.md.
+    - `grep "'self'" src/runtime/combat/*.ts` finds only `triggers.ts:42-43` (the event grammar).
+    - The registry has 14 entries and no `ability`.
+    - `cross.ts` `NON_FORMULA_ARGS` has no `ability`.
+  - **Envelope additions applied:**
+    - F-A2: the self-action event bullet in §actions has the sentence on `condition:applied[target=self]` feats.
+    - F-A6: §actions has a "Root-only rule (limitation)" bullet.
+    - F-A5: the Status line now reads v1.7. The v1.6 text is kept as history.
+  - **B-AT-1 as applied, for S03:** the med-kit line is `heal(2 + ability(vigor))`. `brace` roots its user (S02). Neither is written by this session.
+- **delivered (landed text per CA id):**
+  - **CA-A1** (§actions, "The `self` shape (DD-A1)"):
+    - "`target(self, <effect>)` scopes `<effect>` to the **actor**: the declaring combatant, the reactor, the feat holder, or the item user."
+    - It holds in grid, hex and theater-of-mind packs, at any depth (the root, inside `sequence`, inside a `save` branch).
+    - `self` is a shape word of `target`, beside `adjacent` and `burst-<r>`. It is not a function and adds no registry entry.
+    - "`hasTarget(self)` holds whenever the actor stands."
+    - Spells are not self actions, and a `self` inside a spell's effect resolves to the caster. The same sentence is added to §content spells, in the Targets (DD-S8) bullet.
+    - Caveat (c): in v1.6, `target(self, …)` resolved to nobody (grid/hex) or to the bound target (theater). v1.7 resolves it to the actor.
+    - **Delta: none.**
+  - **CA-A2** (§actions, "Self actions (DD-A2)", "Root-only rule", "Gates", "Events"):
+    - An action whose parse-once effect root is `target(self, …)` is a self action. Declared or taken as a reaction, it binds its actor as its target, with no opponent resolution (so no `no-target`) and no reach gate (as for move actions, DD-M9).
+    - `sequence(target(self, …), …)`, or any non-root `target(self, …)`, is an ordinary action: it still binds an opponent and the inner `self` resolves to the actor.
+    - The restriction, validity and cost gates still run, in the same order.
+    - A `targetId` other than the actor gives `{kind: 'invalid-target', rule: 'E-REF-01', resource: <targetId>}`, and nothing changes. A `targetId` equal to the actor's id is accepted.
+    - Events name the actor as both actor and target (`why.rule` `actions.<id>`), then `action:resolved {actionId, targetId: <actor>}`.
+    - **Delta: none.** "A `targetId` equal to the actor is accepted" is stated outright; it follows from the CA-A2 mapping `targetId ∉ {undefined, actor.id}`.
+  - **CA-A3** (§formulas, "`ability(name)` (v1.7, DD-A4)"):
+    - Registry 14 → 15: `ability`, arity 1, kind `formula`, signature `['ability-name']`.
+    - Legal only in action, spell and feat `effect` and in item `use`. Elsewhere it is `E-FORM-02`; examples given are `valid`, feat `passive`, `attackBonus` and the `formulas` section.
+    - The argument is a bare name declared in `stats.abilities`, else `E-FORM-03` with did-you-mean.
+    - Value: the actor's ability as the effect vars compose it, equipment grants included. In combat that is the profile's abilities; for item `use` it is the character's derived abilities. It is never a save, never an effect scalar (`hp`, `ac`, `speed`), and never the target's.
+    - The binding is the reserved key `ability:<name>`, which cannot collide with a DSL name. A missing key at play time throws.
+    - No new rule id. This revision is the registry schema event.
+    - **Clarifications, not deltas** (both follow from the CA-A3 mapping):
+      - (i) "never an effect scalar" follows from `ability:<n>` = `actor.abilities[n]`.
+      - (ii) The argument is a name position, so `ability(speed)` is not a `speed` reference under the v1.5 rule. This matches `NON_FORMULA_ARGS.ability = [0]`.
+  - **`pack.schema.json`:** a v1.7 sentence is appended to the `formulas.description`, covering `ability(name)` and the `self` shape word. Nothing structural changed.
+  - **Version Registry:** row 8 is the exact text from SESSION-01.md.
+- **verification:** all four commands pass.
+  - The JSON parse with `node -e` exits 0.
+  - `pnpm exec prettier --check src/schema/contracts/pack.schema.json` passes.
+  - `pnpm exec vitest run tests/schema`: 4 files, 111/111 passed.
+  - `pnpm format:check` exits 0.
+  - The whole suite was not run (Orchestrator runs it at receive).
+- **surprises:** none.
+- **followUp:**
+  - Orchestrator re-checks CA-A1 to CA-A3 against `f622431` before dispatching S02.
+  - S03 adds `ability: [0]` to `NON_FORMULA_ARGS`, so `ability(speed)` is not treated as a `speed` reference (this matches the landed text).
+- **needsOwnerCorrection:** none
+- **needsDesignSource:** none
+- **blockedReason:** none
+- **filesTouched:** `program/Ruleswright/specs/database.md`, `src/schema/contracts/pack.schema.json`. `git show --name-only` after each commit showed only these paths, and the tree is clean. No arch fragment was written.
+
+[DN7tI · db · 2026-10-01T22:21:48-05:00] session ended · tokens=502476
