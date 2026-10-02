@@ -1,7 +1,7 @@
 # Ruleswright — Architecture Record (v1-core)
 
-> **Realized state as of tree HEAD `94d40f3`** (spells-in-combat close, 2026-09-30; last source
-> commit `5cfad48`), synthesized by Archivist (final pass) across **seven feature cycles**: v1-core (S01–S08, plan HEAD `53c7c91`),
+> **Realized state as of tree HEAD `535247d`** (action-targeting close, 2026-10-01; last source
+> commit `3cce108`), synthesized by Archivist (final pass) across **eight feature cycles**: v1-core (S01–S08, plan HEAD `53c7c91`),
 > **v1-shell** (commits `770950f`–`72346a5` — schema v1.2, class combat actions, the validate/
 > directory split, `character-profile.ts`, `combat.sideDefeated`, docs/CI honesty, packaging,
 > coverage tooling — first reconciled into this record at the grid-combat pass; its synthesis was the loot-inventory
@@ -19,18 +19,22 @@
 > defender values (`EffectApply.varsFor`), recorded spell spend + `settleSpellCasts`, the
 > `damage(half)` no-op, characters holding feats (`learnFeat`, the `feats.ts` leaf), reactive
 > feats offered in combat, the trigger grammar enforced at load, and the combat envelope's
-> `offers`/`phase`/`offeredCount`).
+> `offers`/`phase`/`offeredCount`), and **action-targeting** (S01–S03, feature commits
+> `82832c0`..`3cce108` — contract v1.7, the `self` shape word of `target(…)` and self actions bound
+> to their actor, the `ability(name)` formula function (registry 14 → 15), `heal` in
+> `EFFECT_VOCABULARY`, 10 bundled self-buffs retargeted onto their user, the med-kit reading the
+> vigor ability, and spell lists that reach their spells).
 > Every cycle's mid-run delta fragments were collapsed into one module-ordered description.
-> Verified by the spells-in-combat final pass on a fresh run at `94d40f3`: `pnpm typecheck` 0 ·
-> `pnpm build` 0 (24 dist files) · `check:isolation` 0 · `pnpm test` **829/829 across 44 files** ·
-> `pnpm exec vitest run tests/proofs/` **53/53 across 8 files** (lint/format:check/security are
-> the Orchestrator receive at `5cfad48`, inherited — not re-run by this pass).
+> Verified by the action-targeting final pass on a fresh run at `535247d`: `pnpm typecheck` 0 ·
+> `pnpm build` 0 (24 dist files) · `check:isolation` 0 · `pnpm test` **878/878 across 48 files** ·
+> `pnpm exec vitest run tests/proofs/` **66/66 across 9 files** (lint/format:check/security are
+> the Orchestrator receive at `3cce108`, inherited — not re-run by this pass).
 > Verified-by-source and verified-by-execution are distinguished below.
 >
 > *(Process history — crashes, recoveries, dispatch failures, owner-correction mechanics — lives
 > in each cycle's Final Report and ARCHIVIST-LOG.md, not here.)*
 
-<!-- Realized-state summary (Archivist synthesis, spells-in-combat final pass) -->
+<!-- Realized-state summary (Archivist synthesis, action-targeting final pass) -->
 
 ## Module map (as realized)
 
@@ -67,7 +71,8 @@ type`). None closes a cycle. **Record correction (grid-combat final pass):** the
 synthesis listed `combat/triggers.ts → combat.ts` as a second value-import cycle; git shows
 `triggers.ts`'s `Combat`/`CombatantState`/`PendingTrigger` imports were `import type` at creation
 (`6afbe31`) and remain so — the edge is type-only. `character ⇄ progression` is real.
-Guards held at `94d40f3` (re-grepped by the spells-in-combat final pass): no `compiler` reference in `src/runtime` except the CI-checked bundle
+Guards held at `535247d` (re-grepped by the action-targeting final pass; action-targeting added or
+removed no `import`/`export … from` line in `src/` — `git diff 0b5787e..535247d -- src`): no `compiler` reference in `src/runtime` except the CI-checked bundle
 rule comment; no `runtime` import in `src/compiler` (grep-asserted in tests). The runtime-only
 bundle is **proven** free of `generateCampaign` by `scripts/check-runtime-isolation.mjs`
 (passed by this pass on a fresh build; also wired into CI's `package` job).
@@ -106,7 +111,8 @@ bundle is **proven** free of `generateCampaign` by `scripts/check-runtime-isolat
   `settleSpellCasts`, `learnFeat`, `reactiveFeatsFor`, the `armorBlockingCast` export,
   `DeclareOptions.at`, the `Combat` constructor option `offeredCount` (+ read-only getter),
   `PendingTrigger.source`, `CombatSnapshot.offers?/phase?/offeredCount?`, and removed
-  `parsePackEffects`. (`SnapshotOffer`, the element type of `CombatSnapshot.offers`, is exported
+  `parsePackEffects`. action-targeting added no barrel export (`isSelfAction` is an intra-runtime
+  export of `combat.ts`, like `moveBudgetAst`). (`SnapshotOffer`, the element type of `CombatSnapshot.offers`, is exported
   from `snapshots.ts` but not re-exported by the barrel — see drift notes.) **M03 barrel completed at v1-core S08**
   (D19, 9afa86c) and extended additively by every later feature (inventory verbs, spatial
   exports, `packSpatialModel` — the grid S03 one-line barrel export was outside that session's
@@ -121,7 +127,7 @@ constructing an `Rng` requires importing `ruleswright` (root) or `ruleswright/co
 src. Recorded for the next Author/DB re-entry or v1.1 surface decision. `EQUIPMENT_SCALARS` (core)
 is likewise reachable only through the root/core barrel, not a subpath surface.
 
-## Cross-cutting decisions (accepted across the seven cycles)
+## Cross-cutting decisions (accepted across the eight cycles)
 
 v1-core (D9–D21): **D9** `src/core/index.ts` internal barrel; **D11** `src/runtime/errors.ts` +
 `RuntimeRuleError` (engine-named rule ids distinct from the DB E-* registry); **D10** DSL grammar
@@ -277,6 +283,33 @@ bound to the spell). **DD-S19** per-target defender values through the optional
 C-S02-1 (owner correction, not a DD): a passed save whose fail branch carries no damage resolves
 `damage(half)` as no damage.
 
+action-targeting (DD-A1–DD-A9; full record in that run's STATE.md; B-AT-1 human answers
+2026-10-01 — DB re-entry approved, med-kit heals 12, `brace` roots its user): **DD-A1** `self` is a
+shape word of `target(…)`, with no registry entry (the shape argument was already an open name
+vocabulary): `target(self, <effect>)` scopes the effect to the actor — declarer, reactor, feat
+holder or item user — in grid, hex and theater packs, at any depth; `hasTarget(self)` holds while
+the actor stands. **DD-A2** self actions: an **action** whose parse-once effect **root** is
+`target(self, …)` binds its actor, declared or taken as a reaction — no opponent resolution, no
+reach gate (the DD-M9 move-action precedent). A `targetId` other than the actor is
+`invalid-target` / E-REF-01 with nothing changed; the actor's own id is accepted. Restriction,
+validity and cost gates keep their order. Spells are never self actions (a `self` inside a spell
+still resolves to the caster, DD-S8). A non-root `target(self, …)` leaves the action ordinary (the
+root-only rule, a documented v1.7 limitation). A self action's `condition:applied` names the actor
+as target, so it offers the actor's own `condition:applied[target=self]` feats (second-gust,
+last-legs, gloam-step — documented in v1.7, proven at S02 ck1; feats still never chain).
+**DD-A3** 10 bundled self-buffs wrapped in `target(self, …)` (M04 below); `brace` roots its user.
+**DD-A4** `ability(name)` — registry 14 → 15, `{arity: 1, kind: 'formula', signature:
+['ability-name']}`, legal only in effect-kind fields (else E-FORM-02), its argument a declared
+ability (else E-FORM-03 with did-you-mean), its value the actor's composed ability through the
+reserved var `ability:<name>` (a `:` never appears in a DSL name), fail-closed when unbound. Bare
+names keep their meaning — a save still shadows the same-named ability, because swapping the
+var-spread order would break every `d20 + <save>` recipe. **DD-A5** the premise "med-kit → ability
+is a content fix" was disproved at planning; the med-kit reads `heal(2 + ability(vigor))` and heals
+12 at level 1 (human choice; the modifier form was rejected). **DD-A6** spells are not retargeted
+(a caster wards itself with `{targetId: <self>}`). **DD-A7** the spell-list fix is a class edit, not
+a list rename. **DD-A8** new journeys import the `src` barrels, not `dist/`. **DD-A9** no new
+```ts README block (the docs-run pin stays at 4).
+
 ## Session-realized sections
 
 *(Each section is the session delta as integrated by Orchestrator, reconciled by Archivist:
@@ -355,7 +388,8 @@ in `validate/index.ts` after `checkRestrictsTags`): a root `move(` in a triggere
 spell/feat `effect` or an item `use` → E-FORM-02; `speed` at a formula position with readable
 `formulas` lacking `speed` → E-REF-01, one per field. The scan is text-level (core lexer grammar,
 grouping-paren frames since `933c2fd`), so M01 still imports no core value; `NON_FORMULA_ARGS =
-{damage:[1], applyCondition:[0], target:[0], save:[0]}` mirrors core `ARG_CATEGORIES`.
+{damage:[1], applyCondition:[0], target:[0], save:[0]}` (+ `ability:[0]` since v1.7) mirrors core
+`ARG_CATEGORIES`.
 
 spells-in-combat S01 (Author re-entry: Spec → Designer → DB, `e5e1d7f`/`67705d9`/`1639a19`):
 FR-9 (spell range) and FR-11 (empty-cell area center) amended; `magic.html`, `api-map.html`,
@@ -375,6 +409,15 @@ contract pattern; not re-exported by `validate/index.ts`), and `checkTrigger` re
 that fails it — E-FORM-01 at `<base>.trigger.on`, on actions and feats alike, with the hint `did
 you mean "<base>[target=self]"?` for a trailing `[self]`. M01 gained no import.
 
+action-targeting S01 (DB Author re-entry, `64dc746`/`f622431`): contract **v1.7** — `database.md`
+§actions "Self actions and the `self` shape" and §formulas "`ability(name)`", Status line and
+Version Registry row 8, with one compatibility caveat (c): a `target(self, …)` that resolved to
+nobody (grid/hex) or to the bound target (theater) in v1.6 now resolves to the actor; no bundled
+theme used it. `pack.schema.json` changed its `formulas.description` only — no field, no
+`required`, no rule id, `schemaVersion` 1. S03 ck1 (`4c1e1e6`): `cross.ts` `NON_FORMULA_ARGS.ability
+= [0]` mirrors core's `ability-name` position, so `ability(speed)` is not a `speed` reference in the
+v1.5 scan. M01 gained no import.
+
 ### M02 — Repo spine + core mechanics (v1-core S02, 35aa73f/0f8a1ab/55918ef)
 
 - `src/core/rng.ts` — `Rng` (sfc32, cyrb128 string/number seed), `RandomSource` (minimal
@@ -392,7 +435,7 @@ you mean "<base>[target=self]"?` for a trailing `[self]`. M01 gained no import.
   dynamic imports + `ImportExpression` under `src/**` (carried verbatim into ESLint 10 flat
   config in v1-shell).
 
-### M02 — DSL compiler (v1-core S03 via RECOVERY-03, 4e188fa/dff30e6/7eff106/168d71a; validity gate in grid-combat S03; heal + gear scalars in equipment-consumables S02; move + speed in grid-movement S02; varsFor + the half no-op in spells-in-combat)
+### M02 — DSL compiler (v1-core S03 via RECOVERY-03, 4e188fa/dff30e6/7eff106/168d71a; validity gate in grid-combat S03; heal + gear scalars in equipment-consumables S02; move + speed in grid-movement S02; varsFor + the half no-op in spells-in-combat; `ability(name)` + the `heal` vocabulary entry in action-targeting S03)
 
 Module `src/core/dsl/` — value imports outside `dsl/` only `../dice` (re-derived at `94d40f3`); schema imports are type-only
 (`DslCheckRequest`, `ErrorCard`) — sibling-leaf rules held in the M02→M01 direction.
@@ -409,6 +452,12 @@ Module `src/core/dsl/` — value imports outside `dsl/` only `../dice` (re-deriv
   `kind === 'formula'` (E-FORM-03 elsewhere); `evalFormula` returns 0 for an unbound one (every
   other unknown name still throws). A formula test pins `EQUIPMENT_SCALARS` ≡ `gear-` +
   `RESERVED_GRANT_KEYS` (the two lists are declared separately so schema imports no core value).
+  action-targeting S03 ck1 (`4c1e1e6`) added **`ability(name)`**: `FormulaCheckContext.allowAbility?`;
+  `checkFormulaAst` routes `ability(…)` (after the registry/kind/arity checks) to the private
+  `checkAbilityCall` — E-FORM-02 unless `allowAbility` or for a non-name argument, E-FORM-03 with
+  did-you-mean over the abilities for an undeclared one; `evalCall` reads `ctx['ability:<name>']`
+  and throws when it is unbound (fail closed). Proven by `tests/core/dsl/ability.test.ts` (12) through
+  the real `packDslChecker`/`evalFormula`/`executeAgainst`/`validatePack`.
 - `effect.ts` — `parseEffect`; `executeEffect(ast, ctx)` pure interpreter; ctx
   `{actor, targets, rng, apply: EffectApply, vars}`; `EffectApply = {resolveTargets, damage,
   condition}` is the mutation seam; save-for-half: `damage(half)` re-rolls the fail branch's
@@ -426,11 +475,17 @@ Module `src/core/dsl/` — value imports outside `dsl/` only `../dice` (re-deriv
   evaluates the budget, calls `apply.move` once and returns `MoveOutcome {kind: 'move', budget}`,
   and **throws when `apply.move` is absent** (fail-closed); `checkEffectAst` threads `atRoot`
   (nested `move` or dice in its argument → E-FORM-02); `ARG_CATEGORIES.move = ['formula']`.
-- `registry.ts` — frozen registry, **14 entries** since grid-movement S02: equipment-consumables
+  action-targeting: `checkEffect` is the only setter of `allowAbility: true`, so `ability()` is
+  legal only in effect-kind fields (action/spell/feat `effect`, item `use`). The executor is
+  unchanged by `target(self, …)`: `execTarget` asks the host's `resolveTargets('self')`.
+- `registry.ts` — frozen registry, **15 entries** since action-targeting S03 ck1: equipment-consumables
   S02 added `heal: {arity: 1, kind: 'effect', signature: ['formula']}` after `damage` (12→13, the
   sanctioned schema event bundled in contract v1.4); grid-movement S02 added `move` with the same
-  shape (13→14, contract v1.5). `EFFECT_VOCABULARY` gained `move` (it still lacks `heal` — a
-  pre-existing gap, carried); the exact-membership freeze test is re-keyed to 14.
+  shape (13→14, contract v1.5); action-targeting added `ability: {arity: 1, kind: 'formula',
+  signature: ['ability-name']}` (14→15, contract v1.7). `EFFECT_VOCABULARY` gained `move`, and
+  `heal` at action-targeting S03 ck1 — it now equals exactly the effect-kind registry entries,
+  pinned in `checker.test.ts` (F-A7; cleanup C12 closed); `FORMULA_VOCABULARY` gained `ability`.
+  The registry freeze test is re-keyed to 15.
   `executeEffect` runs `heal(f)` as `apply.damage(target, negatedRoll)` — the whole RollResult
   (values, modifier, total) negated with purpose `'heal'`, yielding `DamageOutcome {roll,
   halved: false}`; the executor never clamps (the cap is the host's, CA-EG4).
@@ -512,7 +567,7 @@ learn — the `equipped` presence rule) and emits `feat:learned {featId}` (`why.
 holds the parse-once ASTs of feats that declare `effect`. No feat-slot cap (FR-6 gap, documented
 v1 limit).
 
-### M03 — Combat engine (v1-core S05, 6efaa16/c7a2d44/6afbe31/4be9e6c; spatial integration in grid-combat S03; item use in equipment-consumables S05; movement in grid-movement S03; spells + feats in spells-in-combat S02/S03)
+### M03 — Combat engine (v1-core S05, 6efaa16/c7a2d44/6afbe31/4be9e6c; spatial integration in grid-combat S03; item use in equipment-consumables S05; movement in grid-movement S03; spells + feats in spells-in-combat S02/S03; self actions in action-targeting S02)
 
 - `combat/action-economy.ts` (CA-4) — `resolveSlotGrants(pack)` (declared `economy.turnSlots`
   authority; absent → documented default 1-of-each-cost-slot-name); `checkCost`; per-turn
@@ -536,13 +591,18 @@ v1 limit).
   the barrel). spells-in-combat: `CombatantProfile.spells?`, `castBlockedBy?` (S02) and `feats?`
   (S03); `executeAgainst(…, resolveShapeTargets?, move?, profileFor?)` always supplies
   `apply.varsFor = effectVars(actor, profileFor(id))` (an unresolvable id falls back to the bound
-  target's vars, so callers without `profileFor` see identical values).
+  target's vars, so callers without `profileFor` see identical values). action-targeting S03 ck1:
+  `effectVars` also binds `ability:<n>` from `actor.abilities` (the equipment-composed combat
+  profile), after the target-save layer — never shadowed, never the target's; `executeAgainst`,
+  `varsFor` and the movement gate all see it.
 - `combat/combat.ts` (FR-10/13) — `startCombat(runtime, {allies, enemies, rng?})`; `Combat`
   `step()/declare()/respond()/serialize()/eventsSince()/roundComplete`; initiative from the
   reserved formula or d20 fallback (CA-6); events emitted as CA-3 rows only; `displayRoll` =
   combat-loop.html roll anatomy. Declare gates ordered: no-action → not-yours → restricts →
   target → cost → spend. v1.6 spells: membership → restricts (both kinds) → `at` legality →
-  target (any combatant) → range → armor → cost → binding pick → spend. grid-combat S03 integrated the spatial layer: `StartCombatRequest
+  target (any combatant) → range → armor → cost → binding pick → spend. v1.7 self actions:
+  restricts → (`at` refusal) → self `targetId` refusal → validity → cost → spend (no target
+  resolution, no reach gate). grid-combat S03 integrated the spatial layer: `StartCombatRequest
   .positions?: Readonly<Record<string, Position>>`, `CombatantState.position?` (plain JSON,
   emitted only when set), the **reach gate** (`checkReach` wired at declare and
   `resolveReactive`, rejections exactly `kind: 'spatial'`, `rule: 'E-SPAT-01'`), the declare-time
@@ -617,6 +677,17 @@ v1 limit).
   {feats: false})` — the no-chain rule. **The offer counter (S03 ck4 `c6128bd`):** `new
   Combat(runtime, state, rng?, {offeredCount?})` resumes the counter (absent = 0) and the read-only
   getter `Combat.offeredCount` is the next `trigger:fired.offerIndex` (R-GM-1 closed).
+  **Self actions (action-targeting S02 ck1 `63f6e78`, CA-A1/A2):** `resolveShape('self', …)`
+  returns `[actor.id]` before the theater-of-mind early return, so the executor's
+  `resolveTargets`, `hasTarget(self)` and nested `target(self, …)` see the actor in every pack.
+  The exported **`isSelfAction(runtime, actionId)`** (beside `moveBudgetAst`; intra-runtime, not in
+  the barrel) is true when `index.actionEffects[actionId]`'s root is `target(self, …)` — it reads
+  the action index only, so spells never qualify. `declare` (actions only) and `resolveReactive`
+  bind the actor/reactor as the target and skip `resolveTarget` and the reach gate; a foreign
+  `targetId` yields `declare:rejected {kind: 'invalid-target', rule: 'E-REF-01', resource:
+  targetId}` from the private `selfTargetRefusal`, with nothing changed. `resolveReactive` now ends
+  in the private `resolveReactiveAgainst` (shared cost gate, spend and resolve). Proven by
+  `tests/runtime/combat/self-target.test.ts` (12) and the self-target journey (M05).
 - `combat/spatial.ts` (FR-11) — `theaterOfMind` no-op; `gridGeometry` (Chebyshev, reach, burst);
   grid-combat S03 reshaped the pack edge: `spatialFromPack` reads the v1.3 contract shape
   (`{model:'grid', reach:{default, <label>:n}, shapes?}`) into the internal `SpatialModel`
@@ -695,7 +766,8 @@ pass nothing, so hp initialization stays at base); the `Character` facade gains
 pool caps over the view; `inventory.ts` `dropItem` refuses `item-equipped` when `held − qty <
 equippedUnits`; `runtime.ts` `PackIndex.itemEffects` (only items declaring `use`, parsed once).
 `why.rolls` strings come from `displayRoll` in the `display-roll.ts` leaf (grid-movement S03
-ck5); the private `rollText` copy (C8) is gone. `useItem` binds `speed` (grid-movement, above).
+ck5); the private `rollText` copy (C8) is gone. `useItem` binds `speed` (grid-movement, above)
+and, since action-targeting S03 ck1, `ability:<n>` from `view.abilities` (equipment-composed).
 
 ### M03/M05 — Snapshots + root surface (v1-core S06, f1af841/9e18ee2/daac7b7/a6d89ff/bb01e92; positions in grid-combat S03; sideDefeated in v1-shell; terrain + paused moves in grid-movement S03; spend, feats and the envelope in spells-in-combat S02/S03)
 
@@ -745,7 +817,7 @@ ck5); the private `rollText` copy (C8) is gone. `useItem` binds `speed` (grid-mo
   refusal. Combat restore takes the sides/profiles explicitly (`CombatRestoreRequest`).
 - M05 `src/index.ts`: dumb `export *` from './schema' | './runtime' | './compiler'.
 
-### M04 — Compiler + themes (v1-core S07, 116fc7e/01af260/786923b/1676c42/5d30d2f/3faf836; items+wyldwood in loot S02; spatial pass-through in grid-combat S04; equipSlots + equipment content in equipment-consumables S04; movement content in grid-movement S04; spell cost/range + feat patterns in spells-in-combat S02/S03)
+### M04 — Compiler + themes (v1-core S07, 116fc7e/01af260/786923b/1676c42/5d30d2f/3faf836; items+wyldwood in loot S02; spatial pass-through in grid-combat S04; equipSlots + equipment content in equipment-consumables S04; movement content in grid-movement S04; spell cost/range + feat patterns in spells-in-combat S02/S03; self-wrapped actions, med-kit and spell lists in action-targeting S02/S03)
 
 Module `src/compiler/` — imports only `../schema` + `../core` (no runtime import). Zero I/O.
 
@@ -800,8 +872,9 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   (descending); dark-fantasy `equipSlots [body, main-hand]`, `warded-mail` kind `armor`→`mail`
   `{ac:2, armor:1}`, `oaken-cudgel` `{might:1}` (warden `armorCasting [mail]` casts, hexer
   `[leather]` is blocked); zombie-urban `[body, main-hand]`, `riot-plate` `{ac:1, armor:1}`,
-  `fire-axe` `{might:1}`, `med-kit` `use: heal(2 + vigor)` (heals 2 — the vigor **save**
-  shadows the ability in effect scope; carried content-semantics question); wyldwood `[charm]`,
+  `fire-axe` `{might:1}`, `med-kit` `use: heal(2 + vigor)` (healed 2 — the vigor **save**
+  shadowed the ability in effect scope; since action-targeting S03 ck3 `3cce108` it reads
+  `heal(2 + ability(vigor))` and heals 12 at level 1); wyldwood `[charm]`,
   `hedge-charm` `{ac:1, armor:1}` (validation-only: point-pool casting has no gate). Nothing
   equipped ⇒ values byte-identical to pre-v1.4 (docs-run block-03 `hp: 27, ac: 12` unchanged).
   grid-movement S04 (`40c4492`, no compiler source change — `pipeline.ts` passes `spatial` and
@@ -820,10 +893,18 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   and `targeting.range: 6` (spells without `targeting` gain `{shape: 'single', range: 6}`); S03
   ck1 (`d9a6d71`) re-keys the five feat triggers `condition:applied[self]` →
   `condition:applied[target=self]` (dark-fantasy :179, zombie-urban :183/:188, wyldwood
-  :362/:369) — F-M1 closed. Known content items, carried: zombie-urban classes declare empty
-  `spellLists`; wyldwood `hedge-mage` lists `hedge` while its 4 spells list `hedge-mage`; 12 spell
-  sites (and the action `cold-grip`) have a fail-branch-free `damage(half)` and so deal no damage on
-  a passed save (C-S02-1 executor rule).
+  :362/:369) — F-M1 closed. Known content item, carried: 12 spell sites (and the action
+  `cold-grip`) have a fail-branch-free `damage(half)` and so deal no damage on a passed save
+  (C-S02-1 executor rule).
+  action-targeting (no compiler source change): S02 ck2 (`83c7939`) wraps 10 action effects in
+  `target(self, …)` — dark-fantasy `withdraw`, `brace`, `ward-glint`; zombie-urban `fall-back`,
+  `barricade`, `dodge-roll`, `adrenal-spike`; wyldwood `fall-back`, `circle-path`, `ward-step` (all
+  condition-only, no RNG; `gloam-light`, every spell, feat and save/attack action unchanged).
+  S03 ck2 (`7c1b8b6`): zombie-urban `medic.spellLists ["medic"]`, `fixer ["fixer"]` (scavenger
+  stays `[]`), wyldwood `hedge-mage ["hedge-mage"]` (was `["hedge"]`) — every class list now
+  matches a spell and every spell list is drawn by a class (`tests/compiler/spell-lists.test.ts`,
+  10). S03 ck3: the med-kit line above. Newly reachable through these lists: the `mending` spells
+  (drift notes).
   Byte-identity proofs (CA-5): equal hash + equal bytes, different-seed divergence, in-process
   AND across fresh module loads; no ambient values.
 - FR-21 conformance: `tests/compiler/coverage-floor.test.ts` (88 tests since spells-in-combat
@@ -832,7 +913,7 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   and equipment sections on all three packs and produces zero cards; CAP-G6/CAP-E6 evidence,
   plus a CA-EG3 content-pairing assertion).
 
-### M05 — Packaging, CI, proofs, docs (v1-core S08, 02752a9/8f67611/9afa86c/32c7ade/d5bacba; v1-shell packaging/docs/CI/coverage; loot S03; grid S05; equipment-consumables S06; grid-movement S04; spells-in-combat S02/S03)
+### M05 — Packaging, CI, proofs, docs (v1-core S08, 02752a9/8f67611/9afa86c/32c7ade/d5bacba; v1-shell packaging/docs/CI/coverage; loot S03; grid S05; equipment-consumables S06; grid-movement S04; spells-in-combat S02/S03; action-targeting S02/S03)
 
 - Build: `tsup.config.ts` — four per-entry builds (index/schema/runtime/compiler), dual ESM/CJS +
   rolled dts, target es2020; `package.json` exports map covers `.` / `./runtime` / `./schema` /
@@ -852,7 +933,8 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   Runtime; also proves the two real dist forms of the stage-8 DSL gate), `grid-journey.test.ts`
   (grid S05: the FR-11 journey, below), `equipment-journey.test.ts` (equipment-consumables S06,
   below), `movement-journey.test.ts` (grid-movement S04, below), `spells-journey.test.ts`
-  (spells-in-combat S02/S03, below), `docs-run.test.ts` (NFR-DX made mechanical: executes the
+  (spells-in-combat S02/S03, below), `self-target-journey.test.ts` (action-targeting S02, below),
+  `docs-run.test.ts` (NFR-DX made mechanical: executes the
   README's fenced ```ts blocks verbatim AND typechecks them under strict tsc; asserts the
   README's own output lines and the block-count pin; since spells-in-combat S03 ck5 it also
   guards that the README names `settleSpellCasts` and `learnFeat`). `rules-are-data.test.ts`
@@ -880,7 +962,9 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   `fight.use` (clamp, provenance) → mid-fight snapshot/restore (`itemsUsed`, `maxHp`) →
   `no-charges` → `settleItemUses` (inventory asserted after the fight; second settle `[]`) →
   character snapshot + tamper refusal → dark-fantasy: hexer in leather refused, unequip casts,
-  warden casts in mail.
+  warden casts in mail. Since action-targeting S03 ck3 (`3cce108`) steps 4–5 heal 12 (`-12`,
+  `'23→27'`, `'26→27'`) and the journey asserts the profile's `saves.vigor` 0 against
+  `abilities.vigor` 10, so the proof tells the save from the ability.
 - The **movement journey** (grid-movement S04 ck2 `da9bf03`, `tests/proofs/movement-journey.test.ts`,
   9 tests, generated content on the production path, seeded `Rng`, the only direct state setup a
   rooted-condition push): load (hex, terrain, speed, actions on every class and statblock) → hex
@@ -904,6 +988,16 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   offer `source: 'feat'` survives save/restore, take puts `braced` on the hexer with no second
   offer, hexbound then blocks `ember-bloom` with nothing spent; negative control without
   `learnFeat` fails) → two-run determinism. Only how the fight ends is harnessed.
+- The **self-target journey** (action-targeting S02 ck3 `05d4fbf`,
+  `tests/proofs/self-target-journey.test.ts`, 13 tests, through the `src` barrels (DD-A8), generated
+  dark-fantasy seed 42, only a seeded `Rng` stands in; the feature's first narrow journey): two
+  enemies beyond reach → `withdraw` with no `targetId` lands on the warden (no `declare:rejected`,
+  the `move` slot spent, enemies untouched) → `brace` roots the warden and its later `stride` is
+  refused by the restriction gate → an enemy attack offers the hexer `ward-glint`, and taking it
+  wards the hexer → serialize/deserialize on a fresh `Runtime` keeps the actor's conditions →
+  theater leg (`spatial` deleted) → seven content checks across zombie-urban and wyldwood →
+  `withdraw {targetId: <enemy>}` is `invalid-target` with state deep-equal. Negative control: 13/13
+  fail at `5b4abca`.
 - README: quickstart blocks 01–04 (generate / character / one combat round / loot) — block 03
   passes host-declared `positions` (grid S05; `d20[9]=9 < ac12` unchanged — positions consume no
   RNG, proved by run); block 04 loot (observed `[{ id: 'grave-ward', qty: 1 }]`). A **Grid
@@ -923,12 +1017,16 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   copied from a run of the built package) and updated the `profileFromCharacter` bullet, the Grid
   combat burst prose (`fight.declare('ember-bloom', {targetId})`) and the armorCasting bullet
   (point-pool spells are cast in combat and never armor-gated) — still 4 ```ts blocks.
-- Full gates at spells-in-combat close (Orchestrator receive at `5cfad48`): typecheck 0; lint 0;
-  format:check 0; build 0; isolation 0; security 0; `pnpm test` **829/829 across 44 files**.
-  Re-run fresh by the spells-in-combat final pass at `94d40f3`: typecheck 0, build 0 (24 dist
-  files), isolation 0, 829/829 (44 files), proofs 53/53 (8 files). (grid-movement close was
-  741/741 across 40 files, proofs 47/47 across 7; equipment-consumables close 661/661 across 37,
-  proofs 38/38.)
+  action-targeting S02 ck3 (`05d4fbf`) added one prose paragraph on self actions (after the
+  burst-spell paragraph); S03 ck3 (`3cce108`) rewrote the med-kit JSON line, prose ("heals 12") and
+  expected-output lines, added an `ability(name)` sentence to the Consumables bullet, and corrected
+  the line that said zombie-urban's classes know no spells — still 4 ```ts blocks.
+- Full gates at action-targeting close (Orchestrator receive at `3cce108`): typecheck 0; lint 0;
+  format:check 0; build 0; isolation 0; security 0; `pnpm test` **878/878 across 48 files**.
+  Re-run fresh by the action-targeting final pass at `535247d`: typecheck 0, build 0 (24 dist
+  files), isolation 0, 878/878 (48 files), proofs 66/66 (9 files). (spells-in-combat close was
+  829/829 across 44 files, proofs 53/53 across 8; grid-movement close 741/741 across 40 files,
+  proofs 47/47 across 7; equipment-consumables close 661/661 across 37, proofs 38/38.)
 
 ### OWNER corrections (v1-core: OWNER-01-LINT c5fbb94, OWNER-04-TSCONFIG 77b4108, OWNER-08-BARREL 9afa86c + 32c7ade; loot: FORMAT-RECONCILE 8b802b7; grid: OWNER-CP-POSITIONS 2f3b1d3; equipment-consumables: format residual 8668c53; spells-in-combat: OWNER-M02-HALF 623a687)
 
@@ -957,7 +1055,8 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
 
 ## Recorded drift & intra-module notes (for the next cycle)
 
-- **Intra-M03 value-import pairs** (derived mechanically at `94d40f3`): `character.ts ⇄
+- **Intra-M03 value-import pairs** (derived mechanically at `94d40f3`; unchanged at `535247d` —
+  action-targeting touched no import line): `character.ts ⇄
   progression.ts`, `character.ts → {inventory, feats}.ts` (`feats.ts` a leaf),
   `{character, pools, inventory, character-profile}.ts → equipment.ts` (a leaf),
   `character-profile.ts → {inventory, pools}.ts`, `combat/combat.ts → conditions.ts`,
@@ -976,11 +1075,12 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   `restrictionRejection` now calls the exported `matchesRestriction` + `declaredTags`; the inline
   copy is deleted. `isLivePattern` still has no non-test consumer (grep at `94d40f3`: definition,
   barrel, `conditions.test.ts`). Cleanup C1 narrowed to that symbol.
-- **Effect-scope name shadowing** (equipment-consumables S05): saves shadow same-named abilities
-  in effect scope, so zombie-urban's `med-kit` `heal(2 + vigor)` reads the vigor save and heals
-  2. The README states it; the resolution is a carried content/semantics decision. grid-movement
-  adds the engine-derived `speed` scalar, which shadows a same-named ability the same way
-  (DD-M7, tested).
+- **Effect-scope name shadowing** (equipment-consumables S05): a bare name in effect scope still
+  reads the save when a save and an ability share it, and the engine-derived `speed` scalar shadows
+  a same-named ability the same way (DD-M7, tested). **Since action-targeting v1.7** an effect
+  reads the ability explicitly with `ability(name)` (DD-A4), and the zombie-urban med-kit does
+  (`heal(2 + ability(vigor))`, heals 12). The carried content question is closed; the shadowing
+  rule itself is unchanged by design.
 - **`useItem` condition-duration display** (equipment-consumables S03): a `condition:applied`
   event raised by `useItem` reports the pack-default duration even when the effect overrides
   it. Carried to the next runtime-touching feature (display accuracy).
@@ -995,7 +1095,8 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   non-test consumer (or none at all). Cleanup-tracked (C3/C4/C7).
 - **Declare gate order:** validity gate → spatial gate (reach for opponent actions; the
   **movement gate** for move actions, which target their actor and skip reach) → cost. Recorded
-  in the source comment.
+  in the source comment. Self actions (v1.7) target their actor and skip reach, like move actions;
+  a foreign `targetId` is refused before validity.
 - **Spells are combat-declarable (spells-in-combat v1.6; DD17/DD17a retired):**
   `declare()` resolves `pack.actions`, then `pack.content.spells`; spells pass the range gate
   (`targeting.range`, absent = effective reach) where actions pass reach, and a burst spell may
@@ -1026,8 +1127,8 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   - **R-GM-3** — a resumed walk skips the leaving-reach check on its first step out of the paused
     cell (once-only offers, mock-consistent). If re-planning picks a different first step, a
     different threatener is not checked. Owner: the next feature that touches provoke.
-  - `heal` is registered (entry 13) but absent from `EFFECT_VOCABULARY` (`registry.ts:53-61`,
-    re-checked at `94d40f3`). Owner: the next feature touching the DSL vocabulary (cleanup C12).
+  - **`heal` in `EFFECT_VOCABULARY`: CLOSED by action-targeting S03 ck1** (`4c1e1e6`; the
+    exact-membership pin in `checker.test.ts`). Cleanup C12 closed.
   - The `evalPackFormula` parse-once debt (grid-combat DD10) grew by one call site (`speed`).
 - **spells-in-combat residuals (carried, owners named in its Final Report):**
   - **Out-of-combat restricts asymmetry** — in combat a spell is blocked by `actions.tagged:` or
@@ -1040,17 +1141,29 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
     under DD-S14 restore keeps the live envelope phase. Existing-mock copy change → Designer
     re-entry (human-authorized design-change class). `api-map.html` also lacks `pool:settled` /
     `slot:settled` / `feat:learned` (documented in `database.md` / `magic.html`) — same re-entry.
-  - **Self-buff actions** (`withdraw`, `brace`, `ward-glint`) apply their condition to the
-    declared opponent (actions resolve to opponents only; spells may target anyone, feats their
-    holder). Owner: a future action-targeting feature.
-  - **Content:** zombie-urban empty `spellLists`; wyldwood `hedge-mage` list mismatch; the 12
-    fail-branch-free `damage(half)` sites (a pack author may want real half damage). Owner: the
-    next content feature.
+  - **Self-buff actions: CLOSED by action-targeting** (v1.7 self actions; S02 `63f6e78`,
+    `83c7939`).
+  - **Content:** the zombie-urban empty `spellLists` and the wyldwood `hedge-mage` mismatch are
+    CLOSED by action-targeting S03 ck2 (`7c1b8b6`). The 12 fail-branch-free `damage(half)` sites
+    remain (a pack author may want real half damage). Owner: the next content feature.
   - **FR-6 feat slots:** no progression field, so `learnFeat` has no cap (README states the v1
     limit). Owner: a future feat-progression feature (schema event).
   - **DD-S19 consequence:** the DC and attack bonus keep `ctx.vars = effectVars(actor, bound)`, so
     a `targetId` cast's DC sees the primary target's saves and an `at` cast's DC the caster's.
     Every bundled DC is a literal; documented in database.md.
+- **action-targeting residuals (carried, owners named in its Final Report):**
+  - **`mending` spells — human content-meaning question.** `damage(1d8 - vigor, mending)` deals
+    damage reduced by the target's vigor save rather than healing. The Final Report names
+    zombie-urban `bind-the-bite` and wyldwood `bind-wound`; a source grep at `535247d` finds a
+    **third** site, dark-fantasy `bind-wound` (`dark-fantasy.json:273`, warden list — reachable
+    before this feature). Owner: the human, then the next content feature.
+  - **Root-only self actions** (documented v1.7 limitation): `sequence(target(self, …), …)` stays
+    an ordinary action that binds an opponent; its inner `self` still resolves to the actor. No
+    bundled content is affected.
+  - **Stale test comment:** `tests/runtime/combat/character-profile.test.ts:381` still says
+    "med-kit = heal(2 + vigor)". It is outside every lease, was accepted stale and is carried to the
+    next cleanup run (cleanup C14).
+  - **Restricts symmetry** stays the open spells-in-combat human question (above).
 - **v1.1 follow-ups carried across cycles:** browser-mode Vitest config (CI's browser leg);
   byte-level snapshot conformance; `pnpm approve-builds` advisory for esbuild/tsup; an
   out-of-combat point-pool cast verb (would give wyldwood's charm armor teeth, DD-EG5); item
@@ -1067,21 +1180,6 @@ at the equipment-consumables final pass (original text recoverable at c39ef87); 
 grid-movement SESSION-02..04 markers (08a831b, e354139, c420843) were collapsed at the
 grid-movement final pass (original text recoverable at 6ab880a); the spells-in-combat
 SESSION-02, OWNER-M02-HALF and SESSION-03 markers (4caf973, ae0f480, da4665c) were collapsed at
-the spells-in-combat final pass (original text recoverable at 94d40f3). -->
-
-<!-- action-targeting SESSION-02 -->
-### action-targeting SESSION-02 — M03 Runtime (combat) delta
-
-- **New export** `isSelfAction(runtime: Runtime, actionId: string): boolean` in `src/runtime/combat/combat.ts`, next to `moveBudgetAst`. It is true when the action's parse-once effect root (`runtime.index.actionEffects[actionId]`) is `target(self, …)`. It reads only the action index, so spells are never self actions (DD-A2, root-only rule). It is not re-exported from the `src/runtime` barrel.
-- **`self` shape (CA-A1, DD-A1):** `Combat.resolveShape('self', actor, …)` returns `[actor.id]` before the theater-of-mind early return. This covers grid, hex and theater packs, and applies to the executor's `resolveTargets`, the validity gate's `hasTarget` and nested `target(self, …)`. Every other shape is unchanged.
-- **Self-action binding (CA-A2, DD-A2):** `declare` (actions only) and `resolveReactive` bind the actor or reactor as the target. They skip `resolveTarget` and `spatialGate`. A `targetId` other than the actor gives `declare:rejected {kind: 'invalid-target', rule: 'E-REF-01', resource: targetId}`, raised before validity and cost, and nothing changes. Gate order: restriction → (at refusal) → self `targetId` refusal → validity → cost/spend.
-- **Internal:** `resolveReactive` now ends in a private `resolveReactiveAgainst(offer, def, reactor, target)`, which holds the shared cost gate, spend and resolve. The module-private `selfTargetRefusal` builds the rejection.
-
-<!-- action-targeting SESSION-03 -->
-## action-targeting SESSION-03 — arch delta (v1.7 `ability(name)`)
-
-- **M02 Core — `src/core/dsl/registry.ts`:** `REGISTRY` 14 → 15 with `ability: { arity: 1, kind: 'formula', signature: ['ability-name'] }` (v1.7 schema event, DD-A4). `EFFECT_VOCABULARY` gains `'heal'` and now equals exactly the effect-kind registry entries (pinned in `checker.test.ts`). `FORMULA_VOCABULARY` gains `'ability'`.
-- **M02 Core — `src/core/dsl/formula.ts`:** `FormulaCheckContext.allowAbility?: boolean`. `checkFormulaAst` routes `ability(...)` (after the registry/kind/arity checks) to the private `checkAbilityCall`: `E-FORM-02` unless `allowAbility`, `E-FORM-02` for a non-name argument, `E-FORM-03` (did-you-mean over abilities only) for an undeclared ability. `evalCall` reads `ctx['ability:<name>']` and throws when it is unbound (fail closed).
-- **M02 Core — `src/core/dsl/effect.ts`:** `checkEffect` sets `allowAbility: true`. This is the only place it is set, so `ability()` is legal only in effect-kind fields (action/spell/feat `effect`, item `use`).
-- **M03 Runtime — reserved var binding `ability:<name>`:** `resolve.ts effectVars(actor, target)` binds `ability:<n>` from `actor.abilities` (after the target-save layer, so the actor's ability is never shadowed and never the target's). This covers `executeAgainst`, `varsFor` and `movementGate`. `equipment.ts useItem` binds `ability:<n>` from `view.abilities` (equipment-composed). Bare names keep their meaning: a save still shadows the same-named ability.
-- **M01 Schema — `src/schema/validate/sections/cross.ts`:** `NON_FORMULA_ARGS.ability = [0]`, mirroring the `ability-name` position, so `ability(speed)` is not a `speed` reference in the v1.5 speed scan.
+the spells-in-combat final pass (original text recoverable at 94d40f3); the action-targeting
+SESSION-02 and SESSION-03 markers (a84dd52, 42a1fd3) were collapsed at the action-targeting final
+pass (original text recoverable at 535247d). -->

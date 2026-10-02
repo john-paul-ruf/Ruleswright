@@ -939,3 +939,202 @@ rather than a cleanup.
   - PROGRAM-CONFIG's diff touches only the header realized-state note, the Module Registry, Conventions (one widened, two minted, one evidence note) and Custom Rules 1 and 4.
   - Verification Commands, Git Config, Session Defaults, Stack and Author Sources are byte-unchanged.
 - **Role docs:** `PLANNER.md`, `CODER.md`, `UI-CODER.md` and `ORCHESTRATOR.md` are byte-identical to how this pass found them.
+
+---
+
+## 2026-10-01 — final pass, cycle `action-targeting` (feature commits `82832c0` → tree HEAD `535247d`)
+
+**Mode:** final, after the action-targeting Final Report (`535247d`; last source commit
+`3cce108`). Single-cycle synthesis. The spells-in-combat pass left no record debt; its C13 report
+correction landed at `0b5787e`. This cycle's preflight planning-completeness pass (handle h-j20l,
+F-A1..F-A10, no blocking finding) was routed through envelopes and STATE edits (`a1d0174`). No
+interim checks ran (3 sessions, final-only cadence).
+
+### Reconciled
+
+- **`arch/v1-core.md`: the two Orchestrator-integrated delta sections** (`<!-- action-targeting
+  SESSION-02 -->` `a84dd52`, `<!-- action-targeting SESSION-03 -->` `42a1fd3`) were folded into the
+  module-ordered record and the markers removed. Where each piece went:
+  - Contract v1.7 (S01 `64dc746`/`f622431`) and `NON_FORMULA_ARGS.ability = [0]` (S03 ck1): the M01 section. The grid-movement paragraph's `NON_FORMULA_ARGS` listing now notes the v1.7 entry.
+  - `ability(name)` check/eval (`allowAbility`, `checkAbilityCall`, fail-closed `evalCall`), `checkEffect` as the sole setter, registry 14 → 15, `heal` in an exact `EFFECT_VOCABULARY`, `FORMULA_VOCABULARY` + `ability`: M02 DSL.
+  - The `self` shape, `isSelfAction`, self-action binding in `declare`/`resolveReactive`, `selfTargetRefusal`, `resolveReactiveAgainst`, and the self-action gate order: M03 combat. The `effectVars` `ability:<n>` binding goes to `resolve.ts`, and the `useItem` binding to the equipment section.
+  - The 10 self-wrapped actions, the spell-list fix and the med-kit line: M04. The "heals 2, carried content-semantics question" text is now history.
+  - The self-target journey, the equipment-journey re-key with its discriminating assertion, the README edits and the close gates: M05.
+  - DD-A1..DD-A9 are summarized under Cross-cutting decisions, including F-A2 (self actions offer the actor's own `[target=self]` feats).
+  - Drift notes:
+    - **closed:** `heal` vocabulary (C12), self-buff actions, zombie-urban/hedge-mage spell lists, and the effect-scope shadowing *content* question (the rule itself is kept by design);
+    - **added:** an action-targeting residuals block (mending spells, the root-only limitation, the stale test comment, restricts symmetry).
+  - The header and the guards line now point at `535247d`.
+- **Module registry in `PROGRAM-CONFIG.MD`** reconciled to `535247d`:
+  - **Edges.** `git diff 0b5787e..535247d -- src` adds or removes no `import` or `export … from` line. The value-import graph is therefore byte-identical to the one derived mechanically at `94d40f3`.
+  - **Agreement with the Final Report.** No new module ID, no cross-module edge and no rule id, as the report says.
+  - **File counts.** M03 is still 21 `.ts` files, and M02 is still 9.
+  - **Guards re-verified.** M01 imports nothing internal, and M02→M01 is type-only.
+  - **Surface.** `isSelfAction` is an intra-runtime export and is absent from `src/runtime/index.ts`. This agrees with the S02 delta.
+  - **Key-file columns.** M01 through M04 now carry the v1.7 additions.
+- **Custom Rules (Archivist-owned) updated:**
+  - Rule 1 records the v1.7 contract event and caveat (c).
+  - Rule 2 records `ability(name)` and that bare-name precedence is unchanged.
+  - Rule 4 notes that self actions are pack data.
+  - Author Sources' "Data source" line still names only v1.2/v1.3, now **four** contract events stale (v1.4–v1.7). That section is Planner-owned, so it is flagged a fourth time rather than edited.
+- **Contract Agreements CA-A1..CA-A4, sampled against source at `535247d`:**
+  - **CA-A1:** `combat.ts:1287` `if (shape === 'self') return [actor.id]` sits before the `!geometry.enabled` early return at :1289.
+  - **CA-A2:** `declare` computes `selfAction` only when `spell === undefined` (:627). The refusal comes after the restriction gate (:612) and the `at` refusal (:619), and before the validity gate. `resolveReactive` applies the same refusal and binding (:1545-1549). `selfTargetRefusal` (:1776) accepts `undefined` and the actor's own id. `isSelfAction` (:1769) reads `index.actionEffects` only, so it is root-only and action-only.
+  - **CA-A3:**
+    - `REGISTRY.ability` is at `registry.ts:36`.
+    - `checkEffect` is the only `allowAbility: true` (`effect.ts:499`); `formula.ts:557` guards on it.
+    - The `evalCall` binding read (:375) throws when the key is unbound.
+    - `effectVars` binds `ability:<n>` from `actor.abilities` after the target saves (`resolve.ts:377`).
+    - `useItem` binds it from `view.abilities` (`equipment.ts:283`).
+    - The `cross.ts:87` mirror is present.
+    - `grep executeEffect(` finds only those two var builders as callers, so no effect path lacks the binding.
+  - **CA-A4:** `knownSpells` is at `pools.ts:307`, unchanged; the theme lists are at `zombie-urban.json:128/137/151` and `wyldwood.json:270`.
+  - **Contract text:** `database.md` Status line is v1.7, §actions l.251 and §formulas l.334, Version Registry row 8 at l.681.
+  - **Findings:** no mismatch. Every producer and consumer exists as recorded, and no required fact is missing from the inventory. The proofs were sampled through this pass's fresh whole-suite run.
+- **Capability Readiness** (CAP-A1..A7 verified) is consistent with source and with the fresh run. *Current Blockers* is empty, and B-AT-1 is correctly recorded as cleared before the run. No stale readiness summary was found.
+- **Counterevidence to a carried claim:** the Final Report's `mending` residual names two sites, zombie-urban `bind-the-bite` and wyldwood `bind-wound`. `grep -n mending src/compiler/themes/*.json` at `535247d` finds **three**; the third is dark-fantasy `bind-wound` (`dark-fantasy.json:273`, warden list, reachable since before this feature). This does not affect any CAP: the question is content meaning, and its owner is the human. The human question's scope should name all three sites. **Routed to Orchestrator**, which owns the Final Report and the human question text, and recorded in the arch residuals.
+- **Final Report mechanical facts were re-derived** (PROGRAM-CONFIG convention):
+  - **Path counts.** `git diff --name-status 0b5787e..ebf081c` gives **26** paths, 9 A and 17 M; the breakdown 7+3+1+7+1+7 matches. The report cites `0b5787e..HEAD`, and after the report's own commit that command yields **27**: `FINAL-REPORT.md` itself is the 27th, an added path. The count was correct when written, but the cited command no longer reproduces it. This is new row c3c94358 (below), not a transcription error.
+  - **Diff size.** `git diff --shortstat 0b5787e..HEAD -- src tests README.md` gives 19 files, +1035/−37, as reported.
+  - **Checkpoints.** The `--grep` checkpoint count is **8**, as reported.
+  - **Lease audit.** `git show --name-only` on all 8 checkpoints shows only leased paths, so "Lease violations: none" is confirmed.
+  - **Test counts.** 854 = 829+12+13 and 878 = 854+12+2+10, matching this pass's run.
+- **Verified by execution** (fresh runs by this pass at `535247d`):
+  - `pnpm typecheck` 0
+  - `pnpm build` 0 (24 dist files)
+  - `check:isolation` 0
+  - `pnpm test` **878/878 across 48 files**
+  - `pnpm exec vitest run tests/proofs` **66/66 across 9 files**
+  - lint, format:check and security were **not** re-run. They are inherited from the Orchestrator receive at `3cce108`.
+- **Adoption check, done before carrying rows forward.** `program-agents/` is gitignored, so `git log` cannot show adoption. All eleven role docs have mtime `2026-09-25 16:37`, earlier than the prior pass, so no human edit has landed. Current content was checked for each open row:
+  - **6f6b491b:** `CODER.md:186` and `ORCHESTRATOR.md:368` still name `npx vitest run <path>`.
+  - **a3680390:** `SPEC.md:14` and `AUTHOR.md:132/137` still say "never spawned".
+  - **cecd2115:** `ORCHESTRATOR.md` has no idle-timeout text (grep `idle|300`: only the unrelated "Idle slots" line at :262).
+  - **f4621ac1:** no "behavior pin" text in any role doc.
+  - **82b4e0ab:** no "worktree" text.
+  - **760b67f1:** no "newly reachable" text.
+  - **3983f8eb:** no first-cell row-keying text.
+  - **Other rows:** no substance present.
+  - **Result:** no row is adopted. `PLANNER.md`, `CODER.md`, `UI-CODER.md` and `ORCHESTRATOR.md` are byte-identical to how this pass found them (sha1 `79b210d7…`, `2d713e3c…`, `3b19b1b2…`, `369e2928…`, recorded before and after). That is a separate claim from the adoption check above.
+
+### Crossed thresholds (Principle 4)
+
+- **Widened, already promoted: pin-lease ownership now covers doc pins** (row 1cc46f93). This crossed the **cycles axis**, at 4 program cycles and 6 instances.
+  - **The miss:** the plan's pin audit (STATE *Behavior-pin audit*) ran four greps, all scoped to `tests/`. It missed `README.md:381`, "zombie-urban's classes know no spells", which became false at S03 ck2 (DD-A7).
+  - **Why it did no damage:** README was in S03's lease, so S03 corrected the line at ck3 and reported it (surprise 1). The Final Report records it under granularity feedback as a pin-audit miss.
+  - **Why the rule missed it:** the convention's text covered count/shape pins and *test* behavior pins. A prose statement of a content fact is the same shape, a pin on content that moved, in a place the grep did not look.
+  - **The change:** the convention now requires the audit to grep `README.md` and docs as well as `tests/` for any content fact a session changes.
+  - **Cycle count:** loot-inventory, grid-combat, spells-in-combat, action-targeting.
+- **Re-confirmed: factual-premise verification at planning time** (row 576a2816), for a sixth cycle.
+  - **Caught before dispatch:**
+    - the planner's own probe disproved the human-answer premise "med-kit → ability is a content fix" (DD-A5) and raised B-AT-1 *before* any session existed;
+    - the carried "CI build fix" was disproved against `ci.yml`;
+    - the preflight corrected F-A1 (the `dist/` hazard covers 3 suites, not 1) and F-A9 (citation drift).
+  - **Result:** 3/3 first-dispatch completion, and no disproved premise reached a session. The README pin is counted under 1cc46f93.
+  - **Counts:** 6 cycles, 30 instances (26 + 4).
+- **Held:**
+  - **Planned Author re-entry carries its authorization** (a3680390): S01's envelope quoted B-AT-1 verbatim and the DB worker proceeded. The role-doc conflict recurred, so the counts go to 5 and 5.
+  - **Whole-repo fast gates** (854ceecd): S01's role-scoped receive ran typecheck/lint/format and found them green; no red gate anywhere. Counts unchanged.
+  - **Await idle timeout** (cecd2115): it fired once, on the preflight, and was not counted, per the convention. Counts go to 4 cycles and ≥ 7 instances.
+  - **Final Report facts derived** (f68c42a3): every figure cites its command and the parts sum. Held; the residual precision issue is the new row c3c94358.
+- **Not promoted:** row 760b67f1 (newly reachable content) now has 2 cycles and 2 instances; no axis crosses.
+
+### Proposed for the framework (Principle 3: no threshold)
+
+- **New: ORCHESTRATOR.md's Final Report step should cite commands against an explicit end SHA, not `HEAD`** (row c3c94358).
+  - **The evidence:** the report's `git diff --name-status 0b5787e..HEAD` gave 26 when it was written. The report's own commit (`535247d`) is an added path, so the same command now gives 27.
+  - **Recommendation:** write `<base>..<last-non-report-commit>`, or exclude the report's own path, so a later reader can reproduce the figure.
+  - **1 cycle · 1 instance.**
+- **Carried, count raised: the PLANNER.md pin audit should grep for behavior and doc pins** (row f4621ac1). This cycle adds a doc pin outside `tests/` (`README.md:381`). The recommendation is widened: the audit's greps for a changed fact should cover `README.md`/docs as well as `tests/`. **3 cycles · 4 instances.**
+- **Carried, count raised: PLANNER.md should require a "newly reachable content" scan** (row 760b67f1).
+  - **This cycle:** the Planner ran the scan voluntarily, as STATE's *Newly reachable content scan* records. It surfaced the `mending` content-meaning question before dispatch, which is evidence that the scan works.
+  - **What it missed:** it listed only the newly reachable sites, and missed the same-shape dark-fantasy `bind-wound` that was already reachable.
+  - **Recommendation (widened):** when the scan raises a content-meaning question, grep for the same pattern across all themes, so the human question names every site.
+  - **2 cycles · 2 instances.**
+- **Carried, count raised:**
+  - SPEC.md/AUTHOR.md "never spawned" (a3680390): **5 cycles · 5 instances**.
+  - Host await idle timeout (cecd2115): **4 cycles · ≥ 7 instances**.
+- **Carried, no recurrence this cycle:**
+  - 6f6b491b (`npx`): every envelope used `pnpm exec`;
+  - c172cd30 (SHA-pinned gates): none in SESSION-01..03;
+  - 3983f8eb (STATE row matcher): CAP/CA tables are keyed correctly in this STATE;
+  - 82b4e0ab (shared-tree concurrency): the plan was serial;
+  - 17f4803c (provider aborts): none;
+  - b32fc8d0, f57dbe4d, b85c8f3e (no barrel change was needed), c1ed872b, 3658f327, 1d910de1.
+  - Counts are unchanged. b32fc8d0, f57dbe4d and c1ed872b have now gone **five** consecutive cycles without recurrence. They stay open because they have been neither adopted nor disproved. A human may retire them.
+
+### Standing recommendations
+
+| id | pattern | cycles | in-cycle instances | first seen | status |
+|----|---------|-------:|-------------------:|------------|--------|
+| b32fc8d0c8c92d52 | Large single-session builds exhaust context on exhaustive checkpoint-0 read sweeps (empty-final crash; recovery = checkpoint-scoped reading) | 2 | 2 | v1-core | open |
+| f57dbe4d010638fe | Subagent model fabricates tool inputs (invented paths, invented project state, fabricated git output) under long-recovery prompts | 2 | 8 | v1-core | open |
+| b85c8f3e113a6764 | Public surface/barrel completeness gaps discovered at integration (lease gaps across wave-spanning modules) | 2 | 3 | v1-core | open |
+| c1ed872bea557b96 | run tool drops/misroutes argv; workers pass whole command lines as single argv entries | 2 | 3 | v1-core | open |
+| 3658f327cc9cff2f | commit_pathspec-style single-command commits fail on deleted files | 1 | 1 | v1-core | open |
+| 1cc46f93038f1d9a | Cross-suite pinning tests (docs-run block-count pin, registry-count pin) land without a named owner in the plan | 4 | 6 | loot-inventory | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-27; widened to behavior pins 2026-09-30 and to doc pins 2026-10-01) |
+| 576a281656f83b23 | Envelope factual premises (mock-vs-prompt anatomy, cross-suite counts) reach sessions unverified; mechanical premise verification at planning time is the fix | 6 | 30 | loot-inventory | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-27; sixth-cycle evidence recorded 2026-10-01) |
+| 854ceecd39d4b0d3 | Whole-repo fast gates (typecheck/lint/format:check) go red at role-scoped receives; cleared by format-only owner corrections | 4 | 4 | v1-core | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-27; held in action-targeting) |
+| 17f4803c1b08da77 | Provider stream aborts / capacity failures kill subagents mid-session with zero commits; recovery resumes from the preserved tree | 3 | 5 | loot-inventory | open (promotion held: carried cycle attribution ambiguous) |
+| 6f6b491bdbe37bf0 | Bare npx misresolves in this runtime; the working gate forms are pnpm exec vitest run <path> and node_modules/.bin/vitest | 2 | 3 | loot-inventory | open |
+| 1d910de11732c6c4 | Final Archivist pass aborts on provider capacity leave the next cycle's pass a double synthesis (prior cycle's integrated fragments + record-debt) | 2 | 2 | loot-inventory | open |
+| c172cd30e8dfc756 | Session commit gates hard-code a plan-time base SHA that a later replan makes stale | 1 | 1 | equipment-consumables | open |
+| cecd211504587426 | Host await idle timeout (300 s) interrupts long subagent waits; re-awaiting the same handle reattaches with no work lost | 4 | 7 | equipment-consumables | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-30); framework wording open |
+| f68c42a3f6224eb1 | Final Report mechanical facts (test-file counts, realized module edges) transcribed from handoffs rather than derived from the tree | 3 | 3 | v1-core | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-30; held in action-targeting); framework wording open |
+| a368039028d463d6 | Role documents say Spec/DB are never spawned, while plans dispatch orchestrated Author re-entry sessions on recorded human authorization | 5 | 5 | grid-combat | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-30; held in action-targeting); framework wording open |
+| 3983f8eb6d18a5f2 | Orchestrator STATE row matcher hits a CA-ID column inside the CAP table and writes contract-leg notes into the wrong rows | 1 | 2 | grid-movement | open |
+| f4621ac12fba3456 | Pin audits enumerate count/shape pins but miss behavior pins: tests asserting a value whose derivation a decision changes surface red at a quiet boundary, some outside every lease | 3 | 4 | grid-combat | open |
+| 760b67f17edbd346 | A feature opens a content class to a new execution path, and latent content hazards become reachable without a planning-time scan (damage(half) with no fail-branch damage, 12 spell sites) | 2 | 2 | spells-in-combat | open |
+| 82b4e0abbda105d6 | Concurrent sessions on disjoint leases share one working tree: a sibling's uncommitted edits turn another worker's gates red or inflate its whole-suite counts | 1 | 2 | spells-in-combat | open |
+| c3c94358b35f8316 | Final Report cites `git diff <base>..HEAD` while its own commit then moves HEAD, so the cited command no longer reproduces the reported count | 1 | 1 | action-targeting | open |
+
+- **Carried rows (1–19):** the ids are copied verbatim.
+- **Minted this pass (row 20):** `sha256(firstSeen + '\n' + normalize(pattern)).slice(0,16)`.
+- **Count changes:**
+  - Row 6 went from 3 cycles and 5 instances to 4 and 6.
+  - Row 7 went from 5 and 26 to 6 and 30.
+  - Row 13 went from 3 and 6 to 4 and 7 (a floor).
+  - Row 15 went from 4 and 4 to 5 and 5.
+  - Row 17 went from 2 and 3 to 3 and 4.
+  - Row 18 went from 1 and 1 to 2 and 2.
+- **Status changes:** none (row 6 was widened while already promoted).
+- **Blocked signal:** no session returned blocked this cycle. The table is not empty, so the "empty while blocked" signal does not apply.
+
+### Cleanup ledger (carried forward; maintained here, no separate CLEANUP-LEDGER.md yet)
+
+| id | candidate | evidence | confidence | blast radius | proposed check | cluster | status |
+|----|-----------|----------|------------|--------------|----------------|---------|--------|
+| C1 | `isLivePattern` (`src/runtime/conditions.ts`) has no non-test consumer (the matcher-duplicate half closed by `010d730`) | re-verified at `535247d`: src refs = `conditions.ts:67` + `index.ts:56` re-export; 1 test file | medium | src/runtime surface | decide surface-first: keep as public API, or drop the barrel export (conditions.test.ts pins it) | duplicated-logic | **briefed** (2026-09-28; narrowed) |
+| C2 | `MAX_TABLE_DEPTH = 8` duplicated in `src/core/tables.ts` and `src/schema/validate/helpers.ts` | re-verified at `535247d`: `tables.ts:32`, `helpers.ts:544` | medium | cross-module constant (M01 must stay import-free) | single-source strategy that keeps M01 import-free | duplicated-logic | **briefed** (2026-09-28) |
+| C3 | `readPatch` exported from the compiler surface but consumed only by tests | re-verified at `535247d`: compose.ts + index.ts | low | compiler surface | decide public-surface intent (FR-20 host-side composition) | compiler-surface | **tracking** |
+| C4 | `EventSeed`/`EventSink` exported from the runtime surface, no consumer | re-verified at `535247d`: events.ts + index.ts | low | runtime surface | same surface-first decision | runtime-surface | **tracking** |
+| C5 | Final Report test-file count 28 vs 29 | corrected at v1-core close (`0290d47`) | high | report accuracy | — | report-accuracy | **retired** |
+| C6 | `parsePackEffects` had zero consumers | deleted at `010d730` | high | M03 internal | — | spell-asts | **accepted** (closed by `010d730`) |
+| C7 | `WYLDWOOD` exported from the compiler surface, consumed only via theme-loader/index | re-verified at `535247d`: compiler `index.ts` + `theme-loader.ts` | low | compiler surface | same surface-first decision as C3/C4 | compiler-surface | **tracking** |
+| C8 | `equipment.ts` private `rollText` duplicated `combat.ts` `displayRoll` | closed at `27c77f4` | high | M03 internal | — | duplicated-logic | **accepted** (closed by `27c77f4`) |
+| C9 | equipment-consumables Final Report *Architecture impact* omitted two value edges | corrected in the living record since 2026-09-28 | high | report accuracy only | — | report-accuracy | **retired** |
+| C10 | `Combat.use`'s restriction gate cannot block (`ItemDef` has no `tags`) | S05 surprise 2 (equipment-consumables) | low | M03 combat | retain as forward-compat unless item tags are rejected as a product direction | item-tags | **tracking** (intentional; resumption: item tags decision) |
+| C11 | Theme feat triggers never matched / feats never registered | closed at `d9a6d71`/`8d04c5e` | medium | — | — | inert-content | **accepted** |
+| C12 | `heal` was registry entry 13 but absent from `EFFECT_VOCABULARY` | taken in as CAP-A6 and closed at action-targeting S03 ck1 `4c1e1e6`; `registry.ts:63`, exact-membership pin in `checker.test.ts` | low | — | — | vocabulary-drift | **accepted** (closed by `4c1e1e6`) |
+| C13 | spells-in-combat Final Report *Files* breakdown mismatch | corrected by Orchestrator at `0b5787e` ("file breakdown re-derived (C13)") | high | report accuracy only | — | report-accuracy | **accepted** (closed by `0b5787e`) |
+| C14 | Stale comment `tests/runtime/combat/character-profile.test.ts:381` "`med-kit` = heal(2 + vigor)" — the theme line is `heal(2 + ability(vigor))` since `3cce108` | read at `535247d`; STATE F-A4 auto-decision (accepted stale, outside every lease) | high | one comment line, no assertion | edit the comment; the file stays 100% green | stale-docs | **tracking** (owner: next cleanup run) |
+
+**Cleanup brief status.** The 2026-09-28 duplicated-logic brief (C1 narrowed, C2) carries forward
+unchanged and is still unaccepted. C12 and C13 were closed by feature work and by Orchestrator. No
+new campaign crosses a threshold: C14 is a single trivial comment in its own cluster, and the
+surface-intent items (C3, C4, C7) stay three low-confidence findings.
+
+### Verification of this pass
+
+- **Sources.** Every realized-state claim traces to:
+  - git (`git log 0b5787e..535247d`, `git diff --name-status`/`--shortstat`, `git show --name-only` on the 8 checkpoints, `git diff 0b5787e..535247d -- src` for import lines);
+  - STATE.md (all 436 lines: B-AT-1, DD-A1..A9, the Verification Baseline and pin audit, CAP/CA tables, the planning-completeness table and the three handoffs);
+  - the Final Report and MASTER.md;
+  - greps and reads of `src/**` at `535247d`, plus this pass's fresh gate runs.
+- **No contradiction** with STATE.md or the Final Report, apart from the `mending` site count and the `..HEAD` reproduction, both recorded above.
+- **Re-read after writing:**
+  - `arch/v1-core.md` has 2 `<!--` and 2 `-->`, with no nesting, and zero `action-targeting SESSION` markers.
+  - No surviving claim says the registry has 14 entries, that `EFFECT_VOCABULARY` lacks `heal`, that zombie-urban classes know no spells, or that self-buffs hit opponents.
+  - PROGRAM-CONFIG's diff touches only the header realized-state note, the Module Registry, Conventions (one widened, two evidence notes) and Custom Rules 1, 2 and 4.
+  - Verification Commands, Git Config, Session Defaults, Stack and Author Sources are byte-unchanged.
+- **Role docs:** `PLANNER.md`, `CODER.md`, `UI-CODER.md` and `ORCHESTRATOR.md` are byte-identical to how this pass found them.
