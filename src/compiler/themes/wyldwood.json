@@ -267,7 +267,7 @@
       },
       "hedge-mage": {
         "name": "Hedge Mage",
-        "spellLists": ["hedge"],
+        "spellLists": ["hedge-mage"],
         "features": [
           {
             "level": 2,

@@ -134,7 +134,7 @@
       },
       "fixer": {
         "name": "Fixer",
-        "spellLists": [],
+        "spellLists": ["fixer"],
         "features": [{ "level": 1, "ref": "milers-read" }],
         "actions": [
           "baton-blow",
@@ -148,7 +148,7 @@
       },
       "medic": {
         "name": "Medic",
-        "spellLists": [],
+        "spellLists": ["medic"],
         "features": [{ "level": 2, "ref": "field-surgery" }],
         "actions": ["baton-blow", "fall-back", "dodge-roll", "hustle", "cheap-shot"]
       }

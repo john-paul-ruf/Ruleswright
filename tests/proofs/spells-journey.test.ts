@@ -247,7 +247,7 @@ function poolLeg(): { events: RuntimeEvent[] } {
   rt.events.on((event) => events.push(event));
 
   // The class/spell choice: the wyldwood hexer (spellLists ['hexer']) knows
-  // hex-bolt; hedge-mage knows nothing (its lists match no spell, carried).
+  // hex-bolt; hedge-mage (spellLists ['hedge-mage']) knows its own 4 spells.
   const hexer = rt.createCharacter({
     name: 'hexer',
     race: 'verge-born',
