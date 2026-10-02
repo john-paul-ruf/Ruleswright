@@ -623,8 +623,14 @@ export class Combat {
     // A move action targets its actor: no opponent resolution, no reach gate (DD-M9).
     // Spells never move (a spell `move` is E-FORM-02), so the budget is action-only.
     const budgetAst = moveBudgetAst(this.runtime, actionId);
+    // A self action targets its actor too (v1.7, DD-A2): no opponent resolution, no reach gate.
+    const selfAction = spell === undefined && isSelfAction(this.runtime, actionId);
+    if (selfAction) {
+      const refusal = selfTargetRefusal(actionId, actorId, options.targetId);
+      if (refusal !== undefined) return [this.rejectionEvent(actorId, refusal)];
+    }
     const target =
-      budgetAst !== undefined || at !== undefined
+      budgetAst !== undefined || at !== undefined || selfAction
         ? { combatant: actor }
         : this.resolveTarget(actor, options.targetId, spell !== undefined);
     if ('rejection' in target) {
@@ -658,6 +664,8 @@ export class Combat {
         return [this.rejectionEvent(actorId, gate.rejection)];
       }
       move = gate.move;
+    } else if (selfAction) {
+      // DD-A2: a self action passes no reach gate.
     } else if (spell !== undefined) {
       // CA-S9: a spell passes the range gate where an action passes the reach gate.
       const range = this.rangeGate(actor, actionId, spell.targeting?.range, at ?? target.combatant);
@@ -1276,6 +1284,7 @@ export class Combat {
     center: Position | undefined,
     bound: CombatantState,
   ): readonly string[] {
+    if (shape === 'self') return [actor.id]; // DD-A1: every pack, theater-of-mind included
     const geometry = this.runtime.spatial;
     if (!geometry.enabled) return [bound.id];
     if (shape === 'adjacent') {
@@ -1533,6 +1542,12 @@ export class Combat {
     if (restriction !== undefined) {
       return [this.rejectionEvent(reactor.id, restriction)];
     }
+    if (isSelfAction(this.runtime, offer.actionId)) {
+      // DD-A2: a self reaction binds its reactor — no opponent resolution, no reach gate.
+      const refusal = selfTargetRefusal(offer.actionId, reactor.id, targetId);
+      if (refusal !== undefined) return [this.rejectionEvent(reactor.id, refusal)];
+      return this.resolveReactiveAgainst(offer, def, reactor, reactor);
+    }
     const target = this.resolveTarget(reactor, targetId);
     if ('rejection' in target) {
       return [this.rejectionEvent(reactor.id, target.rejection)];
@@ -1541,6 +1556,16 @@ export class Combat {
     if (spatial !== undefined) {
       return [this.rejectionEvent(reactor.id, spatial)];
     }
+    return this.resolveReactiveAgainst(offer, def, reactor, target.combatant);
+  }
+
+  /** The cost gates, spend and resolution of a taken reaction whose target is bound. */
+  private resolveReactiveAgainst(
+    offer: PendingTrigger,
+    def: ActionDef,
+    reactor: CombatantState,
+    target: CombatantState,
+  ): readonly RuntimeEvent[] {
     const costRejection = checkCost(def.cost, this.grants, this.balancesOf(reactor));
     if (costRejection !== undefined) {
       return [this.rejectionEvent(reactor.id, costRejection)];
@@ -1551,7 +1576,7 @@ export class Combat {
     }
     this.applyNonSlotCosts(reactor, def.cost);
     const { result: events, emitted } = this.collect(() =>
-      this.resolve(reactor, offer.actionId, def, target.combatant, {}),
+      this.resolve(reactor, offer.actionId, def, target, {}),
     );
     this.surfaceOffers(emitted);
     return events;
@@ -1738,6 +1763,28 @@ const ZERO_RNG: RandomSource = { int: () => 0 };
 export function moveBudgetAst(runtime: Runtime, actionId: string): FormulaAst | undefined {
   const ast = runtime.index.actionEffects[actionId];
   return ast?.kind === 'call' && ast.text === 'move' ? ast.args?.[0] : undefined;
+}
+
+/** A self action (v1.7, DD-A2): an action whose parse-once effect root is `target(self, …)`. Spells are never self actions. */
+export function isSelfAction(runtime: Runtime, actionId: string): boolean {
+  const ast = runtime.index.actionEffects[actionId];
+  const shape = ast?.kind === 'call' && ast.text === 'target' ? ast.args?.[0] : undefined;
+  return shape?.kind === 'name' && shape.text === 'self';
+}
+
+/** A self action names no target but its actor (DD-A2): any other `targetId` is `invalid-target`. */
+function selfTargetRefusal(
+  actionId: string,
+  actorId: string,
+  targetId: string | undefined,
+): DeclareRejection | undefined {
+  if (targetId === undefined || targetId === actorId) return undefined;
+  return {
+    kind: 'invalid-target',
+    rule: 'E-REF-01',
+    resource: targetId,
+    message: `"${actionId}" is a self action — it targets its actor "${actorId}" only (DD-A2).`,
+  };
 }
 
 /** A combatant at hp ≤ 0 is down: it takes no turns and is offered no triggers. */
