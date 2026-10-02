@@ -248,6 +248,40 @@ load with `E-FORM-01` at `<base>.trigger.on`; no new rule id. The bare forms
 a pattern that can never fire is a broken reference, not a silent no-op. Compatibility
 caveat (a), Version Registry row 7.
 
+**Self actions and the `self` shape (v1.7, DD-A1/A2).** Builder-authorized 2026-10-01
+(action-targeting, B-AT-1).
+
+- **The `self` shape (DD-A1).** `target(self, <effect>)` scopes `<effect>` to the **actor**: the
+  declaring combatant, the reactor, the feat holder, or the item user. This holds in grid,
+  hex and theater-of-mind packs alike, at any depth (the root, inside `sequence`, inside a
+  `save` branch). `self` is a shape word of the `target` statement, beside `adjacent` and
+  `burst-<r>`. It is not a function and adds no registry entry: the shape argument is already
+  an open name vocabulary, so `target(self, …)` parses and validates as before, and only its
+  play-time meaning is new. `hasTarget(self)` holds whenever the actor stands.
+- **Self actions (DD-A2).** An **action** whose parse-once effect **root** is
+  `target(self, …)` is a **self action**. Declared, or taken as a reaction, it binds its actor
+  as its target. It runs no opponent resolution, so there is no `no-target`, and no reach
+  gate (as for move actions, DD-M9).
+- **Root-only rule (limitation).** Only an action whose parse-once effect **root** is
+  `target(self, …)` is a self action. An action whose effect is
+  `sequence(target(self, …), …)` (or nests `target(self, …)` anywhere below the root) is an
+  ordinary action: it still binds an opponent through the usual opponent resolution and
+  reach gate, and the inner `self` resolves to the actor.
+- **Gates.** A self action still runs the restriction, validity and cost gates, in the same
+  order. A `targetId` other than the actor → `{kind: 'invalid-target', rule: 'E-REF-01',
+  resource: <targetId>}`, and nothing changes. A `targetId` equal to the actor's id is
+  accepted.
+- **Events.** The effect's events name the actor as both actor and target (`why.rule`
+  `actions.<id>`), then `action:resolved {actionId, targetId: <actor>}`. A self action's
+  `condition:applied` names the actor as target, so the actor's own
+  `condition:applied[target=self]` feats are offered (existing trigger semantics, DD-S13; no
+  new behavior).
+- **Spells are not self actions.** DD-S8 targeting applies (see §content spells), and a
+  `self` inside a spell's effect resolves to the caster.
+- **Compatibility caveat (c), Version Registry row 8.** A v1.6 pack that wrote
+  `target(self, …)` resolved it to nobody (grid/hex: an unknown shape) or to the bound target
+  (theater-of-mind). v1.7 resolves it to the actor. No bundled theme used it.
+
 ### `formulas`
 Map `formulaId → {params?: string[], expr: string}`. Pure data; the function registry is
 closed and versioned with the schema — extension is a schema event, never an escape hatch
@@ -297,6 +331,25 @@ revision is that event**. No new rule id: an unknown function remains `E-FORM-02
   event** (13 → 14). No new rule id: misuse of `move` is `E-FORM-02`, an undeclared `speed`
   is `E-REF-01`.
 
+**`ability(name)` (v1.7, DD-A4).** Builder-authorized 2026-10-01 (action-targeting,
+B-AT-1). Formula registry **14 → 15**: `ability` — arity 1, kind `formula`, signature
+`['ability-name']`.
+
+| Aspect | Contract |
+|---|---|
+| Where legal | **Only inside effect-kind DSL fields:** action `effect`, spell `effect`, feat `effect`, and item `use`. Anywhere else (`valid`, feat `passive`, `attackBonus`, the `formulas` section, …) → `E-FORM-02` |
+| Argument | A bare name (a name position, not a formula reference) that must be declared in `stats.abilities`, else `E-FORM-03` with did-you-mean. Because it is a name position, `ability(speed)` is not a `speed` reference under the v1.5 rule |
+| Value | The **actor's** ability `name`, as the effect vars compose it (equipment grants included): in combat the combatant profile's abilities; out of combat (item `use`) the character's derived abilities. Never a save, never an effect scalar (`hp`, `ac`, `speed`), never the target's |
+| Binding | The reserved effect-var key `ability:<name>`. A `:` can never appear in a DSL name, so the key cannot collide. A missing key at play time throws (fail closed) |
+
+- **Why it exists.** Abilities and saves share one namespace. In effect vars a save shadows
+  the same-named ability, which `save` recipes (`d20 + <save>`) need, so a bare `vigor` in an
+  effect is the save wherever both are declared (zombie-urban declares `vigor` as both).
+  `ability(vigor)` reads the ability; the bare-name meaning is unchanged.
+- Registry extension is a schema event (CA-2 / NFR-Security) — **this revision is that
+  event** (14 → 15). No new rule id: misuse is `E-FORM-02`, an undeclared name is
+  `E-FORM-03`.
+
 ### `content`
 Seven maps, keyed by id: `classes`, `races`, `skills`, `feats`, `spells`, `conditions`, `items`.
 Highlights (full field lists in the JSON Schema):
@@ -342,7 +395,9 @@ Highlights (full field lists in the JSON Schema):
   - **Targets (DD-S8).** A spell's `targetId` may name any combatant, either side, the caster
     included. With neither `targetId` nor `at`: the only opponent, else `no-target`. **No line
     of sight** in v1; terrain never blocks a spell. **Theater-of-mind** packs never consult
-    range, ignore `at`, and resolve a burst to the bound target.
+    range, ignore `at`, and resolve a burst to the bound target. **v1.7 (DD-A2, DD-A6):** a
+    spell is never a self action, so this targeting is unchanged, and a `self` inside a
+    spell's effect resolves to the caster.
   - **Restricts and spells, scoped to combat (DD-S10).** In combat, a spell declare is
     blocked while an active condition carries `actions.tagged:<t>` or `spells.tagged:<t>` and
     `<t>` is one of the spell's tags (a spell is an action, FR-9). Action declares are
