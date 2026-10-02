@@ -25,7 +25,7 @@
 | # | Session | Modules | Owns | Status | Checkpoint | Completed | Notes |
 |---|---|---|---|---|---|---|---|
 | 01 | Author re-entry (DB): contract v1.7 (`self` shape, self actions, `ability(name)`) | — (DB) | `program/Ruleswright/specs/database.md`, `src/schema/contracts/pack.schema.json` | done | 2/2 (`64dc746`, `f622431`) | 2026-10-01 | v1.7 landed; CA-A1..A3 rechecked, no delta; receive gates typecheck/lint/format 0, tests/schema 111/111 |
-| 02 | Self-targeting column: `target(self, …)`, self actions and reactions, 10 theme actions, first journey | M03, M04 | `src/runtime/combat/combat.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `README.md`, `tests/runtime/combat/self-target.test.ts`, `tests/proofs/self-target-journey.test.ts` | pending | — | — | depends on S01 |
+| 02 | Self-targeting column: `target(self, …)`, self actions and reactions, 10 theme actions, first journey | M03, M04 | `src/runtime/combat/combat.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `README.md`, `tests/runtime/combat/self-target.test.ts`, `tests/proofs/self-target-journey.test.ts` | done | 3/3 (`63f6e78`, `83c7939`, `05d4fbf`) | 2026-10-01 | receive gates typecheck/lint/format/build/isolation/security 0; `pnpm test` 46 files 854/854; arch `a84dd52`; CA-A2 rechecked vs landed code |
 | 03 | Ability column: `ability(name)`, med-kit, `heal` vocabulary, spell lists | M01, M02, M03, M04 | `src/core/dsl/registry.ts`, `src/core/dsl/formula.ts`, `src/core/dsl/effect.ts`, `src/runtime/combat/resolve.ts`, `src/runtime/equipment.ts`, `src/schema/validate/sections/cross.ts`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `README.md`, `tests/core/dsl/checker.test.ts`, `tests/core/dsl/ability.test.ts`, `tests/proofs/equipment-journey.test.ts`, `tests/proofs/spells-journey.test.ts`, `tests/compiler/spell-lists.test.ts` | pending | — | — | depends on S01, S02 (shared theme files and README) |
 
 ## Wave Plan
@@ -158,9 +158,9 @@ Commands run at plan HEAD:
 
 | ID | Approved behavior / entry point | Required facts + producer owners | CA IDs / prerequisites | Integration owner / checkpoint | Status | Proof / checked sources | Open gaps + correction owners |
 |---|---|---|---|---|---|---|---|
-| CAP-A1 | FR-3/FR-9 targeting: `fight.declare('<self action>')` puts its condition on the actor, with any number of opponents at any distance, in spatial and theater packs | actor identity (combat `state.active`); effect root (`runtime.index.actionEffects`); condition apply (`applyMutation`) — S02 ck1 | CA-A1, CA-A2; S01 | S02 ck1 (unit), ck3 (journey) | planned | — | — |
-| CAP-A2 | FR-4 reactions: taking `ward-glint` / `dodge-roll` / `ward-step` puts the condition on the reactor, with no reach gate | offer (`triggers.ts`, unchanged); `resolveReactive` binding — S02 ck1 | CA-A2; S01 | S02 ck1, ck3 | planned | — | — |
-| CAP-A3 | Bundled content: the 10 self-buff actions affect their user (DD-A3) | theme JSON — S02 ck2 | CA-A1; S01 | S02 ck2, ck3 | planned | — | — (`brace` confirmed, B-AT-1) |
+| CAP-A1 | FR-3/FR-9 targeting: `fight.declare('<self action>')` puts its condition on the actor, with any number of opponents at any distance, in spatial and theater packs | actor identity (combat `state.active`); effect root (`runtime.index.actionEffects`); condition apply (`applyMutation`) — S02 ck1 | CA-A1, CA-A2; S01 | S02 ck1 (unit), ck3 (journey) | **verified** | `self-target.test.ts` (12) + `self-target-journey.test.ts` (13) at `05d4fbf`; journey: generated dark-fantasy seed 42 → Runtime → createCharacter → profileFromCharacter → startCombat → declare → serialize/deserialize, theater leg; negative control vs `5b4abca` 13/13 fail; whole suite 854/854 (Orchestrator) | — |
+| CAP-A2 | FR-4 reactions: taking `ward-glint` / `dodge-roll` / `ward-step` puts the condition on the reactor, with no reach gate | offer (`triggers.ts`, unchanged); `resolveReactive` binding — S02 ck1 | CA-A2; S01 | S02 ck1, ck3 | **verified** | `self-target.test.ts` self-reaction cases + journey `ward-glint` take → `warded` on the reactor, `05d4fbf`; 854/854 | — |
+| CAP-A3 | Bundled content: the 10 self-buff actions affect their user (DD-A3) | theme JSON — S02 ck2 | CA-A1; S01 | S02 ck2, ck3 | **verified** | 10 actions wrapped `target(self, …)` at `83c7939`; journey step 6 (7 checks across zombie-urban, wyldwood) + `brace` roots its user, `05d4fbf`; 854/854 | — (`brace` confirmed, B-AT-1) |
 | CAP-A4 | FR-3: an effect can read an ability hidden by a same-named save, via `ability(name)`, in combat and out | registry/check/eval — S03 ck1; var bindings `effectVars` / `useItem` — S03 ck1 | CA-A3; S01 | S03 ck1 | planned | — | — |
 | CAP-A5 | Med-kit heals `2 + vigor ability` (human 2026-10-01) | theme JSON — S03 ck3 | CA-A3; CAP-A4 | S03 ck3 | planned | — | — (line fixed: `heal(2 + ability(vigor))`, heals 12; B-AT-1) |
 | CAP-A6 | `EFFECT_VOCABULARY` covers `heal` | registry — S03 ck1 | — | S03 ck1 | planned | — | — |
@@ -180,8 +180,8 @@ Commands run at plan HEAD:
 
 | ID | Required meaning / authority | Producer → boundary → consumer | Mapping / constraints | Correction + proof owners / checkpoints | Agreement | Producer | Proof / evidence / checked sources |
 |---|---|---|---|---|---|---|---|
-| CA-A1 | `self` names the acting combatant, never a foe | `combat.ts resolveShape` → `EffectApply.resolveTargets` (`resolve.ts` l.327) → `effect.ts execTarget` | `'self'` → `[actor.id]` before the theater early-return; every other shape unchanged; a downed actor never acts, so there is no special case | DB S01 ck1 (`64dc746`); implementation and proof S02 ck1 | agreed — DB text landed `64dc746` (database.md §actions "The `self` shape"), rechecked by Orchestrator 2026-10-01, no delta | planned (S02 ck1) | planned: `tests/runtime/combat/self-target.test.ts` |
-| CA-A2 | A self action's target is its actor (authority: the actor) | `combat.ts declare` / `resolveReactive` → `execute(actor, bound, target = actor)` → events | root `target(self, …)` on an action ⇒ skip `resolveTarget` and `spatialGate`; `targetId` ∉ {undefined, actor.id} ⇒ `{kind: 'invalid-target', rule: 'E-REF-01', resource: targetId}`; restriction → validity → cost order unchanged; spells excluded | DB S01 ck1 (`64dc746`); implementation and proof S02 ck1; journey S02 ck3 | agreed — DB text landed `64dc746` (§actions "Self actions", "Root-only rule", "Gates", "Events"; `targetId` = actor accepted, explicit), rechecked 2026-10-01, no delta | planned (S02 ck1) | planned |
+| CA-A1 | `self` names the acting combatant, never a foe | `combat.ts resolveShape` → `EffectApply.resolveTargets` (`resolve.ts` l.327) → `effect.ts execTarget` | `'self'` → `[actor.id]` before the theater early-return; every other shape unchanged; a downed actor never acts, so there is no special case | DB S01 ck1 (`64dc746`); implementation and proof S02 ck1 | agreed — DB text landed `64dc746` (database.md §actions "The `self` shape"), rechecked by Orchestrator 2026-10-01, no delta | **ready** — `resolveShape` `'self'` → `[actor.id]` before theater return, `63f6e78` | **proven** — `self-target.test.ts` + journey theater leg, `63f6e78`/`05d4fbf`; 854/854 |
+| CA-A2 | A self action's target is its actor (authority: the actor) | `combat.ts declare` / `resolveReactive` → `execute(actor, bound, target = actor)` → events | root `target(self, …)` on an action ⇒ skip `resolveTarget` and `spatialGate`; `targetId` ∉ {undefined, actor.id} ⇒ `{kind: 'invalid-target', rule: 'E-REF-01', resource: targetId}`; restriction → validity → cost order unchanged; spells excluded | DB S01 ck1 (`64dc746`); implementation and proof S02 ck1; journey S02 ck3 | agreed — DB text landed `64dc746` (§actions "Self actions", "Root-only rule", "Gates", "Events"; `targetId` = actor accepted, explicit), rechecked 2026-10-01, no delta | **ready** — `declare`/`resolveReactive` + `isSelfAction` + `selfTargetRefusal`, `63f6e78`; Orchestrator recheck 2026-10-01: gate order restriction → (at refusal) → self `targetId` refusal (the same position where `resolveTarget` refuses ordinary actions) → validity → cost; spells excluded; root-only | **proven** — `self-target.test.ts` (incl. F-A2 second-gust offer, no chain) + journey `invalid-target` deep-equal, `05d4fbf`; 854/854 |
 | CA-A3 | `ability(n)` = the actor's composed ability `n`; never a save; never the target's | `registry.ts` / `formula.ts` (check + eval) → var builders `resolve.ts effectVars`, `equipment.ts useItem` → `evalFormula` | vars key `ability:<n>` = `actor.abilities[n]` (combat profile: equipment-composed) / `view.abilities[n]` (`useItem`); checker: effect-kind only (`E-FORM-02` elsewhere), `n ∈ stats.abilities` (`E-FORM-03`); missing key at play → throw; M01 mirror `NON_FORMULA_ARGS.ability = [0]` | DB S01 ck1-2 (`64dc746`, `f622431`); implementation and proof S03 ck1; content S03 ck3 | agreed — DB text landed (§formulas "`ability(name)`"; clarifications: never an effect scalar; name position so `ability(speed)` is not a `speed` reference), rechecked 2026-10-01, no delta | planned (S03 ck1) | planned: `tests/core/dsl/ability.test.ts`, `equipment-journey.test.ts` |
 | CA-A4 | A class knows a spell iff a spellList string equals a spell's `magic.lists` entry | theme JSON → `pools.ts knownSpells` → `profileFromCharacter().profile.spells` | exact string match (no change to `knownSpells`) | S03 ck2 | agreed (existing behavior, no contract change) | ready (`pools.ts:307`) | planned: `tests/compiler/spell-lists.test.ts` |
 
@@ -193,7 +193,7 @@ Commands run at plan HEAD:
 
 | ID | Affects | Next action | Owner | Evidence to clear |
 |---|---|---|---|---|
-| — | none open | S02 is dispatchable (S01 done). | — | — |
+| — | none open | S03 is dispatchable (S01, S02 done). | — | — |
 
 **Cleared:**
 
@@ -289,3 +289,67 @@ Both checkpoints are committed. The v1.7 contract is in `database.md` and `pack.
 - **filesTouched:** `program/Ruleswright/specs/database.md`, `src/schema/contracts/pack.schema.json`. `git show --name-only` after each commit showed only these paths, and the tree is clean. No arch fragment was written.
 
 [DN7tI · db · 2026-10-01T22:21:48-05:00] session ended · tokens=502476
+
+### SESSION-02 — received 2026-10-01 (handle h-K3_3 / CfWmI, base `5b4abca`) — verbatim
+
+Session 2 is finished: self actions now act on whoever uses them, the 10 bundled self-buff actions are changed to `target(self, …)`, and all gates pass (854/854 tests across 46 files).
+
+## Handoff
+
+- **session:** SESSION-02 (action-targeting), lease revision 1
+- **status:** done
+- **checkpoint:** 3 of 3. ck1 `63f6e78`, ck2 `83c7939`, ck3 `05d4fbf`
+- **notes:** The engine change (CA-A1, CA-A2) and the content change (CAP-A3) are in, and the first journey for CAP-A1/A2/A3 passes.
+  - **Checkpoint-0 recheck, before editing:** database.md v1.7 §actions "Self actions and the `self` shape" (l.251-283) matches CA-A1 and CA-A2, including that a `targetId` equal to the actor is accepted. `grep "'self'" combat.ts` had no hits. `moveBudgetAst` was at l.1738. No mapping changed.
+  - **Code that landed in `src/runtime/combat/combat.ts`:**
+    - **`resolveShape`:** `self` now returns the actor. This check runs before the theater-of-mind early return.
+    - **New `isSelfAction(runtime, actionId)`** is exported next to `moveBudgetAst`.
+    - **`declare`:** works out `selfAction` for actions only (never spells). If a `targetId` names anyone other than the actor, it refuses with `invalid-target` (E-REF-01). That refusal comes after the restriction gate and the `at` refusal, and before validity and cost. A self action binds the actor and skips the reach gate.
+    - **`resolveReactive`:** a self reaction applies the same refusal, binds the reactor and skips both target resolution and the reach gate.
+    - **Two new private helpers:** `resolveReactiveAgainst`, which holds the existing cost and spend steps, and `selfTargetRefusal`, which builds the refusal.
+  - **Theme files:** the 10 effects are wrapped in `target(self, …)`, exactly as listed in DD-A3.
+- **delivered:**
+  - The engine change described above.
+  - `tests/runtime/combat/self-target.test.ts`, 12 tests:
+    - cases (a) to (h);
+    - the root-only rule for `isSelfAction`;
+    - a `targetId` equal to the actor is accepted;
+    - a self reaction that names the attacker is refused with nothing changed;
+    - F-A2: a self `withdraw` offers `brynn.second-gust`, taking it braces brynn, and nothing chains.
+  - `tests/proofs/self-target-journey.test.ts`, 13 tests: journey steps 1 to 5 and 7 on the generated dark-fantasy pack at seed 42, plus step 6 as 7 checks across zombie-urban and wyldwood.
+  - One prose paragraph in `README.md`, after the burst-spell paragraph. No fenced ts block was added (DD-A9).
+- **verification:**
+  - **Checkpoint 1:**
+    - `pnpm typecheck` 0.
+    - `pnpm exec vitest run tests/runtime/combat`: 10 files, 189/189.
+    - `pnpm lint` 0.
+    - **Negative control:** against the old `combat.ts` (with a stub `isSelfAction`), self-target ran 11 failed and 1 passed. The one pass is (h), the unchanged control.
+  - **Checkpoint 2:**
+    - `pnpm exec vitest run tests/compiler tests/proofs/movement-journey.test.ts tests/proofs/grid-journey.test.ts tests/runtime/combat/character-profile.test.ts`: 8 files, 250/250.
+    - `pnpm format:check` 0.
+  - **Checkpoint 3:**
+    - self-target-journey plus docs-run: 2 files, 16/16.
+    - **Negative control:** against the pre-session engine at `5b4abca`, the journey failed 13/13.
+  - **Final run:** `pnpm build` 0, then `pnpm test`: 46 files, 854/854 (829 + 12 + 13; files 44 + 2). `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm check:isolation` and `pnpm check:security` all 0.
+  - **What the proofs exercise:** generated pack → `Runtime` → `createCharacter` → `profileFromCharacter` / `spawnMonster` → `startCombat` → `declare` / `respond` → condition on the actor → `serializeCombat` → JSON → `deserializeCombat` on a fresh `Runtime`. Nothing is mocked; the only stand-in is a seeded `Rng`.
+- **surprises:**
+  - **Formatting:** after the change, `brace`'s single-line entry in `dark-fantasy.json` was too long for prettier. `prettier --write` split it across several lines. Nothing else in the file changed.
+  - **Pins:** none moved. The grid-journey F-A3c pin, movement-journey's ward-step pin and the six suites that use the fixture's `withdraw` are all green in the full run.
+- **followUp:**
+  - CAP-A1, CAP-A2 and CAP-A3 are proven by the journey file above.
+  - Orchestrator should recheck CA-A2 against the landed `declare` / `resolveReactive` code before dispatching S03.
+  - S03 is the next owner. It shares `zombie-urban.json`, `wyldwood.json` and `README.md` with this session. I did not touch the med-kit or the spell lists.
+  - The arch fragment is at `.program/signal/SESSION-02.arch.md`. It is uncommitted, as instructed.
+- **needsOwnerCorrection:** —
+- **needsDesignSource:** —
+- **blockedReason:** —
+- **filesTouched:**
+  - `src/runtime/combat/combat.ts`
+  - `tests/runtime/combat/self-target.test.ts`
+  - `src/compiler/themes/dark-fantasy.json`
+  - `src/compiler/themes/zombie-urban.json`
+  - `src/compiler/themes/wyldwood.json`
+  - `README.md`
+  - `tests/proofs/self-target-journey.test.ts`
+
+[CfWmI · coder · 2026-10-01T22:24:10-05:00] session ended · tokens=3502192
