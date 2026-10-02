@@ -90,6 +90,7 @@ S01 (DB v1.7) ──► S02 (self column) ──► S03 (ability column)
 - **`mocks/spatial.html:191`, `api-map.html` event names:** design-change class. Not planned.
 - **Duplicated logic (`isLivePattern`, `MAX_TABLE_DEPTH`), `SnapshotOffer` barrel export:** cleanup run. Not planned.
 - **Spells that buff (ward-sigil, iron-skin, …):** unchanged. A spell may already name any combatant, the caster included (DD-S8). See DD-A6.
+- **Prior-ledger carries (F-A8):** F-M2, R-GM-3, the `useItem` duration display, item tags, wyldwood charm armor, `evalPackFormula` parse-once, the browser determinism leg (spells-in-combat FINAL-REPORT l.92/l.186; cleanup ledger C3, C4, C7, C10, C13) — carried, prior ledgers, not in scope.
 - **`mending` spells** (`bind-the-bite`, wyldwood `bind-wound` / l.418 `damage(1d8 - vigor, mending)`): these are written as *damage* minus the target's vigor save, not as a heal. S03 makes zombie-urban `bind-the-bite` reachable for the medic. This is a content-meaning question, **carried to the human** (Final Report). It is not fixed here.
 
 ## Design Decisions
@@ -115,7 +116,7 @@ S01 (DB v1.7) ──► S02 (self column) ──► S03 (ability column)
 | `pnpm exec vitest run <path>` | lease-scoped gate | working form (PROGRAM-CONFIG). `pnpm test -- <pattern>` does **not** filter; bare `npx vitest` misresolves | — |
 
 **Hazards and constraints:**
-- `tests/proofs/spells-journey.test.ts` imports `../../dist/compiler.js`. A whole-suite `pnpm test` after a source change must run **`pnpm build` first**; otherwise the spells journey reads a stale `dist/`. This is the CI order (`ci.yml` l.46-48).
+- `tests/proofs/spells-journey.test.ts`, **`tests/proofs/equipment-journey.test.ts`** and **`tests/proofs/loot-journey.test.ts`** import `../../dist/*` (corrected by the planning-completeness review, F-A1). A whole-suite `pnpm test`, or any re-derivation of those journeys after a source/theme change, must run **`pnpm build` first**; otherwise they read a stale `dist/`. This is the CI order (`ci.yml` l.45-47).
 - The await idle timeout (~300 s) is not a crash (PROGRAM-CONFIG convention).
 - No ports or exclusive resources. No session uses a fixed output path.
 - Concurrency: none. The plan is serial.
@@ -140,6 +141,13 @@ Commands run at plan HEAD:
 | `tests/runtime/fixtures/packs.ts:63-65` (`withdraw` in the emberMarches fixture), used as the skip action by `combat.test.ts`, `snapshots/combat.test.ts`, `perf-budget.test.ts`, `encounter.test.ts`, `rules-are-data.test.ts`, `spatial-triggers.test.ts` | fixture behavior | — | **unaffected**: fixtures are **not** edited (S02 must not edit them) |
 | `tests/proofs/docs-run.test.ts:198-199`, `tests/runtime/combat/character-profile.test.ts:216-223` | class action **id** lists | — | unaffected (ids unchanged) |
 | `tests/schema/validate.test.ts:652, 742-745` | fixture med-kit `heal(2 + vigor)` | — | unaffected (test fixture, not theme) |
+| `tests/proofs/equipment-journey.test.ts:72-82` `fightToTheEnd`; `tests/runtime/combat/character-profile.test.ts:393-418` `settledFight` | first accepted action per turn; med-kit at full hp | DD-A3, DD-A5 | **unaffected** (F-A3a): `baton-blow` always accepted first with one adjacent foe; heal at full hp clamps |
+| `tests/runtime/combat/character-profile.test.ts:99-150` `fightScript` (l.146-148 no hero `declare:rejected`) | every class in every theme | DD-A3 | **unaffected** (F-A3b): first action always accepted, self actions never reached |
+| `tests/proofs/grid-journey.test.ts:533-541` | enemy `targetId` passed to every hexer action; asserts only `resolvedActions > 0` | DD-A2 | **unaffected** (F-A3c): `withdraw` would now be `invalid-target`, but `hurl` comes first and only the count is asserted |
+| `tests/proofs/equipment-journey.test.ts` step 6 (`'27→27'`) | heal at cap | DD-A5 | **unaffected** (F-A3d): clamps at cap |
+| `tests/compiler/themes.test.ts:71` | items reach the pack verbatim | DD-A5 | **unaffected** (F-A3e): moves with the theme |
+| `tests/proofs/equipment-journey.test.ts:13-17` (header comment "heals 2") | comment | DD-A5 | S03 ck3 (in lease) — update the header (F-A4) |
+| `tests/runtime/combat/character-profile.test.ts:381` (comment "med-kit = heal(2 + vigor)") | comment only | DD-A5 | **accepted stale comment**, outside every lease (F-A4; auto-decision 2026-10-01, no lease change for a comment) — carried to the next cleanup run |
 
 **Newly reachable content scan (Archivist recommendation, spells-in-combat):**
 - S02 opens self scope to 10 actions. All are condition-only (`applyCondition(<id>, n)`), with no damage and no RNG, so no `damage(half)`-style hazard.
@@ -192,6 +200,25 @@ Commands run at plan HEAD:
 | ID | Affects | Request | Owner | Clearing evidence |
 |---|---|---|---|---|
 | B-AT-1 | S01 (and so S02, S03); CA-A1…A3; CAP-A3, CAP-A5 | Human authorizes a DB re-entry (schema-change class) for contract v1.7: (1) the `self` shape word and the self-action rule (DD-A1/A2); (2) `ability(name)`, registry 14 → 15 (DD-A4). The same answer also confirms (3) the med-kit line: `heal(2 + ability(vigor))`, which heals **12** at level 1, or the modifier-style alternative (DD-A5), and (4) `brace` roots its user (DD-A3). | human | **cleared 2026-10-01:** "**1 approved 2 12 3 confrim**" → (1) approved, (2) 12 / `heal(2 + ability(vigor))`, (3) brace confirmed |
+
+## Planning Completeness Review
+
+- **Pass:** Archivist planning-completeness, 2026-10-01, handle h-j20l (AqfUt), read-only, at HEAD `549b13d` (source unchanged since `c6128bd`). Probes: 4 lease-scoped files 63/63; node probes against `dist/` (build revision likely fresh, not proven). Whole suite and fast gates not re-run (inherited).
+- **Result:** no blocking finding. All Architecture Reference line numbers within ±2; DD-A1/A5/A7 premises, the 10 actions, the `gloam-light` exclusion, the CI disproof and every behavior-pin row confirmed. S02 needs nothing outside `combat.ts`; S03's "effect-kind only" is enforceable via `checkEffect` alone; `EFFECT_VOCABULARY`'s only consumer is `checker.test.ts:32`.
+- **Dispositions (Orchestrator, standing authority; carried to workers through their envelopes):**
+
+| Finding | Disposition | Owner |
+|---|---|---|
+| F-A1 dist hazard covers 3 suites | STATE hazard list corrected (above); S03 envelope: `pnpm build` before re-deriving equipment-journey | Orchestrator / S03 ck3 |
+| F-A2 self-buffs now offer the actor's own `condition:applied[target=self]` feats (second-gust, last-legs, gloam-step) | S01 envelope: one sentence in §actions self-action text (product behavior unchanged; documents it). S02 envelope: one ck1 case — a character who learned second-gust declares withdraw → offer `<id>.second-gust`, take it, nothing chains | S01 ck1 / S02 ck1 |
+| F-A3 missing behavior pins | added to the pin table as unaffected (above) | Orchestrator |
+| F-A4 stale med-kit comments | equipment-journey header → S03 ck3 (in lease); character-profile.test.ts:381 accepted stale comment, carried to cleanup | S03 ck3 / cleanup |
+| F-A5 database.md Status line still "v1.6" | S01 envelope: update the Status line to v1.7 at ck2 (file already in Owns) | S01 ck2 |
+| F-A6 only the effect root makes a self action | S01 envelope: state the root-only rule as an explicit limitation | S01 ck1 |
+| F-A7 C12 exact-membership check | S03 envelope: add an exact-membership assertion pairing `EFFECT_VOCABULARY` with effect-kind registry entries in `checker.test.ts` (in lease) | S03 ck1 |
+| F-A8 prior-ledger carries undisposed | Scope Summary line added (above) | Orchestrator |
+| F-A9 citation drift | none; workers re-read at checkpoint 0 | — |
+| F-A10 move-cost actions need separate turns/fights in the journey | S02 envelope note | S02 ck3 |
 
 ## Handoff Notes
 
