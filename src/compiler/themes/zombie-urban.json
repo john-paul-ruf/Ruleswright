@@ -256,7 +256,7 @@
         "slots": ["body"],
         "grants": { "ac": 1, "armor": 1 }
       },
-      "med-kit": { "name": "Med Kit", "kind": "consumable", "use": "heal(2 + vigor)" },
+      "med-kit": { "name": "Med Kit", "kind": "consumable", "use": "heal(2 + ability(vigor))" },
       "water-filter": { "name": "Water Filter", "kind": "gear" },
       "radio-set": { "name": "Radio Set", "kind": "gear" },
       "flare-strings": { "name": "Flare Strings", "kind": "gear" }

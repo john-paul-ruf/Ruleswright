@@ -13,8 +13,8 @@
  * → `fight.use` (clamp, provenance) → mid-fight snapshot, restored with the
  * character on a fresh runtime → `no-charges` → combat-over → settlement back
  * to the inventory → character snapshot + tamper refusal. med-kit is
- * `heal(2 + vigor)`, and in effect scope the vigor SAVE (0 at level 1) shadows
- * the ability, so it heals 2 (S05's recorded value; kept by Orchestrator).
+ * `heal(2 + ability(vigor))` (v1.7, DD-A5): `ability(vigor)` reads the vigor
+ * ABILITY (10 at level 1), not the same-named save (0), so it heals 12.
  *
  * dark-fantasy leg: armorCasting on slot casting — the only theme with slot
  * (vancian) casting (DD-EG5). Resumed legs read a fresh event sink (DD17e).
@@ -144,18 +144,24 @@ describe('CAP-E7 — the zombie-urban journey (seed 42): equip → heal → figh
 
   it('4 — useItem(med-kit) heals out of combat, clamped, one unit spent, item:used before damage:applied (CA-EG4/EG5)', () => {
     survivor.state.hp.current = cap - 4;
+    // The proof discriminates: the vigor save and the vigor ability differ for this character.
+    const { profile } = profileFromCharacter(rt, survivor);
+    expect({ save: profile.saves['vigor'], ability: profile.abilities['vigor'] }).toEqual({
+      save: 0,
+      ability: 10,
+    });
     const events = survivor.useItem('med-kit');
     expect(events.map((event) => event.type)).toEqual(['item:used', 'damage:applied']);
     expect(events[0]!.payload).toEqual({ itemId: 'med-kit', remaining: 2 });
     expect(events[0]!.why.rule).toBe('content.items.med-kit');
-    expect(events[1]!.payload).toEqual({ amount: -2, type: undefined, hp: '23→25' });
-    expect(events[1]!.why).toEqual({ rule: 'content.items.med-kit', rolls: ['d0[]-2=-2'] });
-    expect(survivor.state.hp.current).toBe(Math.min(cap, cap - 4 + 2));
+    expect(events[1]!.payload).toEqual({ amount: -12, type: undefined, hp: '23→27' });
+    expect(events[1]!.why).toEqual({ rule: 'content.items.med-kit', rolls: ['d0[]-12=-12'] });
+    expect(survivor.state.hp.current).toBe(Math.min(cap, cap - 4 + 12));
     expect(survivor.count('med-kit')).toBe(2);
   });
 
   it('5 — fight.use heals the wounded ally through the combat transport: a charge spent, clamped, the foe untouched (CA-EG4/EG5)', () => {
-    survivor.state.hp.current = cap - 1; // one below the cap — the +2 heal must clamp at 27
+    survivor.state.hp.current = cap - 1; // one below the cap — the +12 heal must clamp at 27
     allyId = survivor.state.id;
     const ally = profileFromCharacter(rt, survivor);
     expect(ally.balances.items).toEqual({ 'med-kit': 2 });
@@ -177,10 +183,10 @@ describe('CAP-E7 — the zombie-urban journey (seed 42): equip → heal → figh
     expect(events[0]!.target).toBe(allyId);
     const heal = events[1]!;
     expect(heal.target).toBe(allyId);
-    expect(heal.payload['amount']).toBe(-2);
+    expect(heal.payload['amount']).toBe(-12);
     expect(heal.payload['hp']).toBe('26→27');
     expect(heal.why.rule).toBe('content.items.med-kit');
-    expect(heal.why.rolls).toContain('d0[]-2=-2');
+    expect(heal.why.rolls).toContain('d0[]-12=-12');
     expect(fight.state.combatants[allyId]!.hp.current).toBe(27);
     expect(fight.state.combatants[allyId]!.itemsUsed).toEqual({ 'med-kit': 1 });
     expect(fight.state.combatants['foe']!.hp.current).toBe(foeHp);

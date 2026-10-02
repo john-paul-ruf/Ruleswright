@@ -378,7 +378,7 @@ restored.declare('ember-bloom', { targetId: 'wight' })
 ```
 
 v1 limits: there is no feat-slot cap (a character may learn any number of
-feats), and zombie-urban's classes know no spells.
+feats).
 
 The spells journey — vancian and point-pool legs, plus the feat leg above — runs
 in `tests/proofs/spells-journey.test.ts` against the built package and the real
@@ -399,7 +399,7 @@ zombie-urban pack (seed 42):
     "items": {
       "riot-plate": { "kind": "armor", "slots": ["body"], "grants": { "ac": 1, "armor": 1 } },
       "fire-axe": { "kind": "weapon", "slots": ["main-hand"], "grants": { "might": 1 } },
-      "med-kit": { "kind": "consumable", "use": "heal(2 + vigor)" }
+      "med-kit": { "kind": "consumable", "use": "heal(2 + ability(vigor))" }
     }
   }
 }
@@ -431,6 +431,9 @@ zombie-urban pack (seed 42):
   the cap (`derived().hp`, or the combatant's `maxHp` in a fight) and never
   lowers hp already above it. `item:used` precedes the effect's
   `damage:applied`, whose negative `amount` and `before→after` show the heal.
+  An effect reads a bare name like `vigor` as the save when a save shares the
+  ability's name; `ability(name)` (legal only in effects and item `use`) reads
+  the user's ability instead, equipment grants included.
 - **Settlement.** The fight never writes to the character. Once the fight is
   `combat-over`, `settleItemUses(rt, character, fight)` drops the units spent in
   it from the inventory (`item:dropped` + `item:settled`); a second call returns
@@ -442,15 +445,15 @@ zombie-urban pack (seed 42):
 
 Expected output of the journey (zombie-urban, seed 42, a level-1 mile-born
 scavenger holding riot-plate, fire-axe and 3 med-kits). At level 1 `med-kit`
-heals 2: in an effect, the `vigor` save (0 at level 1) shadows the same-named
-ability.
+heals 12: `ability(vigor)` reads the vigor ability, 10, not the same-named save
+(0 at level 1).
 
 ```
 base                     hp 27 · ac 11 · might 10
 riot-plate + fire-axe    ac 10 · might 11 · maxHp 27
-useItem('med-kit')       item:used { remaining: 2 } → damage:applied { amount: -2, hp: '23→25' }
-                         why.rolls ['d0[]-2=-2'] · why.rule 'content.items.med-kit'
-fight.use('med-kit')     damage:applied { amount: -2, hp: '26→27' }   (clamped at maxHp 27)
+useItem('med-kit')       item:used { remaining: 2 } → damage:applied { amount: -12, hp: '23→27' }
+                         why.rolls ['d0[]-12=-12'] · why.rule 'content.items.med-kit'
+fight.use('med-kit')     damage:applied { amount: -12, hp: '26→27' }   (clamped at maxHp 27)
 snapshot → restore       itemsUsed { 'med-kit': 1 } · maxHp 27
 second use / third use   hp '27→27' / declare:rejected { kind: 'no-charges' }
 settleItemUses           item:dropped + item:settled { qty: 2 } → med-kit gone (3 − 1 − 2)
