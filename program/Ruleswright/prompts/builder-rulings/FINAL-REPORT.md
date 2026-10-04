@@ -67,7 +67,7 @@ S02 recorded negative controls; each was reverted temporarily and restored befor
 - **F-FP2, class features.** This is the next feature. It needs a human-authorized DB re-entry and a product decision on what a feature does. The bundled themes already carry `content.classes.<id>.features`.
 - **Load-time integrity for `spells.tagged:` patterns.** Tightening it would be a breaking change, and it was not asked for.
 - **F-R6, mock copy.** At `mocks/progression.html:70-80`, Brynn is created at level 4, then `awardXp(brynn, 2400)` shows `level:reached warden 4`. Under v1.9 the level stays 4 and no `level:reached` fires. This is Author-owned; it needs a Designer re-entry, and no session owns it.
-- **Carried ledger:** `restricts` symmetry in `isLivePattern` (C1, no non-test consumer); cleanup C2; browser determinism leg; snapshot byte-conformance; cone/line shapes; `useItem` duration display; 12 `damage(half)` sites; `evalPackFormula` parse-once; R-GM-1..3; F-M2; the optional "slots remaining" query (DD-F7 follow-up); `database.md:700` naming only two theme templates (pre-existing drift, F-R7).
+- **Carried ledger:** `restricts` symmetry in `isLivePattern` (C1, no non-test consumer); cleanup C2; browser determinism leg; snapshot byte-conformance; cone/line shapes; `useItem` duration display; 12 `damage(half)` sites; `evalPackFormula` parse-once; R-GM-1..3; F-M2; the optional "slots remaining" query (DD-F7 follow-up); `database.md:721-722` naming only two theme templates (pre-existing drift, F-R7; citation corrected from l.700 per the Archivist Note).
 
 ## Follow-up
 
@@ -170,4 +170,98 @@ CAP-R1, CAP-R2, CAP-R3 and CAP-R4 are **verified** against current sources (`f3e
 
 ### Archivist's Note
 
-{pending — appended verbatim after the final Archivist pass}
+Final Archivist (handle h-X1RB), synthesis commit `265d35c`. Returned note, verbatim:
+
+## Archivist Note
+
+The builder-rulings final pass is done and committed as `265d35c`. The commit names its 3 files explicitly. A fresh run at `12ca6ac` passed: build, typecheck and isolation all 0, `pnpm test` 923/923 across 50 files, and `pnpm format:check` 0 after the edits. The Final Report's mechanical facts check out: 16 files (2 added, 14 modified, +551/−54) and 6 checkpoints, both reproduced from the cited commands. One carried citation is stale: `database.md:700` is now at l.721-722.
+
+- **role:** archivist
+- **registryUpdated:** true
+  - Reconciled to `12ca6ac`.
+  - `git diff -G'^(import|export .* from)' e7e5828..6534364 -- src` is empty, so no import line or module edge changed.
+  - M03 has new behaviour only: the `awardXp` max-level rule and the `isRestricted`/`restrictedIds` spell-kind rule.
+  - M04 changed theme content only: the three `mending` lines now heal.
+  - No new module, export or rule id.
+- **reconciled:**
+  - `program/Ruleswright/arch/v1-core.md`
+    - The `<!-- builder-rulings SESSION-02 -->` delta (`4c74017`) is merged into the M01, M03, M04 and M05 sections, the cross-cutting decisions (DD-R1..R7) and the drift notes.
+    - Its marker is removed, and the historical comment says the original text is recoverable at `12ca6ac`.
+    - Every stale line listed under F-R7 is retired or rewritten: l.279, 340, 566-568, 966, 1072, 1215-1220, 1236-1240, 1244-1246, 1247 and 1249.
+    - The `spells.tagged:` load-integrity gap is still listed as carried.
+    - A new builder-rulings residuals block adds:
+      - F-R6: `mocks/progression.html:70-80` needs a Designer re-entry;
+      - how a heal shows up in events;
+      - pre-existing drift at `database.md:721-722`, which names only two sample themes.
+  - `program/Ruleswright/PROGRAM-CONFIG.MD`
+    - Updated the realized-state note and the registry, including the M03/M04 key-file notes (mending spells now heal).
+    - Custom Rule 1 now records DB v1.9: description only, caveats (e) and (f), Version Registry row 10.
+    - Updated the convention evidence notes.
+  - `program/Ruleswright/ARCHIVIST-LOG.md`: dated entry appended.
+- **conventionsAdded:** no new conventions; two existing ones gained a sentence each.
+  - **Factual-premise verification:** now 8 cycles and 37 instances. Prescribed journey and test-setup values are premises too, and must be probed through the same composed path the journey uses. Evidence: the preflight's F-R1..F-R5.
+  - **Pin-lease ownership:** now 5 cycles and 7 instances. A pin-audit hit marked "holds" is itself a premise and must be checked against the new behaviour. Evidence: F-R6, the `mocks/progression.html` hit.
+  - **Evidence updated, rule text unchanged:**
+    - Author re-entry authorization: 7 cycles, 7 instances.
+    - Await idle timeout: 5 cycles, 8 instances.
+    - Final Report facts derived: held at 4 · 4.
+    - Whole-repo fast gates: held.
+- **proposedForFramework:**
+  - **VERIFICATION.md under a gitignored `prompts/` (c187bed6), 2 cycles · 2 instances.**
+    - `commit_pathspec` cannot force-add the file.
+    - The same event was logged as an R3 deviation last cycle and as only a "surprise" this cycle.
+    - Recommendation: add a `force` option limited to the envelope's writable paths, or have ORCHESTRATOR.md say Orchestrator force-adds the file, and name the deviation rule the worker records.
+  - **Journey test-setup premises (576a2816), 8 cycles · 37 instances.**
+    - `PLANNER.md:313-317` and `:551-552` cover external premises and disproved premises, but do not ask for a journey's setup to be probed.
+    - Recommendation: one sentence telling Planner to run a prescribed journey's setup once through the composed path at plan time.
+  - **Carried, counts raised:**
+    - "Spec/DB are never spawned" (a3680390): 7 · 7.
+    - Idle-timeout wording (cecd2115): 5 · 8.
+    - Pin audit missing from PLANNER.md (1cc46f93): 5 · 7.
+  - **Carried unchanged:** `npx` in CODER.md and ORCHESTRATOR.md (6f6b491b), the worktree half of 82b4e0ab, and 15 other rows.
+  - **May be retired:** b32fc8d0, f57dbe4d and c1ed872b have now gone seven cycles without recurring; a human may retire them.
+  - **No adoption:** the four role docs have the same sha1s as at the prior pass, so nothing was adopted.
+- **logEntry:** "2026-10-04 — final pass, cycle `builder-rulings`" appended to `program/Ruleswright/ARCHIVIST-LOG.md`. It records:
+  - **Contract agreements:** CA-R1..R4 sampled against source; no mismatch.
+  - **Capabilities:** CAP-R1..R4 agree with VERIFICATION.md's 8 verified rows; no drift.
+  - **Deviations by rule (FR-19):** R1 0 · R2 0 · R3 0 · R4 0 across S01, S02 and VERIFY-01.
+  - **Process:** 2/2 sessions completed on first dispatch; 0 rework.
+  - **Flagged a sixth time (Planner-owned, not edited):** the Author Sources line is stale.
+  - **Unchanged:** `PLANNER.md`, `CODER.md`, `UI-CODER.md` and `ORCHESTRATOR.md` are byte-identical before and after this pass.
+
+### cleanupBriefs
+
+- **No new brief.** The 2026-09-28 duplicated-logic brief (C1 `isLivePattern`, C2 `MAX_TABLE_DEPTH`) carries forward unchanged and is still not accepted.
+  - C1 re-checked at `12ca6ac`: `conditions.ts:69` plus the `index.ts:56` export.
+  - C2 re-checked at `12ca6ac`: `tables.ts:32` and `helpers.ts:544`.
+- **C14 closed:** marked accepted, closed by `4be2a57`.
+- **Scout of this cycle's diff:** no new candidate.
+
+### standingRecommendations
+
+| id | pattern (short) | cycles | instances | firstSeen | status |
+|---|---|---:|---:|---|---|
+| b32fc8d0c8c92d52 | checkpoint-0 read sweeps exhaust context | 2 | 2 | v1-core | open |
+| f57dbe4d010638fe | subagent fabricates tool inputs under long recovery | 2 | 8 | v1-core | open |
+| b85c8f3e113a6764 | barrel completeness gaps at integration | 2 | 3 | v1-core | open |
+| c1ed872bea557b96 | run tool argv misrouting | 2 | 3 | v1-core | open |
+| 3658f327cc9cff2f | commit_pathspec fails on deleted files | 1 | 1 | v1-core | open |
+| 1cc46f93038f1d9a | cross-suite / behaviour / doc pins without owner | 5 | 7 | loot-inventory | promoted (sharpened this pass); framework wording open |
+| 576a281656f83b23 | envelope factual premises unverified at planning | 8 | 37 | loot-inventory | promoted (widened this pass); framework wording open |
+| 854ceecd39d4b0d3 | whole-repo fast gates red at role-scoped receives | 4 | 4 | v1-core | promoted |
+| 17f4803c1b08da77 | provider aborts kill subagents mid-session | 3 | 5 | loot-inventory | open (attribution ambiguous) |
+| 6f6b491bdbe37bf0 | bare npx misresolves; role docs still say npx | 3 | 4 | loot-inventory | open |
+| 1d910de11732c6c4 | aborted final pass leaves double synthesis | 2 | 2 | loot-inventory | open |
+| c172cd30e8dfc756 | commit gates hard-code stale base SHA | 1 | 1 | equipment-consumables | open |
+| cecd211504587426 | 300 s await idle timeout; re-await reattaches | 5 | 8 | equipment-consumables | promoted; framework wording open |
+| f68c42a3f6224eb1 | Final Report facts transcribed, not derived | 4 | 4 | v1-core | promoted; framework wording open |
+| a368039028d463d6 | role docs say Spec/DB never spawned | 7 | 7 | grid-combat | promoted; framework wording open |
+| 3983f8eb6d18a5f2 | STATE row matcher hits CA column in CAP table | 1 | 2 | grid-movement | open |
+| f4621ac12fba3456 | pin audits miss behaviour pins | 3 | 4 | grid-combat | open |
+| 760b67f17edbd346 | newly reachable content hazards unscanned | 2 | 2 | spells-in-combat | open |
+| 82b4e0abbda105d6 | concurrent sessions share one working tree | 1 | 2 | spells-in-combat | open (narrowed: worktree half) |
+| c3c94358b35f8316 | Final Report cites `<base>..HEAD` that its own commit moves | 1 | 1 | action-targeting | open |
+| c187bed6bb5132a7 | VERIFICATION.md under a gitignored path; commit_pathspec cannot force-add | 2 | 2 | feat-progression | open |
+| 8039d6869169267c | plan artifacts internally inconsistent / wrong snippets | 1 | 2 | feat-progression | open |
+| d2415cb4497e0049 | Author/DB handoffs carry deviations without an R-rule | 1 | 1 | feat-progression | open |
+
