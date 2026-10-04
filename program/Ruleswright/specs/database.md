@@ -1,6 +1,6 @@
 # Database Design — Ruleswright
 
-> **Status:** v1.7, revised — DB, schema-change Author re-entry (builder-authorized 2026-10-01, action-targeting: the `target(self, …)` shape word + self actions and the `ability(name)` formula function, registry 14→15; no field added, no rule id added, one documented compatibility caveat (c) — `target(self, …)` now resolves to the actor; v1.6: builder-authorized 2026-09-30, spells-in-combat: spells declarable in combat with a pack-declared range and empty-cell area centers, spend recorded in combat snapshots, characters hold feats, reactive feats offered, trigger grammar enforced, combat envelope offers/phase/offeredCount; additive-optional with two documented compatibility caveats — the `trigger.on` grammar and the legacy-read-only per-combatant `pendingTrigger` — no rule id added; v1.5: builder-authorized 2026-09-29, grid-movement: hex model, pack-declared terrain vocabulary, `move(formula)` + reserved `speed`, snapshot `pendingMove`; additive-optional with one documented `speed` compatibility caveat, no rule id added; v1.4: builder-authorized 2025-09-27, equipment-consumables: slot-based equipment + consumables + the `heal` effect, snapshot `equipped`/`itemsUsed`/`maxHp`; v1.3: optional spatial section (FR-11) + E-SPAT-01 registration; v1.2: UI B-1 class combat actions; v1.1: S-CONTRACT-GAP).
+> **Status:** v1.8, revised — DB, schema-change Author re-entry (builder-authorized 2026-10-04, feat-progression: per-class feat slots `progression.<id>.featSlots`; additive-optional, no rule id added; one documented compatibility caveat (d) — a feat-slotted pack refuses learning past the cap and refuses to restore an over-cap character; v1.7: builder-authorized 2026-10-01, action-targeting: the `target(self, …)` shape word + self actions and the `ability(name)` formula function, registry 14→15; no field added, no rule id added, one documented compatibility caveat (c) — `target(self, …)` now resolves to the actor; v1.6: builder-authorized 2026-09-30, spells-in-combat: spells declarable in combat with a pack-declared range and empty-cell area centers, spend recorded in combat snapshots, characters hold feats, reactive feats offered, trigger grammar enforced, combat envelope offers/phase/offeredCount; additive-optional with two documented compatibility caveats — the `trigger.on` grammar and the legacy-read-only per-combatant `pendingTrigger` — no rule id added; v1.5: builder-authorized 2026-09-29, grid-movement: hex model, pack-declared terrain vocabulary, `move(formula)` + reserved `speed`, snapshot `pendingMove`; additive-optional with one documented `speed` compatibility caveat, no rule id added; v1.4: builder-authorized 2025-09-27, equipment-consumables: slot-based equipment + consumables + the `heal` effect, snapshot `equipped`/`itemsUsed`/`maxHp`; v1.3: optional spatial section (FR-11) + E-SPAT-01 registration; v1.2: UI B-1 class combat actions; v1.1: S-CONTRACT-GAP).
 > v1.0 (phase `database`, final Author phase) approved; v1.1 adds the turn-economy
 > declaration (`economy.turnSlots`) and action/spell `tags` with `restricts`
 > reference semantics. Read with `specs/architecture.md` (approved),
@@ -41,7 +41,7 @@ Pack (one JSON document, 8 required + 3 optional sections)
 ├── equipSlots?     OPTIONAL declared equip-slot vocabulary (v1.4; FR-3/FR-9)
 ├── formulas        named formula-DSL expressions
 ├── content         classes · races · skills · feats · spells · conditions · items
-├── progression     per-class tables: HD, attack table, saves, vancian slots
+├── progression     per-class tables: HD, attack table, saves, vancian slots, feat slots (v1.8)
 ├── bestiary        statblocks built from the same character machinery
 └── tables          weighted / ranged / nested lookup tables (the one table engine)
 
@@ -434,8 +434,9 @@ Highlights (full field lists in the JSON Schema):
   - **Characters hold feats (DD-S11).** `learnFeat(runtime, state, featId)` (facade
     `character.learnFeat(id)`) rejects an unknown feat (`unknown-feat`) and a feat already
     held (`feat-known`), and emits `feat:learned {featId}`. `CharacterState.feats` is absent
-    until the first learn (the `equipped` presence rule). **v1 limit:** no feat-slot cap
-    (progression declares none).
+    until the first learn (the `equipped` presence rule). **v1.8:** learning is capped by the
+    character's feat slots when the pack declares them (see §progression *Feat slots*); a
+    pack that declares none keeps the uncapped v1.6 behaviour.
   - **Reactive feats in combat (DD-S12).** A combatant's `feats` hold every reactive feat
     the character has learned. A matching event offers the feat exactly as a reactive action
     is offered (per call, once per (reactor, event), never to a downed combatant);
@@ -477,7 +478,48 @@ Map `classId → ClassProgression`, **required for every id in `content.classes`
 | `attackBonus` | string? | formula DSL | The ascending-AC alternative. **XOR with `attackTable`** (semantic rule) — a class declares exactly one convention |
 | `saves` | map | saveName → per-level int array | Array length = max level; names must exist in `stats.saves` |
 | `slots` | map? | spellLevel → per-level int array | Vancian slot tables (FR-8); levels need not be contiguous |
+| `featSlots` | int array? | each ≥ 0; non-decreasing; length ≥ the class's level ceiling (its shortest `saves` array) | **v1.8.** Feats the class grants **in total** at each class level (index 0 = level 1) — a running total like `saves`, not an increment. See *Feat slots* below |
 | `features` | array? | `{level, ref}` | Class features granted at level, referenced by id |
+
+**Feat slots (v1.8, feat-progression DD-F1…F6).** FR-6 lists feat slots among the
+progression tables; v1.8 adds them as one optional field per class (builder-authorized
+2026-10-04: "1 per class per level - 2 refuse - 3 approved").
+- **Per class per level (DD-F1).** `featSlots[L - 1]` is the class's **total** at class
+  level L — a level-indexed running total, like `saves`, not an increment.
+- **Multi-class (DD-F2).** A character's feat slots are the **sum** over its classes of
+  `featSlots[level - 1]`, as vancian slots add across classes.
+- **Opt-in (DD-F3).** A pack is *feat-slotted* when **any** `progression` entry declares
+  `featSlots`. In a feat-slotted pack, a class without the field contributes **0**. A pack
+  that declares none has **no cap** — the v1.7 behaviour, unchanged.
+- **Every held feat (DD-F5)**, passive or reactive, occupies one slot.
+- **Load (DD-F4).** A non-integer or negative entry, an empty array, a decrease from one
+  level to the next, or an array shorter than the class's level ceiling (its shortest
+  `saves` array) → `E-SCHEMA-01` at `progression.<id>.featSlots` (or `…featSlots[i]`).
+  No rule id is added.
+- **Refusal (DD-F6; runtime rule `feat-slots-exceeded`, not a `RULE_IDS` entry).** Card
+  `{severity: 'error', rule: 'feat-slots-exceeded', jsonPath: 'feats', artifactId}`. Every
+  path that would leave a character holding more feats than its slots is refused, and
+  nothing changes (no state change, no event):
+  - **(a)** `learnFeat` — RuntimeRuleError; `artifactId` = the feat id; checked after
+    `unknown-feat` and `feat-known`; refuses when held + 1 > slots; no `feat:learned`.
+  - **(b)** `levelSet`, through the shared build validator
+    (`validateBuild(runtime, race, entries, heldFeats?)` — an optional 4th parameter,
+    emitting the card only when the pack is feat-slotted and the build produced no other
+    card) — CharacterBuildError, `artifactId '(character)'`; levels unchanged, no
+    `level:reached`.
+  - **(c)** `awardXp` when the levels it would derive leave the held feats over the slots —
+    the new levels are computed before any mutation; CharacterBuildError,
+    `artifactId '(character)'`; `xp`, `classXp`, levels and events unchanged.
+  - **(d)** character and party **restore** (`restoreCharacter`, `restoreParty`; the build
+    validator's third path, fed the snapshot's `feats`) — RuntimeRuleError, nothing
+    minted. The unknown-feat `E-SNAP-01` card is unchanged and may appear alongside; the
+    held count includes unknown ids.
+- **Compatibility caveat (d).** A pack that adds `featSlots` makes `learnFeat` refuse once
+  a character's slots are full, and refuses to restore a snapshot holding more feats than
+  its slots. Packs that declare no `featSlots` are unaffected. Bundled-theme snapshots
+  taken before v1.8 already fail the `contentHash` identity check (FR-14), so this caveat
+  is reachable only through a pack that adds slots without changing content, or through
+  an edited snapshot.
 
 ### `bestiary`
 Map `monsterId → Statblock`: `name`, `threat` (number — the FR-16 budget weight), `level?`,
@@ -551,7 +593,8 @@ its state; `savedAt` is host metadata if a host wants it, never engine state.
 
 - **`characterState.feats` is now written (v1.6).** The field already existed; it is emitted
   only when the character holds a feat (absent until the first `learnFeat`), and restore
-  refuses an unknown feat id (`E-SNAP-01`).
+  refuses an unknown feat id (`E-SNAP-01`). v1.8: restore also refuses a character holding
+  more feats than its feat slots (`feat-slots-exceeded`, see §progression).
 - **`pendingTrigger` is legacy-read-only (v1.6).** It is still read on restore when `offers`
   is absent; v1.6 writers no longer emit it (compatibility caveat (b), Version Registry
   row 7).
