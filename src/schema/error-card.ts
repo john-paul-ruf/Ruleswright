@@ -43,7 +43,7 @@ const RULE_ID_TUPLE = [
  * (database.md Versioning discipline). W-* / I-* prefixes are reserved; v1
  * registers none.
  *
- * E-SNAP-01/-02 are registered here but enforced by runtime/snapshots.ts (S06).
+ * E-SNAP-01/-02 are registered here but enforced by runtime/snapshots/ (S06).
  * E-SPAT-01 (v1.3, additive minor) is registered here and enforced by the
  * pack validator's spatial section plus the runtime's spatial gate (S03).
  */
