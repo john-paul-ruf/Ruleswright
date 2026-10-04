@@ -12,7 +12,7 @@ This plan is serial (S01 → S02 → S03). No wave has more than one session (ST
 
 **Dispatch gate:** none open.
 - The human answered on 2026-10-04: "1 decomp first 2 recommend 3 none". STATE.md records it and maps it to DD-D1, DD-D9/DD-D10 and DD-D12. Each envelope quotes it.
-- Request a scoped Archivist planning-completeness pass before S01.
+- Scoped Archivist planning-completeness pass done 2026-10-04 (STATE *Planning Completeness Review*); findings F-D1..F-D9 dispositioned and carried in the session envelopes.
 
 ## Protocol — each iteration (solo mode)
 
@@ -26,7 +26,7 @@ This plan is serial (S01 → S02 → S03). No wave has more than one session (ST
    git add -- <Owns>
    git commit -m "combat-decomposition SESSION-NN: checkpoint K — <name>" -- <Owns>
    ```
-   S03 ck1 deletes `src/runtime/snapshots.ts`. Commit it with the git CLI, `git add -A -- <paths>`, never unscoped and never through `commit_pathspec` (3658f327).
+   S03 ck1 deletes `src/runtime/snapshots.ts`. Commit it with the git CLI, never through `commit_pathspec` (3658f327), and never with `git add -A` (`CODER.md` bans it; F-D3): `git rm -- src/runtime/snapshots.ts`, `git add -- src/runtime/snapshots src/schema/error-card.ts`, `git commit -m "…" -- src/runtime/snapshots.ts src/runtime/snapshots src/schema/error-card.ts`.
 7. Verify:
    - the session checks;
    - PROGRAM-CONFIG compliance;

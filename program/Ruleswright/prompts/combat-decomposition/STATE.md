@@ -113,6 +113,7 @@ Dispositions:
 - **DD-D8: characterization test.**
   - `tests/proofs/combat-characterization.test.ts` pins `packContentHash` digests of the whole event stream and the snapshots for 8 scripted legs through the public barrel. Each leg also asserts its defining events are present.
   - The digests are captured from unmodified source at S01 ck1, and a negative control is required.
+  - **Amended (F-D1, preflight):** the pinned digest is sha256 of the raw, uncanonicalized `JSON.stringify({ events, snapshots })` (`packContentHash` sorts keys, so it cannot see payload key order); `packContentHash` may be kept as a second digest. The negative control must change hashed bytes.
   - **It is a behaviour pin.** Its re-key owner is any later feature that intentionally changes combat events or snapshot output; that feature's pin audit lists it.
 - **DD-D9 (human Q2 → recommendation): C1 retired, kept as public API.** `isLivePattern` is on the runtime barrel (`index.ts:56`) of a published package, and `conditions.test.ts:78-79` pins it. Removing it is a breaking surface change, and this feature promises none.
 - **DD-D10 (human Q2 → recommendation): C2 resolved by cross-pin.**
@@ -139,6 +140,7 @@ The facts being changed are *where symbols live* and *how `Combat` holds its int
 | `tests/snapshots/root.test.ts:42-48` | root adds no names beyond the three surfaces | holds (no barrel change) |
 | `src/runtime/index.ts:84`, `:100` | barrel paths `./snapshots`, `./combat/combat` | hold; file not edited |
 | `src/schema/error-card.ts:46` comment "enforced by runtime/snapshots.ts" | doc pin | **becomes stale at S03 ck1**; S03 owns it (comment → `runtime/snapshots/`) |
+| `specs/architecture.md:80`, `:88`, `:208` name `combat.ts`/`snapshots.ts` (F-D8; grep set had omitted `specs/`) | spec prose of file locations | **becomes stale at S03 ck1**; Author-owned, out of every lease — carried as spec drift to a Spec re-entry; final Archivist records it |
 | `mocks/dice.html:40` "combat.ts — API illustrative" | illustrative label | holds (`combat.ts` still exists); Author-owned, no action |
 | `arch/v1-core.md` (23 lines name `combat.ts`/`snapshots.ts`/`triggers.ts`, many with line numbers) | arch citations | Orchestrator integrates each session's arch delta; final Archivist re-keys them |
 | PROGRAM-CONFIG Module Registry M03 *Key Files* and intra-module notes (`snapshots.ts → {character, progression, combat/combat}`, `combat/combat.ts → combat/triggers.ts`) | registry facts | final Archivist pass re-derives them from value imports |
@@ -164,7 +166,9 @@ Recorded at `52d4d2a`, 2026-10-04, by Planner. Every result below was **actually
   - After S01 ck1: 52 files and N₁ tests. S01 records N₁, which stays constant through S02 and S03 ck1.
   - After S03 ck2: N₁ + 1.
 - **Hazards:**
-  - None known for these gates. No hang or zero-discovery is recorded for these commands in the inspected run records.
+  - No hang or zero-discovery is recorded for these commands in the inspected run records.
+  - **Stale `dist/` (F-D6):** `tests/proofs/{spells,equipment,loot}-journey.test.ts` import `dist/`; their freshness checks only test export presence, so a stale build passes. Run `pnpm build` before `pnpm test` at every checkpoint gate.
+  - **Linted scratch (F-D6):** `eslint.config.mjs` ignores `program/` but not `.program/`; workers write no scratch there.
   - The `docs-run` README compile leg takes about 0.8 s.
   - `dist/` is gitignored build output. V4/V5 read the build just produced, so run `pnpm build` immediately before them in the same checkpoint (artifact freshness).
 - **Inspected and not run:** CI (`.github/workflows/ci.yml`: Node 18/20/22 matrix) is CI's job (Custom Rule 5). Locally the runtime is Node v24.20.0.
@@ -185,16 +189,45 @@ Recorded at `52d4d2a`, 2026-10-04, by Planner. Every result below was **actually
 | ID | Required meaning / authority | Producer → boundary → consumer | Mapping / constraints | Correction + proof owners / checkpoints | Agreement | Producer | Proof / evidence / checked sources |
 |---|---|---|---|---|---|---|---|
 | CA-D1 | Public surface identical (DD-D2, DD-D5) | moved symbols → `combat.ts`/`snapshots/index.ts` re-exports → `src/runtime/index.ts`, tests, `dist/*.d.ts` | every value and type name exported today from `src/runtime/index.ts`, `src/runtime/combat/combat`, `src/runtime/snapshots` stays exported under the same name; `triggers.ts`'s 7 values stay; the only public `.d.ts` member delta is the `state` accessor | S01 (pin ck1, proof ck5), S02 ck4, S03 ck1/ck2 | agreed | ready (base) | planned: `module-surface.test.ts`, V4, V5; checked `index.ts` l.1-170, `dist/runtime.d.ts` at `52d4d2a` |
-| CA-D2 | Event stream and state equivalent (FR-10/FR-13 provenance; DD-M10 pause/resume; DD-S12 no-chain; DD-S14 offer counter) | `Combat` verbs → moved functions over `FightCore` → `EventStream` → host | each moved body is verbatim except `this.` → `core.`/argument; the nesting order of `core.collect` and `executeBound`'s sink unchanged; `surfaceOffers` per-call order unchanged; `setClock` call sites unchanged; `state` replaced by whole-object reassignment exactly where it is today | S01 ck1–ck5, S02 ck1–ck4 | agreed | ready (base) | planned: characterization digests (S01 ck1, negative control required) + full suite unmodified |
+| CA-D2 | Event stream and state equivalent (FR-10/FR-13 provenance; DD-M10 pause/resume; DD-S12 no-chain; DD-S14 offer counter) | `Combat` verbs → moved functions over `FightCore` → `EventStream` → host | each moved body is verbatim except `this.` → `core.`/argument; the nesting order of `core.collect` and `executeBound`'s sink unchanged; `surfaceOffers` per-call order unchanged; `setClock` call sites unchanged; `state` replaced by whole-object reassignment exactly where it is today | S01 ck1–ck5, S02 ck1–ck4 | agreed | ready (base) | planned: characterization digests — raw sha256 per F-D1 (S01 ck1, byte-changing negative control required) + full suite unmodified |
 | CA-D3 | Snapshot JSON and refusals equivalent (FR-14, CA-1, DD-S14) | `snapshots/{character,combat}.ts` → envelope JSON → host / `deserializeCombat` | verbatim move; `SNAPSHOT_VERSION`, `COMBAT_PHASES`, `UINT32_MAX_WORD`, refusal card order unchanged; `snapshots.schema.json` untouched | S03 ck1 | agreed | ready (base) | planned: characterization legs 7–8 + `tests/snapshots/**` unmodified |
 | CA-D4 | Layering preserved (PROGRAM-CONFIG Architecture; runtime never imports compiler) | new files → value imports | the DAG in *Architecture Reference*; no value cycle among `combat/*.ts`; no new cross-module edge; `combat/*.ts` except `resolve.ts` never names `parseFormula`/`parseEffect` (CA-2 discipline) | S01 ck5, S02 ck4, S03 ck1 (each derives its imports mechanically) | agreed | ready (base) | planned: grep derivation per session; `module-surface.test.ts` no-parse sweep; `pnpm check:isolation` |
 | CA-D5 | The table-depth bound is one value in both layers (database.md: bounded at load, E-TBL-01) | `core/tables.ts:32` and `schema/validate/helpers.ts:544` → `rollTable` / `checkTables` | equal; declared separately (layering) and pinned together | S03 ck2 | agreed | ready (both 8 at `52d4d2a`) | planned: new `tables.test.ts` case + negative control |
 
 No CA is provisional: every producer is the committed base behaviour.
 
+## Planning Completeness Review
+
+Scoped Archivist pass (ARCH-PRE, handle h-oiys), 2026-10-04. **Reviewed plan revision `db54362`; source revision `c851de2`** (`src`/`tests` byte-identical at `db54362`). Scope: CAP-D1..D4, CA-D1..D5, S01–S03.
+
+| # | Dimension | Verdict | Evidence (summary) |
+|---|---|---|---|
+| D1 | requirement coverage | pass | each CAP-D1..D4 has one owner; human answers mapped (DD-D1, DD-D9/D10, DD-D12); carried items owned |
+| D2 | fact origins | pass | every cited symbol exists at its cited line (F-D10); digests/N₁ produced at S01 ck1 |
+| D3 | ownership | **fail → corrected** | private `balancesOf` (`combat.ts:853`, called l.692, l.1569) had no mover (F-D2); `specs/architecture.md:80,88,208` drift unowned (F-D8) |
+| D4 | lease coverage | **fail → corrected** | S03 ck2 negative control writes `src/schema/validate/helpers.ts` outside Owns (F-D4); S03 ck1 / MASTER step 6 prescribe banned `git add -A` (F-D3, `CODER.md:17,547`) |
+| D5 | declared vs real dependencies | **fail → corrected** | S02's `resolveReactiveAgainst` needs `balancesOf`, which S01 did not produce (F-D2) |
+| D6 | early integration | pass | S01 ck1 characterization journey through `src/runtime/index.ts` + JSON round trip before any move; oracle strengthened by F-D1, legs re-pointed by F-D5 |
+| D7 | runtime wiring | pass | every new file consumed by production `combat.ts` / `snapshots/index.ts` → `src/runtime/index.ts:84/100` |
+
+Raw note: Orchestrator scratch (`.program/archivist-notes.md`). Findings and dispositions (Orchestrator, 2026-10-04, under standing authority — plan-text corrections inside existing leases plus one controlled lease revision; no product or destructive decision). The corrections are carried as **envelope amendments that supersede the SESSION text** (builder-rulings precedent); the SESSION files are not rewritten.
+
+| F | Finding (verified by Orchestrator where marked ✓) | Blocks | Disposition / owner |
+|---|---|---|---|
+| F-D1 ✓ | `packContentHash` canonicalizes (sorts keys, `version.ts:49-55`), so the digest cannot see payload key order; both suggested negative controls change no hashed byte | S01 | S01 ck1 amendment: the pinned digest is sha256 (`node:crypto`) of the **raw** `JSON.stringify({ events, snapshots })`; `packContentHash` may be kept as a second digest. Negative control must change bytes (the `amount`/`hp` key swap at `combat.ts:1458-1460` now qualifies, or alter a `why.rule` string); closing check: raw digest fails under the perturbation, passes after revert. DD-D8 and CA-D2 read accordingly. |
+| F-D2 ✓ | `balancesOf` (Combat private, l.853) is moved by no session | S02 (fixed in S01) | S01 ck2 amendment: move `balancesOf(actor)` to `combatants.ts` (explicit-argument function; uses no `this` beyond the call site). S02 imports it from `./combatants`. Closing check: `grep -n balancesOf src/runtime/combat/combat.ts` shows only call sites. |
+| F-D3 ✓ | S03 ck1 / MASTER step 6 deletion recipe uses banned `git add -A` | S03 | S03 amendment + MASTER step 6 corrected: `git rm -- src/runtime/snapshots.ts`; `git add -- src/runtime/snapshots src/schema/error-card.ts`; `git commit -m … -- src/runtime/snapshots.ts src/runtime/snapshots src/schema/error-card.ts` (still the git CLI, rec 3658f327). |
+| F-D4 | S03 ck2 negative control edits `src/schema/validate/helpers.ts` outside Owns | S03 | Controlled lease revision at S03 dispatch: S03 Owns rev 2 adds `src/schema/validate/helpers.ts` **scratch-only, never committed**; revert verified with `git diff --quiet -- src/schema/validate/helpers.ts`. |
+| F-D5 | legs 3 and 4 copy setups from `spells-journey`/`equipment-journey`, which import `dist/` | S01 | S01 ck1 amendment: every leg imports from `src/runtime/index`, `src/compiler`, `src/core/rng` — never `dist`. |
+| F-D6 | Baseline "Hazards: none" is wrong: `spells-journey`, `equipment-journey`, `loot-journey` read `dist/` (stale build passes their freshness checks); `eslint.config.mjs` ignores `program/` but not `.program/` | all | Hazards recorded below; every checkpoint gate runs `pnpm build` before `pnpm test`; workers write no scratch into `.program/`. |
+| F-D7 | the value-import grep misses multi-line `import {` statements | S01 ck5, S02 ck4 | amendment: derive per statement (join each import/export-from statement, drop `import type`, print the module path). |
+| F-D8 | `specs/architecture.md:80,88,208` name `combat.ts`/`snapshots.ts`; stale at S03 ck1 (precedent: `:62` still says `validate.ts`) | — | Author-owned spec, permanently out of every lease. Carried as spec drift: owner Spec re-entry (human-authorized); final Archivist pass records it. Not blocking. |
+| F-D9 | drifted citations: `triggers.ts` `offersForEvent` l.81, `emitOffer` l.118, `emitDeclined` l.134; combat types end l.226; S02 ck4 header is l.1-32 and has no trigger paragraph | — | corrected in envelopes; informational. |
+| F-D10 | all other premises confirmed (signatures carry bodies with only `this.` → argument; DD-D3 safe; DAG acyclic; DD-D4 pin text; 52 files after ck1; S03 resolution) | — | none |
+
 ## Current Blockers
 
-None. No human input is outstanding. Before S01 dispatches, request a scoped Archivist planning-completeness pass (D1–D7). If it finds a defect, correct the affected session before dispatch.
+None open. The planning-completeness findings F-D1..F-D9 are dispositioned above (corrections carried in the S01/S02/S03 envelopes; F-D4 by controlled lease revision at S03 dispatch; F-D8 carried as spec drift). No human input is outstanding.
 
 ## Handoff Notes
 
