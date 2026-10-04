@@ -159,6 +159,8 @@ export interface ClassProgression {
   saves: Record<string, number[]>;
   /** Vancian slots per class level, indexed by spell level (FR-8); levels need not be contiguous. */
   slots?: Record<string, number[]>;
+  /** v1.8 (FR-6) — feats the class grants in total at each class level (index 0 = level 1); summed across classes. Absent in a pack that declares any = 0; a pack declaring none has no cap. */
+  featSlots?: number[];
 }
 
 /** $defs/statblock — monsters use the same character machinery (FR-16). */

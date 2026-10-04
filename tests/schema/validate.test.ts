@@ -958,3 +958,53 @@ describe('v1.6 trigger grammar (DD-S13, CAP-S7) — checkTrigger enforces the ev
     ]);
   });
 });
+
+describe('progression featSlots (v1.8, CAP-F1)', () => {
+  const slotted = (pack: Pack): void => {
+    pack.progression.warden!.featSlots = [1, 1, 2, 2];
+    pack.progression.hexer!.featSlots = [1, 1, 1, 2];
+  };
+  const paths = (cards: ReturnType<typeof errorsFor>): string[][] =>
+    cards.map((card) => [card.rule, card.jsonPath]);
+
+  it('every class declaring valid featSlots gives zero cards', () => {
+    expect(errorsFor(slotted)).toEqual([]);
+  });
+
+  it('a class with featSlots beside one without is valid (opt-in per class, DD-F3)', () => {
+    expect(errorsFor((pack) => (pack.progression.warden!.featSlots = [1, 1, 2, 2]))).toEqual([]);
+  });
+
+  it('a negative entry is E-SCHEMA-01 at its index', () => {
+    const cards = errorsFor((pack) => (pack.progression.warden!.featSlots = [1, -1, 2, 2]));
+    expect(paths(cards)).toEqual([['E-SCHEMA-01', 'progression.warden.featSlots[1]']]);
+  });
+
+  it('a non-integer entry is E-SCHEMA-01 at its index', () => {
+    const cards = errorsFor((pack) => (pack.progression.warden!.featSlots = [1, 1.5, 2, 2]));
+    expect(paths(cards)).toEqual([['E-SCHEMA-01', 'progression.warden.featSlots[1]']]);
+  });
+
+  it('an empty array is E-SCHEMA-01 at featSlots', () => {
+    const cards = errorsFor((pack) => (pack.progression.warden!.featSlots = []));
+    expect(paths(cards)).toEqual([['E-SCHEMA-01', 'progression.warden.featSlots']]);
+  });
+
+  it('a decrease is E-SCHEMA-01 at the index of the lower value', () => {
+    const cards = errorsFor((pack) => (pack.progression.warden!.featSlots = [1, 2, 1, 2]));
+    expect(paths(cards)).toEqual([['E-SCHEMA-01', 'progression.warden.featSlots[2]']]);
+  });
+
+  it('an array shorter than the shortest saves array is E-SCHEMA-01 at featSlots', () => {
+    const cards = errorsFor((pack) => (pack.progression.warden!.featSlots = [1, 1, 2]));
+    expect(paths(cards)).toEqual([['E-SCHEMA-01', 'progression.warden.featSlots']]);
+    expect(cards[0]!.message).toContain('read 4');
+  });
+
+  it('featSlots given as a string is E-SCHEMA-01', () => {
+    const cards = errorsFor(
+      (pack) => ((pack.progression.warden as unknown as Record<string, unknown>).featSlots = '1,1,2,2'),
+    );
+    expect(paths(cards)).toEqual([['E-SCHEMA-01', 'progression.warden.featSlots']]);
+  });
+});

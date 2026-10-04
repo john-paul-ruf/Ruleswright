@@ -2,7 +2,8 @@
  * The progression section: per-class tables keyed BY class id (each entry is
  * the class’s own table, not a second artifact). Owns the XOR rule — exactly
  * one attack convention (attackTable or attackBonus) per class — plus hd dice,
- * save progressions, and vancian slot tables.
+ * save progressions, vancian slot tables, and v1.8 feat slots (non-negative,
+ * non-decreasing running totals covering every level the saves can read).
  */
 import type { Ctx } from '../context';
 import { makeErrorCard } from '../../error-card';
@@ -56,7 +57,13 @@ export function checkProgression(ctx: Ctx, value: unknown): void {
       continue;
     }
     reqFields(ctx, prog, ['hd', 'saves'], classId, basePath);
-    forbidUnknown(ctx, prog, ['hd', 'attackTable', 'attackBonus', 'saves', 'slots'], classId, basePath);
+    forbidUnknown(
+      ctx,
+      prog,
+      ['hd', 'attackTable', 'attackBonus', 'saves', 'slots', 'featSlots'],
+      classId,
+      basePath,
+    );
     const hd = prog['hd'];
     if (hd !== undefined && !HD_DICE.includes(hd as string)) {
       add(
@@ -154,6 +161,48 @@ export function checkProgression(ctx: Ctx, value: unknown): void {
             `vancian slot table for spell level ${level}`,
             0,
           );
+        }
+      }
+    }
+    const featSlots = prog['featSlots'];
+    if (featSlots !== undefined) {
+      checkIntegerArray(ctx, featSlots, classId, `${basePath}.featSlots`, 'feat slot progression', 0);
+      if (
+        Array.isArray(featSlots) &&
+        featSlots.length > 0 &&
+        featSlots.every((n) => isInteger(n) && n >= 0)
+      ) {
+        // non-decreasing (DD-F4): a level-up never removes a slot
+        for (let i = 1; i < featSlots.length; i += 1) {
+          if (featSlots[i]! < featSlots[i - 1]!) {
+            add(
+              ctx,
+              makeErrorCard(
+                'E-SCHEMA-01',
+                classId,
+                `${basePath}.featSlots[${i}]`,
+                `feat slots must not decrease from one level to the next (level ${i} → ${i + 1}).`,
+              ),
+            );
+          }
+        }
+        // coverage (DD-F4): every readable level reads a value
+        if (isPlainObject(saves)) {
+          const lengths = Object.values(saves)
+            .filter(Array.isArray)
+            .map((values) => values.length);
+          const ceiling = lengths.length > 0 ? Math.min(...lengths) : 0;
+          if (featSlots.length < ceiling) {
+            add(
+              ctx,
+              makeErrorCard(
+                'E-SCHEMA-01',
+                classId,
+                `${basePath}.featSlots`,
+                `feat slots cover ${featSlots.length} level(s); the class's tables read ${ceiling} — declare a value for every level (FR-6).`,
+              ),
+            );
+          }
         }
       }
     }
