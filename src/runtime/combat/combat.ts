@@ -33,7 +33,7 @@
 import type { ActionDef, ActionCost } from '../../schema/artifacts';
 import { Rng, type RandomSource, type RngState } from '../../core/rng';
 import type { Runtime } from '../runtime';
-import type { RuntimeEvent, EventClock } from '../events';
+import type { RuntimeEvent } from '../events';
 import { emitDeclined, emitOffer, offersForEvent } from './triggers';
 import {
   checkCost,
@@ -41,189 +41,55 @@ import {
   replenish,
   resolveSlotGrants,
   spend,
-  type CostRejection,
   type EconomyBalances,
   type SlotGrants,
   type SlotLedger,
 } from './action-economy';
-import {
-  effectVars,
-  executeAgainst,
-  type BoundAction,
-  type CombatantProfile,
-  type MutationRequest,
-  type Side,
-} from './resolve';
-import {
-  checkReach,
-  entryCost,
-  findPath,
-  terrainAt,
-  type MoveRejection,
-  type Position,
-  type SpatialRejection,
-  type TerrainCell,
-} from './spatial';
+import { effectVars, executeAgainst, type BoundAction, type CombatantProfile, type Side } from './resolve';
+import { checkReach, entryCost, findPath, terrainAt, type Position, type TerrainCell } from './spatial';
 import { evalFormula, evalValidity, valueOfFormula, type FormulaAst } from '../../core/dsl/formula';
 import { RuntimeRuleError, ruleCard } from '../errors';
 import { declaredTags, matchesRestriction } from '../conditions';
 import { displayRoll } from '../display-roll';
 import type { ErrorCard } from '../../schema/error-card';
+import {
+  applyMutation,
+  balancesOf,
+  combatantFeats,
+  copyBindings,
+  defeatedSide,
+  isDowned,
+  profileOf,
+  reachOf,
+  ruleBaseOf,
+  validityVars,
+} from './combatants';
+import type {
+  CastSlot,
+  CombatantState,
+  CombatState,
+  DeclareOptions,
+  DeclareRejection,
+  PendingMove,
+  PendingTrigger,
+  StartCombatRequest,
+  StepOutcome,
+  UseOptions,
+} from './types';
 
-/** One combatant's live combat state — plain JSON, snapshot-ready (FR-14). */
-export interface CombatantState {
-  readonly id: string;
-  readonly side: Side;
-  readonly name: string;
-  readonly hp: { current: number };
-  /** The heal cap, fixed at fight start (CA-EG4): `profile.maxHp`, else `max(0, profile.hp)` (R-9). */
-  readonly maxHp: number;
-  conditions: { conditionId: string; duration: number }[];
-  /** Per-turn slot ledger (CA-4): the combat transient, replenished each turn start. */
-  readonly slots: SlotLedger;
-  pools: Record<string, number>;
-  /** Spell level ("1") → remaining bound slot count (FR-8; consuming decrements). */
-  boundSlots: Record<string, number>;
-  /** Item id -> host-stated charges at fight start (CA-EG5, `balances.items`); never changes in the fight. */
-  readonly itemBalances: Readonly<Record<string, number>>;
-  /** Item id -> units SPENT in this fight (CA-EG5); remaining = itemBalances − itemsUsed. */
-  itemsUsed: Record<string, number>;
-  readonly abilities: Readonly<Record<string, number>>;
-  readonly saves: Readonly<Record<string, number>>;
-  readonly level: number;
-  readonly ac: number;
-  readonly initiativeBonus: number;
-  /** v1.5 — the profile's movement budget (`formulas.speed`); absent when the pack declares none. */
-  readonly speed?: number;
-  readonly actions: readonly string[];
-  /** v1.6 — spell ids this combatant may declare (`profile.spells`; empty = none, DD-S4). */
-  readonly spells: readonly string[];
-  /** v1.6 — spell level → the slot bindings at fight start (`balances.bindings`, deep copy); absent = count-only. */
-  readonly bindings?: Readonly<Record<string, readonly (string | null)[]>>;
-  /** v1.6 — spell level → slot indices cast in this fight (CA-S2); `boundSlots` = start − cast. */
-  slotsCast: Record<string, number[]>;
-  /** v1.6 — pool id → points SPENT in this fight (CA-S2); `pools` = start − spent. */
-  poolsSpent: Record<string, number>;
-  /** v1.6 — the equipped armor that blocks vancian casts (`profile.castBlockedBy`, DD-S6); absent = not blocked. */
-  readonly castBlockedBy?: string;
-  /** v1.6 — the reactive feats this combatant holds (`profile.feats`, DD-S12); present only when non-empty (absent = none). */
-  readonly feats?: readonly string[];
-  readonly attackTable?: readonly { level: number; byDefense: Record<string, number> }[];
-  readonly attackBonus?: number;
-  /** The host-declared grid position (FR-11); absent in theater-of-mind packs. */
-  readonly position?: Position;
-  /** v1.5 — a move paused by open leaving-reach offers; absent = no paused move (DD-M10). */
-  readonly pendingMove?: PendingMove;
-}
-
-/** A paused move (DD-M10/DD-M12): it resumes toward `to` with `remaining` budget once the offer queue empties. */
-export interface PendingMove {
-  readonly actionId: string;
-  readonly to: Position;
-  readonly remaining: number;
-}
-
-/** The one combat state object — plain JSON end to end (FR-14). */
-export interface CombatState {
-  readonly round: number;
-  readonly turn: number;
-  /** Initiative order: combatant ids, highest first (ties: declared order). */
-  readonly order: readonly string[];
-  readonly active: string;
-  readonly phase: CombatPhase;
-  readonly combatants: Readonly<Record<string, CombatantState>>;
-  readonly rng: RngState;
-  /** v1.5 — host-placed terrain cells for this fight (`[]` when none); never frozen in snapshots. */
-  readonly terrain: readonly TerrainCell[];
-}
-
-export type CombatPhase = 'awaiting-declare' | 'resolved' | 'awaiting-trigger-response' | 'combat-over';
-
-/** A declared-but-not-yet-resolved action (host may still be animating). */
-export interface PendingAction {
-  readonly actionId: string;
-  readonly targetId: string | undefined;
-}
-
-/** An offered reactive action or feat awaiting `respond()` (FR-4/FR-13, triggers.html; feats v1.6, DD-S12). */
-export interface PendingTrigger {
-  readonly triggerId: string;
-  readonly actorId: string;
-  /** The offered id: a reactive action id, or a feat id when `source` is `'feat'`. */
-  readonly actionId: string;
-  /** v1.6 — what is offered: a reactive action, or a held reactive feat (DD-S12). */
-  readonly source: 'action' | 'feat';
-  /** The event that matched, as the offer's provenance. */
-  readonly matchingEvent: string;
-}
-
-export interface DeclareOptions {
-  /** Optional explicit target; a single-enemy action resolves to the only opponent otherwise. */
-  readonly targetId?: string;
-  /** v1.5 — a move action's destination (FR-11); ignored by theater-of-mind packs. */
-  readonly to?: Position;
-  /** v1.6 — a burst spell's area center; may be an empty cell (DD-S8). Spatial packs only; theater packs ignore it. */
-  readonly at?: Position;
-}
-
-/** Why a declare was rejected — one ErrorCard-shaped object, play-time economy family. */
-export type DeclareRejection =
-  | CostRejection
-  | {
-      kind:
-        | 'no-action'
-        | 'not-your-turn'
-        | 'no-target'
-        | 'restricted'
-        | 'invalid-target'
-        | 'unknown-target'
-        | 'armor-not-castable'
-        | 'unknown-item'
-        | 'not-consumable'
-        | 'no-charges';
-      rule: 'E-REF-01';
-      resource: string;
-      message: string;
-    }
-  | SpatialRejection
-  | MoveRejection
-  | {
-      kind: 'out-of-range';
-      rule: 'E-SPAT-01';
-      resource: string;
-      message: string;
-    }
-  | {
-      kind: 'valid';
-      rule: 'E-REF-01';
-      resource: string;
-      message: string;
-    };
-
-/** `fight.use` options (CA-EG5): the item's target, defaulting to the user itself. */
-export interface UseOptions {
-  readonly target?: string;
-}
-
-/** What one `step()` call advanced — the stepwise boundary (FR-10). */
-export type StepOutcome =
-  | { kind: 'turn-started'; combatantId: string; clock: EventClock }
-  | { kind: 'awaiting-declare'; combatantId: string }
-  | { kind: 'action-resolved'; combatantId: string; actionId: string }
-  | { kind: 'turn-ended'; combatantId: string }
-  | { kind: 'round-completed'; round: number }
-  | { kind: 'combat-over' };
-
-export interface StartCombatRequest {
-  readonly allies: readonly { id: string; profile: CombatantProfile; balances?: EconomyBalances }[];
-  readonly enemies: readonly { id: string; profile: CombatantProfile; balances?: EconomyBalances }[];
-  /** Host-declared grid positions (FR-11); every combatant needs one when the pack declares a spatial model. */
-  readonly positions?: Readonly<Record<string, Position>>;
-  /** v1.5 — host-placed terrain cells; kinds come from the pack's `spatial.terrain` vocabulary. */
-  readonly terrain?: readonly TerrainCell[];
-  /** Initiative roll source; defaults to the injected rng. */
-  readonly rng?: RandomSource;
-}
+export type {
+  CombatantState,
+  PendingMove,
+  CombatState,
+  CombatPhase,
+  PendingAction,
+  PendingTrigger,
+  DeclareOptions,
+  DeclareRejection,
+  UseOptions,
+  StepOutcome,
+  StartCombatRequest,
+} from './types';
 
 /**
  * Start a fight: build plain-JSON combatant state from profiles, roll
@@ -361,15 +227,6 @@ export function startCombat(runtime: Runtime, request: StartCombatRequest): Comb
     why: { rule: 'combat.startCombat', rolls: whyRolls },
   });
   return fight;
-}
-
-/** A plain-JSON copy of slot bindings (FR-14: state never aliases host objects). */
-export function copyBindings(
-  bindings: Readonly<Record<string, readonly (string | null)[]>>,
-): Record<string, (string | null)[]> {
-  const copy: Record<string, (string | null)[]> = {};
-  for (const [level, slots] of Object.entries(bindings)) copy[level] = [...slots];
-  return copy;
 }
 
 /** Plain-JSON copies of host terrain cells (FR-14: state never aliases host objects). */
@@ -643,7 +500,7 @@ export class Combat {
     if (validity !== undefined) {
       const ok = evalValidity(
         validity,
-        this.validityVars(actor),
+        validityVars(actor),
         (shape) => this.resolveShape(shape, actor, target.combatant.position, target.combatant).length > 0,
       );
       if (!ok) {
@@ -689,7 +546,7 @@ export class Combat {
         }),
       ];
     }
-    const costRejection = checkCost(def.cost, this.grants, this.balancesOf(actor));
+    const costRejection = checkCost(def.cost, this.grants, balancesOf(actor));
     if (costRejection !== undefined) {
       return [this.rejectionEvent(actorId, costRejection)];
     }
@@ -850,10 +707,6 @@ export class Combat {
     this.runtime.events.setClock({ round: this.state.round, turn: this.state.turn });
   }
 
-  private balancesOf(actor: CombatantState): EconomyBalances {
-    return { pools: actor.pools, boundSlots: actor.boundSlots };
-  }
-
   /**
    * The restricts gate (v1.1 matcher, `conditions.ts`): the first active
    * condition pattern, in condition order, matching one of the declared tags
@@ -944,7 +797,7 @@ export class Combat {
   private spatialGate(actor: CombatantState, target: CombatantState): DeclareRejection | undefined {
     return checkReach(
       this.runtime.spatial,
-      { position: actor.position, reach: this.reachOf(actor.id) },
+      { position: actor.position, reach: reachOf(this.runtime, actor.id) },
       { id: target.id, position: target.position },
       this.runtime.pack.spatial?.reach.default ?? 1,
     );
@@ -1018,7 +871,7 @@ export class Combat {
       };
     }
     const floor = this.runtime.pack.spatial?.reach.default ?? 1;
-    const range = declared ?? Math.max(this.reachOf(actor.id) ?? floor, floor);
+    const range = declared ?? Math.max(reachOf(this.runtime, actor.id) ?? floor, floor);
     const distance = geometry.distance(actor.position, center);
     if (distance <= range) return undefined;
     return {
@@ -1066,7 +919,7 @@ export class Combat {
         },
       };
     }
-    const profile = this.profileOf(actor);
+    const profile = profileOf(actor);
     const budget = valueOfFormula(evalFormula(budgetAst, effectVars(profile, profile), ZERO_RNG));
     const plan = findPath(geometry, this.pathQuery(actor, from, to, budget));
     if (!plan.ok) {
@@ -1132,7 +985,7 @@ export class Combat {
   ): void {
     const from = this.state.combatants[moverId]!.position!;
     const kindAt = terrainAt(this.runtime.pack.spatial?.terrain ?? {}, this.state.terrain);
-    const why = { rule: this.ruleBaseOf(actionId), rolls: [] };
+    const why = { rule: ruleBaseOf(this.runtime, actionId), rolls: [] };
     const walked: Position[] = [];
     let cost = 0;
     let at = from;
@@ -1186,7 +1039,7 @@ export class Combat {
     return this.state.order.filter((id) => {
       const other = this.state.combatants[id]!;
       if (other.side === mover.side || isDowned(other) || other.position === undefined) return false;
-      const reach = this.reachOf(id) ?? 1;
+      const reach = reachOf(this.runtime, id) ?? 1;
       return geometry.canReach(other.position, at, reach) && !geometry.canReach(other.position, next, reach);
     });
   }
@@ -1233,7 +1086,7 @@ export class Combat {
       type: 'move:ended',
       actor: moverId,
       payload: { reason, at: { ...at } },
-      why: { rule: this.ruleBaseOf(actionId), rolls: [] },
+      why: { rule: ruleBaseOf(this.runtime, actionId), rolls: [] },
     });
   }
 
@@ -1294,8 +1147,8 @@ export class Combat {
           other.side !== actor.side &&
           other.position !== undefined &&
           actor.position !== undefined &&
-          this.reachOf(actor.id) !== undefined &&
-          geometry.canReach(actor.position, other.position, this.reachOf(actor.id)!)
+          reachOf(this.runtime, actor.id) !== undefined &&
+          geometry.canReach(actor.position, other.position, reachOf(this.runtime, actor.id)!)
         );
       });
     }
@@ -1311,18 +1164,6 @@ export class Combat {
       return geometry.inBurst(center, radius, candidates);
     }
     return [];
-  }
-
-  /** The declare-time validity context: abilities ∪ saves ∪ level (pack v1.1 names, FR-3). */
-  private validityVars(actor: CombatantState): Readonly<Record<string, number>> {
-    return { ...actor.abilities, ...actor.saves, level: actor.level };
-  }
-
-  /** The actor's pack-declared reach: its override key, else the model's default (spatial.html). */
-  private reachOf(id: string): number | undefined {
-    const reach = this.runtime.pack.spatial?.reach;
-    if (reach === undefined) return undefined;
-    return reach[id] ?? reach.default;
   }
 
   /**
@@ -1396,16 +1237,23 @@ export class Combat {
         actor: actor.id,
         ...(typeof cast['targetId'] === 'string' ? { target: cast['targetId'] } : {}),
         payload: cast,
-        why: { rule: this.ruleBaseOf(actionId), rolls: [] },
+        why: { rule: ruleBaseOf(this.runtime, actionId), rolls: [] },
       });
     }
-    this.execute(actor, this.boundActionOf(actionId, def), target, this.ruleBaseOf(actionId), move, at);
+    this.execute(
+      actor,
+      this.boundActionOf(actionId, def),
+      target,
+      ruleBaseOf(this.runtime, actionId),
+      move,
+      at,
+    );
     this.state = { ...this.state, phase: 'resolved' };
     this.runtime.events.emit({
       type: 'action:resolved',
       actor: actor.id,
       payload: at !== undefined ? { actionId, at: { x: at.x, y: at.y } } : { actionId, targetId: target.id },
-      why: { rule: `${this.ruleBaseOf(actionId)}`, rolls: [] },
+      why: { rule: `${ruleBaseOf(this.runtime, actionId)}`, rolls: [] },
     });
     this.endIfSideDefeated();
     return this.runtime.events.sinceRound(this.state.round);
@@ -1437,8 +1285,8 @@ export class Combat {
       let attackLanded: boolean | undefined;
       const outcomes = executeAgainst(
         boundAction,
-        { id: actor.id, side: actor.side, profile: this.profileOf(actor) },
-        { id: target.id, side: target.side, profile: this.profileOf(target) },
+        { id: actor.id, side: actor.side, profile: profileOf(actor) },
+        { id: target.id, side: target.side, profile: profileOf(target) },
         this.rng,
         (request) => {
           // CA-G4: burst scopes reach ids outside the primary target — apply
@@ -1448,7 +1296,7 @@ export class Combat {
           const isDamage = request.kind === 'damage';
           if (isDamage && attackLanded === false) return; // onHit anatomy: gated damage never applies
           const hpBefore = subject.hp.current; // captured before the (possibly clamped) mutation
-          this.applyMutation(subject, request);
+          applyMutation(this.runtime, subject, request);
           this.runtime.events.emit({
             type: isDamage ? 'damage:applied' : 'condition:applied',
             actor: actor.id,
@@ -1468,7 +1316,7 @@ export class Combat {
         (id) => {
           // DD-S19: every target a shape scope names saves and defends with its own values.
           const combatant = this.state.combatants[id];
-          return combatant === undefined ? undefined : this.profileOf(combatant);
+          return combatant === undefined ? undefined : profileOf(combatant);
         },
       );
       // Attack outcomes are events too (attack:rolled) — one per target, with the verdict.
@@ -1566,7 +1414,7 @@ export class Combat {
     reactor: CombatantState,
     target: CombatantState,
   ): readonly RuntimeEvent[] {
-    const costRejection = checkCost(def.cost, this.grants, this.balancesOf(reactor));
+    const costRejection = checkCost(def.cost, this.grants, balancesOf(reactor));
     if (costRejection !== undefined) {
       return [this.rejectionEvent(reactor.id, costRejection)];
     }
@@ -1631,51 +1479,6 @@ export class Combat {
     return { id: actionId, def, ast };
   }
 
-  private profileOf(state: CombatantState): CombatantProfile {
-    return {
-      id: state.id,
-      abilities: state.abilities,
-      saves: state.saves,
-      level: state.level,
-      hp: state.hp.current,
-      maxHp: state.maxHp,
-      ac: state.ac,
-      initiativeBonus: state.initiativeBonus,
-      ...(state.speed !== undefined ? { speed: state.speed } : {}),
-      actions: state.actions,
-      attackTable: state.attackTable,
-      attackBonus: state.attackBonus,
-    };
-  }
-
-  /** The pack path every `why.rule` of a declare names: `content.spells.<id>` for a spell, else `actions.<id>`. */
-  private ruleBaseOf(actionId: string): string {
-    return this.runtime.pack.actions[actionId] === undefined &&
-      this.runtime.pack.content.spells?.[actionId] !== undefined
-      ? `content.spells.${actionId}`
-      : `actions.${actionId}`;
-  }
-
-  private applyMutation(target: CombatantState, request: MutationRequest): void {
-    if (request.kind === 'damage' && request.amount !== undefined) {
-      // CA-EG4 (R-2): a heal is a negative amount — never above maxHp, never
-      // lowering hp already above it. Damage keeps today's unfloored semantics.
-      const current = target.hp.current;
-      target.hp.current =
-        request.amount >= 0
-          ? current - request.amount
-          : current >= target.maxHp
-            ? current
-            : Math.min(target.maxHp, current - request.amount);
-    } else if (request.kind === 'condition' && request.conditionId !== undefined) {
-      const def = this.runtime.pack.content.conditions?.[request.conditionId];
-      target.conditions.push({
-        conditionId: request.conditionId,
-        duration: request.duration ?? def?.duration ?? 1,
-      });
-    }
-  }
-
   private rejectionEvent(actorId: string, rejection: DeclareRejection): RuntimeEvent {
     this.setClock();
     return this.runtime.events.emit({
@@ -1729,17 +1532,6 @@ export class Combat {
   }
 }
 
-/** The combatant `feats` field from a profile: present only when non-empty (DD-S12). */
-export function combatantFeats(profile: CombatantProfile): { feats?: readonly string[] } {
-  return profile.feats !== undefined && profile.feats.length > 0 ? { feats: [...profile.feats] } : {};
-}
-
-/** A vancian slot a cast consumes: the spell level and the slot index (DD-S18). */
-interface CastSlot {
-  readonly level: string;
-  readonly index: number;
-}
-
 /** The `spell:cast` payload (DD-S17): the spell, its aim, and what the cast spent. */
 function castPayload(
   spellId: string,
@@ -1787,22 +1579,11 @@ function selfTargetRefusal(
   };
 }
 
-/** A combatant at hp ≤ 0 is down: it takes no turns and is offered no triggers. */
-export function isDowned(combatant: CombatantState): boolean {
-  return combatant.hp.current <= 0;
-}
-
-/** The side whose every combatant is down, if any (a side with no combatants never counts as defeated). */
-export function defeatedSide(combatants: Readonly<Record<string, CombatantState>>): Side | undefined {
-  for (const side of ['allies', 'enemies'] as const) {
-    const members = Object.values(combatants).filter((combatant) => combatant.side === side);
-    if (members.length > 0 && members.every(isDowned)) return side;
-  }
-  return undefined;
-}
-
 /** Re-exported from the leaf so the runtime barrel keeps `displayRoll` where it was. */
 export { displayRoll };
+
+/** Moved to the pure combatant leaf; re-exported where tests and snapshots import them. */
+export { isDowned, defeatedSide, combatantFeats, copyBindings };
 
 /** A convenience alias for CombatState's rng — re-exported for the snapshot seam (S06). */
 export type { SlotLedger, SlotGrants };

@@ -21,7 +21,8 @@
 import type { Runtime } from '../runtime';
 import type { RuntimeEvent } from '../events';
 import type { ActionDef, FeatDef } from '../../schema/artifacts';
-import type { Combat, CombatantState, PendingTrigger } from './combat';
+import type { Combat } from './combat';
+import type { CombatantState, PendingTrigger } from './types';
 
 /** A reactive action registered from the pack: the action id + its pattern. */
 export interface ReactiveAction {
