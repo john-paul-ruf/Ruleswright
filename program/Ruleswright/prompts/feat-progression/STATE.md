@@ -26,7 +26,7 @@ No blocker gates S01. S01 is dispatchable.
 | # | Session | Modules | Owns | Status | Checkpoint | Completed | Notes |
 |---|---|---|---|---|---|---|---|
 | 01 | Author re-entry (DB): contract v1.8, `featSlots` | — (DB) | `program/Ruleswright/specs/database.md`, `src/schema/contracts/pack.schema.json` | done | 2/2 | 2026-10-04 | v1.8 landed: ck1 `3f63fd3`, ck2 `f4cc597`; CA-F1…F3 rechecked, no meaning delta |
-| 02 | Feat-slot column: mirror + validator, engine cap on every path, theme content, journey | M01, M03, M04 | `src/schema/artifacts.ts`, `src/schema/validate/sections/progression.ts`, `src/runtime/feats.ts`, `src/runtime/progression.ts`, `src/runtime/snapshots.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `README.md`, `tests/schema/validate.test.ts`, `tests/runtime/feats.test.ts`, `tests/runtime/progression.test.ts`, `tests/snapshots/character.test.ts`, `tests/compiler/coverage-floor.test.ts`, `tests/proofs/feat-slots-journey.test.ts` | pending | — | — | depends on S01 + CA recheck |
+| 02 | Feat-slot column: mirror + validator, engine cap on every path, theme content, journey | M01, M03, M04 | `src/schema/artifacts.ts`, `src/schema/validate/sections/progression.ts`, `src/runtime/feats.ts`, `src/runtime/progression.ts`, `src/runtime/snapshots.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `README.md`, `tests/schema/validate.test.ts`, `tests/runtime/feats.test.ts`, `tests/runtime/progression.test.ts`, `tests/snapshots/character.test.ts`, `tests/compiler/coverage-floor.test.ts`, `tests/proofs/feat-slots-journey.test.ts` | done | 4/4 | 2026-10-04 | ck1 `45483c5`, ck2 `a32ded2`, ck3 `7bf5fa6`, ck4 `f7f6e88`; 49 files 911/911; arch `3da588a` |
 
 ## Wave Plan
 
@@ -158,11 +158,11 @@ Observed by Planner at `2e69863` on 2026-10-04 (actual runs, not inherited):
 
 | ID | Approved behavior / entry point | Required facts + producer owners | CA IDs / prerequisites | Integration owner / checkpoint | Status | Proof / checked sources | Open gaps + correction owners |
 |----|---|---|---|---|---|---|---|
-| CAP-F1 | A pack may declare `progression.<id>.featSlots`. A malformed one is refused at load (`validatePack`, and the compiler's stage-8 dogfood) | contract property: S01 ck2; mirror + validator: S02 ck1 | CA-F1 | S02 ck1 | planned | `tests/schema/validate.test.ts` (S02 ck1) | — |
-| CAP-F2 | `learnFeat` refuses with `feat-slots-exceeded` when no slot is free. Slots sum across classes; an unslotted pack is uncapped | cap helper `feats.ts` (S02 ck2); `featSlots` data (pack) | CA-F1, CA-F2 | S02 ck2 | planned | `tests/runtime/feats.test.ts` (S02 ck2) | — |
-| CAP-F3 | `levelSet` and `awardXp` refuse any change that leaves held feats over the slots; nothing changes | `validateBuild` held-feats param, `awardXp` compute-then-apply (S02 ck2) | CA-F2 | S02 ck2 | planned | `tests/runtime/progression.test.ts` (S02 ck2) | F-FP1 carried to the human |
-| CAP-F4 | Character and party restore refuse an over-cap snapshot (human Q2), all cards at once, nothing minted | `characterStateRefusals` passes `saved.feats` (S02 ck2) | CA-F3 | S02 ck2 | planned | `tests/snapshots/character.test.ts` (S02 ck2) | — |
-| CAP-F5 | The bundled themes declare feat slots, so a generated character is capped end to end. **This is the feature's first narrow journey:** `generateCampaign` → `new Runtime` → `createCharacter` → `learnFeat` → `levelSet` / `awardXp` → `serializeCharacter` → JSON → `restoreCharacter` | theme content (S02 ck3) | CA-F1…F3 | S02 ck4 | planned | `tests/proofs/feat-slots-journey.test.ts` + coverage-floor (S02 ck3/ck4) | — |
+| CAP-F1 | A pack may declare `progression.<id>.featSlots`. A malformed one is refused at load (`validatePack`, and the compiler's stage-8 dogfood) | contract property: S01 ck2; mirror + validator: S02 ck1 | CA-F1 | S02 ck1 | verified | `tests/schema/validate.test.ts` 8 load cases — S02 ck1 `45483c5`; floor over all 9 classes — ck3 `7bf5fa6`; journey leg 1 — ck4 `f7f6e88` | — |
+| CAP-F2 | `learnFeat` refuses with `feat-slots-exceeded` when no slot is free. Slots sum across classes; an unslotted pack is uncapped | cap helper `feats.ts` (S02 ck2); `featSlots` data (pack) | CA-F1, CA-F2 | S02 ck2 | verified | `tests/runtime/feats.test.ts` 5 cases — S02 ck2 `a32ded2`; journey legs 2, 6, 8 — ck4 `f7f6e88` (negative control: those legs fail with the check removed) | — |
+| CAP-F3 | `levelSet` and `awardXp` refuse any change that leaves held feats over the slots; nothing changes | `validateBuild` held-feats param, `awardXp` compute-then-apply (S02 ck2) | CA-F2 | S02 ck2 | verified | `tests/runtime/progression.test.ts` 5 cases (3 fail against pre-S02 code) — S02 ck2 `a32ded2`; journey legs 3–5 — ck4 `f7f6e88` | F-FP1 carried to the human |
+| CAP-F4 | Character and party restore refuse an over-cap snapshot (human Q2), all cards at once, nothing minted | `characterStateRefusals` passes `saved.feats` (S02 ck2) | CA-F3 | S02 ck2 | verified | `tests/snapshots/character.test.ts` 4 cases — S02 ck2 `a32ded2`; journey leg 7 — ck4 `f7f6e88` | — |
+| CAP-F5 | The bundled themes declare feat slots, so a generated character is capped end to end. **This is the feature's first narrow journey:** `generateCampaign` → `new Runtime` → `createCharacter` → `learnFeat` → `levelSet` / `awardXp` → `serializeCharacter` → JSON → `restoreCharacter` | theme content (S02 ck3) | CA-F1…F3 | S02 ck4 | verified | theme content + floor — S02 ck3 `7bf5fa6`; `tests/proofs/feat-slots-journey.test.ts` legs 1–9 on generated seed-42 packs — ck4 `f7f6e88`; whole suite 49 files 911/911 (Orchestrator rerun at receive) | — |
 
 **Production path, all CAPs:** host → `Character.learnFeat` / `Runtime.levelSet` / `Runtime.awardXp` / `restoreCharacter` / `restoreParty` → `feats.ts` / `progression.ts` / `snapshots.ts` → `pack.progression[*].featSlots` (loaded through `validatePack`).
 - **Restart behaviour:** the cap is derived and never stored; `feats` round-trips through the character snapshot.
@@ -173,9 +173,9 @@ Observed by Planner at `2e69863` on 2026-10-04 (actual runs, not inherited):
 
 | ID | Required meaning / authority | Producer → boundary → consumer | Mapping / constraints | Correction + proof owners / checkpoints | Agreement | Producer | Proof / evidence / checked sources |
 |----|---|---|---|---|---|---|---|
-| CA-F1 | The meaning of `featSlots` (DD-F1…F5) | `pack.schema.json` `classProgression.featSlots` (S01) → `artifacts.ts` `ClassProgression.featSlots?` + `validate/sections/progression.ts` (S02 ck1) → `feats.ts` cap helper (S02 ck2) → theme JSON (S02 ck3) | see below | S01 ck1/ck2 text; S02 ck1/ck2/ck3 proofs | agreed (human Q1/Q3); landed v1.8, rechecked 2026-10-04 — no delta | contract: landed S01 ck1 `3f63fd3` (database.md §progression *Feat slots*) + ck2 `f4cc597` (`classProgression.featSlots`); mirror/validator/runtime: planned S02 ck1/ck2 | planned (S02 ck1/ck2/ck3, journey leg 1) |
-| CA-F2 | The refusal semantics (DD-F6a/b/d) | `feats.ts` `learnFeat`, `progression.ts` `validateBuild`/`levelSet`/`awardXp` → host | see below | S01 ck1 text; S02 ck2 proofs | agreed; landed v1.8, rechecked 2026-10-04 — no meaning delta (lettering, see below) | contract text: landed S01 ck1 `3f63fd3`; runtime: planned S02 ck2 | planned (S02 ck2, journey legs 2–6, 8) |
-| CA-F3 | Restore refusal (DD-F6c, human Q2) | snapshot JSON → `snapshots.ts` `characterStateRefusals` → `validateBuild` → `restoreCharacter` / `restoreParty` | see below | S01 ck1 text; S02 ck2 proof | agreed (human Q2); landed v1.8, rechecked 2026-10-04 — no meaning delta | contract text: landed S01 ck1 `3f63fd3` (§progression (d) + Snapshot Envelopes bullet); runtime: planned S02 ck2 | planned (S02 ck2, journey leg 7) |
+| CA-F1 | The meaning of `featSlots` (DD-F1…F5) | `pack.schema.json` `classProgression.featSlots` (S01) → `artifacts.ts` `ClassProgression.featSlots?` + `validate/sections/progression.ts` (S02 ck1) → `feats.ts` cap helper (S02 ck2) → theme JSON (S02 ck3) | see below | S01 ck1/ck2 text; S02 ck1/ck2/ck3 proofs | agreed (human Q1/Q3); landed v1.8, rechecked 2026-10-04 — no delta | contract: landed S01 ck1 `3f63fd3` (database.md §progression *Feat slots*) + ck2 `f4cc597` (`classProgression.featSlots`); mirror/validator: landed S02 ck1 `45483c5`; runtime helper: S02 ck2 `a32ded2`; theme data: ck3 `7bf5fa6` | **proven**: validate.test.ts (ck1 `45483c5`), coverage-floor 9/9 classes (ck3 `7bf5fa6`), journey leg 1 (ck4 `f7f6e88`) |
+| CA-F2 | The refusal semantics (DD-F6a/b/d) | `feats.ts` `learnFeat`, `progression.ts` `validateBuild`/`levelSet`/`awardXp` → host | see below | S01 ck1 text; S02 ck2 proofs | agreed; landed v1.8, rechecked 2026-10-04 — no meaning delta (lettering, see below) | contract text: landed S01 ck1 `3f63fd3`; runtime: landed S02 ck2 `a32ded2` | **proven**: feats.test.ts + progression.test.ts (ck2 `a32ded2`), journey legs 2–6, 8 (ck4 `f7f6e88`) |
+| CA-F3 | Restore refusal (DD-F6c, human Q2) | snapshot JSON → `snapshots.ts` `characterStateRefusals` → `validateBuild` → `restoreCharacter` / `restoreParty` | see below | S01 ck1 text; S02 ck2 proof | agreed (human Q2); landed v1.8, rechecked 2026-10-04 — no meaning delta | contract text: landed S01 ck1 `3f63fd3` (§progression (d) + Snapshot Envelopes bullet); runtime: landed S02 ck2 `a32ded2` | **proven**: snapshots/character.test.ts (ck2 `a32ded2`), journey leg 7 (ck4 `f7f6e88`) |
 
 **CA-F1 mapping**
 
@@ -237,7 +237,7 @@ No `fail`: no wave is blocked by the review.
 
 ## Current Blockers
 
-None. S01 is dispatchable (human answers 2026-10-04).
+None. S01 and S02 done 2026-10-04; nothing open blocks this feature.
 
 Open human questions, carried; none blocks this feature:
 - F-FP1: is `awardXp` lowering a directly-set level intended? Consequence under this plan (F-P3): a directly levelled character at its feat cap has every XP award below its level threshold refused, and small awards never accumulate (refusal leaves `classXp` unchanged).
@@ -260,3 +260,22 @@ followUp (verbatim): "Fix the lettering in the CA rows and STATE before S02 disp
 Deviations (verbatim, wording only): "Status line: SESSION-01's text ended with ")". I replaced that with "; v1.7: …" so the history still follows, as earlier versions did. I also added a short clause saying what caveat (d) is. Feat slots paragraph: besides the SESSION text, it also states things already in STATE.md and the CA-F2/CA-F3 mapping tables: the card shape, the held + 1 > slots condition, the condition for (b)'s optional parameter, and that the held count includes unknown ids. It also quotes the human answer."
 
 Disposition: accepted. Lettering resolved by citing paths by name (Contract Agreements, S01 recheck paragraph). No arch fragment (data and docs).
+
+### SESSION-02 — received 2026-10-04 (handle h-9nCb, base `3e3d384`) — done 4/4
+
+Commits: ck1 `45483c5`, ck2 `a32ded2`, ck3 `7bf5fa6`, ck4 `f7f6e88`. Every path inside the lease (`git show --name-only` per commit). Orchestrator gates at receive: typecheck 0, lint 0, format:check 0, build 0, `pnpm test` 49 files 911/911, check:isolation 0, check:security 0. `feats.ts` value-imports only `./errors`; `src/runtime/index.ts` and `character.ts` unchanged. Arch delta integrated at `3da588a`.
+
+Worker notes (verbatim): "Feat slots are live on every path. CAP-F1 (`featSlots` checked at load), CAP-F2 (`learnFeat` cap), CAP-F3 (`levelSet`/`awardXp` refuse), CAP-F4 (restore refuses) and CAP-F5 (9 theme classes slotted plus the generated-pack journey) are proven. CA-F1/F2/F3 proofs landed. Producer symbols: `featSlotTally`, `FeatSlotTally`, `featSlotsExceeded` (exported from `feats.ts`, not the barrel); `validateBuild`'s optional 4th parameter `heldFeats`; `awardXp` compute → check → apply. Lease revision 1."
+
+Checkpoint-0 recheck (worker): all five SESSION-02 checks held; no CA-F1..F3 meaning delta; paths cited by name.
+
+Negative control (worker): with `learnFeat`'s new check commented out, the journey went 4 failed / 4 passed (leg 2, leg 6, leg 8 zombie-urban, leg 8 wyldwood fail); check restored before commit.
+
+Surprises (verbatim): "The prompt's ck1 snippet gated the non-decreasing check on `every(isInteger)`, so a negative entry (for example `[1,-1,…]`) also counted as a decrease and gave two cards at the same path. The gate is now `isInteger(n) && n >= 0`, so each fault gives one card. This matches database.md's one-card-per-fault wording." / "`arch/v1-core.md` stale lines, as above (owner: Orchestrator)."
+
+Deviations (verbatim): "rule: R1; checkpoint: 2; paths: `src/runtime/progression.ts`; reason: F-P4. Because `awardXp` now computes before applying, an `invalid-xp-table` refusal is all-or-nothing; before, `character.xp` was changed before `levelForXp` threw. The new assertion in `tests/runtime/progression.test.ts` proves no change." / "rule: R1; checkpoint: 1; paths: `src/schema/validate/sections/progression.ts`; reason: the duplicate-card fix to the prompt's gate, described in surprises." (Both in-lease.)
+
+followUp (verbatim): "F-FP1 is unchanged and human-owned (DD-F10): `awardXp` can still lower a directly set level when no feat cap blocks it. Journey leg 5 and the `progression.test.ts` awardXp guard depend on that behaviour." / "F-FP2: the `features` doc row, owner DB." / "The arch fragment should retire the \"no feat-slot cap (FR-6 gap)\" lines in v1-core.md."
+
+Disposition: accepted. Arch delta appended at `3da588a` (marks l.272/l.567 for retirement; synthesis is Archivist's final pass). Feature sessions complete; CAP-F1..F5 verified; CA-F1..F3 proven.
+
