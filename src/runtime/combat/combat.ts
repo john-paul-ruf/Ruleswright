@@ -34,7 +34,7 @@ import type { ActionDef, ActionCost } from '../../schema/artifacts';
 import { Rng, type RandomSource, type RngState } from '../../core/rng';
 import type { Runtime } from '../runtime';
 import type { RuntimeEvent } from '../events';
-import { emitDeclined, emitOffer, offersForEvent } from './triggers';
+import { emitDeclined } from './triggers';
 import {
   checkCost,
   freshLedger,
@@ -64,6 +64,7 @@ import {
   ruleBaseOf,
   validityVars,
 } from './combatants';
+import { FightCore } from './fight';
 import type {
   CastSlot,
   CombatantState,
@@ -330,17 +331,16 @@ function rngStateOf(rng: RandomSource): RngState {
 /** The stepwise facade (api-map: fight.step / declare / respond / serialize). */
 export class Combat {
   readonly runtime: Runtime;
-  state: CombatState;
-  /** Open trigger offers (triggers.html): the host answers each via respond(). */
-  readonly pendingTriggers: PendingTrigger[] = [];
-  /** How many offers this fight has raised — the next `trigger:fired.offerIndex` (R-GM-1: restorable). */
-  private offerCounter: number;
-  /** Events already offered against — each (reactor, event) pair is offered once (F-P1). */
-  private readonly surfaced = new WeakSet<RuntimeEvent>();
-
-  private readonly grants: SlotGrants;
-  /** The fight's own dice stream — snapshot-resumable via state.rng (FR-14). */
-  private readonly rng: Rng;
+  get state(): CombatState {
+    return this.core.state;
+  }
+  set state(next: CombatState) {
+    this.core.state = next;
+  }
+  /** Open trigger offers (triggers.html): the host answers each via respond(). The core's own array (DD-D3). */
+  readonly pendingTriggers: PendingTrigger[];
+  /** The fight's mutable internals, shared with the combat files' free functions (DD-D3). */
+  private readonly core: FightCore;
 
   /**
    * `options.offeredCount` resumes the offer counter (v1.6, DD-S14): a restored
@@ -354,15 +354,19 @@ export class Combat {
     options: { readonly offeredCount?: number } = {},
   ) {
     this.runtime = runtime;
-    this.state = state;
-    this.grants = resolveSlotGrants(runtime.pack);
-    this.rng = rng;
-    this.offerCounter = options.offeredCount ?? 0;
+    this.core = new FightCore(
+      runtime,
+      state,
+      rng,
+      resolveSlotGrants(runtime.pack),
+      options.offeredCount ?? 0,
+    );
+    this.pendingTriggers = this.core.pendingTriggers;
   }
 
   /** How many offers this fight has raised so far — the snapshot's `offeredCount` (R-GM-1). */
   get offeredCount(): number {
-    return this.offerCounter;
+    return this.core.offerCounter;
   }
 
   get roundComplete(): boolean {
@@ -382,11 +386,11 @@ export class Combat {
     if (this.state.phase === 'combat-over') return { kind: 'combat-over' };
     if (this.state.phase === 'awaiting-declare') {
       if (isDowned(this.state.combatants[this.state.active]!)) {
-        this.setClock();
+        this.core.setClock();
         return this.advanceFrom(this.state.turn + 1, this.state.active);
       }
-      this.setClock();
-      replenish(this.state.combatants[this.state.active]!.slots, this.grants);
+      this.core.setClock();
+      replenish(this.state.combatants[this.state.active]!.slots, this.core.grants);
       this.runtime.events.emit({
         type: 'turn:began',
         actor: this.state.active,
@@ -414,7 +418,7 @@ export class Combat {
   private forfeitMove(): void {
     const pending = this.state.combatants[this.state.active]?.pendingMove;
     if (pending === undefined) return;
-    this.setClock();
+    this.core.setClock();
     this.endMove(this.state.active, pending.actionId, 'forfeited');
   }
 
@@ -445,7 +449,7 @@ export class Combat {
           };
     if (def === undefined) {
       return [
-        this.rejectionEvent(actorId, {
+        this.core.reject(actorId, {
           kind: 'no-action',
           rule: 'E-REF-01',
           resource: actionId,
@@ -455,7 +459,7 @@ export class Combat {
     }
     if (spell === undefined ? !actor.actions.includes(actionId) : !actor.spells.includes(actionId)) {
       return [
-        this.rejectionEvent(actorId, {
+        this.core.reject(actorId, {
           kind: 'no-action',
           rule: 'E-REF-01',
           resource: actionId,
@@ -468,14 +472,14 @@ export class Combat {
     }
     const restriction = this.restrictionRejection(actor, def, spell === undefined ? 'action' : 'spell');
     if (restriction !== undefined) {
-      return [this.rejectionEvent(actorId, restriction)];
+      return [this.core.reject(actorId, restriction)];
     }
     // DD-S8: `at` centers a burst spell on a cell (spatial packs only; theater packs drop it).
     // An `at` cast binds the caster as the nominal executor target — no statement reads it.
     const at = this.runtime.spatial.enabled ? options.at : undefined;
     if (at !== undefined) {
       const refusal = this.atRefusal(actionId, options.targetId);
-      if (refusal !== undefined) return [this.rejectionEvent(actorId, refusal)];
+      if (refusal !== undefined) return [this.core.reject(actorId, refusal)];
     }
     // A move action targets its actor: no opponent resolution, no reach gate (DD-M9).
     // Spells never move (a spell `move` is E-FORM-02), so the budget is action-only.
@@ -484,14 +488,14 @@ export class Combat {
     const selfAction = spell === undefined && isSelfAction(this.runtime, actionId);
     if (selfAction) {
       const refusal = selfTargetRefusal(actionId, actorId, options.targetId);
-      if (refusal !== undefined) return [this.rejectionEvent(actorId, refusal)];
+      if (refusal !== undefined) return [this.core.reject(actorId, refusal)];
     }
     const target =
       budgetAst !== undefined || at !== undefined || selfAction
         ? { combatant: actor }
         : this.resolveTarget(actor, options.targetId, spell !== undefined);
     if ('rejection' in target) {
-      return [this.rejectionEvent(actorId, target.rejection)];
+      return [this.core.reject(actorId, target.rejection)];
     }
     // The validity gate speaks before the spatial gate (validity-into-grid.html:
     // the hasTarget failure is what the declarative gate reports; reach is
@@ -505,7 +509,7 @@ export class Combat {
       );
       if (!ok) {
         return [
-          this.rejectionEvent(actorId, {
+          this.core.reject(actorId, {
             kind: 'valid',
             rule: 'E-REF-01',
             resource: actionId,
@@ -518,7 +522,7 @@ export class Combat {
     if (budgetAst !== undefined) {
       const gate = this.movementGate(actor, actionId, budgetAst, options.to);
       if ('rejection' in gate) {
-        return [this.rejectionEvent(actorId, gate.rejection)];
+        return [this.core.reject(actorId, gate.rejection)];
       }
       move = gate.move;
     } else if (selfAction) {
@@ -527,18 +531,18 @@ export class Combat {
       // CA-S9: a spell passes the range gate where an action passes the reach gate.
       const range = this.rangeGate(actor, actionId, spell.targeting?.range, at ?? target.combatant);
       if (range !== undefined) {
-        return [this.rejectionEvent(actorId, range)];
+        return [this.core.reject(actorId, range)];
       }
     } else {
       const spatial = this.spatialGate(actor, target.combatant);
       if (spatial !== undefined) {
-        return [this.rejectionEvent(actorId, spatial)];
+        return [this.core.reject(actorId, spatial)];
       }
     }
     // DD-S6: equipped armor blocks a vancian spell exactly as outside combat.
     if (spell !== undefined && def.cost.vancian !== undefined && actor.castBlockedBy !== undefined) {
       return [
-        this.rejectionEvent(actorId, {
+        this.core.reject(actorId, {
           kind: 'armor-not-castable',
           rule: 'E-REF-01',
           resource: actor.castBlockedBy,
@@ -546,9 +550,9 @@ export class Combat {
         }),
       ];
     }
-    const costRejection = checkCost(def.cost, this.grants, balancesOf(actor));
+    const costRejection = checkCost(def.cost, this.core.grants, balancesOf(actor));
     if (costRejection !== undefined) {
-      return [this.rejectionEvent(actorId, costRejection)];
+      return [this.core.reject(actorId, costRejection)];
     }
     // DD-S18: a vancian spell consumes a slot bound to it — chosen before any spend, recorded after.
     let slot: CastSlot | undefined;
@@ -557,7 +561,7 @@ export class Combat {
       const index = this.pickSlot(actor, level, actionId);
       if (index === undefined) {
         return [
-          this.rejectionEvent(actorId, {
+          this.core.reject(actorId, {
             kind: 'vancian',
             rule: 'E-VANC-01',
             resource: level,
@@ -568,17 +572,17 @@ export class Combat {
       slot = { level, index };
     }
     // All gates passed — commit the spend and resolve.
-    const spendRejection = spend(actor.slots, this.grants, def.cost);
+    const spendRejection = spend(actor.slots, this.core.grants, def.cost);
     if (spendRejection !== undefined) {
-      return [this.rejectionEvent(actorId, spendRejection)];
+      return [this.core.reject(actorId, spendRejection)];
     }
     slot = this.applyNonSlotCosts(actor, def.cost, slot);
     const aim = at !== undefined ? { at: { x: at.x, y: at.y } } : { targetId: target.combatant.id };
     const cast = spell === undefined ? undefined : castPayload(actionId, def.cost, aim, slot);
-    const { result: events, emitted } = this.collect(() =>
+    const { result: events, emitted } = this.core.collect(() =>
       this.resolve(actor, actionId, def, target.combatant, { move, cast, at }),
     );
-    this.surfaceOffers(emitted);
+    this.core.surfaceOffers(emitted);
     return events;
   }
 
@@ -601,7 +605,7 @@ export class Combat {
     const item = this.runtime.pack.content.items?.[itemId];
     if (item === undefined) {
       return [
-        this.rejectionEvent(actorId, {
+        this.core.reject(actorId, {
           kind: 'unknown-item',
           rule: 'E-REF-01',
           resource: itemId,
@@ -612,7 +616,7 @@ export class Combat {
     const ast = this.runtime.index.itemEffects[itemId];
     if (ast === undefined || item.use === undefined) {
       return [
-        this.rejectionEvent(actorId, {
+        this.core.reject(actorId, {
           kind: 'not-consumable',
           rule: 'E-REF-01',
           resource: itemId,
@@ -624,13 +628,13 @@ export class Combat {
     const def: ActionDef = { cost: {}, effect: item.use };
     const restriction = this.restrictionRejection(actor, def);
     if (restriction !== undefined) {
-      return [this.rejectionEvent(actorId, restriction)];
+      return [this.core.reject(actorId, restriction)];
     }
     const targetId = options.target ?? actorId;
     const target = this.state.combatants[targetId];
     if (target === undefined) {
       return [
-        this.rejectionEvent(actorId, {
+        this.core.reject(actorId, {
           kind: 'unknown-target',
           rule: 'E-REF-01',
           resource: targetId,
@@ -642,7 +646,7 @@ export class Combat {
     const remaining = (actor.itemBalances[itemId] ?? 0) - used;
     if (remaining <= 0) {
       return [
-        this.rejectionEvent(actorId, {
+        this.core.reject(actorId, {
           kind: 'no-charges',
           rule: 'E-REF-01',
           resource: itemId,
@@ -653,7 +657,7 @@ export class Combat {
 
     actor.itemsUsed = { ...actor.itemsUsed, [itemId]: used + 1 };
     const rule = `content.items.${itemId}`;
-    this.setClock();
+    this.core.setClock();
     const usedEvent = this.runtime.events.emit({
       type: 'item:used',
       actor: actorId,
@@ -663,7 +667,7 @@ export class Combat {
     });
     const effectEvents = this.execute(actor, { id: itemId, def, ast }, target, rule);
     this.endIfSideDefeated();
-    this.surfaceOffers(effectEvents);
+    this.core.surfaceOffers(effectEvents);
     return [usedEvent, ...effectEvents];
   }
 
@@ -677,7 +681,7 @@ export class Combat {
     if (offer === undefined) return [];
     let events: readonly RuntimeEvent[];
     if (choice === 'decline') {
-      this.setClock(); // stamp with the fight's clock — a restored fight's stream starts at round 0
+      this.core.setClock(); // stamp with the fight's clock — a restored fight's stream starts at round 0
       emitDeclined(this.runtime, offer);
       const declined = this.runtime.events.sinceRound(this.state.round);
       events = [declined[declined.length - 1]!];
@@ -701,10 +705,6 @@ export class Combat {
   /** Events at or after `round` (api-map: fight.events.sinceRound). */
   eventsSince(round: number): readonly RuntimeEvent[] {
     return this.runtime.events.sinceRound(round);
-  }
-
-  private setClock(): void {
-    this.runtime.events.setClock({ round: this.state.round, turn: this.state.turn });
   }
 
   /**
@@ -1015,7 +1015,7 @@ export class Combat {
           payload: { at: { ...at }, next: { ...next } },
           why,
         });
-        offers += this.surfaceOffers([leaving]);
+        offers += this.core.surfaceOffers([leaving]);
       }
       if (offers > 0) {
         this.place(moverId, at);
@@ -1057,8 +1057,8 @@ export class Combat {
     const mover = this.state.combatants[moverId];
     const pending = mover?.pendingMove;
     if (mover === undefined || pending === undefined) return [];
-    this.setClock();
-    const { emitted } = this.collect(() => {
+    this.core.setClock();
+    const { emitted } = this.core.collect(() => {
       if (isDowned(mover)) return this.endMove(moverId, pending.actionId, 'downed');
       const def = this.runtime.pack.actions[pending.actionId]!;
       if (this.restrictionRejection(mover, def) !== undefined) {
@@ -1070,7 +1070,7 @@ export class Combat {
       this.setPendingMove(moverId, undefined);
       this.walk(moverId, pending.actionId, pending.to, plan.path, pending.remaining, true);
     });
-    this.surfaceOffers(emitted);
+    this.core.surfaceOffers(emitted);
     return emitted;
   }
 
@@ -1098,20 +1098,6 @@ export class Combat {
     if (pending === undefined) delete combatant.pendingMove;
     else combatant.pendingMove = pending;
     this.state = { ...this.state, combatants: { ...this.state.combatants, [id]: combatant } };
-  }
-
-  /** Run `work`, collecting every event it emits — the per-call sink (the `execute()` idiom, F-P1). */
-  private collect<T>(work: () => T): { result: T; emitted: RuntimeEvent[] } {
-    const emitted: RuntimeEvent[] = [];
-    const sink = (event: RuntimeEvent) => {
-      emitted.push(event);
-    };
-    this.runtime.events.on(sink);
-    try {
-      return { result: work(), emitted };
-    } finally {
-      this.runtime.events.off(sink);
-    }
   }
 
   /** Move a combatant — `position` is readonly, so the combatant entry is replaced. */
@@ -1231,7 +1217,7 @@ export class Combat {
   ): readonly RuntimeEvent[] {
     if (cast !== undefined) {
       // DD-S17: `spell:cast` precedes the effect's events, inside the declare's own collection.
-      this.setClock();
+      this.core.setClock();
       this.runtime.events.emit({
         type: 'spell:cast',
         actor: actor.id,
@@ -1279,7 +1265,7 @@ export class Combat {
     };
     this.runtime.events.on(sink);
     try {
-      this.setClock();
+      this.core.setClock();
       // The attack gate: the executor's damage callbacks only land when the
       // pending attack for this target hit. One action = one attack verdict.
       let attackLanded: boolean | undefined;
@@ -1287,7 +1273,7 @@ export class Combat {
         boundAction,
         { id: actor.id, side: actor.side, profile: profileOf(actor) },
         { id: target.id, side: target.side, profile: profileOf(target) },
-        this.rng,
+        this.core.rng,
         (request) => {
           // CA-G4: burst scopes reach ids outside the primary target — apply
           // each mutation to the combatant the executor named, not the bound
@@ -1336,7 +1322,7 @@ export class Combat {
     } finally {
       this.runtime.events.off(sink);
     }
-    this.state = { ...this.state, rng: this.rng.getState() };
+    this.state = { ...this.state, rng: this.core.rng.getState() };
     return emitted;
   }
 
@@ -1357,52 +1343,27 @@ export class Combat {
     });
   }
 
-  /**
-   * Offer every matching reactive action to standing combatants (FR-13
-   * substrate); none once the fight is over. Callers pass only the events
-   * their own call emitted (per-call surfacing, F-P1), and an event already
-   * surfaced is skipped, so each (reactor, event) pair is offered once.
-   * Returns how many offers were raised. `feats: false` is the no-chain rule
-   * (DD-S12): events a taken feat emitted offer reactive actions only.
-   */
-  private surfaceOffers(events: readonly RuntimeEvent[], options: { readonly feats?: boolean } = {}): number {
-    if (this.state.phase === 'combat-over') return 0;
-    let raised = 0;
-    for (const event of events) {
-      if (this.surfaced.has(event)) continue;
-      this.surfaced.add(event);
-      for (const offer of offersForEvent(this.runtime, this.state.combatants, event, options)) {
-        if (isDowned(this.state.combatants[offer.actorId]!)) continue;
-        this.pendingTriggers.push(offer);
-        emitOffer(this.runtime, offer, this.offerCounter);
-        this.offerCounter += 1;
-        raised += 1;
-      }
-    }
-    return raised;
-  }
-
   /** Resolve a taken trigger through the same pipeline as a declared action (FR-4, FR-12 proof 2). */
   private resolveReactive(offer: PendingTrigger, targetId: string | undefined): readonly RuntimeEvent[] {
     const reactor = this.state.combatants[offer.actorId]!;
     const def = this.runtime.pack.actions[offer.actionId]!;
     const restriction = this.restrictionRejection(reactor, def);
     if (restriction !== undefined) {
-      return [this.rejectionEvent(reactor.id, restriction)];
+      return [this.core.reject(reactor.id, restriction)];
     }
     if (isSelfAction(this.runtime, offer.actionId)) {
       // DD-A2: a self reaction binds its reactor — no opponent resolution, no reach gate.
       const refusal = selfTargetRefusal(offer.actionId, reactor.id, targetId);
-      if (refusal !== undefined) return [this.rejectionEvent(reactor.id, refusal)];
+      if (refusal !== undefined) return [this.core.reject(reactor.id, refusal)];
       return this.resolveReactiveAgainst(offer, def, reactor, reactor);
     }
     const target = this.resolveTarget(reactor, targetId);
     if ('rejection' in target) {
-      return [this.rejectionEvent(reactor.id, target.rejection)];
+      return [this.core.reject(reactor.id, target.rejection)];
     }
     const spatial = this.spatialGate(reactor, target.combatant);
     if (spatial !== undefined) {
-      return [this.rejectionEvent(reactor.id, spatial)];
+      return [this.core.reject(reactor.id, spatial)];
     }
     return this.resolveReactiveAgainst(offer, def, reactor, target.combatant);
   }
@@ -1414,19 +1375,19 @@ export class Combat {
     reactor: CombatantState,
     target: CombatantState,
   ): readonly RuntimeEvent[] {
-    const costRejection = checkCost(def.cost, this.grants, balancesOf(reactor));
+    const costRejection = checkCost(def.cost, this.core.grants, balancesOf(reactor));
     if (costRejection !== undefined) {
-      return [this.rejectionEvent(reactor.id, costRejection)];
+      return [this.core.reject(reactor.id, costRejection)];
     }
-    const spendRejection = spend(reactor.slots, this.grants, def.cost);
+    const spendRejection = spend(reactor.slots, this.core.grants, def.cost);
     if (spendRejection !== undefined) {
-      return [this.rejectionEvent(reactor.id, spendRejection)];
+      return [this.core.reject(reactor.id, spendRejection)];
     }
     this.applyNonSlotCosts(reactor, def.cost);
-    const { result: events, emitted } = this.collect(() =>
+    const { result: events, emitted } = this.core.collect(() =>
       this.resolve(reactor, offer.actionId, def, target, {}),
     );
-    this.surfaceOffers(emitted);
+    this.core.surfaceOffers(emitted);
     return events;
   }
 
@@ -1441,7 +1402,7 @@ export class Combat {
     const holder = this.state.combatants[offer.actorId]!;
     if (targetId !== undefined && targetId !== holder.id) {
       return [
-        this.rejectionEvent(holder.id, {
+        this.core.reject(holder.id, {
           kind: 'invalid-target',
           rule: 'E-REF-01',
           resource: targetId,
@@ -1459,7 +1420,7 @@ export class Combat {
       `content.feats.${offer.actionId}`,
     );
     this.endIfSideDefeated();
-    this.surfaceOffers(emitted, { feats: false });
+    this.core.surfaceOffers(emitted, { feats: false });
     return emitted;
   }
 
@@ -1479,19 +1440,9 @@ export class Combat {
     return { id: actionId, def, ast };
   }
 
-  private rejectionEvent(actorId: string, rejection: DeclareRejection): RuntimeEvent {
-    this.setClock();
-    return this.runtime.events.emit({
-      type: 'declare:rejected',
-      actor: actorId,
-      payload: { kind: rejection.kind, resource: rejection.resource, message: rejection.message },
-      why: { rule: rejection.rule, rolls: [] },
-    });
-  }
-
   private endTurn(): StepOutcome {
     const actorId = this.state.active;
-    this.setClock();
+    this.core.setClock();
     this.runtime.events.emit({
       type: 'turn:ended',
       actor: actorId,
