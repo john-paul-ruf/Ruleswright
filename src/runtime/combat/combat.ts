@@ -46,11 +46,10 @@ import {
   type SlotLedger,
 } from './action-economy';
 import { effectVars, type CombatantProfile, type Side } from './resolve';
-import { entryCost, findPath, terrainAt, type Position, type TerrainCell } from './spatial';
+import { entryCost, findPath, terrainAt, type Position } from './spatial';
 import { evalFormula, evalValidity, valueOfFormula, type FormulaAst } from '../../core/dsl/formula';
 import { RuntimeRuleError, ruleCard } from '../errors';
 import { displayRoll } from '../display-roll';
-import type { ErrorCard } from '../../schema/error-card';
 import {
   balancesOf,
   combatantFeats,
@@ -58,7 +57,6 @@ import {
   defeatedSide,
   isDowned,
   profileOf,
-  reachOf,
   ruleBaseOf,
   validityVars,
 } from './combatants';
@@ -76,13 +74,23 @@ import {
 } from './declare';
 import { endIfSideDefeated, executeBound, resolveAction, resolveShape } from './execute';
 import { FightCore } from './fight';
+import {
+  copyTerrain,
+  endMove,
+  moveBudgetAst,
+  pathQuery,
+  place,
+  setPendingMove,
+  terrainRefusals,
+  threatenersLeft,
+  ZERO_RNG,
+} from './movement';
 import type {
   CastSlot,
   CombatantState,
   CombatState,
   DeclareOptions,
   DeclareRejection,
-  PendingMove,
   PendingTrigger,
   StartCombatRequest,
   StepOutcome,
@@ -241,79 +249,6 @@ export function startCombat(runtime: Runtime, request: StartCombatRequest): Comb
   return fight;
 }
 
-/** Plain-JSON copies of host terrain cells (FR-14: state never aliases host objects). */
-export function copyTerrain(cells: readonly TerrainCell[]): TerrainCell[] {
-  return cells.map((cell) => ({ at: { x: cell.at.x, y: cell.at.y }, kind: cell.kind }));
-}
-
-/**
- * The terrain placement refusals shared by `startCombat` and restore (DD-M5,
- * E-SPAT-01), spatial packs only: an unknown kind, a cell placed twice, a
- * combatant positioned on a blocking cell. Theater packs carry terrain
- * unconsulted (DD-M11), so they refuse nothing.
- */
-export function terrainRefusals(
-  runtime: Runtime,
-  terrain: readonly TerrainCell[],
-  combatantIds: readonly string[],
-  positions: Readonly<Record<string, Position>> | undefined,
-  phase: 'start' | 'restore',
-): ErrorCard[] {
-  const vocabulary = runtime.pack.spatial?.terrain;
-  if (runtime.pack.spatial === undefined) return [];
-  const prefix = phase === 'start' ? 'terrain' : 'restore.terrain';
-  const artifact = (id: string) => (phase === 'start' ? id : '(snapshot)');
-  const known = Object.keys(vocabulary ?? {});
-  const cards: ErrorCard[] = [];
-  const placed = new Map<string, number>();
-  terrain.forEach((cell, index) => {
-    if (vocabulary?.[cell.kind] === undefined) {
-      cards.push(
-        ruleCard(
-          'E-SPAT-01',
-          artifact(cell.kind),
-          `${prefix}[${index}].kind`,
-          `terrain kind "${cell.kind}" is not in the pack's spatial.terrain vocabulary (${known.length === 0 ? 'the pack declares none' : known.join(', ')}).`,
-        ),
-      );
-    }
-    const key = `${cell.at.x},${cell.at.y}`;
-    const first = placed.get(key);
-    if (first !== undefined) {
-      cards.push(
-        ruleCard(
-          'E-SPAT-01',
-          artifact(cell.kind),
-          `${prefix}[${index}].at`,
-          `terrain cell (${key}) is placed twice (first at ${prefix}[${first}]) — each cell has one kind.`,
-        ),
-      );
-    } else {
-      placed.set(key, index);
-    }
-  });
-  const kindAt = (p: Position) => {
-    const index = placed.get(`${p.x},${p.y}`);
-    return index === undefined ? undefined : vocabulary?.[terrain[index]!.kind];
-  };
-  for (const id of combatantIds) {
-    const position = positions?.[id];
-    if (position === undefined) continue;
-    const kind = kindAt(position);
-    if (kind !== undefined && entryCost(kind) === undefined) {
-      cards.push(
-        ruleCard(
-          'E-SPAT-01',
-          artifact(id),
-          phase === 'start' ? `positions.${id}` : `restore.${id}.position`,
-          `combatant "${id}" is positioned on a blocking terrain cell (${position.x},${position.y}) — a blocking cell can never be occupied.`,
-        ),
-      );
-    }
-  }
-  return cards;
-}
-
 function rngStateOf(rng: RandomSource): RngState {
   if ('getState' in rng && typeof (rng as Rng).getState === 'function') {
     return (rng as Rng).getState();
@@ -414,7 +349,7 @@ export class Combat {
     const pending = this.state.combatants[this.state.active]?.pendingMove;
     if (pending === undefined) return;
     this.core.setClock();
-    this.endMove(this.state.active, pending.actionId, 'forfeited');
+    endMove(this.core, this.state.active, pending.actionId, 'forfeited');
   }
 
   /**
@@ -747,7 +682,7 @@ export class Combat {
     }
     const profile = profileOf(actor);
     const budget = valueOfFormula(evalFormula(budgetAst, effectVars(profile, profile), ZERO_RNG));
-    const plan = findPath(geometry, this.pathQuery(actor, from, to, budget));
+    const plan = findPath(geometry, pathQuery(this.core, actor, from, to, budget));
     if (!plan.ok) {
       const cell = `(${to.x},${to.y})`;
       const messages: Record<typeof plan.kind, string> = {
@@ -766,27 +701,6 @@ export class Combat {
       };
     }
     return { move: (walked) => this.walk(actor.id, actionId, to, plan.path, walked) };
-  }
-
-  /** The path request for a mover, against the fight's current occupancy and terrain. */
-  private pathQuery(mover: CombatantState, from: Position, to: Position, budget: number) {
-    const standing = Object.values(this.state.combatants).filter(
-      (combatant) => !isDowned(combatant) && combatant.position !== undefined,
-    );
-    const at = (p: Position) => (combatant: CombatantState) =>
-      combatant.position!.x === p.x && combatant.position!.y === p.y;
-    return {
-      from,
-      to,
-      budget,
-      terrain: this.runtime.pack.spatial?.terrain ?? {},
-      cells: this.state.terrain,
-      occupied: Object.values(this.state.combatants).flatMap((combatant) =>
-        combatant.position === undefined ? [] : [combatant.position],
-      ),
-      passable: (p: Position) => !standing.some((other) => other.side !== mover.side && at(p)(other)),
-      endable: (p: Position) => !standing.some(at(p)),
-    };
   }
 
   /**
@@ -832,7 +746,7 @@ export class Combat {
     };
     for (const [index, next] of path.entries()) {
       let offers = 0;
-      const threateners = resumed && index === 0 ? [] : this.threatenersLeft(moverId, at, next);
+      const threateners = resumed && index === 0 ? [] : threatenersLeft(this.core, moverId, at, next);
       for (const threatener of threateners) {
         const leaving = this.runtime.events.emit({
           type: 'move:leaving-reach',
@@ -844,30 +758,18 @@ export class Combat {
         offers += this.core.surfaceOffers([leaving]);
       }
       if (offers > 0) {
-        this.place(moverId, at);
+        place(this.core, moverId, at);
         advanced();
-        this.setPendingMove(moverId, { actionId, to: { x: to.x, y: to.y }, remaining: budget - cost });
+        setPendingMove(this.core, moverId, { actionId, to: { x: to.x, y: to.y }, remaining: budget - cost });
         return;
       }
       cost += entryCost(kindAt(next))!;
       walked.push(next);
       at = next;
     }
-    this.place(moverId, at);
+    place(this.core, moverId, at);
     advanced();
-    this.endMove(moverId, actionId, 'arrived');
-  }
-
-  /** Standing opponents with a position whose reach covers `at` but not `next` — the leaving-reach threateners, in initiative order. */
-  private threatenersLeft(moverId: string, at: Position, next: Position): readonly string[] {
-    const geometry = this.runtime.spatial;
-    const mover = this.state.combatants[moverId]!;
-    return this.state.order.filter((id) => {
-      const other = this.state.combatants[id]!;
-      if (other.side === mover.side || isDowned(other) || other.position === undefined) return false;
-      const reach = reachOf(this.runtime, id) ?? 1;
-      return geometry.canReach(other.position, at, reach) && !geometry.canReach(other.position, next, reach);
-    });
+    endMove(this.core, moverId, actionId, 'arrived');
   }
 
   /**
@@ -885,54 +787,22 @@ export class Combat {
     if (mover === undefined || pending === undefined) return [];
     this.core.setClock();
     const { emitted } = this.core.collect(() => {
-      if (isDowned(mover)) return this.endMove(moverId, pending.actionId, 'downed');
+      if (isDowned(mover)) return endMove(this.core, moverId, pending.actionId, 'downed');
       const def = this.runtime.pack.actions[pending.actionId]!;
       if (restrictionRejection(this.runtime, mover, def) !== undefined) {
-        return this.endMove(moverId, pending.actionId, 'restricted');
+        return endMove(this.core, moverId, pending.actionId, 'restricted');
       }
       const from = mover.position!;
-      const plan = findPath(this.runtime.spatial, this.pathQuery(mover, from, pending.to, pending.remaining));
-      if (!plan.ok) return this.endMove(moverId, pending.actionId, 'blocked');
-      this.setPendingMove(moverId, undefined);
+      const plan = findPath(
+        this.runtime.spatial,
+        pathQuery(this.core, mover, from, pending.to, pending.remaining),
+      );
+      if (!plan.ok) return endMove(this.core, moverId, pending.actionId, 'blocked');
+      setPendingMove(this.core, moverId, undefined);
       this.walk(moverId, pending.actionId, pending.to, plan.path, pending.remaining, true);
     });
     this.core.surfaceOffers(emitted);
     return emitted;
-  }
-
-  /** End a move: clear any `pendingMove` and emit `move:ended {reason, at}`. */
-  private endMove(
-    moverId: string,
-    actionId: string,
-    reason: 'arrived' | 'downed' | 'restricted' | 'blocked' | 'forfeited',
-  ): void {
-    this.setPendingMove(moverId, undefined);
-    const at = this.state.combatants[moverId]!.position!;
-    this.runtime.events.emit({
-      type: 'move:ended',
-      actor: moverId,
-      payload: { reason, at: { ...at } },
-      why: { rule: ruleBaseOf(this.runtime, actionId), rolls: [] },
-    });
-  }
-
-  /** Set or clear a combatant's `pendingMove` — the combatant entry is replaced, like `place`. */
-  private setPendingMove(id: string, pending: PendingMove | undefined): void {
-    const combatant: { -readonly [K in keyof CombatantState]: CombatantState[K] } = {
-      ...this.state.combatants[id]!,
-    };
-    if (pending === undefined) delete combatant.pendingMove;
-    else combatant.pendingMove = pending;
-    this.state = { ...this.state, combatants: { ...this.state.combatants, [id]: combatant } };
-  }
-
-  /** Move a combatant — `position` is readonly, so the combatant entry is replaced. */
-  private place(id: string, at: Position): void {
-    const combatant = this.state.combatants[id]!;
-    this.state = {
-      ...this.state,
-      combatants: { ...this.state.combatants, [id]: { ...combatant, position: { x: at.x, y: at.y } } },
-    };
   }
 
   /** Resolve a taken trigger through the same pipeline as a declared action (FR-4, FR-12 proof 2). */
@@ -1065,15 +935,6 @@ export class Combat {
   }
 }
 
-/** Move statements evaluate their dice-free budget without consuming the fight's dice (DD-M8). */
-const ZERO_RNG: RandomSource = { int: () => 0 };
-
-/** A move action's budget formula: the argument of a root `move(...)` statement; `undefined` = not a move action. */
-export function moveBudgetAst(runtime: Runtime, actionId: string): FormulaAst | undefined {
-  const ast = runtime.index.actionEffects[actionId];
-  return ast?.kind === 'call' && ast.text === 'move' ? ast.args?.[0] : undefined;
-}
-
 /** Re-exported from the leaf so the runtime barrel keeps `displayRoll` where it was. */
 export { displayRoll };
 
@@ -1082,6 +943,9 @@ export { isDowned, defeatedSide, combatantFeats, copyBindings };
 
 /** Moved to the declare gates; re-exported where tests import it. */
 export { isSelfAction };
+
+/** Moved to the movement file; re-exported where tests and snapshots import them. */
+export { copyTerrain, terrainRefusals, moveBudgetAst };
 
 /** A convenience alias for CombatState's rng — re-exported for the snapshot seam (S06). */
 export type { SlotLedger, SlotGrants };
