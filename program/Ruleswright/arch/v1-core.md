@@ -1,7 +1,7 @@
 # Ruleswright — Architecture Record (v1-core)
 
-> **Realized state as of tree HEAD `12ca6ac`** (builder-rulings close, 2026-10-04; last source
-> commit `4be2a57`), synthesized by Archivist (final pass) across **ten feature cycles**: v1-core (S01–S08, plan HEAD `53c7c91`),
+> **Realized state as of tree HEAD `a2f117f`** (combat-decomposition close, 2026-10-04; last source
+> commit `0c56866`), synthesized by Archivist (final pass) across **eleven feature cycles**: v1-core (S01–S08, plan HEAD `53c7c91`),
 > **v1-shell** (commits `770950f`–`72346a5` — schema v1.2, class combat actions, the validate/
 > directory split, `character-profile.ts`, `combat.sideDefeated`, docs/CI honesty, packaging,
 > coverage tooling — first reconciled into this record at the grid-combat pass; its synthesis was the loot-inventory
@@ -30,18 +30,23 @@
 > (S01–S02, feature commits `cfda5dc`..`c851de2` — contract v1.9, description only: the human's four
 > rulings of 2026-10-04 — the three `mending` spells heal, out-of-combat restricts follow the combat
 > rule for spells, `awardXp` never lowers a level, and the feat-slotted predicate is documented as
-> "any class").
+> "any class"), and **combat-decomposition** (S01–S03, feature commits `17f8f18`..`0c56866` — a
+> behaviour-preserving refactor with no contract event: `combat/combat.ts` split by responsibility into
+> `combat/{types,combatants,fight,declare,execute,movement}.ts` plus trigger answering in
+> `combat/triggers.ts`, `snapshots.ts` split into `snapshots/{index,envelope,character,combat}.ts`,
+> and the `MAX_TABLE_DEPTH` cross-pin; events, snapshot JSON and every export name unchanged, proven
+> by the raw-sha256 characterization test).
 > Every cycle's mid-run delta fragments were collapsed into one module-ordered description.
-> Verified by the builder-rulings final pass on a fresh run at `12ca6ac`: `pnpm typecheck` 0 ·
-> `pnpm build` 0 · `check:isolation` 0 (24 dist files) · `pnpm test` **923/923 across 50 files**
-> (the 11 `tests/proofs` files in that run sum to 83) · `pnpm format:check` 0 (lint and security are
-> the Orchestrator receive at `c851de2`, inherited — not re-run by this pass).
+> Verified by the combat-decomposition final pass on a fresh run at `a2f117f`: `pnpm build` 0 ·
+> `pnpm typecheck` 0 · `check:isolation` 0 (24 dist files) · `pnpm test` **938/938 across 52 files**
+> (lint, security and format:check are the Orchestrator receive at `0c56866`, inherited — not re-run
+> by this pass; `program/` is Prettier-ignored).
 > Verified-by-source and verified-by-execution are distinguished below.
 >
 > *(Process history — crashes, recoveries, dispatch failures, owner-correction mechanics — lives
 > in each cycle's Final Report and ARCHIVIST-LOG.md, not here.)*
 
-<!-- Realized-state summary (Archivist synthesis, builder-rulings final pass) -->
+<!-- Realized-state summary (Archivist synthesis, combat-decomposition final pass) -->
 
 ## Module map (as realized)
 
@@ -49,7 +54,7 @@
 |----|--------|------|------------------------------------------------|-----------|
 | M01 | Schema surface | `src/schema/` | nothing internal | `pack.ts`, `artifacts.ts`, `error-card.ts`, `version.ts`, `overrides.ts`, `validate/{collect,context,dsl,helpers,index}.ts`, `validate/sections/{actions,bestiary,content,cross,economy,progression,root,tables}.ts`, `index.ts` (+ DB-owned `contracts/**`) |
 | M02 | Core mechanics | `src/core/` (9 .ts incl. dsl/) | M01 — **type-only** (`DslCheckRequest`/`ErrorCard` in `checker.ts`, `shared.ts`, `dsl/formula.ts`, `dsl/effect.ts`); no runtime value dependency | `rng.ts`, `dice.ts`, `tables.ts`, `index.ts`, `dsl/{shared,registry,formula,effect,checker}.ts` |
-| M03 | Runtime | `src/runtime/` (21 .ts incl. combat/) | M01, M02 (value); never M04 | `runtime.ts`, `events.ts`, `character.ts`, `character-profile.ts`, `progression.ts`, `pools.ts`, `inventory.ts`, `equipment.ts` (equipment-consumables leaf), `display-roll.ts` (grid-movement leaf), `feats.ts` (spells-in-combat leaf), `conditions.ts`, `errors.ts`, `snapshots.ts`, `bestiary.ts`, `encounter.ts`, `index.ts`, `combat/{combat,resolve,action-economy,spatial,triggers}.ts` |
+| M03 | Runtime | `src/runtime/` (30 .ts incl. combat/ and snapshots/) | M01, M02 (value); never M04 | `runtime.ts`, `events.ts`, `character.ts`, `character-profile.ts`, `progression.ts`, `pools.ts`, `inventory.ts`, `equipment.ts` (equipment-consumables leaf), `display-roll.ts` (grid-movement leaf), `feats.ts` (spells-in-combat leaf), `conditions.ts`, `errors.ts`, `snapshots/{index,envelope,character,combat}.ts`, `bestiary.ts`, `encounter.ts`, `index.ts`, `combat/{combat,types,combatants,fight,declare,execute,movement,triggers,resolve,action-economy,spatial}.ts` |
 | M04 | Compiler | `src/compiler/` (17 .ts incl. 7 stages/ + 3 themes/) | M01, M02 (value: `validatePack`, `packDslChecker`, `Rng`, `makeErrorCard`); never M03 | `generate.ts`, `pipeline.ts`, `stage.ts`, `rng-stream.ts`, `knobs.ts`, `theme.ts`, `theme-loader.ts`, `compose.ts`, `errors.ts`, `index.ts`, `stages/{stats,skills,feats,classes,magic,bestiary,tables}.ts`, `themes/{dark-fantasy,zombie-urban,wyldwood}.json` |
 | M05 | Root entry | `src/index.ts` | M01, M03, M04 (dumb `export *` re-export only) | `index.ts` |
 
@@ -65,13 +70,16 @@ core, `./errors`, `./conditions` and (since grid-movement) the `./display-roll` 
 `import type`), so none of these closes a cycle. **Record correction (equipment-consumables final pass):** the Final
 Report and the S03 arch fragment list only `character`/`pools`/`inventory` → `equipment`; the
 `character-profile.ts → {equipment, inventory}` value edges landed at S05 ck1/ck3 (`14c01dc`,
-`31540b0`) and were missing from both. Also inside M03: `snapshots.ts → {character, progression}` (`reserveValue`, `buildCharacter`,
-`validateBuild`, `Combat`-side `defeatedSide` from `combat/combat.ts`), and
-`combat/combat.ts → combat/triggers.ts` (value), plus grid-movement's `{combat/combat,
-equipment}.ts → display-roll.ts` (a leaf importing only `core/dice` types). spells-in-combat
+`31540b0`) and were missing from both. Also inside M03 (re-derived per statement at `0c56866`, after combat-decomposition moved the
+code): `snapshots/character.ts → {character, progression}` (`reserveValue`, `buildCharacter`,
+`validateBuild`) and `snapshots/combat.ts → combat/combat` (`defeatedSide`, `copyTerrain`, … through
+`combat.ts`'s re-exports); `combat/combat.ts → combat/triggers.ts` (value: `answerOffer`,
+`resolveReactive`); plus grid-movement's display-roll edges, now `{combat/combat, combat/execute,
+equipment}.ts → display-roll.ts` (a leaf importing only `core/dice` types). The full intra-`combat/`
+DAG is in the Combat engine section. spells-in-combat
 added three value edges (derived at `94d40f3`, absent at `6ab880a`): `combat/combat.ts →
-conditions.ts` (`matchesRestriction`, `declaredTags`; `conditions.ts` value-imports only
-`./errors`), `character-profile.ts → pools.ts` (`knownSpells`, `armorBlockingCast`; `pools.ts`
+conditions.ts` (`matchesRestriction`, `declaredTags`; since combat-decomposition S01 the edge is
+`combat/declare.ts → conditions.ts`; `conditions.ts` value-imports only `./errors`), `character-profile.ts → pools.ts` (`knownSpells`, `armorBlockingCast`; `pools.ts`
 imports nothing from `character-profile`) and `character.ts → feats.ts` (the **`feats.ts` leaf**
 value-imports only `./errors`; its `./runtime`/`./character`/`./events` imports are `import
 type`). feat-progression added one more, `progression.ts → feats.ts` (`featSlotTally`,
@@ -80,10 +88,10 @@ stays a leaf. None closes a cycle. **Record correction (grid-combat final pass):
 synthesis listed `combat/triggers.ts → combat.ts` as a second value-import cycle; git shows
 `triggers.ts`'s `Combat`/`CombatantState`/`PendingTrigger` imports were `import type` at creation
 (`6afbe31`) and remain so — the edge is type-only. `character ⇄ progression` is real.
-Guards held at `12ca6ac` (re-grepped by the builder-rulings final pass; `git diff
--G'^(import|export .* from)' e7e5828..6534364 -- src` is empty — builder-rulings changed no import
-line; feat-progression's import changes were only in `feats.ts` (type-only) and `progression.ts`
-(the `./feats` value import)): no `compiler` reference in `src/runtime` except the CI-checked bundle
+Guards held at `a2f117f` (re-grepped by the combat-decomposition final pass; `git diff --stat
+-G'^(import|export .* from)' 52d4d2a..db38f31 -- src` lists only `combat/*.ts` and the
+`snapshots` split — no import line changed elsewhere, and the union of the new files'
+cross-module value edges equals the base files' (CA-D4)): no `compiler` reference in `src/runtime` except the CI-checked bundle
 rule comment; no `runtime` import in `src/compiler` (grep-asserted in tests). The runtime-only
 bundle is **proven** free of `generateCampaign` by `scripts/check-runtime-isolation.mjs`
 (passed by this pass on a fresh build; also wired into CI's `package` job).
@@ -124,12 +132,15 @@ bundle is **proven** free of `generateCampaign` by `scripts/check-runtime-isolat
   `DeclareOptions.at`, the `Combat` constructor option `offeredCount` (+ read-only getter),
   `PendingTrigger.source`, `CombatSnapshot.offers?/phase?/offeredCount?`, and removed
   `parsePackEffects`. action-targeting added no barrel export (`isSelfAction` is an intra-runtime
-  export of `combat.ts`, like `moveBudgetAst`). feat-progression added none either (DD-F7):
+  export — defined in `combat/declare.ts` since combat-decomposition, like `moveBudgetAst` in
+  `combat/movement.ts`, both re-exported from `combat.ts`). feat-progression added none either (DD-F7):
   `featSlotTally`/`FeatSlotTally`/`featSlotsExceeded` are intra-runtime exports of `feats.ts`,
   and the only public change is `validateBuild`'s optional 4th parameter `heldFeats`. builder-rulings
   added none and changed no signature: `awardXp`, `isRestricted` and `restrictedIds` changed
-  behaviour only (v1.9, below). (`SnapshotOffer`, the element type of `CombatSnapshot.offers`, is exported
-  from `snapshots.ts` but not re-exported by the barrel — see drift notes.) **M03 barrel completed at v1-core S08**
+  behaviour only (v1.9, below). combat-decomposition added none and changed no export name; its one
+  `.d.ts` delta is `Combat.state` declared as a `get`/`set` accessor pair instead of a field (DD-D3,
+  type-compatible; the V4 export-list digests equal base). (`SnapshotOffer`, the element type of `CombatSnapshot.offers`, is exported
+  from `snapshots/combat.ts` and `snapshots/index.ts` but not re-exported by the barrel — see drift notes.) **M03 barrel completed at v1-core S08**
   (D19, 9afa86c) and extended additively by every later feature (inventory verbs, spatial
   exports, `packSpatialModel` — the grid S03 one-line barrel export was outside that session's
   lease and was ratified, see the grid section; the equipment exports landed inside S03/S05's
@@ -608,20 +619,20 @@ rule and the out-of-combat restricts spell rule in builder-rulings S02)
   pattern)`; `declaredTags(runtime)`. Out of combat `isRestricted`/`restrictedIds` use it
   with the combat rule since builder-rulings S02 ck2 (`b9e52e3`, DD-R3, v1.9): `isRestricted`
   matches every kind against `actions.tagged:` and, for kind `'spell'` only, also against
-  `spells.tagged:` (`conditions.ts:189-203`); `restrictedIds` filters through it. **Since spells-in-combat S02 ck1** combat's `restrictionRejection` calls the exported
+  `spells.tagged:` (`conditions.ts:189-203`); `restrictedIds` filters through it. **Since spells-in-combat S02 ck1** combat's `restrictionRejection` (in `combat/declare.ts` since combat-decomposition) calls the exported
   `matchesRestriction` + `declaredTags` (kind `'action'` for every declare, plus `'spell'` for a
   spell declare, DD-S10) and the inline actions-only duplicate is gone; `isLivePattern` still has
-  no non-test consumer (cleanup C1).
+  no non-test consumer and is kept as public API (cleanup C1 retired, combat-decomposition DD-D9).
 - Dependency direction: runtime → {schema, core} only; no compiler import.
 
 v1-shell added `src/runtime/character-profile.ts` (CA-08): `profileFromCharacter(rt, character,
 id?)` → `{profile, balances}` — current hp, `derived()` ac/attack bonus, the pack's `initiative`
 formula, the union of the character's class `actions` (pack v1.2 `content.classes.<id>.actions`),
 pool points + bound spell slots; a class with no actions cannot fight (`no-combat-actions`).
-`combat.sideDefeated` (D-26): `defeatedSide(combatants)` is consulted after every resolution in
-`combat.ts`; a fully-downed side ends the fight — `phase: 'combat-over'`, one `combat:ended`
+`combat.sideDefeated` (D-26): `defeatedSide(combatants)` (`combat/combatants.ts`) is consulted after every resolution
+by `endIfSideDefeated` (`combat/execute.ts`); a fully-downed side ends the fight — `phase: 'combat-over'`, one `combat:ended`
 event naming `{winner, defeated}`, downed combatants skip turns and get no trigger offers, and a
-terminal snapshot restores as `combat-over` (snapshots.ts reads the same `defeatedSide`).
+terminal snapshot restores as `combat-over` (`snapshots/combat.ts` reads the same `defeatedSide`).
 
 equipment-consumables S05 (`14c01dc`, `31540b0`): `profileFromCharacter` composes over
 `equipmentView` — abilities/saves are the view's (grants added), the initiative base is
@@ -666,7 +677,7 @@ when `held + 1 > total` (RuntimeRuleError, nothing changes). These are module ex
 exports (DD-F7), and `progression.ts` consumes them. `feats.ts` is still a leaf: its new
 `ErrorCard` import is `import type`.
 
-### M03 — Combat engine (v1-core S05, 6efaa16/c7a2d44/6afbe31/4be9e6c; spatial integration in grid-combat S03; item use in equipment-consumables S05; movement in grid-movement S03; spells + feats in spells-in-combat S02/S03; self actions in action-targeting S02)
+### M03 — Combat engine (v1-core S05, 6efaa16/c7a2d44/6afbe31/4be9e6c; spatial integration in grid-combat S03; item use in equipment-consumables S05; movement in grid-movement S03; spells + feats in spells-in-combat S02/S03; self actions in action-targeting S02; split by responsibility in combat-decomposition S01/S02)
 
 - `combat/action-economy.ts` (CA-4) — `resolveSlotGrants(pack)` (declared `economy.turnSlots`
   authority; absent → documented default 1-of-each-cost-slot-name); `checkCost`; per-turn
@@ -680,7 +691,7 @@ exports (DD-F7), and `progression.ts` consumes them. `feats.ts` is still a leaf:
   `attackBonusAgainst` (`byDefense[String(v)]` literal lookup); `attackRoll` (verdict-attached);
   `executeAgainst` (per-target vars, ordered roll history for `why.rolls`). grid-combat S03
   added the optional 6th param `resolveShapeTargets?: (shape) => readonly string[]` — the CA-G4
-  edge replacing the bound-target `resolveTargets` stub; combat injects it per execution.
+  edge replacing the bound-target `resolveTargets` stub; combat injects it per execution (`executeBound`, `combat/execute.ts`).
   equipment-consumables S05: `CombatantProfile.maxHp?` (the heal cap; `profileFromStatblock`
   sets it to the evaluated `hp`); `checkPackDsl` also checks `content.items.<id>.use` as an
   effect (R-7). grid-movement S03: `CombatantProfile.speed?` (only when `formulas.speed` is
@@ -694,6 +705,38 @@ exports (DD-F7), and `progression.ts` consumes them. `feats.ts` is still a leaf:
   `effectVars` also binds `ability:<n>` from `actor.abilities` (the equipment-composed combat
   profile), after the target-save layer — never shadowed, never the target's; `executeAgainst`,
   `varsFor` and the movement gate all see it.
+- **File layout (combat-decomposition S01 `17f8f18`..S02 `39d754d`; behaviour-preserving, DD-D2).**
+  `combat.ts` (1,809 lines at `52d4d2a`) is split by responsibility. The behaviour in the next
+  bullet is unchanged; the symbols it names now live as below (line counts and value imports at
+  `0c56866`, derived per statement with `import type`/`export type` dropped):
+
+  | File | Holds | Internal value imports |
+  |---|---|---|
+  | `combat/combat.ts` (671) | `startCombat`, `rngStateOf`, `class Combat`: constructor, `get`/`set state` (delegating to `core.state`, DD-D3), `pendingTriggers` (the core's own array), `offeredCount`, `roundComplete`, the public verbs `step`/`declare`/`use`/`respond`/`serialize`/`eventsSince`/`declareReactive`, and the private `core`, `endTurn`, `advanceFrom`. `declare` keeps the validity gate inline (`this.runtime.index.validAsts[actionId]`, `combat.ts:410`, DD-D4, pinned by `combat-spatial.test.ts:511-515`). It re-exports every name it exported at `52d4d2a` (DD-D5): the 11 types from `./types`; `isDowned`, `defeatedSide`, `combatantFeats`, `copyBindings`; `isSelfAction`; `copyTerrain`, `terrainRefusals`, `moveBudgetAst`; `displayRoll`, `replenish`, `SlotLedger`, `SlotGrants` | `../../core/rng`, `../../core/dsl/formula`, `../errors`, `../display-roll`, `./triggers`, `./action-economy`, `./combatants`, `./declare`, `./execute`, `./fight`, `./movement` |
+  | `combat/types.ts` (171) | every combat type (`CombatantState` … `StartCombatRequest`) plus `CastSlot` | none |
+  | `combat/combatants.ts` (98) | pure combatant facts: `isDowned`, `defeatedSide`, `combatantFeats`, `copyBindings`, `profileOf`, `reachOf`, `ruleBaseOf`, `validityVars`, `balancesOf`, `applyMutation` | none |
+  | `combat/fight.ts` (90) | `class FightCore`: the fight's mutable internals (`runtime`, `state`, `rng`, `grants`, `pendingTriggers`, `offerCounter`, the private `surfaced` WeakSet) and the shared primitives `setClock()`, `collect(work)`, `reject(actorId, rejection)`, `surfaceOffers(events, {feats})` | `./combatants`, `./triggers` |
+  | `combat/declare.ts` (283) | declare gates and spend helpers: `restrictionRejection`, `resolveTarget`, `spatialGate`, `atRefusal`, `rangeGate`, `selfTargetRefusal`, `isSelfAction`, `pickSlot`, `applyNonSlotCosts`, `castPayload` | `../conditions`, `./spatial`, `./combatants` |
+  | `combat/execute.ts` (233) | effect execution over `FightCore`: `resolveShape`, `flattenResolutions`, `executeBound`, `resolveAction`, `boundActionOf`, `endIfSideDefeated` | `../display-roll`, `./resolve`, `./combatants` |
+  | `combat/movement.ts` (351) | movement and terrain over `FightCore`: `copyTerrain`, `terrainRefusals`, `forfeitMove`, `movementGate`, `pathQuery`, `walk`, `threatenersLeft`, `resumeMove`, `endMove`, `setPendingMove`, `place`, `moveBudgetAst`; the private `ZERO_RNG` | `../../core/dsl/formula`, `../errors`, `./resolve`, `./spatial`, `./combatants`, `./declare` |
+  | `combat/triggers.ts` (280) | offer grammar and emission (its 7 prior exports, incl. `resolveTriggered`) plus trigger answering: `answerOffer`, `resolveReactive`, `resolveReactiveAgainst`, `resolveFeat` | `./action-economy`, `./combatants`, `./declare`, `./execute` |
+  | `combat/{resolve,spatial,action-economy}.ts` | unchanged (397, 375, 211) | unchanged (`resolve.ts → core/dsl/{checker,formula,effect}`; the other two none) |
+
+  The value DAG is acyclic. No file value-imports `./combat` (`triggers.ts → combat.ts` stays
+  type-only), only `combat.ts` value-imports `fight.ts` (the rest take `FightCore` as a type), and
+  `combat.ts → ./resolve`/`./spatial` became type-only. None of the new helpers is on the runtime
+  barrel. **Name map for the next bullet:** the private `resolve` → `resolveAction` and `execute()` →
+  `executeBound` (`execute.ts`); `rejectionEvent` → `FightCore.reject`; `Combat`'s
+  `setClock`/`collect`/`surfaceOffers` → `FightCore`'s; `resolveReactive`, `resolveReactiveAgainst`,
+  `resolveFeat` and the take/decline half of `respond` (`answerOffer`) → `triggers.ts`; the movement
+  gate, walk, pause/resume/forfeit and terrain refusals → `movement.ts`; the declare gates →
+  `declare.ts`; `applyMutation`, `combatantFeats`, `copyBindings`, `reachOf` → `combatants.ts`.
+  **Proof:** `tests/proofs/combat-characterization.test.ts` (9 legs through the public barrel; raw
+  sha256 of the whole event + snapshot stream, captured from unmodified source at S01 ck1 `17f8f18`
+  and green on base source too) and `tests/runtime/combat/module-surface.test.ts` (exact value-export
+  lists of the barrel, `combat/combat` and `snapshots`; a no-`parseFormula`/`parseEffect` sweep over
+  `combat/*.ts` except `resolve.ts`). The characterization test is a **behaviour pin** (DD-D8; see
+  drift notes).
 - `combat/combat.ts` (FR-10/13) — `startCombat(runtime, {allies, enemies, rng?})`; `Combat`
   `step()/declare()/respond()/serialize()/eventsSince()/roundComplete`; initiative from the
   reserved formula or d20 fallback (CA-6); events emitted as CA-3 rows only; `displayRoll` =
@@ -717,8 +760,10 @@ exports (DD-F7), and `progression.ts` consumes them. `feats.ts` is still a leaf:
   (synthetic item-only action) → unknown-target → no-charges`, each rejection one
   `declare:rejected` event; success emits `item:used {itemId, remaining}` and runs the effect
   with `why.rule: content.items.<id>`; it consumes no slot and does not end the turn. The private
-  `resolve` is split into a shared `execute` used by `declare`, `respond` and `use`.
-  `applyMutation` applies the R-2 heal rule to negative-amount damage with `hpBefore` captured
+  `resolve` is split into a shared `execute` used by `declare`, `respond` and `use` (now
+  `resolveAction`/`executeBound` in `combat/execute.ts`; the take path behind `respond` reaches them
+  through `triggers.ts`).
+  `applyMutation` (`combat/combatants.ts`) applies the R-2 heal rule to negative-amount damage with `hpBefore` captured
   before the mutation; heal rolls render through the unchanged `displayRoll` as negative faces
   (`d6[-4]-2=-6`). The restriction gate on `use` cannot currently block: `ItemDef` has no
   `tags` (recorded, not a defect).
@@ -743,14 +788,15 @@ exports (DD-F7), and `progression.ts` consumes them. `feats.ts` is still a leaf:
   is a no-op success (`to` ignored; only `action:resolved`). **Offer surfacing is per call (F-P1,
   DD-M10):** `declare`/`respond` still *return* the round window, but `declare` and the reactive
   resolution behind `respond(…, 'take')` collect their own events with a per-call sink
-  (`collect()`, the `execute()` idiom) and feed only those to `surfaceOffers`; `use` already
-  surfaced per call; `surfaceOffers` skips any event already surfaced (a facade-side
+  (`collect()`, the `execute()` idiom — now `FightCore.collect` and `executeBound`) and feed only those to `surfaceOffers`; `use` already
+  surfaced per call; `surfaceOffers` skips any event already surfaced (a `FightCore`-private
   `WeakSet<RuntimeEvent>`, not combat state), so each (reactor, event) pair is offered exactly
   once, and offers raised inside a walk surface when raised. Offers are not filtered by
   affordability: a spent-reaction take yields one `declare:rejected {slot-exhausted, reaction}`,
   E-ECON-01. `respond(…, 'decline')` now calls `setClock()` first (restored-fight stamping fix,
   S03 ck4). Intra-runtime helper exports `copyTerrain`, `terrainRefusals`, `moveBudgetAst`
-  (consumed by `snapshots.ts`) stay out of the barrel. `displayRoll` moved to the
+  (defined in `combat/movement.ts`, re-exported from `combat.ts`, consumed by `snapshots/combat.ts`)
+  stay out of the barrel. `displayRoll` moved to the
   `display-roll.ts` leaf and is re-exported from `combat.ts` so the barrel path is unchanged.
   **The spell column (spells-in-combat S02):** `declare(id)` resolves `pack.actions[id]`, else
   `pack.content.spells[id]` as a bound action `{cost, effect, tags}` with AST
@@ -767,7 +813,7 @@ exports (DD-F7), and `progression.ts` consumes them. `feats.ts` is still a leaf:
   passes `profileFor` (DD-S19). `CombatantState` gains `spells`, `bindings?`, `slotsCast` and
   `poolsSpent` (both `{}` at start), `castBlockedBy?` and (S03) `feats?` (present only when
   non-empty, built by `combatantFeats(profile)` in `startCombat` and `deserializeCombat`); the
-  intra-runtime helpers `copyBindings`/`combatantFeats` are consumed by `snapshots.ts`, not the
+  intra-runtime helpers `copyBindings`/`combatantFeats` are consumed by `snapshots/combat.ts`, not the
   barrel. **The feat column (S03 ck3 `8d04c5e`):** `PendingTrigger.source: 'action' | 'feat'`
   (required; a feat offer's `actionId` names the feat); `respond(…, 'take')` on a feat runs
   `resolveFeat` — a `targetId` other than the holder is `invalid-target` (the offer still leaves
@@ -779,13 +825,14 @@ exports (DD-F7), and `progression.ts` consumes them. `feats.ts` is still a leaf:
   **Self actions (action-targeting S02 ck1 `63f6e78`, CA-A1/A2):** `resolveShape('self', …)`
   returns `[actor.id]` before the theater-of-mind early return, so the executor's
   `resolveTargets`, `hasTarget(self)` and nested `target(self, …)` see the actor in every pack.
-  The exported **`isSelfAction(runtime, actionId)`** (beside `moveBudgetAst`; intra-runtime, not in
+  The exported **`isSelfAction(runtime, actionId)`** (in `combat/declare.ts`, re-exported from `combat.ts`; intra-runtime, not in
   the barrel) is true when `index.actionEffects[actionId]`'s root is `target(self, …)` — it reads
   the action index only, so spells never qualify. `declare` (actions only) and `resolveReactive`
   bind the actor/reactor as the target and skip `resolveTarget` and the reach gate; a foreign
   `targetId` yields `declare:rejected {kind: 'invalid-target', rule: 'E-REF-01', resource:
-  targetId}` from the private `selfTargetRefusal`, with nothing changed. `resolveReactive` now ends
-  in the private `resolveReactiveAgainst` (shared cost gate, spend and resolve). Proven by
+  targetId}` from `selfTargetRefusal` (`combat/declare.ts`), with nothing changed. `resolveReactive` now ends
+  in `resolveReactiveAgainst` (shared cost gate, spend and resolve; both exported free functions of
+  `combat/triggers.ts` since combat-decomposition S02 ck3 `d728c51`). Proven by
   `tests/runtime/combat/self-target.test.ts` (12) and the self-target journey (M05).
 - `combat/spatial.ts` (FR-11) — `theaterOfMind` no-op; `gridGeometry` (Chebyshev, reach, burst);
   grid-combat S03 reshaped the pack edge: `spatialFromPack` reads the v1.3 contract shape
@@ -795,7 +842,7 @@ exports (DD-F7), and `progression.ts` consumes them. `feats.ts` is still a leaf:
   undefined` — the typed adapter combat consumes (`undefined` = theater of mind; accepted as a
   structural input, since a nominal `Pack` signature would reject `spatialFromPack`'s input);
   `SpatialRejection.pendingId` → `rule: 'E-SPAT-01'` (registered id, CA-G2; zero remnants).
-  One shape resolver (`resolveShape`) with three consumers: the executor's
+  One shape resolver (`resolveShape`, in `combat/execute.ts` since combat-decomposition) with three consumers: the executor's
   `EffectApply.resolveTargets`, `hasTarget(…)` validity evaluation, `target()`; bursts are
   side-blind around the declared target; theater-of-mind answers every shape with the bound
   targets and never rejects. grid-movement S03: **`hexGeometry(model)`** (axial; `canReach` keeps
@@ -806,15 +853,20 @@ exports (DD-F7), and `progression.ts` consumes them. `feats.ts` is still a leaf:
   region-bounded exact Dijkstra (DD-M18), failure kinds `blocked` → `occupied` → `unreachable` →
   `out-of-range {cost}`; a reachable destination is never `unreachable` (F-P9).
 - `display-roll.ts` (grid-movement S03 ck5, `27c77f4`) — the one roll-display rule (FR-13
-  `why.rolls`); a runtime leaf importing only `core/dice` types, consumed by `combat/combat.ts`
-  and `equipment.ts` (retires equipment's private `rollText`; `equipment.test.ts` kept green).
+  `why.rolls`); a runtime leaf importing only `core/dice` types, consumed by `combat/execute.ts`
+  and `equipment.ts` and re-exported by `combat/combat.ts` (retires equipment's private `rollText`; `equipment.test.ts` kept green).
 - `combat/triggers.ts` (FR-4/13) — pattern grammar `<type>` or `<type>[target|actor=self|<id>]`
   (the grammar `TRIGGER_PATTERN` enforces at load); `offersForEvent(runtime, combatants, event,
   {feats?})` returns every action offer, then every feat offer (new `reactiveFeatsFor`) unless
   `feats: false`; `trigger:fired {triggerId, actionId, source, on, offerIndex}` and
   `trigger:declined {triggerId, actionId, source, on}`, `why.rule` `actions.<id>.trigger` or
   `content.feats.<id>.trigger`; taken action triggers ride the same pipeline as declares. **Edge note
-  (corrected at the grid-combat pass):** `triggers.ts → combat.ts` is type-only, not a value-import cycle.
+  (corrected at the grid-combat pass):** `triggers.ts → combat.ts` is type-only, not a value-import cycle. Since combat-decomposition S02
+  ck3 (`d728c51`) the file also holds trigger answering over a type-only `FightCore`: `answerOffer`
+  (decline → `setClock` + `trigger:declined`, otherwise take), `resolveReactive` (restriction → self
+  → target → reach), `resolveReactiveAgainst` (cost → spend → `collect(resolveAction)` →
+  `surfaceOffers`) and `resolveFeat` (holder check → effect → `surfaceOffers(…, {feats: false})`).
+  These are internal exports, not on the barrel.
 - `bestiary.ts` — `spawnMonster`/`bestiaryIds` via the same `profileFromStatblock`. `encounter.ts`
   (FR-16) — `assembleEncounter` heuristic `threat-weighted-uniform`; `spawnEncounter`.
 - First narrow journey (v1-core S05 ck2): fixture pack → validatePack(+packDslChecker) → Runtime
@@ -868,9 +920,29 @@ equippedUnits`; `runtime.ts` `PackIndex.itemEffects` (only items declaring `use`
 ck5); the private `rollText` copy (C8) is gone. `useItem` binds `speed` (grid-movement, above)
 and, since action-targeting S03 ck1, `ability:<n>` from `view.abilities` (equipment-composed).
 
-### M03/M05 — Snapshots + root surface (v1-core S06, f1af841/9e18ee2/daac7b7/a6d89ff/bb01e92; positions in grid-combat S03; sideDefeated in v1-shell; terrain + paused moves in grid-movement S03; spend, feats and the envelope in spells-in-combat S02/S03; the feat-slot restore refusal in feat-progression S02)
+### M03/M05 — Snapshots + root surface (v1-core S06, f1af841/9e18ee2/daac7b7/a6d89ff/bb01e92; positions in grid-combat S03; sideDefeated in v1-shell; terrain + paused moves in grid-movement S03; spend, feats and the envelope in spells-in-combat S02/S03; the feat-slot restore refusal in feat-progression S02; split into `snapshots/` in combat-decomposition S03)
 
-- `src/runtime/snapshots.ts` (M03): FR-14 serializers `serializeCharacter/serializeParty/
+- **File layout (combat-decomposition S03 ck1 `8b1ed0b`; a verbatim move, DD-D7, following the
+  `validate.ts` → `validate/` precedent).** `src/runtime/snapshots.ts` (1,086 lines) became
+  `src/runtime/snapshots/`. Importers keep the path `…/runtime/snapshots`, which resolves to
+  `snapshots/index.ts` (`src/runtime/index.ts:84` unchanged). `index.ts` (35): the module header;
+  it re-exports exactly the base names (values `serializeCharacter`, `serializeParty`,
+  `restoreCharacter`, `restoreParty`, `serializeCombat`, `deserializeCombat`, and the 12 snapshot
+  types). `envelope.ts` (123): the identity gate and shared helpers (`SnapshotPackIdentity`,
+  `SNAPSHOT_VERSION`, `packIdentity`, `envelopeRefusals`, `declaredIdentityId`, `display`, `isRecord`;
+  module-internal). `character.ts` (302): the field-mapping header, the character/party types,
+  serializers and restores, `characterStateRefusals`, `featRefusals`, `equippedRefusals`,
+  `restoreCharacterState`. `combat.ts` (671): the combat types incl. `SnapshotOffer`,
+  `UINT32_MAX_WORD`, `serializeCombat`, `deserializeCombat`, `spatialRestoreRefusals`,
+  `combatRestoreRefusals`, `COMBAT_PHASES`, `envelopeV16Refusals`, `frozenSideDefeated`,
+  `spendRefusals`, the copy/remaining helpers and `validateRngWords`. Value imports, derived per
+  statement: `index → ./character, ./combat`; `envelope → schema/{version,error-card}`; `character →
+  schema/error-card, core/rng, ../errors, ../progression, ../character, ./envelope`; `combat →
+  schema/error-card, ../errors, ../combat/combat, ./envelope` (`./character` type-only). Their union
+  equals base `snapshots.ts`'s edges (CA-D4). Git's rename view shows the deletion as
+  `snapshots.ts → snapshots/combat.ts` (R059), a similarity artifact. M01's `error-card.ts:46`
+  comment now reads "enforced by runtime/snapshots/".
+- `src/runtime/snapshots/` (M03): FR-14 serializers `serializeCharacter/serializeParty/
   serializeCombat` + loud-refusal loaders `restoreCharacter/restoreParty/deserializeCombat`;
   types incl. `CombatRestoreRequest`. grid-combat S03: `SnapshotCombatant.position?: Position`
   (precise `{x,y}`, emitted only when set, never null); `CombatRestoreRequest.positions?`;
@@ -1016,7 +1088,7 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   (`:198`), dark-fantasy `bind-wound` (`:273`) and wyldwood `bind-wound` (`:418`) read `heal(1d8 +
   ability(vigor))` instead of `damage(1d8 - vigor, mending)`; the `mending` damage type no longer
   appears anywhere in `src/`. In combat the heal is a negative `damage:applied` amount clamped at
-  `maxHp` (`applyMutation`); its payload `type` is undefined and the dice face appears only in
+  `maxHp` (`applyMutation`, `combat/combatants.ts`); its payload `type` is undefined and the dice face appears only in
   `why.rolls[0]` (e.g. `d8[-7]-10=-17`). All three `contentHash`es changed; no test pins a literal
   hash.
   Byte-identity proofs (CA-5): equal hash + equal bytes, different-seed divergence, in-process
@@ -1168,10 +1240,15 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   rule (`README.md:332`), a **Healing spells** bullet telling hosts to name the ally (`:340`), "an XP
   award never lowers a level" (`:360`) and the feat-slotted "any class" sentence (`:395`) — still
   4 ```ts blocks; docs-run 3/3.
-- Full gates at builder-rulings close (Orchestrator receive at `c851de2`): typecheck 0; lint 0;
-  format:check 0; build 0; isolation 0; security 0; `pnpm test` **923/923 across 50 files**.
-  Re-run fresh by the builder-rulings final pass at `12ca6ac`: typecheck 0, build 0, isolation 0
-  (24 dist files), 923/923 (50 files; the 11 proofs files sum to 83). (feat-progression close was
+- combat-decomposition S01 ck1 (`17f8f18`) added `tests/proofs/combat-characterization.test.ts`
+  (9 legs, the behaviour pin above) and `tests/runtime/combat/module-surface.test.ts` (5); S03 ck2
+  (`0c56866`) added the C2 case to `tests/core/tables.test.ts`. No README, docs-run or count pin
+  changed.
+- Full gates at combat-decomposition close (Orchestrator receive at `0c56866`): typecheck 0; lint 0;
+  format:check 0; build 0; isolation 0; security 0; `pnpm test` **938/938 across 52 files**.
+  Re-run fresh by the combat-decomposition final pass at `a2f117f`: typecheck 0, build 0, isolation 0
+  (24 dist files), 938/938 (52 files); `pnpm exec vitest run tests/proofs` 92/92 across 12 files.
+  (builder-rulings close was 923/923 across 50 files, proofs 83 across 11; feat-progression close was
   911/911 across 49 files, proofs 74/74 across 10; action-targeting close was
   878/878 across 48 files, proofs 66/66 across 9; spells-in-combat close was
   829/829 across 44 files, proofs 53/53 across 8; grid-movement close 741/741 across 40 files,
@@ -1204,28 +1281,40 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
 
 ## Recorded drift & intra-module notes (for the next cycle)
 
-- **Intra-M03 value-import pairs** (derived mechanically at `94d40f3`; since then the only
-  change is feat-progression's `progression.ts → feats.ts` — builder-rulings changed no import
-  line, re-checked at `12ca6ac`): `character.ts ⇄
-  progression.ts`, `character.ts → inventory.ts`, `{character, progression}.ts → feats.ts`
-  (`feats.ts` a leaf),
+- **Intra-M03 value-import pairs** (re-derived per statement over every non-test file at
+  `0c56866` by the combat-decomposition final pass — whole `import`/`export … from` statements,
+  `import type`/`export type` dropped): `character.ts ⇄ progression.ts`, `character.ts →
+  inventory.ts`, `{character, progression}.ts → feats.ts` (`feats.ts` a leaf),
   `{character, pools, inventory, character-profile}.ts → equipment.ts` (a leaf),
-  `character-profile.ts → {inventory, pools}.ts`, `combat/combat.ts → conditions.ts`,
-  `{combat/combat, equipment}.ts → display-roll.ts` (grid-movement leaf; imports only `core/dice`
-  types), `snapshots.ts → {character, progression, combat/combat}`, `combat/combat.ts →
-  {combat/triggers, combat/resolve, combat/spatial, combat/action-economy}`, `runtime.ts →
-  {character, progression, combat/spatial, events}`. The `character ⇄ progression` cycle exists
+  `character-profile.ts → {inventory, pools, combat/resolve}.ts`, `bestiary.ts → combat/resolve.ts`,
+  `encounter.ts → bestiary.ts`, `combat/declare.ts → conditions.ts`,
+  `{combat/combat, combat/execute, equipment}.ts → display-roll.ts` (grid-movement leaf; imports
+  only `core/dice` types), `snapshots/character.ts → {character, progression}`,
+  `snapshots/combat.ts → combat/combat`, `snapshots/{character,combat}.ts → snapshots/envelope.ts`,
+  `snapshots/index.ts → snapshots/{character,combat}`, `runtime.ts → {character, progression,
+  combat/spatial, events}`, and inside `combat/`: `combat.ts → {triggers, action-economy,
+  combatants, declare, execute, fight, movement}`, `fight.ts → {combatants, triggers}`,
+  `declare.ts → {spatial, combatants}`, `execute.ts → {resolve, combatants}`, `movement.ts →
+  {resolve, spatial, combatants, declare}`, `triggers.ts → {action-economy, combatants, declare,
+  execute}` (acyclic). **Record correction (combat-decomposition final pass):** the full
+  derivation also shows `character-profile.ts → combat/resolve.ts` (`evalPackFormula`),
+  `bestiary.ts → combat/resolve.ts` (`profileFromStatblock`) and `encounter.ts → bestiary.ts`, which
+  no earlier list named. None is new: all three are present at `c39ef87`, and no import line
+  outside `combat/` and the `snapshots` split changed in `52d4d2a..db38f31`. The `character ⇄ progression` cycle exists
   in code; TypeScript tolerates it because the imported symbols are used lazily. Recorded as
   observed, not as an architecture violation — the cross-module flow is what the architecture
   cares about, and it holds. *(Corrected at the grid-combat pass: the prior record's second cycle
   `combat/triggers.ts → combat.ts` was type-only from creation. **Corrected at the grid-movement
   pass:** the prior record listed `snapshots.ts → {combat/resolve, combat/spatial,
   combat/action-economy}` as value edges; at both `c39ef87` and `6ab880a` those three imports are
-  `import type` — snapshots' only combat value edge is `combat/combat`.)*
+  `import type` — snapshots' only combat value edge is `combat/combat`; after the split it is
+  `snapshots/combat.ts → combat/combat`.)*
 - **Restricts matcher duplication: RESOLVED by spells-in-combat S02 ck1** — combat's
   `restrictionRejection` now calls the exported `matchesRestriction` + `declaredTags`; the inline
-  copy is deleted. `isLivePattern` still has no non-test consumer (re-grepped at `12ca6ac`: definition,
-  barrel, `conditions.test.ts`). Cleanup C1 narrowed to that symbol.
+  copy is deleted. `isLivePattern` still has no non-test consumer, and it is **kept as public API**
+  (combat-decomposition DD-D9, the human's "2 recommend"): it is on the published runtime barrel
+  (`index.ts:56`), `conditions.test.ts:78-79` exercises it, and `module-surface.test.ts` pins it in the
+  exact barrel list, so removing it would be a breaking surface change. Cleanup C1 retired.
 - **Effect-scope name shadowing** (equipment-consumables S05): a bare name in effect scope still
   reads the save when a save and an ability share it, and the engine-derived `speed` scalar shadows
   a same-named ability the same way (DD-M7, tested). **Since action-targeting v1.7** an effect
@@ -1238,10 +1327,12 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
 - **`parsePackEffects`: DELETED** at spells-in-combat S02 ck1 (DD-S15; zero references in
   `src/` or `tests/` at `94d40f3`). `PackIndex.spellEffects` is the parse-once source the spell
   bridge reads. Cleanup C6 closed.
-- **`MAX_TABLE_DEPTH = 8` duplication:** `core/tables.ts` and `validate/helpers.ts` both define
-  8. database.md prose records the engine-side ratification and both constants are test-pinned.
-  Single-sourcing it is in the duplicated-logic cleanup brief (ARCHIVIST-LOG 2026-09-28, C2); a
-  naive schema-re-exports-core fix would break M01's import-nothing-internal rule.
+- **`MAX_TABLE_DEPTH = 8` duplication: RESOLVED by cross-pin** (combat-decomposition S03 ck2
+  `0c56866`, DD-D10, CA-D5). `core/tables.ts:32` and `validate/helpers.ts:544` still both declare
+  8, because single-sourcing would need an M01 ↔ M02 value edge and the layering forbids both
+  directions. `tests/core/tables.test.ts:226-228` pins them equal
+  (`expect(MAX_TABLE_DEPTH).toBe(SCHEMA_MAX_TABLE_DEPTH)`), and its negative control (→ 9) fails
+  the case. This follows the EQUIPMENT_SCALARS ↔ RESERVED_GRANT_KEYS precedent. Cleanup C2 closed.
 - **Surface-intent candidates:** `WYLDWOOD`, `readPatch`, `EventSeed`/`EventSink` — exported, no
   non-test consumer (or none at all). Cleanup-tracked (C3/C4/C7).
 - **Declare gate order:** validity gate → spatial gate (reach for opponent actions; the
@@ -1275,7 +1366,7 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
     Preserved deliberately; since v1.6 the spell range fallback uses the same value, so a fix must
     change both sites together.
   - **R-GM-1 / R-GM-2 — CLOSED by spells-in-combat S03 ck4** (envelope `offeredCount` / `phase`).
-  - **R-GM-3** — a resumed walk skips the leaving-reach check on its first step out of the paused
+  - **R-GM-3** — a resumed walk (`combat/movement.ts` `walk(…, resumed)`) skips the leaving-reach check on its first step out of the paused
     cell (once-only offers, mock-consistent). If re-planning picks a different first step, a
     different threatener is not checked. Owner: the next feature that touches provoke.
   - **`heal` in `EFFECT_VOCABULARY`: CLOSED by action-targeting S03 ck1** (`4c1e1e6`; the
@@ -1338,6 +1429,24 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   - **`database.md:721-722` (pre-existing DB-owned drift)** names only two sample theme templates
     (dark-fantasy, zombie-urban); wyldwood is the third since loot-inventory. The Final Report
     cites it as `database.md:700`, its line number before v1.9's insertions. Owner: the next DB re-entry.
+- **combat-decomposition residuals (carried, owners named in its Final Report):**
+  - **F-D8 — spec drift (Author-owned; Spec re-entry class, human-authorized).**
+    `specs/architecture.md:80` (`combat.ts — Combat: stepwise loop, initiative, rounds`), `:88`
+    (`snapshots.ts — three serializers + loud-refusal load`) and `:208` (`snapshots.ts` owns exactly
+    three serializers) name file locations the split changed. The loop now spans
+    `combat/{combat,fight,declare,execute,movement,triggers}.ts`, and the serializers live in
+    `snapshots/{character,combat}.ts` behind `snapshots/index.ts`. The same class of drift, older and
+    not recorded here before: `architecture.md:62` (`validate.ts — structural + semantic
+    validator`), stale since v1-shell split `validate.ts` into `validate/`. One Spec re-entry can
+    take all four lines.
+  - **Behaviour pin (DD-D8).** `tests/proofs/combat-characterization.test.ts` pins raw sha256
+    digests of nine scripted legs' whole event + snapshot stream. A feature that intentionally
+    changes combat events (type, order, payload, `why`, `at`) or snapshot JSON lists it in its pin
+    audit with a re-key owner (PROGRAM-CONFIG pin-lease convention). A red digest with no planned
+    behaviour change is a regression, never a re-key.
+  - **`Combat.state` accessor (DD-D3).** `state` is a `get`/`set` pair over `FightCore.state`. The
+    setter exists because `movement.test.ts:560` assigns `fight.state`. `pendingTriggers` is the
+    core's own array instance.
 - **v1.1 follow-ups carried across cycles:** browser-mode Vitest config (CI's browser leg);
   byte-level snapshot conformance; `pnpm approve-builds` advisory for esbuild/tsup; an
   out-of-combat point-pool cast verb (would give wyldwood's charm armor teeth, DD-EG5); item
@@ -1359,163 +1468,6 @@ SESSION-02 and SESSION-03 markers (a84dd52, 42a1fd3) were collapsed at the actio
 pass (original text recoverable at 535247d); the feat-progression SESSION-02 marker (3da588a) was
 collapsed at the feat-progression final pass (original text recoverable at ad2cbe3); the
 builder-rulings SESSION-02 marker (4c74017) was collapsed at the builder-rulings final pass
-(original text recoverable at 12ca6ac). -->
-
-
-<!-- combat-decomposition SESSION-01 -->
-## combat-decomposition SESSION-01 — combat spine split (M03 internal; no new module ID, no cross-module edge, no public export change)
-
-*(Orchestrator mid-run append of the session arch delta, checkpoints 17f8f18..f82b2fe; the final Archivist pass synthesizes it.)*
-
-## New files in `src/runtime/combat/`
-
-| File | Role | Value-imports |
-|---|---|---|
-| `types.ts` | every combat type `combat.ts` exported (`CombatantState`, `PendingMove`, `CombatState`, `CombatPhase`, `PendingAction`, `PendingTrigger`, `DeclareOptions`, `DeclareRejection`, `UseOptions`, `StepOutcome`, `StartCombatRequest`) plus `CastSlot` (now exported here only) | none (`import type` only) |
-| `combatants.ts` | pure combatant facts: `isDowned`, `defeatedSide`, `combatantFeats`, `copyBindings`, `profileOf(state)`, `reachOf(runtime, id)`, `ruleBaseOf(runtime, actionId)`, `validityVars(actor)`, `balancesOf(actor)` (F-D2), `applyMutation(runtime, target, request)` | none |
-| `fight.ts` | `class FightCore`: `runtime`, `state`, `rng`, `grants`, `pendingTriggers`, `offerCounter`, private `surfaced` WeakSet; `setClock()`, `collect(work)`, `reject(actorId, rejection)` (was `rejectionEvent`), `surfaceOffers(events, {feats})` | `./combatants`, `./triggers` |
-| `declare.ts` | declare gates + spend helpers: `restrictionRejection(runtime, …)`, `resolveTarget(state, …)`, `spatialGate(runtime, …)`, `atRefusal(runtime, …)`, `rangeGate(runtime, …)`, `selfTargetRefusal`, `isSelfAction`, `pickSlot`, `applyNonSlotCosts`, `castPayload` | `../conditions`, `./spatial`, `./combatants` |
-| `execute.ts` | effect execution over `FightCore`: `resolveShape(core, …)`, `flattenResolutions`, `executeBound(core, …)` (was `execute`; keeps its own event sink, nested inside `core.collect` exactly as before), `resolveAction(core, …)` (was `resolve`), `boundActionOf(runtime, …)`, `endIfSideDefeated(core)` | `../display-roll`, `./resolve`, `./combatants` |
-
-## What remains in `combat.ts`
-
-`startCombat`, `copyTerrain`, `terrainRefusals`, `rngStateOf`, `moveBudgetAst`, `ZERO_RNG`, and `class Combat`:
-public `runtime`, `get/set state` (delegating to `core.state`, DD-D3), `pendingTriggers` (the core's own array
-instance), private `core: FightCore`, constructor (signature unchanged), `offeredCount`, `roundComplete`, `step`,
-`declare` (gate order unchanged; the validity block with `this.runtime.index.validAsts[actionId]` stays inline,
-DD-D4), `use`, `respond`, `serialize`, `eventsSince`, `declareReactive`, `endTurn`, `advanceFrom`; plus, until
-SESSION-02, the movement internals (`forfeitMove`, `movementGate`, `pathQuery`, `walk`, `threatenersLeft`,
-`resumeMove`, `endMove`, `setPendingMove`, `place`) and trigger answering (`resolveReactive`,
-`resolveReactiveAgainst`, `resolveFeat`). Re-exports: the 11 types from `./types`; `isDowned`, `defeatedSide`,
-`combatantFeats`, `copyBindings` from `./combatants`; `isSelfAction` from `./declare`; `displayRoll`,
-`replenish`, `SlotLedger`, `SlotGrants` as before.
-
-Public-surface delta: `dist/runtime.d.ts` `declare class Combat` — `state: CombatState;` →
-`get state(): CombatState;` + `set state(next: CombatState);` (the one allowed DD-D3 delta). V4 export-list
-digests unchanged (`dist/runtime.d.ts 1 151 b3a0b27d400a8289`, `dist/index.d.ts 1 221 be8f98762c3bdcad`).
-
-## Derived value-import DAG (`src/runtime/combat/*.ts`, F-D7 per-statement derivation at `f82b2fe`)
-
-```
-action-economy.ts -> (none)
-combat.ts -> ../../core/rng, ./triggers, ./action-economy, ./resolve, ./spatial, ../../core/dsl/formula, ../errors, ../display-roll, ./combatants, ./declare, ./execute, ./fight
-combatants.ts -> (none)
-declare.ts -> ../conditions, ./spatial, ./combatants
-execute.ts -> ../display-roll, ./resolve, ./combatants
-fight.ts -> ./combatants, ./triggers
-resolve.ts -> ../../core/dsl/checker, ../../core/dsl/formula, ../../core/dsl/effect
-spatial.ts -> (none)
-triggers.ts -> (none)
-types.ts -> (none)
-```
-
-No file value-imports `./combat`; `triggers.ts` imports `Combat` as a type only (and now `CombatantState`,
-`PendingTrigger` as types from `./types`). Intra-module value edges moved: `combat/combat.ts → conditions.ts`
-becomes `combat/declare.ts → conditions.ts`; `combat/combat.ts → display-roll.ts` remains (re-export) and
-`combat/execute.ts → display-roll.ts` is added; `combat/combat.ts → combat/triggers.ts` remains (`emitDeclined`)
-and `combat/fight.ts → combat/triggers.ts` is added.
-
-## `arch/v1-core.md` citations now pointing into moved code (symbol citations; no line-number citation into `combat.ts` exists)
-
-- l.69 `defeatedSide` "from `combat/combat.ts`" — now defined in `combat/combatants.ts` (still re-exported from `combat.ts`).
-- l.587 `setClock` (EventStream's — unaffected; `Combat.setClock` is now `FightCore.setClock`).
-- l.611 / l.1226 combat's `restrictionRejection` — now `combat/declare.ts`.
-- l.621-624 `defeatedSide` consulted after every resolution — the end rule is now `endIfSideDefeated` in `combat/execute.ts`.
-- l.682-691 combat injects `resolveShapeTargets` per execution — now `executeBound` in `combat/execute.ts`.
-- l.721 `applyMutation` — now `combat/combatants.ts`.
-- l.746-751 `collect()`, the `execute()` idiom, `surfaceOffers`, `setClock()` — now `FightCore` in `combat/fight.ts` (`execute` renamed `executeBound`, `combat/execute.ts`).
-- l.760-765 `reachOf`, `applyNonSlotCosts`, the binding pick, `resolveShape` — now `combat/combatants.ts`, `combat/declare.ts`, `combat/execute.ts`.
-- l.769-770 `combatantFeats`, `copyBindings` — now `combat/combatants.ts` (re-exported from `combat.ts`).
-- l.775 `surfaceOffers(emitted, {feats: false})` — `FightCore.surfaceOffers`.
-- l.779-787 `resolveShape('self', …)`, `isSelfAction` "beside `moveBudgetAst`", `resolveTarget`, private `selfTargetRefusal` — now `combat/execute.ts` and `combat/declare.ts` (`isSelfAction` still re-exported from `combat.ts`).
-- l.798 "One shape resolver (`resolveShape`)" — now `combat/execute.ts`.
-- l.1019 `applyMutation` — now `combat/combatants.ts`.
-- l.1213-1215 intra-module notes (`combat/combat.ts → conditions.ts`, `combat/combat.ts → combat/triggers.ts`) — see the edge changes above.
-
-<!-- combat-decomposition SESSION-02 -->
-## combat-decomposition SESSION-02 — movement, terrain and trigger answering out of `Combat` (M03 internal)
-
-*(Orchestrator mid-run append of the session arch delta, checkpoints 62c1418..39d754d; supersedes the SESSION-01 section's "What remains in `combat.ts`" and the `combat.ts`/`triggers.ts` lines of its value-import list; the final Archivist pass synthesizes both.)*
-
-Commits: ck1 `62c1418`, ck2 `0eabcbc`, ck3 `d728c51`, ck4 `39d754d`. M03 internal only; no new module ID, no cross-module edge, no export, signature, event or snapshot change.
-
-## Final roles
-
-| File | Responsibility | Value-imports (internal, derived per statement at `39d754d`) |
-|---|---|---|
-| `combat/movement.ts` (new, 351 lines) | movement and terrain over `FightCore`: `copyTerrain`, `terrainRefusals` (shared with snapshot restore), `forfeitMove`, `movementGate` (DD-M9), `pathQuery`, `walk` (leaving-reach pauses, R-GM-3 resumed first step), `threatenersLeft`, `resumeMove` (DD-M10 re-checks), `endMove`, `setPendingMove`, `place` (whole-object `core.state` reassignment), `moveBudgetAst`; private `ZERO_RNG` (DD-M8). The module header holds the former `combat.ts` "Movement (v1.5, FR-11)" paragraph. | `../../core/dsl/formula`, `../errors`, `./resolve`, `./spatial`, `./combatants`, `./declare` |
-| `combat/triggers.ts` (280 lines) | offer grammar and emission (unchanged, all 7 prior exports) plus trigger answering: `answerOffer` (decline → `setClock` + `trigger:declined`, otherwise take), `resolveReactive` (restriction → self → target → reach), `resolveReactiveAgainst` (cost → spend → `collect(resolveAction)` → `surfaceOffers`), `resolveFeat` (holder check → effect → `surfaceOffers(…, {feats: false})`, no-chain). Takes `FightCore` as `import type`. New exports are internal and are not on the runtime barrel. | `./action-economy`, `./combatants`, `./declare`, `./execute` |
-| `combat/combat.ts` (1088 → 671 lines) | `startCombat`, `rngStateOf`, and `class Combat`: the constructor, `state` accessor, `offeredCount`, `roundComplete`, the public verbs `step` (calls `forfeitMove`), `declare` (inline validity gate, calls `movementGate`; DD-D4), `use`, `respond` (lookup + `splice`, then `answerOffer`, then `resumeMove` when the queue is empty), `serialize`, `eventsSince`, `declareReactive` (calls `resolveReactive`), and the turn advance (`endTurn`, `advanceFrom`). Its only private members are `core`, `endTurn` and `advanceFrom`. It re-exports `copyTerrain`, `terrainRefusals` and `moveBudgetAst` from `./movement`, plus all of S01's re-exports. | `../../core/rng`, `./triggers`, `./action-economy`, `../../core/dsl/formula`, `../errors`, `../display-roll`, `./combatants`, `./declare`, `./execute`, `./fight`, `./movement` |
-
-The value edges `combat.ts → ./resolve` and `combat.ts → ./spatial` are now type-only; they were dropped, not moved elsewhere. Unchanged from S01: `fight.ts → ./combatants, ./triggers`; `declare.ts → ../conditions, ./spatial, ./combatants`; `execute.ts → ../display-roll, ./resolve, ./combatants`; `types`, `combatants`, `spatial` and `action-economy` have no internal value imports; `resolve.ts → core/dsl/{checker,formula,effect}`.
-
-DAG is acyclic. None of `declare.ts`, `execute.ts`, `combatants.ts` or `movement.ts` value-imports `fight.ts`. No file value-imports `./combat` (`triggers.ts` still imports `Combat` as a type only, for `resolveTriggered`). `balancesOf` is defined in `combatants.ts` and imported by `combat.ts` and `triggers.ts`.
-
-Intra-module edge changes for the PROGRAM-CONFIG registry (final Archivist):
-- `combat/combat.ts → combat/triggers.ts` remains, now `answerOffer`/`resolveReactive` instead of `emitDeclined`.
-- Added: `combat/triggers.ts → combat/{declare, execute, action-economy, combatants}`.
-- Added: `combat/movement.ts → combat/{spatial, resolve, declare, combatants}`, `../errors`, `../../core/dsl/formula`.
-- Added: `combat/combat.ts → combat/movement.ts`.
-
-## `arch/v1-core.md` citations now pointing into moved code (symbol citations; final Archivist re-keys)
-
-- l.70: the edge `combat/combat.ts → combat/triggers.ts` (value) still holds; it now carries `answerOffer`/`resolveReactive`.
-- l.127: `moveBudgetAst` as an "export of `combat.ts`". It is now defined in `combat/movement.ts` and re-exported from `combat.ts`.
-- l.707: the reach gate "wired at declare and `resolveReactive`". `resolveReactive` is now in `combat/triggers.ts`.
-- l.720: "a shared `execute` used by `declare`, `respond` and `use`". The take path behind `respond` is now `triggers.ts` `answerOffer` → `resolveReactive`/`resolveFeat`.
-- l.728-743 (the grid-movement move column): the movement gate, walk, leaving-reach pause, `respond()` resume with its re-checks, the forfeit on `step()`, and the startCombat terrain refusals. Now `combat/movement.ts` (`movementGate`, `walk`, `threatenersLeft`, `resumeMove`, `forfeitMove`, `terrainRefusals`). `respond`/`step`/`startCombat` stay in `combat.ts` and call them.
-- l.744-749: "the reactive resolution behind `respond(…, 'take')` collect[s] their own events". Now `triggers.ts` `resolveReactiveAgainst`. The "offers raised inside a walk surface when raised" part is now `movement.ts` `walk`.
-- l.751-752: "`respond(…, 'decline')` now calls `setClock()` first" is now `triggers.ts` `answerOffer`. The intra-runtime exports `copyTerrain`, `terrainRefusals`, `moveBudgetAst` are now defined in `combat/movement.ts` and re-exported from `combat.ts` (still off the barrel).
-- l.772-776: `respond(…, 'take')` on a feat runs `resolveFeat`. Now `triggers.ts` `resolveFeat`.
-- l.782: `isSelfAction` "beside `moveBudgetAst`". `isSelfAction` is in `combat/declare.ts` (S01) and `moveBudgetAst` in `combat/movement.ts`; both are re-exported from `combat.ts`.
-- l.784-788: `resolveReactive` binding the reactor, and "`resolveReactive` now ends in the private `resolveReactiveAgainst`". Both are now exported free functions in `combat/triggers.ts`.
-- l.811-817: the `combat/triggers.ts` entry. It now also holds trigger answering (`answerOffer`, `resolveReactive`, `resolveReactiveAgainst`, `resolveFeat`). The edge note stands: `triggers.ts → combat.ts` is type-only.
-- l.1278: R-GM-3, the resumed walk skipping its first leaving-reach check. Now `movement.ts` `walk(…, resumed)`.
-- l.1380-1416 (S01's "What remains in `combat.ts`" and value-import list) is superseded by the tables above. `copyTerrain`, `terrainRefusals`, `moveBudgetAst`, `ZERO_RNG` and the movement/trigger internals are no longer in `combat.ts`. The `combat.ts` and `triggers.ts` lines of the derived list are replaced by the ones above, and a `movement.ts` line is added.
-
-<!-- combat-decomposition SESSION-03 -->
-## combat-decomposition SESSION-03 — snapshots split; C2 cross-pin (M03 internal, M01 comment)
-
-*(Orchestrator mid-run append of the session arch delta, checkpoints 8b1ed0b..0c56866; the final Archivist pass synthesizes it.)*
-
-## M03 — `src/runtime/snapshots.ts` → `src/runtime/snapshots/` (ck1 `8b1ed0b`)
-
-Verbatim move (DD-D7, following the `validate.ts` → `validate/` precedent). Importers keep the path
-`…/runtime/snapshots` (resolves to `snapshots/index.ts`); `src/runtime/index.ts` is not edited.
-No export, signature, snapshot byte or refusal changed.
-
-| File | Role | Value imports (F-D7 per-statement derivation) |
-|---|---|---|
-| `snapshots/index.ts` | module header (three envelopes, identity gate, no migration); re-exports exactly the base names: values `serializeCharacter`, `serializeParty`, `restoreCharacter`, `restoreParty`, `serializeCombat`, `deserializeCombat`; types `SnapshotPackIdentity`, `SnapshotClassEntry`, `SnapshotActiveCondition`, `SnapshotInventoryEntry`, `SnapshotEquippedEntry`, `SnapshotCharacterState`, `CharacterSnapshot`, `PartySnapshot`, `SnapshotCombatant`, `SnapshotOffer`, `CombatSnapshot`, `CombatRestoreRequest` | `./character`, `./combat` (`./envelope` type-only) |
-| `snapshots/envelope.ts` | identity gate + shared helpers: `SnapshotPackIdentity`, `SNAPSHOT_VERSION`, `packIdentity`, `envelopeRefusals`, `declaredIdentityId`, `display`, `isRecord` (module-internal exports; not re-exported) | `../../schema/version`, `../../schema/error-card` |
-| `snapshots/character.ts` | field-mapping header; character/party types, `serializeCharacter/Party`, `restoreCharacter/Party`, `characterStateRefusals`, `featRefusals`, `equippedRefusals`, `restoreCharacterState` | `../../schema/error-card`, `../../core/rng`, `../errors`, `../progression`, `../character`, `./envelope` |
-| `snapshots/combat.ts` | combat types (incl. `SnapshotOffer`), `UINT32_MAX_WORD`, `serializeCombat`, `deserializeCombat`, `spatialRestoreRefusals`, `combatRestoreRefusals`, `COMBAT_PHASES`, `envelopeV16Refusals`, `frozenSideDefeated`, `spendRefusals`, `copySlotsCast`, `remainingPools`, `remainingBound`, `copyPendingMove`, `validateRngWords` | `../../schema/error-card`, `../errors`, `../combat/combat`, `./envelope` (`./character` type-only) |
-
-Union of value edges equals base `snapshots.ts` (`schema/version`, `schema/error-card`, `core/rng`, `errors`,
-`progression`, `character`, `combat/combat`): no new cross-module edge (CA-D4). `snapshots/combat.ts` imports
-only `../combat/combat` from `combat/` as values (not `../combat/movement` etc.).
-
-Line counts: `character.ts` 302, `combat.ts` 671, `envelope.ts` 123, `index.ts` 35.
-
-M01: `src/schema/error-card.ts:46` comment now reads "enforced by runtime/snapshots/ (S06)".
-
-## C2 cross-pin (ck2 `0c56866`, CA-D5, DD-D10)
-
-`tests/core/tables.test.ts` case "MAX_TABLE_DEPTH is the schema validator’s bound — two declarations pinned
-together (C2)" asserts `core/tables.ts:32` `MAX_TABLE_DEPTH` === `schema/validate` (`helpers.ts:544`,
-re-exported `validate/index.ts:36`). Declared separately by layering; pinned together like
-EQUIPMENT_SCALARS ↔ RESERVED_GRANT_KEYS. C1 (`isLivePattern`) retired as public API, no code (DD-D9).
-
-## Stale citations naming `snapshots.ts` (for the final Archivist re-key; not edited here)
-
-- `arch/v1-core.md`: l.52 (M03 key files), l.68 (`snapshots.ts → {character, progression}`), l.132, l.624,
-  l.753, l.770, l.873 (`src/runtime/snapshots.ts` (M03) serializer entry), l.1215
-  (`snapshots.ts → {character, progression, combat/combat}`), l.1222.
-- `PROGRAM-CONFIG.MD`: l.82 (intra-module edge note `snapshots.ts → {character, …}`), l.92 (Module Registry
-  M03 *Key Files*). New edges to record: `snapshots/{character,combat}.ts → snapshots/envelope.ts`,
-  `snapshots/character.ts → {character, progression}`, `snapshots/combat.ts → combat/combat`.
-
-## Spec drift (F-D8; Author-owned, carried to a Spec re-entry)
-
-`program/Ruleswright/specs/architecture.md:80` (`combat.ts` location), `:88`
-(`snapshots.ts — three serializers + loud-refusal load`), `:208` (`snapshots.ts` owns exactly three serializers).
+(original text recoverable at 12ca6ac); the combat-decomposition SESSION-01..03 markers (5a0b764,
+576a307, ac39708) were collapsed at the combat-decomposition final pass (original text recoverable
+at a2f117f). -->

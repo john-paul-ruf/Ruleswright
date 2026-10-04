@@ -1643,3 +1643,296 @@ unchanged and is still unaccepted. No campaign crosses a threshold.
   byte-unchanged.
 - **Role docs:** `PLANNER.md`, `CODER.md`, `UI-CODER.md` and `ORCHESTRATOR.md` are byte-identical to how
   this pass found them.
+
+## 2026-10-04 — final pass, cycle `combat-decomposition` (feature commits `17f8f18` → tree HEAD `a2f117f`)
+
+Inputs: the Final Report (`a2f117f`), STATE.md (every section), VERIFICATION.md (`db38f31`), MASTER and
+SESSION-01..03, the run's session logs (`program/Ruleswright/runs/r-hDqg/sessions/*.log`),
+`arch/v1-core.md`, `PROGRAM-CONFIG.MD`, the builder-rulings and feat-progression entries of this log, and
+`git log`/`git diff` over `52d4d2a..db38f31`.
+
+### Reconciled
+
+- **`arch/v1-core.md`: three delta sections synthesized and collapsed.** The SESSION-01, -02 and -03
+  markers (`5a0b764`, `576a307`, `ac39708`) are gone. Their original text is recoverable at `a2f117f`, and
+  the historical-delta comment now says so. Where SESSION-02 superseded SESSION-01 (what remains in
+  `combat.ts`, and the `combat.ts`/`triggers.ts` lines of the import list), the record follows git at
+  `0c56866`, not either fragment.
+  - **Combat engine section:** a new *File layout* bullet carries one table: file, what it holds, line
+    count and internal value imports for all 11 `combat/*.ts`. A name map follows it (`resolve` →
+    `resolveAction`, `execute()` → `executeBound`, `rejectionEvent` → `FightCore.reject`, and so on).
+    The proof pair is also there: the characterization test as a DD-D8 behaviour pin, and
+    `module-surface.test.ts`.
+  - **Snapshots section:** a new *File layout* bullet covers `snapshots/{index,envelope,character,combat}.ts`,
+    with per-file roles, line counts and value imports. It notes that the union of their edges equals
+    base `snapshots.ts`'s edges, and that git's R059 rename view is a similarity artifact.
+  - **Citations re-keyed by content**, not by the fragments' stale line numbers:
+    - the module map row M03: 30 `.ts` files, with the new key files;
+    - the dependency-flow paragraph (`snapshots/*` edges, `combat/declare.ts → conditions.ts`,
+      `combat/execute.ts → display-roll.ts`) and its guard sentence;
+    - Surfaces: `isSelfAction` is in `declare.ts`, `moveBudgetAst` in `movement.ts`, the `Combat.state`
+      accessor pair is the one `.d.ts` delta, and `SnapshotOffer`'s file;
+    - `restrictionRejection` → `declare.ts`;
+    - `defeatedSide`/`endIfSideDefeated` → `combatants.ts`/`execute.ts`;
+    - `resolveShapeTargets` injected by `executeBound`;
+    - the shared `execute`, `applyMutation` (two sites), `collect()`, and the surfaced set as
+      `FightCore`-private;
+    - `copyTerrain`/`terrainRefusals`/`moveBudgetAst`, with their consumer `snapshots/combat.ts`;
+    - `copyBindings`/`combatantFeats`, `isSelfAction`, `selfTargetRefusal`, `resolveReactiveAgainst`
+      (now exported), `resolveShape`;
+    - the display-roll consumers;
+    - the `triggers.ts` entry, which gains trigger answering;
+    - R-GM-3 → `movement.ts` `walk(…, resumed)`.
+    - Every S01/S02/S03 citation the envelope listed was located by content and is either re-keyed or
+      still true as written: l.587 is EventStream's `setClock`, unaffected, and l.811-817's edge note
+      stands.
+  - **Drift section:**
+    - the intra-M03 list is re-derived over every non-test file;
+    - **record correction:** `character-profile.ts → combat/resolve.ts`, `bestiary.ts →
+      combat/resolve.ts` and `encounter.ts → bestiary.ts` are real value edges, present at `c39ef87`, that
+      no earlier list named;
+    - C1 is retired (kept as public API, DD-D9) and C2 is resolved (cross-pin, DD-D10);
+    - a new *combat-decomposition residuals* block: **F-D8** spec drift (`specs/architecture.md:80`, `:88`,
+      `:208`; Author-owned; Spec re-entry class), recorded beside the older `architecture.md:62`
+      `validate.ts` drift, which this record had **not** carried before; the DD-D8 behaviour pin; and the
+      DD-D3 accessor.
+  - **M05:** the proofs and gates bullet now reads 938/52 and 92/12 (fresh run).
+  - **Header:** eleven cycles, verified at `a2f117f`.
+  - **Re-read checks:** 2 `<!--` and 2 `-->`; no live `combat-decomposition SESSION` marker; every
+    remaining `snapshots.ts` mention is historical or names the deleted base file.
+- **Module registry (`PROGRAM-CONFIG.MD`)** reconciled to `a2f117f`:
+  - **M03 *Key Files*:** `combat/{combat,types,combatants,fight,declare,execute,movement,triggers,resolve,action-economy,spatial}.ts`
+    and `snapshots/{index,envelope,character,combat}.ts`, which replaces `snapshots.ts`.
+  - **Intra-module notes:** re-derived per statement, F-D7 form. A `node -e` match of whole statements
+    `/^(import|export)\s[\s\S]*?from\s+'([^']+)';/gm` over `git show db38f31:<file>` for every
+    `src/**/*.ts`, dropping `import type`/`export type` and all-`type` brace clauses. The results equal the
+    Final Report's *Architecture impact* table file for file:
+    - `combat/combat.ts → conditions.ts` is now `combat/declare.ts → conditions.ts`;
+    - `snapshots.ts → {character, progression, combat/combat}` is now `snapshots/character.ts →
+      {character, progression}` plus `snapshots/combat.ts → combat/combat`;
+    - `combat/combat.ts → combat/{resolve,spatial}` became type-only;
+    - the full intra-`combat/` DAG is recorded.
+  - **No new module ID, cross-module edge, rule id, export or contract change.** `git diff --stat
+    -G'^(import|export .* from)' 52d4d2a..db38f31 -- src` lists only `combat/*.ts` and the snapshots
+    split. `src/core` and `src/runtime/index.ts` are unchanged.
+- **Contract Agreements CA-D1..CA-D5, sampled:**
+  - **CA-D1:** `snapshots/index.ts` re-exports the 6 base values. `combat.ts:80ff` re-exports the 11 types;
+    VERIFICATION E4/E5 show `module-surface.test.ts` passing on base and HEAD.
+  - **CA-D2:** the raw-sha256 digests pass on base and HEAD (E4/E5), and S01's key-order negative control
+    failed 6/9.
+  - **CA-D3:** `tests/snapshots/**` is unmodified (`git diff --stat 17f8f18 db38f31 -- tests` = `tables.test.ts`
+    only).
+  - **CA-D4:** this pass's derivation, above.
+  - **CA-D5:** `tables.test.ts:226-228` asserts the real constants equal, with a negative control.
+  - No mismatch, and no required fact missing from the inventory.
+- **Capability Readiness vs VERIFICATION.md:** STATE marks CAP-D1..D4 verified, and VERIFICATION.md marks
+  6 rows verified (CAP-D1..D4, DD-D9, DD-D10), with 0 present-unverified, 0 failed and 0 blocked. No drift.
+  Current Blockers is empty and correct.
+- **Counterevidence:** none against any inherited verified claim. VERIFY-01's own negative control
+  (`'arrived'` → `'arrivedX'`) is not digest-isolated, and it says so. S01's key-order control is the
+  digest-only one on record.
+- **Final Report mechanical facts:** all re-derived and all reproduce against end SHA `db38f31`.
+  - `git diff --no-renames --name-status 52d4d2a..db38f31 -- src tests`: 17 paths, 12 A + 4 M + 1 D;
+    6+4+0+2 / 2+0+1+1 / 1 sum correctly.
+  - `--shortstat`: +3,245/−2,359 overall, `src` +2,617/−2,359, `tests` +628.
+  - The rename view gives 16 paths (R059). The whole-repo total is 23.
+  - Before line counts: 1,809, 1,086 and 155. Every after count matches `git show db38f31:<f> | wc -l`, and
+    the total of 4,291 checks.
+  - `git log --oneline 52d4d2a..db38f31 --grep checkpoint | wc -l` = **11** (5+4+2).
+- **Deviation counts by rule (FR-19)**, from the structured `deviations` fields in `r-hDqg`:
+  - **R1: 0.**
+  - **R2: 2, both S02** (`Ce_B_.log:125-133`): `ZERO_RNG` was briefly exported at ck1 and made private again
+    at ck2; unused imports were removed after each move. Both are in-lease.
+  - **R3: 0. R4: 0.** S01 (`CgPZs.log:140`), S03 (`Cxxi_.log:96`) and VERIFY-01 (`CAkh6.log:68`) all
+    return `—`.
+  - VERIFY-01 reported the refused commit in its notes and surprises, not as a deviation. That is the
+    builder-rulings classification. The new convention below fixes it for the program.
+  - The two R2s are lint hygiene inside a move, so this is no granularity signal.
+- **Process metrics (Final Report):**
+  - 3/3 first-dispatch completion; 0 unplanned corrections; 0 integration rework; 0 lease violations.
+  - 1 controlled lease revision (S03 rev 2, F-D4) before dispatch.
+  - All nine planning defects (F-D1..F-D9) were caught by the preflight and corrected before dispatch.
+  - No product decision was taken by a worker. The one tooling seam is the recurring VERIFICATION.md
+    refusal.
+- **Verified by execution** (fresh, by this pass at `a2f117f`, clean tree before edits):
+  - `pnpm build` 0
+  - `pnpm typecheck` 0
+  - `pnpm check:isolation` 0 (24 dist files)
+  - `pnpm test` **938/938 across 52 files**
+  - `pnpm exec vitest run tests/proofs` 92/92 across 12 files
+  - lint and security are inherited from the Orchestrator receive at `0c56866`.
+  - `program/` is in `.prettierignore`, so this pass's edits are outside `format:check`, which was run
+    anyway after editing.
+- **Adoption check, done before carrying rows forward.** `program-agents/` is gitignored (`.gitignore:28`),
+  so `git log` cannot show adoption.
+  - **No role doc changed since the prior pass.** Every file still has mtime `2026-10-04 13:41:46`. The
+    sha1s of `PLANNER.md` `17bfe4ea…`, `CODER.md` `7348bfc4…`, `UI-CODER.md` `010bbf0b…` and
+    `ORCHESTRATOR.md` `40439bad…` equal the builder-rulings values, so nothing could have been adopted
+    there since that row-by-row check.
+  - **Spot checks of the content:**
+    - `CODER.md:186`, `:623` and `ORCHESTRATOR.md:380` still say `npx vitest run`;
+    - `CODER.md:17` and `:547` ban `git add -A` (the F-D3 collision);
+    - `PLANNER.md:967-968` says "none known" does not establish hazard facts, but no baseline step requires
+      grepping for `dist/` importers or lint-scope gaps (the new row 3092a46b).
+  - **Result:** no row is adopted.
+  - **Separate claim:** the four role docs are byte-identical to how this pass found them.
+
+### Crossed thresholds (Principle 4)
+
+- **Minted: VERIFICATION.md forced commit** (c187bed6). The **cycles axis crossed: 3 program cycles**:
+  feat-progression `b2db48b`, builder-rulings `6534364` and combat-decomposition `db38f31`. Each time the
+  VERIFY-01 `commit_pathspec` failed at `git add` on the gitignored `program/Ruleswright/prompts/`
+  (`CAkh6.log:38`), and Orchestrator force-added the file. The new PROGRAM-CONFIG convention:
+  - Orchestrator commits the worker's file unchanged with `git add -f -- <path>` and an explicit
+    pathspec;
+  - the worker reports the refusal as a surprise or note, not a deviation, which settles the R3-vs-surprise
+    drift;
+  - the baseline names it as a commit hazard.
+  - The framework fix stays proposed below.
+- **Sharpened: pin-lease ownership** (1cc46f93). It is now at **6 cycles and 8 instances**. F-D8: the pin-audit
+  doc grep set omitted `specs/`. The convention gained one sentence: the doc grep covers `specs/**` and
+  `arch/**`, and an Author-owned hit is listed with its re-entry owner.
+- **Held, evidence notes updated:**
+  - Factual-premise verification (576a2816): **9 · 41**. F-D1, F-D2, F-D5 and F-D9 were all caught before
+    dispatch. F-D7 is counted under its own row below.
+  - Final Report facts derived (f68c42a3): **4 · 4**. Every figure reproduced.
+  - Idle timeout (cecd2115): **6 · 11**. ARCH-PRE, S01 and S02 each timed out once, were re-awaited, and lost
+    nothing; the convention held.
+  - Whole-repo fast gates (854ceecd): held at **4 · 4**. Every receive ran V1–V3.
+  - Author re-entry (a3680390): **7 · 7**. No Author session ran this cycle.
+- **Not promoted:**
+  - 3658f327: **2 · 2**.
+  - The three new rows: **1 · 1** each.
+  - f4621ac1: held this cycle. The audit listed behaviour pins (`combat-spatial.test.ts:511-515`,
+    `movement.test.ts:560`) with owners.
+
+### Proposed for the framework (Principle 3: no threshold)
+
+- **New: a baseline's "Hazards: none" omitted known hazards** (3092a46b, **1 cycle · 1 instance**, F-D6).
+  - **What happened:** `tests/proofs/{spells,equipment,loot}-journey.test.ts` import `dist/`, and their
+    freshness checks test only export presence, so a stale build passes. `eslint.config.mjs` ignores
+    `program/` but not `.program/`. Both facts were in the tree; the baseline said none.
+  - **Recommendation:** PLANNER.md's Verification Baseline step should require two mechanical probes before
+    writing "none": grep `tests/` for `dist/` imports (build-freshness hazard), and check the lint and
+    format ignore lists against the scratch directories workers use.
+- **New: plan-prescribed derivations are line-based** (2674d8c2, **1 · 1**, F-D7).
+  - **What happened:** the prescribed value-import grep missed multi-line `import {` statements.
+  - **Recommendation:** where PLANNER.md or ARCHIVIST.md prescribes "derive edges mechanically", name the
+    statement-level form: match whole statements, drop `import type`/`export type`, and resolve
+    `export … from`. ARCHIVIST.md's prose already describes the semantics, but not the parse.
+- **New: a negative control outside the lease** (0880dd57, **1 · 1**, F-D4).
+  - **What happened:** S03 ck2's control edited `src/schema/validate/helpers.ts`, which no session owned. It
+    was closed by a scratch-only lease revision.
+  - **Recommendation:** PLANNER.md's proof section should say that a prescribed negative control's
+    perturbation target goes in the session's `Owns`, marked scratch-only and never committed, with a
+    `git diff --quiet` revert check.
+- **Carried, reworded: 3658f327, deletions.** It is now at **2 cycles · 2 instances**.
+  - **What happened:** the v1-core recommendation said "a two-step or `git rm` path". This cycle's plan
+    implemented "two-step" as `git add -A -- <paths>` (SESSION-03.md:79, MASTER step 6), which collides
+    with `CODER.md:17`/`:547`'s absolute ban (F-D3). It was corrected before dispatch.
+  - **Recommendation, reworded:** a CODER.md/ORCHESTRATOR.md tooling note, "commit a deleted file with
+    `git rm -- <path>` then `git commit -m … -- <path> <other paths>`; never `git add -A`, even with a
+    pathspec". The row ID is unchanged.
+- **Carried, now promoted for the program: c187bed6, VERIFICATION.md gitignored.** It is at **3 cycles · 3
+  instances**. The framework recommendation stands: give `commit_pathspec` a `force` option restricted to
+  the envelope's write set, or have ORCHESTRATOR.md's verification step say Orchestrator force-adds it.
+- **Carried, count raised:**
+  - 576a2816: **9 · 41**. The PLANNER.md journey-setup wording is still open.
+  - 1cc46f93: **6 · 8**. PLANNER.md still has no pin-audit text, and the new `specs/` sentence belongs
+    there too.
+  - cecd2115: **6 · 11**.
+- **Carried, no recurrence this cycle:**
+  - 6f6b491b (the plan prescribed `pnpm exec`);
+  - 82b4e0ab (the waves were serialized because of it);
+  - f4621ac1, f68c42a3, c3c94358 (an explicit end SHA was cited);
+  - a3680390, 854ceecd, 8039d686, d2415cb4, 760b67f1, c172cd30, 3983f8eb, 17f4803c, 1d910de1, b85c8f3e;
+  - b32fc8d0, f57dbe4d and c1ed872b have now gone **eight** consecutive cycles without recurrence; a human
+    may retire them.
+
+### Standing recommendations
+
+| id | pattern | cycles | in-cycle instances | first seen | status |
+|----|---------|-------:|-------------------:|------------|--------|
+| b32fc8d0c8c92d52 | Large single-session builds exhaust context on exhaustive checkpoint-0 read sweeps (empty-final crash; recovery = checkpoint-scoped reading) | 2 | 2 | v1-core | open |
+| f57dbe4d010638fe | Subagent model fabricates tool inputs (invented paths, invented project state, fabricated git output) under long-recovery prompts | 2 | 8 | v1-core | open |
+| b85c8f3e113a6764 | Public surface/barrel completeness gaps discovered at integration (lease gaps across wave-spanning modules) | 2 | 3 | v1-core | open |
+| c1ed872bea557b96 | run tool drops/misroutes argv; workers pass whole command lines as single argv entries | 2 | 3 | v1-core | open |
+| 3658f327cc9cff2f | commit_pathspec-style single-command commits fail on deleted files | 2 | 2 | v1-core | open (recommendation reworded 2026-10-04: name `git rm`, never `git add -A`) |
+| 1cc46f93038f1d9a | Cross-suite pinning tests (docs-run block-count pin, registry-count pin) land without a named owner in the plan | 6 | 8 | loot-inventory | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-27; widened 2026-09-30 and 2026-10-01; sharpened 2026-10-04 builder-rulings and combat-decomposition: a "holds" disposition is a premise; the doc grep covers `specs/`); framework wording open |
+| 576a281656f83b23 | Envelope factual premises (mock-vs-prompt anatomy, cross-suite counts) reach sessions unverified; mechanical premise verification at planning time is the fix | 9 | 41 | loot-inventory | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-27; widened 2026-10-04 builder-rulings: journey test-setup values are premises; held in combat-decomposition); framework wording open |
+| 854ceecd39d4b0d3 | Whole-repo fast gates (typecheck/lint/format:check) go red at role-scoped receives; cleared by format-only owner corrections | 4 | 4 | v1-core | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-27; held in combat-decomposition) |
+| 17f4803c1b08da77 | Provider stream aborts / capacity failures kill subagents mid-session with zero commits; recovery resumes from the preserved tree | 3 | 5 | loot-inventory | open (promotion held: carried cycle attribution ambiguous) |
+| 6f6b491bdbe37bf0 | Bare npx misresolves in this runtime; the working gate forms are pnpm exec vitest run <path> and node_modules/.bin/vitest | 3 | 4 | loot-inventory | open (cycles axis crossed 2026-10-04; the program rule already lives in PROGRAM-CONFIG Verification Commands; framework text still says npx) |
+| 1d910de11732c6c4 | Final Archivist pass aborts on provider capacity leave the next cycle's pass a double synthesis (prior cycle's integrated fragments + record-debt) | 2 | 2 | loot-inventory | open |
+| c172cd30e8dfc756 | Session commit gates hard-code a plan-time base SHA that a later replan makes stale | 1 | 1 | equipment-consumables | open |
+| cecd211504587426 | Host await idle timeout (300 s) interrupts long subagent waits; re-awaiting the same handle reattaches with no work lost | 6 | 11 | equipment-consumables | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-30); framework wording open |
+| f68c42a3f6224eb1 | Final Report mechanical facts (test-file counts, realized module edges) transcribed from handoffs rather than derived from the tree | 4 | 4 | v1-core | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-30; sharpened 2026-10-04: a cited command must reproduce its figure; held in combat-decomposition); framework wording open |
+| a368039028d463d6 | Role documents say Spec/DB are never spawned, while plans dispatch orchestrated Author re-entry sessions on recorded human authorization | 7 | 7 | grid-combat | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-30); framework wording open |
+| 3983f8eb6d18a5f2 | Orchestrator STATE row matcher hits a CA-ID column inside the CAP table and writes contract-leg notes into the wrong rows | 1 | 2 | grid-movement | open |
+| f4621ac12fba3456 | Pin audits enumerate count/shape pins but miss behavior pins: tests asserting a value whose derivation a decision changes surface red at a quiet boundary, some outside every lease | 3 | 4 | grid-combat | open |
+| 760b67f17edbd346 | A feature opens a content class to a new execution path, and latent content hazards become reachable without a planning-time scan (damage(half) with no fail-branch damage, 12 spell sites) | 2 | 2 | spells-in-combat | open |
+| 82b4e0abbda105d6 | Concurrent sessions on disjoint leases share one working tree: a sibling's uncommitted edits turn another worker's gates red or inflate its whole-suite counts | 1 | 2 | spells-in-combat | open (narrowed: wave-close re-verify present at ORCHESTRATOR.md:374-391; the temporary-worktree half absent) |
+| c3c94358b35f8316 | Final Report cites `git diff <base>..HEAD` while its own commit then moves HEAD, so the cited command no longer reproduces the reported count | 1 | 1 | action-targeting | open |
+| c187bed6bb5132a7 | A new file the role documents order committed through commit_pathspec lives under a gitignored path (VERIFICATION.md under program/<slug>/prompts/), and commit_pathspec cannot force-add it | 3 | 3 | feat-progression | **promoted** (PROGRAM-CONFIG Conventions, 2026-10-04 combat-decomposition: Orchestrator force-adds with an explicit pathspec; surprise, not deviation); framework wording open |
+| 8039d6869169267c | Plan artifacts carry internal inconsistencies into sessions: refusal paths lettered differently in SESSION and STATE, and a prescribed validator snippet that double-cards a negative entry | 1 | 2 | feat-progression | open |
+| d2415cb4497e0049 | Author/DB re-entry handoffs report deviations without an R1-R4 rule, so per-rule deviation counts cannot include them | 1 | 1 | feat-progression | open |
+| 3092a46b564d1d36 | A Verification Baseline records 'Hazards: none' while the inspected record already holds known hazards (dist/-importing journeys pass a stale build; ESLint lints the .program/ scratch directory) | 1 | 1 | combat-decomposition | open |
+| 2674d8c2f948ae0a | Plan-prescribed mechanical derivations are line-based greps that miss multi-line statements (value imports spread over several lines) | 1 | 1 | combat-decomposition | open |
+| 0880dd5734025fd4 | A prescribed negative control perturbs a file outside the session's lease (scratch edit of a non-owned file), a D4 gap found only at preflight | 1 | 1 | combat-decomposition | open |
+
+- **IDs:** 23 are copied verbatim. 3 were minted this pass from the normative formula, with `first seen`
+  `combat-decomposition`.
+- **Count changes:**
+  - 3658f327: 1/1 → 2/2.
+  - 1cc46f93: 5/7 → 6/8.
+  - 576a2816: 8/37 → 9/41.
+  - cecd2115: 5/8 → 6/11.
+  - c187bed6: 2/2 → 3/3, now **promoted**.
+- **Blocked signal:** no session returned blocked. The table is not empty, so the "empty while blocked"
+  signal does not apply.
+
+### Cleanup ledger (carried forward; maintained here, no separate CLEANUP-LEDGER.md yet)
+
+| id | candidate | evidence | confidence | blast radius | proposed check | cluster | status |
+|----|-----------|----------|------------|--------------|----------------|---------|--------|
+| C1 | `isLivePattern` (`src/runtime/conditions.ts`) has no non-test consumer | combat-decomposition DD-D9 (human "2 recommend"): on the published runtime barrel (`index.ts:56`), exercised by `conditions.test.ts:78-79`, pinned in `module-surface.test.ts`'s exact barrel list; removal would be a breaking surface change | — | — | — | duplicated-logic | **retired** (intentionally retained as public API, 2026-10-04) |
+| C2 | `MAX_TABLE_DEPTH = 8` declared in `src/core/tables.ts:32` and `src/schema/validate/helpers.ts:544` | resolved by cross-pin, DD-D10: `tests/core/tables.test.ts:226-228` asserts the real constants are equal; negative control (→ 9) fails it; both declarations kept, as the layering requires | high | — | — | duplicated-logic | **accepted** (closed by `0c56866`) |
+| C3 | `readPatch` exported from the compiler surface but consumed only by tests | unchanged (no compiler change this cycle) | low | compiler surface | decide public-surface intent (FR-20 host-side composition) | compiler-surface | **tracking** |
+| C4 | `EventSeed`/`EventSink` exported from the runtime surface, no consumer | unchanged (`events.ts`/`index.ts` untouched) | low | runtime surface | same surface-first decision | runtime-surface | **tracking** |
+| C5 | Final Report test-file count 28 vs 29 | corrected at v1-core close (`0290d47`) | high | report accuracy | — | report-accuracy | **retired** |
+| C6 | `parsePackEffects` had zero consumers | deleted at `010d730` | high | M03 internal | — | spell-asts | **accepted** (closed by `010d730`) |
+| C7 | `WYLDWOOD` exported from the compiler surface, consumed only via theme-loader/index | unchanged | low | compiler surface | same surface-first decision as C3/C4 | compiler-surface | **tracking** |
+| C8 | `equipment.ts` private `rollText` duplicated `combat.ts` `displayRoll` | closed at `27c77f4` | high | M03 internal | — | duplicated-logic | **accepted** (closed by `27c77f4`) |
+| C9 | equipment-consumables Final Report *Architecture impact* omitted two value edges | corrected in the living record since 2026-09-28 | high | report accuracy only | — | report-accuracy | **retired** |
+| C10 | `Combat.use`'s restriction gate cannot block (`ItemDef` has no `tags`) | S05 surprise 2 (equipment-consumables); unchanged by the split | low | M03 combat | retain as forward-compat unless item tags are rejected as a product direction | item-tags | **tracking** (intentional; resumption: item tags decision) |
+| C11 | Theme feat triggers never matched / feats never registered | closed at `d9a6d71`/`8d04c5e` | medium | — | — | inert-content | **accepted** |
+| C12 | `heal` was registry entry 13 but absent from `EFFECT_VOCABULARY` | closed at `4c1e1e6` | low | — | — | vocabulary-drift | **accepted** (closed by `4c1e1e6`) |
+| C13 | spells-in-combat Final Report *Files* breakdown mismatch | corrected by Orchestrator at `0b5787e` | high | report accuracy only | — | report-accuracy | **accepted** (closed by `0b5787e`) |
+| C14 | Stale comment `character-profile.test.ts:381` | closed at `4be2a57` (DD-R7) | high | one comment line | — | stale-docs | **accepted** (closed by `4be2a57`) |
+| C15 | Split-file helpers exported with no consumer outside their own file: `execute.ts` `flattenResolutions`, `boundActionOf`; `movement.ts` `pathQuery`, `threatenersLeft`, `endMove`, `setPendingMove`; `triggers.ts` `resolveReactiveAgainst`, `resolveFeat` | `grep -rlw <sym> src tests` excluding the defining file returns nothing at `a2f117f`; none is on `src/runtime/index.ts`; `module-surface.test.ts` pins `triggers` only as an `arrayContaining` floor, so dropping `export` changes no pin | low | M03 internal (`export` keyword only; no behaviour) | `pnpm typecheck` + `pnpm lint` + module-surface + characterization green after dropping `export` | split-internal-exports | **tracking** (may be deliberate for future direct tests; below threshold) |
+
+**Cleanup scout of this cycle's diff:**
+- C15 is the one new candidate.
+- `combat.ts`'s re-exports of moved symbols, and `snapshots/combat.ts` importing helpers through
+  `../combat/combat`, are intentional (DD-D5): 12 test files import from that path. They are not cleanup.
+- `ZERO_RNG` is private again (S02 R2).
+- No dead file and no `TODO` in the new files (`grep -n TODO src/runtime/combat src/runtime/snapshots` is
+  empty).
+
+**Cleanup brief status:** the 2026-09-28 duplicated-logic brief is **closed**. C1 was retired by decision and
+C2 was accepted and landed (`0c56866`). No campaign crosses a threshold.
+
+### Verification of this pass
+
+- **Sources.** Every realized-state claim traces to:
+  - git at `db38f31`/`a2f117f`: name-status, shortstat, `git show <sha>:<file>`, and the per-statement
+    import derivation;
+  - STATE.md, VERIFICATION.md, the Final Report, and the `r-hDqg` session logs;
+  - this pass's fresh gate runs.
+- **No contradiction** with STATE.md, VERIFICATION.md or the Final Report. Every Final Report figure
+  reproduced.
+- **PROGRAM-CONFIG diff scope:** the header realized-state note, the Module Registry blurb and M03 row,
+  Conventions (evidence notes, one sentence on the pin-lease rule, and one minted convention). Verification
+  Commands, Git Config, Session Defaults, Stack, Custom Rules and Author Sources are byte-unchanged.
+- **Role docs:** `PLANNER.md`, `CODER.md`, `UI-CODER.md` and `ORCHESTRATOR.md` are byte-identical to how
+  this pass found them.
