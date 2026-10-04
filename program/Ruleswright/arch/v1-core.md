@@ -1,7 +1,7 @@
 # Ruleswright — Architecture Record (v1-core)
 
-> **Realized state as of tree HEAD `ad2cbe3`** (feat-progression close, 2026-10-04; last source
-> commit `f7f6e88`), synthesized by Archivist (final pass) across **nine feature cycles**: v1-core (S01–S08, plan HEAD `53c7c91`),
+> **Realized state as of tree HEAD `12ca6ac`** (builder-rulings close, 2026-10-04; last source
+> commit `4be2a57`), synthesized by Archivist (final pass) across **ten feature cycles**: v1-core (S01–S08, plan HEAD `53c7c91`),
 > **v1-shell** (commits `770950f`–`72346a5` — schema v1.2, class combat actions, the validate/
 > directory split, `character-profile.ts`, `combat.sideDefeated`, docs/CI honesty, packaging,
 > coverage tooling — first reconciled into this record at the grid-combat pass; its synthesis was the loot-inventory
@@ -23,21 +23,25 @@
 > `82832c0`..`3cce108` — contract v1.7, the `self` shape word of `target(…)` and self actions bound
 > to their actor, the `ability(name)` formula function (registry 14 → 15), `heal` in
 > `EFFECT_VOCABULARY`, 10 bundled self-buffs retargeted onto their user, the med-kit reading the
-> vigor ability, and spell lists that reach their spells), and **feat-progression** (S01–S02, feature commits
+> vigor ability, and spell lists that reach their spells), **feat-progression** (S01–S02, feature commits
 > `3f63fd3`..`f7f6e88` — contract v1.8, per-class per-level `progression.<id>.featSlots` summed
 > across classes, and the runtime rule `feat-slots-exceeded` on `learnFeat`, `levelSet`, `awardXp`
-> and character/party restore; FR-6's "class features" item is still unbuilt).
+> and character/party restore; FR-6's "class features" item is still unbuilt), and **builder-rulings**
+> (S01–S02, feature commits `cfda5dc`..`c851de2` — contract v1.9, description only: the human's four
+> rulings of 2026-10-04 — the three `mending` spells heal, out-of-combat restricts follow the combat
+> rule for spells, `awardXp` never lowers a level, and the feat-slotted predicate is documented as
+> "any class").
 > Every cycle's mid-run delta fragments were collapsed into one module-ordered description.
-> Verified by the feat-progression final pass on a fresh run at `ad2cbe3`: `pnpm typecheck` 0 ·
-> `pnpm build` 0 (24 dist files) · `check:isolation` 0 · `pnpm test` **911/911 across 49 files** ·
-> `pnpm exec vitest run tests/proofs` **74/74 across 10 files** · `pnpm format:check` 0 (lint and
-> security are the Orchestrator receive at `f7f6e88`, inherited — not re-run by this pass).
+> Verified by the builder-rulings final pass on a fresh run at `12ca6ac`: `pnpm typecheck` 0 ·
+> `pnpm build` 0 · `check:isolation` 0 (24 dist files) · `pnpm test` **923/923 across 50 files**
+> (the 11 `tests/proofs` files in that run sum to 83) · `pnpm format:check` 0 (lint and security are
+> the Orchestrator receive at `c851de2`, inherited — not re-run by this pass).
 > Verified-by-source and verified-by-execution are distinguished below.
 >
 > *(Process history — crashes, recoveries, dispatch failures, owner-correction mechanics — lives
 > in each cycle's Final Report and ARCHIVIST-LOG.md, not here.)*
 
-<!-- Realized-state summary (Archivist synthesis, feat-progression final pass) -->
+<!-- Realized-state summary (Archivist synthesis, builder-rulings final pass) -->
 
 ## Module map (as realized)
 
@@ -76,9 +80,10 @@ stays a leaf. None closes a cycle. **Record correction (grid-combat final pass):
 synthesis listed `combat/triggers.ts → combat.ts` as a second value-import cycle; git shows
 `triggers.ts`'s `Combat`/`CombatantState`/`PendingTrigger` imports were `import type` at creation
 (`6afbe31`) and remain so — the edge is type-only. `character ⇄ progression` is real.
-Guards held at `ad2cbe3` (re-grepped by the feat-progression final pass; `git diff
--G'^(import|export .* from)' d97f269..b2db48b -- src` shows import changes only in `feats.ts`
-(type-only) and `progression.ts` (the `./feats` value import)): no `compiler` reference in `src/runtime` except the CI-checked bundle
+Guards held at `12ca6ac` (re-grepped by the builder-rulings final pass; `git diff
+-G'^(import|export .* from)' e7e5828..6534364 -- src` is empty — builder-rulings changed no import
+line; feat-progression's import changes were only in `feats.ts` (type-only) and `progression.ts`
+(the `./feats` value import)): no `compiler` reference in `src/runtime` except the CI-checked bundle
 rule comment; no `runtime` import in `src/compiler` (grep-asserted in tests). The runtime-only
 bundle is **proven** free of `generateCampaign` by `scripts/check-runtime-isolation.mjs`
 (passed by this pass on a fresh build; also wired into CI's `package` job).
@@ -121,7 +126,9 @@ bundle is **proven** free of `generateCampaign` by `scripts/check-runtime-isolat
   `parsePackEffects`. action-targeting added no barrel export (`isSelfAction` is an intra-runtime
   export of `combat.ts`, like `moveBudgetAst`). feat-progression added none either (DD-F7):
   `featSlotTally`/`FeatSlotTally`/`featSlotsExceeded` are intra-runtime exports of `feats.ts`,
-  and the only public change is `validateBuild`'s optional 4th parameter `heldFeats`. (`SnapshotOffer`, the element type of `CombatSnapshot.offers`, is exported
+  and the only public change is `validateBuild`'s optional 4th parameter `heldFeats`. builder-rulings
+  added none and changed no signature: `awardXp`, `isRestricted` and `restrictedIds` changed
+  behaviour only (v1.9, below). (`SnapshotOffer`, the element type of `CombatSnapshot.offers`, is exported
   from `snapshots.ts` but not re-exported by the barrel — see drift notes.) **M03 barrel completed at v1-core S08**
   (D19, 9afa86c) and extended additively by every later feature (inventory verbs, spatial
   exports, `packSpatialModel` — the grid S03 one-line barrel export was outside that session's
@@ -136,7 +143,7 @@ constructing an `Rng` requires importing `ruleswright` (root) or `ruleswright/co
 src. Recorded for the next Author/DB re-entry or v1.1 surface decision. `EQUIPMENT_SCALARS` (core)
 is likewise reachable only through the root/core barrel, not a subpath surface.
 
-## Cross-cutting decisions (accepted across the nine cycles)
+## Cross-cutting decisions (accepted across the ten cycles)
 
 v1-core (D9–D21): **D9** `src/core/index.ts` internal barrel; **D11** `src/runtime/errors.ts` +
 `RuntimeRuleError` (engine-named rule ids distinct from the DB E-* registry); **D10** DSL grammar
@@ -276,8 +283,8 @@ cell (empty included); a spell `targetId` may name any combatant; no line of sig
 ignore range and `at`. **DD-S9** every bundled spell costs `slots {main: 1, move: 1}` (the
 human's "cost a turn", read as the whole turn; the reaction stays) and declares `range: 6`.
 **DD-S10** in combat a spell is restricted by `actions.tagged:` **or** `spells.tagged:` through
-the exported `matchesRestriction`; out of combat `isRestricted` stays kind-exact (asymmetry
-carried as a human question). **DD-S11** `learnFeat`; `CharacterState.feats?` absent until the
+the exported `matchesRestriction`; out of combat `isRestricted` was kind-exact until v1.9, when
+builder-rulings DD-R3 gave it the same rule. **DD-S11** `learnFeat`; `CharacterState.feats?` absent until the
 first learn; uncapped in v1.6 (since v1.8 the cap is pack data — feat-progression below). **DD-S12** reactive feats are offered like reactive
 actions (after them), cost nothing, pass no gate, act on the holder, and never chain (events
 raised while a feat resolves offer no feats). **DD-S13** `trigger.on` must match the
@@ -337,7 +344,27 @@ STATE's DD-F6 letter them differently. **DD-F7** no new public symbol beyond `va
 optional parameter. **DD-F8** all 9 bundled classes declare `[1, 1, 2, 2, 2, 3, 3, 3, 4, 4]`
 (levels 1–5 are `progression.html`'s warden column). **DD-F9** `snapshots.schema.json`, combat
 profiles and compiler source are unchanged. **DD-F10** the pre-existing `awardXp` level-lowering
-(F-FP1) is not changed; DD-F6's `awardXp` check guards the invariant regardless.
+(F-FP1) was not changed by feat-progression; DD-F6's `awardXp` check guards the invariant regardless.
+*(F-FP1 closed by builder-rulings DD-R4, v1.9: `awardXp` never lowers a level, so the guard is now
+reachable only from an edited over-cap state.)*
+
+builder-rulings (DD-R1–DD-R7; full record in that run's STATE.md; human answers 2026-10-04 —
+"1 yes, heal 2 recommendation 3 no 4 recommendation", the two "recommendation" answers read as
+Planner's recommendations and confirmed by the human's "start"): **DD-R1** the three `mending`
+spells (zombie-urban `bind-the-bite`, dark-fantasy and wyldwood `bind-wound`) read `heal(1d8 +
+ability(vigor))` — the authored dice and vigor term with the sign flipped, vigor read explicitly as
+the **caster's** ability (the med-kit precedent, DD-A5); cost, range, tags and lists unchanged.
+**DD-R2** no targeting change: a spell with no `targetId` still targets the only opponent (DD-S8),
+so the host names the ally. **DD-R3** out of combat `isRestricted`/`restrictedIds` block a spell by
+`actions.tagged:` **or** `spells.tagged:`, the combat declare's rule; an action still matches
+`actions.tagged:` only; `matchesRestriction` and load-time tag integrity are unchanged.
+**DD-R4** `awardXp` sets each class to `max(current, min(xpLevel, raceCap, ceiling))`; XP and
+`classXp` always accumulate and `level:reached` fires only on a rise (closes F-FP1/F-P3).
+**DD-R5** the feat-slotted predicate keeps the v1.8 "any class" meaning, because the pack format
+cannot tell a player class from a monster class; database.md DD-F3 and the README now state it
+(closes F-P7 as intended behaviour). **DD-R6** contract **v1.9** is description only — Version
+Registry row 10, caveats (e) and (f), no field, no rule id, `schemaVersion` 1, no contract file
+changed. **DD-R7** cleanup C14 (the stale med-kit test comment) folded into S02 ck3.
 
 ## Session-realized sections
 
@@ -460,6 +487,15 @@ entry is an integer ≥ 0 (so a negative entry yields one card, not two), it che
 (`E-SCHEMA-01` at `progression.<id>.featSlots`, only when `saves` is a plain object). M01 gained
 no import.
 
+builder-rulings S01 (DB Author re-entry, `cfda5dc`/`9fdd0b9`): contract **v1.9**, description only.
+`database.md` gains the symmetric DD-S10 restricts bullet (l.401-408) and the matching notes on the
+conditions and spells rows (l.357, l.359), the *Feat slots* XP bullet (l.523-530), the DD-F3 "any
+class counts" sentence (l.491-498), compatibility caveats (e) (l.537: out of combat a condition's
+`actions.tagged:` pattern now also blocks a spell; no bundled outcome changes) and (f) (l.541:
+`awardXp` keeps a directly set level above its XP level), the Status line and Version Registry
+row 10 (l.747). No contract file and no `src/schema` file changed (`git diff --name-status
+e7e5828..6534364` lists neither).
+
 ### M02 — Repo spine + core mechanics (v1-core S02, 35aa73f/0f8a1ab/55918ef)
 
 - `src/core/rng.ts` — `Rng` (sfc32, cyrb128 string/number seed), `RandomSource` (minimal
@@ -534,7 +570,8 @@ Module `src/core/dsl/` — value imports outside `dsl/` only `../dice` (re-deriv
 - `shared.ts` — one lexer both grammars; `MAX_PARSE_DEPTH = 24`, `MAX_EXPR_LENGTH = 512`;
   `nearestName`; `dslCard`.
 
-### M03 — Runtime I: character side (v1-core S04 via RECOVERY-04, 23f9918/4ead08b/db7eebb/b961053/d0240e6; profileFromCharacter + sideDefeated in v1-shell; inventory in loot S01; equipment in equipment-consumables S03/S05; speed in grid-movement S03; spells + feats in spells-in-combat S02/S03; feat slots in feat-progression S02)
+### M03 — Runtime I: character side (v1-core S04 via RECOVERY-04, 23f9918/4ead08b/db7eebb/b961053/d0240e6; profileFromCharacter + sideDefeated in v1-shell; inventory in loot S01; equipment in equipment-consumables S03/S05; speed in grid-movement S03; spells + feats in spells-in-combat S02/S03; feat slots in feat-progression S02; the `awardXp` max
+rule and the out-of-combat restricts spell rule in builder-rulings S02)
 
 - `src/runtime/errors.ts` — `RuntimeRuleError extends Error` carrying `readonly errors: readonly
   ErrorCard[]`; load failures remain PackLoadError (FR-2); `ruleCard(...)`. Runtime rule ids are
@@ -561,11 +598,17 @@ Module `src/core/dsl/` — value imports outside `dsl/` only `../dice` (re-deriv
   passes `saved.feats ?? []`, and `createCharacter` passes nothing. `awardXp` is **compute → check
   → apply**: it derives each class's `classXp` and level into locals, runs the slot check, and only
   then mutates and emits. Event order and payloads are unchanged; a side effect is that an
-  `invalid-xp-table` refusal also changes nothing (F-P4).
+  `invalid-xp-table` refusal also changes nothing (F-P4). **Since builder-rulings S02 ck1
+  (`1056f48`, DD-R4, v1.9)** each class's derived level is `Math.max(entry.level,
+  Math.min(levelForXp(classXp), cap, ceiling))` (`progression.ts:305`): an award never lowers a
+  level, `xp`/`classXp` always accumulate, `level:reached` fires only for a class whose level rose,
+  and the `feat-slots-exceeded` check in `awardXp` is reachable only from an edited over-cap state.
 - Restricts matcher: `matchesRestriction(pattern, kind, tags, declaredTags)` — exact
   `actions.tagged:`/`spells.tagged:` prefix, tag must be pack-declared; `isLivePattern(runtime,
   pattern)`; `declaredTags(runtime)`. Out of combat `isRestricted`/`restrictedIds` use it
-  kind-exact. **Since spells-in-combat S02 ck1** combat's `restrictionRejection` calls the exported
+  with the combat rule since builder-rulings S02 ck2 (`b9e52e3`, DD-R3, v1.9): `isRestricted`
+  matches every kind against `actions.tagged:` and, for kind `'spell'` only, also against
+  `spells.tagged:` (`conditions.ts:189-203`); `restrictedIds` filters through it. **Since spells-in-combat S02 ck1** combat's `restrictionRejection` calls the exported
   `matchesRestriction` + `declaredTags` (kind `'action'` for every declare, plus `'spell'` for a
   spell declare, DD-S10) and the inline actions-only duplicate is gone; `isLivePattern` still has
   no non-test consumer (cleanup C1).
@@ -877,7 +920,7 @@ and, since action-targeting S03 ck1, `ability:<n>` from `view.abilities` (equipm
   refusal. Combat restore takes the sides/profiles explicitly (`CombatRestoreRequest`).
 - M05 `src/index.ts`: dumb `export *` from './schema' | './runtime' | './compiler'.
 
-### M04 — Compiler + themes (v1-core S07, 116fc7e/01af260/786923b/1676c42/5d30d2f/3faf836; items+wyldwood in loot S02; spatial pass-through in grid-combat S04; equipSlots + equipment content in equipment-consumables S04; movement content in grid-movement S04; spell cost/range + feat patterns in spells-in-combat S02/S03; self-wrapped actions, med-kit and spell lists in action-targeting S02/S03; feat slots in feat-progression S02)
+### M04 — Compiler + themes (v1-core S07, 116fc7e/01af260/786923b/1676c42/5d30d2f/3faf836; items+wyldwood in loot S02; spatial pass-through in grid-combat S04; equipSlots + equipment content in equipment-consumables S04; movement content in grid-movement S04; spell cost/range + feat patterns in spells-in-combat S02/S03; self-wrapped actions, med-kit and spell lists in action-targeting S02/S03; feat slots in feat-progression S02; healing `mending` spells in builder-rulings S02)
 
 Module `src/compiler/` — imports only `../schema` + `../core` (no runtime import). Zero I/O.
 
@@ -963,12 +1006,19 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   S03 ck2 (`7c1b8b6`): zombie-urban `medic.spellLists ["medic"]`, `fixer ["fixer"]` (scavenger
   stays `[]`), wyldwood `hedge-mage ["hedge-mage"]` (was `["hedge"]`) — every class list now
   matches a spell and every spell list is drawn by a class (`tests/compiler/spell-lists.test.ts`,
-  10). S03 ck3: the med-kit line above. Newly reachable through these lists: the `mending` spells
-  (drift notes).
+  10). S03 ck3: the med-kit line above. These lists also made the three `mending` spells reachable;
+  since builder-rulings they heal (below).
   feat-progression S02 ck3 (`7bf5fa6`, no compiler source change — `stages/classes.ts` copies
   `progression` verbatim): all 9 bundled classes (3 per theme) declare `featSlots [1, 1, 2, 2, 2,
   3, 3, 3, 4, 4]`, so a generated character is capped end to end. Because the themes changed,
   older bundled-pack snapshots already fail the `contentHash` identity gate.
+  builder-rulings S02 ck3 (`4be2a57`, no compiler source change): zombie-urban `bind-the-bite`
+  (`:198`), dark-fantasy `bind-wound` (`:273`) and wyldwood `bind-wound` (`:418`) read `heal(1d8 +
+  ability(vigor))` instead of `damage(1d8 - vigor, mending)`; the `mending` damage type no longer
+  appears anywhere in `src/`. In combat the heal is a negative `damage:applied` amount clamped at
+  `maxHp` (`applyMutation`); its payload `type` is undefined and the dice face appears only in
+  `why.rolls[0]` (e.g. `d8[-7]-10=-17`). All three `contentHash`es changed; no test pins a literal
+  hash.
   Byte-identity proofs (CA-5): equal hash + equal bytes, different-seed divergence, in-process
   AND across fresh module loads; no ambient values.
 - FR-21 conformance: `tests/compiler/coverage-floor.test.ts` (91 tests since feat-progression S02
@@ -979,7 +1029,7 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   and equipment sections on all three packs and produces zero cards; CAP-G6/CAP-E6 evidence,
   plus a CA-EG3 content-pairing assertion).
 
-### M05 — Packaging, CI, proofs, docs (v1-core S08, 02752a9/8f67611/9afa86c/32c7ade/d5bacba; v1-shell packaging/docs/CI/coverage; loot S03; grid S05; equipment-consumables S06; grid-movement S04; spells-in-combat S02/S03; action-targeting S02/S03; feat-progression S02)
+### M05 — Packaging, CI, proofs, docs (v1-core S08, 02752a9/8f67611/9afa86c/32c7ade/d5bacba; v1-shell packaging/docs/CI/coverage; loot S03; grid S05; equipment-consumables S06; grid-movement S04; spells-in-combat S02/S03; action-targeting S02/S03; feat-progression S02; builder-rulings S02)
 
 - Build: `tsup.config.ts` — four per-entry builds (index/schema/runtime/compiler), dual ESM/CJS +
   rolled dts, target es2020; `package.json` exports map covers `.` / `./runtime` / `./schema` /
@@ -1000,7 +1050,8 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   (grid S05: the FR-11 journey, below), `equipment-journey.test.ts` (equipment-consumables S06,
   below), `movement-journey.test.ts` (grid-movement S04, below), `spells-journey.test.ts`
   (spells-in-combat S02/S03, below), `self-target-journey.test.ts` (action-targeting S02, below),
-  `feat-slots-journey.test.ts` (feat-progression S02, below), `docs-run.test.ts` (NFR-DX made mechanical: executes the
+  `feat-slots-journey.test.ts` (feat-progression S02, below), `rulings-journey.test.ts`
+  (builder-rulings S02, below), `docs-run.test.ts` (NFR-DX made mechanical: executes the
   README's fenced ```ts blocks verbatim AND typechecks them under strict tsc; asserts the
   README's own output lines and the block-count pin; since spells-in-combat S03 ck5 it also
   guards that the README names `settleSpellCasts` and `learnFeat`). `rules-are-data.test.ts`
@@ -1069,11 +1120,24 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   `generateCampaign({theme, seed: 42})` and a fresh `Runtime`, with no fixture pack; CAP-F5, the
   feature's first narrow journey): load (every class carries `featSlots`) → a level-1 warden learns
   one feat and the second is refused with nothing changed → `levelSet` up opens a slot, while
-  `levelSet` down and an `awardXp` that lowers the level (F-FP1) are refused → multi-class warden 1 +
+  `levelSet` down is refused, and an `awardXp` below the set level is accepted with the level and
+  feats kept (re-keyed at builder-rulings S02 ck1 `1056f48`; before v1.9 that award lowered the level
+  and was refused, F-FP1) → multi-class warden 1 +
   hexer 1 holds two → JSON snapshot round trip, with an over-cap character and party member refused
   → zombie-urban and wyldwood, every class → an unslotted control (`featSlots` stripped) learns all
   4 feats. Negative control (worker-reported): with `learnFeat`'s check removed, legs 2, 6 and 8
   (×2) fail.
+- The **rulings journey** (builder-rulings S02 ck3 `4be2a57`, `tests/proofs/rulings-journey.test.ts`,
+  9 tests, through the `src` barrels on `generateCampaign({theme, seed: 42})` and a fresh `Runtime`,
+  no fixture pack; CAP-R1 is the feature's first narrow journey): legs 1–3, one per theme, cast the
+  `mending` spell on an ally wounded by 20 (caster (0,0), ally (1,0), foe (5,0)) and assert one
+  `damage:applied` on the ally with `amount = −(d8 face + caster vigor 10)` parsed from
+  `why.rolls[0]` and `after = before − amount` → leg 4, per theme, the `maxHp` cap → leg 5 a
+  condition with `actions.tagged:casting` blocks every `casting` spell out of combat
+  (`restrictedIds('spell')`, `strike` free) and in combat (`declare:rejected {kind: 'restricted'}`,
+  `serialize()` unchanged) → leg 6 a level-3 warden keeps level 3 on +100 XP and reaches 4 at
+  classXp 6000. Negative controls (worker-reported): a reverted theme line fails legs 1/4; a
+  reverted `isRestricted` fails 3 tests; removing `Math.max` fails 4.
 - README: quickstart blocks 01–04 (generate / character / one combat round / loot) — block 03
   passes host-declared `positions` (grid S05; `d20[9]=9 < ac12` unchanged — positions consume no
   RNG, proved by run); block 04 loot (observed `[{ id: 'grave-ward', qty: 1 }]`). A **Grid
@@ -1100,10 +1164,15 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   feat-progression S02 ck3 (`7bf5fa6`) added a **Feat slots** bullet after the Feats bullet and
   replaced "v1 limits: there is no feat-slot cap" with "The feat-slot cap is pack data …" (prose
   only — still 4 ```ts blocks, and `learnFeat` is still named).
-- Full gates at feat-progression close (Orchestrator receive at `f7f6e88`): typecheck 0; lint 0;
-  format:check 0; build 0; isolation 0; security 0; `pnpm test` **911/911 across 49 files**.
-  Re-run fresh by the feat-progression final pass at `ad2cbe3`: typecheck 0, build 0 (24 dist
-  files), isolation 0, 911/911 (49 files), proofs 74/74 (10 files). (action-targeting close was
+  builder-rulings S02 ck4 (`c851de2`) added prose only: out-of-combat restricts follow the combat
+  rule (`README.md:332`), a **Healing spells** bullet telling hosts to name the ally (`:340`), "an XP
+  award never lowers a level" (`:360`) and the feat-slotted "any class" sentence (`:395`) — still
+  4 ```ts blocks; docs-run 3/3.
+- Full gates at builder-rulings close (Orchestrator receive at `c851de2`): typecheck 0; lint 0;
+  format:check 0; build 0; isolation 0; security 0; `pnpm test` **923/923 across 50 files**.
+  Re-run fresh by the builder-rulings final pass at `12ca6ac`: typecheck 0, build 0, isolation 0
+  (24 dist files), 923/923 (50 files; the 11 proofs files sum to 83). (feat-progression close was
+  911/911 across 49 files, proofs 74/74 across 10; action-targeting close was
   878/878 across 48 files, proofs 66/66 across 9; spells-in-combat close was
   829/829 across 44 files, proofs 53/53 across 8; grid-movement close 741/741 across 40 files,
   proofs 47/47 across 7; equipment-consumables close 661/661 across 37, proofs 38/38.)
@@ -1135,8 +1204,9 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
 
 ## Recorded drift & intra-module notes (for the next cycle)
 
-- **Intra-M03 value-import pairs** (derived mechanically at `94d40f3`; at `ad2cbe3` the only
-  change is feat-progression's `progression.ts → feats.ts`): `character.ts ⇄
+- **Intra-M03 value-import pairs** (derived mechanically at `94d40f3`; since then the only
+  change is feat-progression's `progression.ts → feats.ts` — builder-rulings changed no import
+  line, re-checked at `12ca6ac`): `character.ts ⇄
   progression.ts`, `character.ts → inventory.ts`, `{character, progression}.ts → feats.ts`
   (`feats.ts` a leaf),
   `{character, pools, inventory, character-profile}.ts → equipment.ts` (a leaf),
@@ -1154,7 +1224,7 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   `import type` — snapshots' only combat value edge is `combat/combat`.)*
 - **Restricts matcher duplication: RESOLVED by spells-in-combat S02 ck1** — combat's
   `restrictionRejection` now calls the exported `matchesRestriction` + `declaredTags`; the inline
-  copy is deleted. `isLivePattern` still has no non-test consumer (grep at `94d40f3`: definition,
+  copy is deleted. `isLivePattern` still has no non-test consumer (re-grepped at `12ca6ac`: definition,
   barrel, `conditions.test.ts`). Cleanup C1 narrowed to that symbol.
 - **Effect-scope name shadowing** (equipment-consumables S05): a bare name in effect scope still
   reads the save when a save and an ability share it, and the engine-derived `speed` scalar shadows
@@ -1212,12 +1282,12 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
     exact-membership pin in `checker.test.ts`). Cleanup C12 closed.
   - The `evalPackFormula` parse-once debt (grid-combat DD10) grew by one call site (`speed`).
 - **spells-in-combat residuals (carried, owners named in its Final Report):**
-  - **Out-of-combat restricts asymmetry** — in combat a spell is blocked by `actions.tagged:` or
-    `spells.tagged:` (DD-S10); out of combat `isRestricted`/`restrictedIds` stay kind-exact; and
-    `spells.tagged:` patterns get no load-time tag-integrity check (`helpers.ts`
-    `RESTRICTS_PREFIX`, `cross.ts`), so an undeclared tag there loads silently and now bites in
-    combat. **Human question** (should out-of-combat follow combat?). Owner: a future restricts
-    feature.
+  - **Out-of-combat restricts asymmetry: CLOSED by builder-rulings** (v1.9, DD-R3, `b9e52e3`):
+    out of combat a spell now follows the combat rule. **Still carried:** `spells.tagged:` patterns
+    get no load-time tag-integrity check (`helpers.ts` `RESTRICTS_PREFIX`, `cross.ts`), so an
+    undeclared tag there loads silently and bites at use. Tightening it is a breaking change under
+    the versioning discipline and was not asked. Owner: a future restricts feature, on a human
+    decision.
   - **`mocks/spatial.html:191`** (C-S01-1) still says restore resumes in a *derived* `resolved`;
     under DD-S14 restore keeps the live envelope phase. Existing-mock copy change → Designer
     re-entry (human-authorized design-change class). `api-map.html` also lacks `pool:settled` /
@@ -1233,34 +1303,41 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
     a `targetId` cast's DC sees the primary target's saves and an `at` cast's DC the caster's.
     Every bundled DC is a literal; documented in database.md.
 - **action-targeting residuals (carried, owners named in its Final Report):**
-  - **`mending` spells — human content-meaning question.** `damage(1d8 - vigor, mending)` deals
-    damage reduced by the target's vigor save rather than healing. The Final Report names
-    zombie-urban `bind-the-bite` and wyldwood `bind-wound`; a source grep at `535247d` finds a
-    **third** site, dark-fantasy `bind-wound` (`dark-fantasy.json:273`, warden list — reachable
-    before this feature). Owner: the human, then the next content feature.
+  - **`mending` spells: CLOSED by builder-rulings** (human "yes, heal", DD-R1, `4be2a57`): all
+    three sites (zombie-urban `bind-the-bite`, dark-fantasy and wyldwood `bind-wound`) heal.
   - **Root-only self actions** (documented v1.7 limitation): `sequence(target(self, …), …)` stays
     an ordinary action that binds an opponent; its inner `self` still resolves to the actor. No
     bundled content is affected.
-  - **Stale test comment:** `tests/runtime/combat/character-profile.test.ts:381` still says
-    "med-kit = heal(2 + vigor)". It is outside every lease, was accepted stale and is carried to the
-    next cleanup run (cleanup C14).
-  - **Restricts symmetry** stays the open spells-in-combat human question (above).
+  - **Stale test comment: CLOSED** — `character-profile.test.ts:381` reads `heal(2 +
+    ability(vigor))` since builder-rulings S02 ck3 (`4be2a57`, DD-R7; cleanup C14).
+  - **Restricts symmetry: CLOSED by builder-rulings** (DD-R3, above).
 - **feat-progression residuals (carried, owners named in its Final Report):**
-  - **F-FP1 / F-P3: human question.** `awardXp` can lower a directly set class level
-    (`progression.ts` assigns `min(levelForXp, cap, ceiling)` even when it is lower). With the cap,
-    a directly levelled character at its feat cap has every XP award below its level's threshold
-    refused, and because a refusal leaves `classXp` unchanged, small awards never accumulate.
-    Journey leg 5 and the `progression.test.ts` awardXp guard depend on today's behaviour (DD-F10).
-  - **F-P7: human question.** A pack that declares `featSlots` only on a monster-only progression
-    entry is feat-slotted, so every player class is capped at 0, with no load warning (the approved
-    "any entry" meaning). Bundled content cannot reach this.
+  - **F-FP1 / F-P3: CLOSED by builder-rulings** (human "no", DD-R4, `1056f48`): `awardXp` never
+    lowers a level, so small awards accumulate; the two behaviour pins were re-keyed in the same
+    checkpoint.
+  - **F-P7: CLOSED as intended behaviour by builder-rulings** (DD-R5): "any class counts" is kept
+    and now stated in `database.md` DD-F3 and `README.md:395`. No load warning was added.
   - **F-FP2 / F-P5: FR-6 "class features".** `database.md` §progression lists a `features`
-    (`{level, ref}`) row that is in neither `pack.schema.json` nor the validator. Owner: DB, in a
-    future human-authorized re-entry.
+    (`{level, ref}`) row that is in neither `pack.schema.json` nor the validator, while the bundled
+    themes already carry `content.classes.<id>.features` (e.g. `dark-fantasy.json:140`, `:146`).
+    Owner: DB, in a human-authorized re-entry with a product decision on what a feature does — the
+    next feature.
   - **CAP-F1 compiler leg (optional).** The compiler's stage-8 refusal of a malformed `featSlots` is
     proven only by an ad hoc probe (VERIFICATION P1), not by a committed `tests/compiler` case.
   - **Host query (optional, DD-F7 follow-up).** There is no public "slots remaining" query; a host
     learns the cap only through refusals.
+- **builder-rulings residuals (carried, owners named in its Final Report):**
+  - **F-R6 — mock copy.** `mocks/progression.html:70-80` creates Brynn at warden level 4, then
+    shows `awardXp(brynn, 2400)` → `level:reached warden 4`. Under v1.9 the level stays 4 and no
+    `level:reached` fires. Existing-mock copy change → Designer re-entry (Author-owned; no session
+    owns it).
+  - **`spells.tagged:` load-time integrity** — carried (spells-in-combat residuals above).
+  - **Heal event anatomy (informational, not a defect).** A heal's `damage:applied` carries
+    `{amount < 0, type: undefined, hp: 'before→after'}`; the dice face is only in `why.rolls[0]`.
+    A host that wants the healed amount reads `-amount`.
+  - **`database.md:721-722` (pre-existing DB-owned drift)** names only two sample theme templates
+    (dark-fantasy, zombie-urban); wyldwood is the third since loot-inventory. The Final Report
+    cites it as `database.md:700`, its line number before v1.9's insertions. Owner: the next DB re-entry.
 - **v1.1 follow-ups carried across cycles:** browser-mode Vitest config (CI's browser leg);
   byte-level snapshot conformance; `pnpm approve-builds` advisory for esbuild/tsup; an
   out-of-combat point-pool cast verb (would give wyldwood's charm armor teeth, DD-EG5); item
@@ -1280,58 +1357,6 @@ SESSION-02, OWNER-M02-HALF and SESSION-03 markers (4caf973, ae0f480, da4665c) we
 the spells-in-combat final pass (original text recoverable at 94d40f3); the action-targeting
 SESSION-02 and SESSION-03 markers (a84dd52, 42a1fd3) were collapsed at the action-targeting final
 pass (original text recoverable at 535247d); the feat-progression SESSION-02 marker (3da588a) was
-collapsed at the feat-progression final pass (original text recoverable at ad2cbe3). -->
-
-<!-- builder-rulings SESSION-02 -->
-### builder-rulings SESSION-02 — arch delta (v1.9; DD-R1, DD-R3, DD-R4, DD-R5)
-
-Commits: ck1 `1056f48`, ck2 `b9e52e3`, ck3 `4be2a57`, ck4 `c851de2`. No new module, no new export
-(`src/runtime/index.ts` unchanged); behaviour of existing public APIs changed.
-
-#### Public API behaviour
-
-- **`awardXp` level rule (DD-R4, CA-R2; `progression.ts`).** Each class becomes
-  `max(currentLevel, min(levelForXp(classXp), raceCap ?? ∞, tableLevelCeiling))`. XP and `classXp`
-  always accumulate. `level:reached` fires only for a class whose level rose. The compute → check →
-  apply order is unchanged. `feat-slots-exceeded` stays as a guard, but it is now reachable only
-  from an edited over-cap state (refusal (c)). F-FP1 and F-P3 are closed.
-- **`isRestricted` / `restrictedIds` spell-kind rule (DD-R3, CA-R1; `conditions.ts`).** For kind
-  `'action'`, only `actions.tagged:` matches. For kind `'spell'`, `actions.tagged:` **or**
-  `spells.tagged:` matches. This is the same rule as combat's `restrictionRejection` (DD-S10),
-  so the answer is the same in and out of combat. `matchesRestriction`, `declaredTags` and
-  `isLivePattern` are unchanged, and so is load-time integrity (`actions.tagged:` only).
-- **Feat-slotted predicate (DD-R5, CA-R3).** No code change. The README now states that once any
-  class declares `featSlots`, a class without it grants 0.
-
-#### Bundled content (DD-R1, CA-R4)
-
-- zombie-urban `bind-the-bite`, dark-fantasy `bind-wound` and wyldwood `bind-wound` now read
-  `heal(1d8 + ability(vigor))`, using the **caster's** vigor ability. Name, cost, targeting, tags
-  and lists are unchanged. In combat the heal is a negative `damage:applied` amount clamped at
-  `maxHp` (`combat.ts` `applyMutation`). The `type` is undefined, and the dice face appears only in
-  `why.rolls[0]` (e.g. `d8[-7]-10=-17`). The `contentHash` of all three themes changes.
-- Proof: `tests/proofs/rulings-journey.test.ts` (9 tests; legs 1–6 on the seed-42 generated packs).
-
-#### arch/v1-core.md lines that should retire or change (Orchestrator integrates; not edited here)
-
-- **l.279** "out of combat `isRestricted` stays kind-exact (asymmetry …)" → symmetric since v1.9
-  (DD-R3).
-- **l.340** "(F-FP1) is not changed; DD-F6's `awardXp` check guards…" → F-FP1 closed: `awardXp`
-  never lowers a level (DD-R4). The guard remains and is reachable only from an edited state.
-- **l.566-568** (Restricts matcher bullet) "Out of combat `isRestricted`/`restrictedIds` use it
-  kind-exact" → a spell matches `actions.tagged:` or `spells.tagged:` (v1.9).
-- **l.966** "Newly reachable through these lists: the `mending` spells" → they now heal
-  (`heal(1d8 + ability(vigor))`).
-- **l.1072** "`levelSet` down and an `awardXp` that lowers the level (F-FP1) are refused" → the
-  feat-slots journey legs 3–5 now prove that `levelSet` down is refused and that an `awardXp`
-  below the set level is accepted with the level kept.
-- **l.1215-1220** (spells-in-combat residual "Out-of-combat restricts asymmetry") → the asymmetry
-  part is CLOSED by builder-rulings. Keep the `spells.tagged:` load-time integrity gap as carried.
-- **l.1236-1240** (`mending` spells residual) → CLOSED (DD-R1).
-- **l.1244-1246** (stale `character-profile.test.ts:381` comment) → cleanup **C14 CLOSED**
-  (`4be2a57`).
-- **l.1247** ("Restricts symmetry stays the open … human question") → CLOSED (DD-R3).
-- **l.1249-…** (F-FP1 / F-P3 human question) → CLOSED (DD-R4).
-- Carried mock residual: `mocks/progression.html:70-80` (F-R6) is unchanged and Author-owned.
-
-Orchestrator note (receive 2026-10-04): the line references above are at `8eae481`; the planning-completeness review (F-R7) named the same set. Retiring/rewriting those lines is the final Archivist synthesis.
+collapsed at the feat-progression final pass (original text recoverable at ad2cbe3); the
+builder-rulings SESSION-02 marker (4c74017) was collapsed at the builder-rulings final pass
+(original text recoverable at 12ca6ac). -->
