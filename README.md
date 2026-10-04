@@ -346,6 +346,11 @@ cannot cast in blocks a slot (vancian) spell (`armor-not-castable`) → the cost
 - **Feats.** `character.learnFeat(featId)` (or `learnFeat(rt, state, featId)`)
   adds a pack-declared feat (`feat:learned`; `unknown-feat` and `feat-known`
   refuse). The character snapshot keeps `feats`.
+- **Feat slots.** A pack's progression may declare `featSlots` per class per
+  level; a character's slots add across its classes, and `learnFeat`,
+  `levelSet`, `awardXp` and snapshot restore refuse a character holding more
+  feats than its slots (`feat-slots-exceeded`). The sample themes grant 1 feat
+  at level 1, 2 at level 3, 3 at level 6 and 4 at level 9.
 - **Reactive feats.** A held feat with a `trigger` is offered like a reaction
   (`trigger:fired` with `source: 'feat'`) and answered with `fight.respond`. It
   is free (no slot), acts on its holder, and never chains: taking it raises no
@@ -377,8 +382,8 @@ restored.declare('ember-bloom', { targetId: 'wight' })
   declare:rejected   {kind: 'restricted', resource: 'casting'}   // hexbound; nothing spent
 ```
 
-v1 limits: there is no feat-slot cap (a character may learn any number of
-feats).
+The feat-slot cap is pack data: a pack that declares no `featSlots` leaves
+feats uncapped (a character may learn any number of them).
 
 The spells journey — vancian and point-pool legs, plus the feat leg above — runs
 in `tests/proofs/spells-journey.test.ts` against the built package and the real

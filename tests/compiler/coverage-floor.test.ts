@@ -253,6 +253,23 @@ describe('FR-21 floor — the shared bullets, enumerated against both packs', ()
       }
     });
 
+    it(`${name}: every class declares featSlots covering its levels, from 1 at level 1, never decreasing (v1.8, CA-F1)`, () => {
+      // every content class, not only player classes: a statblock-referenced class is still learnable
+      const classIds = Object.keys(pack.content.classes ?? {});
+      expect(classIds.length).toBe(3);
+      for (const classId of classIds) {
+        const prog = pack.progression[classId]!;
+        const featSlots = prog.featSlots;
+        expect(featSlots, classId).toBeDefined();
+        const ceiling = Math.min(...Object.values(prog.saves).map((values) => values.length));
+        expect(featSlots!.length, classId).toBeGreaterThanOrEqual(ceiling);
+        expect(featSlots![0], classId).toBeGreaterThanOrEqual(1);
+        for (let i = 1; i < featSlots!.length; i += 1) {
+          expect(featSlots![i], `${classId}[${i}]`).toBeGreaterThanOrEqual(featSlots![i - 1]!);
+        }
+      }
+    });
+
     it(`${name}: reactive feat + reactive action ride the trigger patterns S05 proved`, () => {
       const reactiveAction = Object.values(pack.actions).find((action) => action.trigger?.on !== undefined);
       expect(reactiveAction?.trigger?.on).toMatch(/attack:rolled/);
