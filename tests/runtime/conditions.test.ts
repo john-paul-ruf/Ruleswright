@@ -43,6 +43,21 @@ describe('restricts matcher (v1.1 tag consumption — S05 reuses at declare time
     expect(restrictedIds(runtime, state, 'spell')).toEqual(['hex-bolt', 'grave-light']);
   });
 
+  it('an actions.tagged: pattern also restricts a spell carrying the tag, out of combat (v1.9, DD-R3)', () => {
+    const pack = cloneRuntimePack();
+    pack.content.conditions = {
+      ...pack.content.conditions,
+      silenced: { name: 'Silenced', duration: 2, stacking: 'refresh', restricts: ['actions.tagged:casting'] },
+    };
+    const runtime = new Runtime(pack);
+    const state = runtime.createCharacter({ name: 'Vex', race: 'ashkin', classes: ['hexer'] }).state;
+    applyCondition(runtime, state, 'silenced');
+    expect(isRestricted(runtime, state, 'spell', 'grave-light')).toBe(true);
+    expect(isRestricted(runtime, state, 'spell', 'hex-bolt')).toBe(true);
+    expect(restrictedIds(runtime, state, 'spell')).toEqual(['hex-bolt', 'grave-light']);
+    expect(isRestricted(runtime, state, 'action', 'strike')).toBe(false); // strike.tags: ['main']
+  });
+
   it('matches tags exactly — no substring or prefix bleed', () => {
     const runtime = new Runtime(cloneRuntimePack());
     const state = runtime.createCharacter({ name: 'X', race: 'ashkin', classes: ['warden'] }).state;

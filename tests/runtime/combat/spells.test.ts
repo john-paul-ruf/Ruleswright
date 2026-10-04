@@ -405,11 +405,12 @@ describe('spell rejections: one declare:rejected, nothing changed (CA-S1)', () =
     expect(action.some((event) => event.type === 'declare:rejected')).toBe(false);
   });
 
-  it('out of combat the stance is unchanged: hexbound does not restrict the spell kind (carried asymmetry)', () => {
+  it('out of combat a spell follows the in-combat rule: the fixture hexbound (actions.tagged:casting) restricts it (v1.9, DD-R3)', () => {
     const rt = new Runtime(spellPack());
     const state = rt.createCharacter({ name: 'Vex', race: 'ashling', classes: ['hexer'] }).state;
     applyCondition(rt, state, 'hexbound');
-    expect(isRestricted(rt, state, 'spell', 'grave-light')).toBe(false);
+    expect(isRestricted(rt, state, 'spell', 'grave-light')).toBe(true);
+    expect(isRestricted(rt, state, 'action', 'hex-rite')).toBe(true); // hex-rite.tags: ['casting']
   });
 
   it('equipped blocking armor rejects a vancian spell armor-not-castable (DD-S6)', () => {

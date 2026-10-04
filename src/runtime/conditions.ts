@@ -12,8 +12,10 @@
  *     rejects the condition at load-time via the schema, at declare-time via
  *     `matchesRestriction` returning false for patterns that name no declared
  *     tag — a pattern can never block more than the pack declared).
- *   - While the condition is active, an action is blocked iff the action's
- *     `tags` include `<tag>`; likewise a spell whose `tags` include `<tag>`.
+ *   - While the condition is active, an action is blocked iff its `tags`
+ *     include an `actions.tagged:` tag; a spell is blocked by an
+ *     `actions.tagged:` **or** `spells.tagged:` tag — in and out of combat
+ *     (v1.9, DD-R3; a spell is an action, FR-9).
  *     Tags are matched exactly (case-sensitive kebab ids), never by prefix.
  *   - Fixtures declare tags natively — no override-patch workaround (v1.1).
  *
@@ -181,7 +183,8 @@ export function tickConditions(runtime: Runtime, character: CharacterState): rea
  * FR-7 — the condition's teeth: whether an active restricts pattern blocks
  * this action/spell id right now. Any single active instance's matching
  * pattern blocks. `kind` + artifact id resolve the artifact's declared tags
- * from the pack.
+ * from the pack. An action is blocked by `actions.tagged:` only; a spell by
+ * `actions.tagged:` or `spells.tagged:` — the combat declare rule (v1.9, DD-R3).
  */
 export function isRestricted(
   runtime: Runtime,
@@ -196,7 +199,8 @@ export function isRestricted(
   const declared = declaredTags(runtime);
   for (const active of character.conditions) {
     for (const pattern of runtime.pack.content.conditions?.[active.conditionId]?.restricts ?? []) {
-      if (matchesRestriction(pattern, kind, tags, declared)) return true;
+      if (matchesRestriction(pattern, 'action', tags, declared)) return true;
+      if (kind === 'spell' && matchesRestriction(pattern, 'spell', tags, declared)) return true;
     }
   }
   return false;
