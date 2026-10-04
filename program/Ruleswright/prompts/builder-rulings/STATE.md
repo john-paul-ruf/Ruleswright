@@ -31,7 +31,7 @@ The recommendations for answers 2 and 4 were stated to the human in the plan sum
 
 | # | Session | Modules | Owns | Status | Checkpoint | Completed | Notes |
 |---|---|---|---|---|---|---|---|
-| 01 | Author re-entry (DB): contract v1.9 text (restricts symmetry, XP never lowers, feat-slotted wording) | — (DB) | `program/Ruleswright/specs/database.md` | pending | — | — | description only; no contract file |
+| 01 | Author re-entry (DB): contract v1.9 text (restricts symmetry, XP never lowers, feat-slotted wording) | — (DB) | `program/Ruleswright/specs/database.md` | done | 2/2 (`cfda5dc`, `9fdd0b9`) | 2026-10-04 | description only; no contract file. Received: inside lease; contracts clean; Orchestrator gates typecheck/lint/format 0, tests/schema 119/119 |
 | 02 | The four rulings in code and content + journey + README | M03, M04 (content), README | `src/runtime/progression.ts`, `src/runtime/conditions.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `README.md`, `tests/runtime/progression.test.ts`, `tests/proofs/feat-slots-journey.test.ts`, `tests/runtime/conditions.test.ts`, `tests/runtime/combat/spells.test.ts`, `tests/runtime/combat/character-profile.test.ts`, `tests/proofs/rulings-journey.test.ts` | pending | — | — | depends on S01 + CA recheck |
 
 ## Wave Plan
@@ -177,9 +177,9 @@ Planner observed these at `eb042d5` on 2026-10-04 (actual runs):
 
 | ID | Required meaning / authority | Producer → boundary → consumer | Mapping / constraints | Correction + proof owners / checkpoints | Agreement | Producer | Proof / evidence / checked sources |
 |----|---|---|---|---|---|---|---|
-| CA-R1 | Restricts symmetric (human Q2, DD-R3) | database.md DD-S10 (S01) → `conditions.ts` `isRestricted`/`restrictedIds` (S02 ck2) → host | see below | S01 ck1; S02 ck2/ck3 | agreed (human Q2), **provisional** against S01 ck1 | planned | planned |
-| CA-R2 | XP never lowers a level (human Q3, DD-R4) | database.md *Feat slots* XP bullet (S01) → `progression.ts` `awardXp` (S02 ck1) → host | see below | S01 ck1; S02 ck1/ck3 | agreed (human Q3), **provisional** against S01 ck1 | planned | planned |
-| CA-R3 | Feat-slotted = any class (human Q4, DD-R5) | database.md DD-F3 bullet (S01) → `feats.ts` `featSlotTally` (exists, unchanged) → README (S02 ck4) | the predicate is unchanged | S01 ck1; S02 ck4 | agreed (human Q4), **provisional** against S01 ck1 | ready (code unchanged) | existing `feats.test.ts` l.179 |
+| CA-R1 | Restricts symmetric (human Q2, DD-R3) | database.md DD-S10 (S01) → `conditions.ts` `isRestricted`/`restrictedIds` (S02 ck2) → host | see below | S01 ck1; S02 ck2/ck3 | agreed (human Q2); **rechecked against landed v1.9 `9fdd0b9`: no meaning delta** (database.md DD-S10 bullet l.401-408; caveat (e) l.537 + F-R8 clause, additive) | contract text landed S01 ck1 `cfda5dc`; runtime planned (S02 ck2) | planned (S02 ck2/ck3) |
+| CA-R2 | XP never lowers a level (human Q3, DD-R4) | database.md *Feat slots* XP bullet (S01) → `progression.ts` `awardXp` (S02 ck1) → host | see below | S01 ck1; S02 ck1/ck3 | agreed (human Q3); **rechecked against landed v1.9 `9fdd0b9`: no meaning delta** (XP bullet l.523-530; caveat (f) l.541) | contract text landed S01 ck1 `cfda5dc`; runtime planned (S02 ck1) | planned (S02 ck1/ck3) |
+| CA-R3 | Feat-slotted = any class (human Q4, DD-R5) | database.md DD-F3 bullet (S01) → `feats.ts` `featSlotTally` (exists, unchanged) → README (S02 ck4) | the predicate is unchanged | S01 ck1; S02 ck4 | agreed (human Q4); **rechecked against landed v1.9 `9fdd0b9`: no meaning delta** (DD-F3 bullet l.491-498) | ready (code unchanged); contract text landed S01 ck1 `cfda5dc`; README planned (S02 ck4) | existing `feats.test.ts` l.179 |
 | CA-R4 | Heal spell meaning (human Q1, DD-R1) | theme JSON (S02 ck3) → compiler (verbatim) → `validatePack` → combat executor → `damage:applied` | see below | S02 ck3 | agreed (human Q1; amount auto-decided, DD-R1) | planned | planned |
 
 **CA-R1 mapping**
@@ -207,7 +207,7 @@ Planner observed these at `eb042d5` on 2026-10-04 (actual runs):
 - Gates are unchanged: restricted → target → range 6 → armor (vancian only) → cost → binding.
 - Bound by `targetId`; DD-S8 default unchanged (DD-R2).
 
-**Provisional rule:** CA-R1…R3 are provisional against **S01 ck1**. Orchestrator re-reads the landed database.md and amends any row whose meaning moved **before** dispatching S02. S02 is dispatched against the amended text.
+**Provisional rule (discharged 2026-10-04 at the S01 receive: no row moved).** CA-R1…R3 were provisional against **S01 ck1**. Orchestrator re-reads the landed database.md and amends any row whose meaning moved **before** dispatching S02. S02 is dispatched against the amended text.
 
 ## Planning Completeness Review
 
@@ -239,9 +239,18 @@ Inherited carried items: F-FP1/F-P3 (DD-R4), F-P7 (DD-R5), mending (DD-R1), rest
 ## Current Blockers
 
 None.
-- S01 is dispatchable on the recorded answer.
+- S01 done (2/2). CA-R1…R3 rechecked against landed v1.9: no meaning delta. S02 is dispatchable.
 - **Advisory cleared (2026-10-04):** the human issued "start" after the plan summary carrying the answer-2 and answer-4 recommendations (F-R9).
 - Planning-completeness review done: D1–D7 pass (see above).
 
 ## Handoff Notes
 
+### SESSION-01 — received 2026-10-04 (handle h-jGwz)
+
+Orchestrator receive: commits `cfda5dc` (ck1), `9fdd0b9` (ck2), both touching only `program/Ruleswright/specs/database.md`; `git diff --quiet bb32506..HEAD -- src/schema/contracts` clean; tree clean; gates run by Orchestrator: `pnpm typecheck` 0, `pnpm lint` 0, `pnpm format:check` 0, `pnpm exec vitest run tests/schema` 4 files 119/119. No arch fragment. Accepted.
+
+Handoff (verbatim):
+- **notes:** Contract v1.9 (description only; `schemaVersion` stays 1, no contract file changed). The DB text for CA-R1, CA-R2 and CA-R3 has landed: ck1 `cfda5dc`, ck2 `9fdd0b9`. This supplies the contract text for CAP-R2, CAP-R3 and CAP-R4; nothing about them is proven at runtime yet (that is S02).
+- **delta by CA id:** CA-R1 — none; the only addition is the optional F-R8 clause in caveat (e). CA-R2 — none; the text matches `max(level, min(xpLevel, raceCap, ceiling))` and the events and refusal rows. CA-R3 — none.
+- **surprises:** — (lease revision 1)
+- **followUp:** Before dispatching S02, Orchestrator should re-check CA-R1, CA-R2 and CA-R3 against `9fdd0b9`. S02 still owns the CAP-R2 and CAP-R3 runtime work and proofs (`conditions.ts`, `progression.ts`) and the CAP-R4 README sentence. F-FP2 and `spells.tagged:` load integrity were not touched and remain carried items.
