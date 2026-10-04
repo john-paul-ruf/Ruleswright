@@ -209,12 +209,39 @@ Planner observed these at `eb042d5` on 2026-10-04 (actual runs):
 
 **Provisional rule:** CA-R1…R3 are provisional against **S01 ck1**. Orchestrator re-reads the landed database.md and amends any row whose meaning moved **before** dispatching S02. S02 is dispatched against the amended text.
 
+## Planning Completeness Review
+
+Archivist, scoped planning-completeness pass (handle h-B643, 2026-10-04 15:04), read-only. **Reviewed plan revision `e7e5828`; source revision `7bf5fa6`** (`tests/`, `README.md` at `f7f6e88`); tree clean.
+
+| # | Dimension | Verdict | Evidence (summary) |
+|---|---|---|---|
+| D1 | requirement coverage | pass | CAP-R1 → S02 ck3; CAP-R2 → S02 ck2/ck3; CAP-R3 → S02 ck1/ck3; CAP-R4 → S01 ck1 + S02 ck4; out-of-scope items owned |
+| D2 | fact origins | pass | heal clamp `combat.ts:1659`, payload `:1453-1460`, `resolve.ts:377`, `combat.ts:863`, `feats.ts:21`, `progression.ts:282/302/320`; probe: `heal(1d8 + ability(vigor))` on an ally in all three seed-42 packs → `damage:applied {amount:-12, hp:"17→27"}` |
+| D3 | ownership | pass | S02 ck1–ck4; S01 ck1/ck2; arch residuals → Orchestrator at S02 receive + final Archivist; C14 in S02 ck3 |
+| D4 | lease coverage | pass | every S02 write in Owns incl. 4 behaviour pins; no other caller of `isRestricted`/`restrictedIds`/`awardXp`; serial plan |
+| D5 | declared vs real dependencies | pass | S02 → S01 real (ck0 reads v1.9; CA-R1..R3 provisional on S01 ck1) |
+| D6 | early integration | pass | S02 ck3 journey through `src` barrels, composed path probed (with positions, F-R2) |
+| D7 | runtime wiring | pass | no new interface; `runtime.ts:147-148`, `index.ts:60-61` |
+
+**Findings and dispositions:**
+- **F-R1** (legs 1–3 wound always fully healed: min heal 11 vs wound 10) → S02 envelope amendment: wound the ally by 20 (`hp = maxHp − 20`), assert the uncapped `after = before − amount`.
+- **F-R2** (spatial packs need positions; range 6) → S02 envelope: caster (0,0), ally (1,0), foe (5,0).
+- **F-R3** (profiles carry no conditions) → S02 envelope: leg 5 in-combat pushes the condition onto `fight.state.combatants[id].conditions` (precedent `spells.test.ts:361`).
+- **F-R4** (dice total only in `why.rolls[0]`, e.g. `"d8[-2]-10=-12"`) → S02 envelope: parse `why.rolls[0]` or assert `amount ∈ [−18, −11]` with the rolls string.
+- **F-R5** (`hex-rite` is defined at `spells.test.ts:81`, tagged `casting`, not in `packs.ts`) → S02 envelope note.
+- **F-R6** (`mocks/progression.html:70-80` `awardXp(brynn, 2400)` → `level:reached warden 4` after creating Brynn at 4) → carried mock-copy residual, Designer re-entry class; no session owns it. Final-report debt.
+- **F-R7** (arch lines stating old behaviour beyond the residuals: `arch/v1-core.md:279`, `:340`, `:966`, `:1072`; keep `spells.tagged:` load-integrity carried at `:1215`) → Orchestrator arch delta at S02 receive + final Archivist.
+- **F-R8** (no bundled content reaches caveat (e)) → S01 envelope: optional sentence in caveat (e).
+- **F-R9** (human "start" after the recommendation summary) → advisory cleared below.
+
+Inherited carried items: F-FP1/F-P3 (DD-R4), F-P7 (DD-R5), mending (DD-R1), restricts symmetry (DD-R3), C14 (S02 ck3) close in this plan; F-FP2, C1, C2, `spells.tagged:` load integrity remain carried with owners.
+
 ## Current Blockers
 
 None.
 - S01 is dispatchable on the recorded answer.
-- **Advisory:** the human has not yet seen the concrete recommendations behind answers 2 and 4. They are in the plan summary, and an objection before dispatch means a replan of S01/S02.
-- A scoped Archivist planning-completeness pass is requested at the first quiet boundary, before S01.
+- **Advisory cleared (2026-10-04):** the human issued "start" after the plan summary carrying the answer-2 and answer-4 recommendations (F-R9).
+- Planning-completeness review done: D1–D7 pass (see above).
 
 ## Handoff Notes
 
