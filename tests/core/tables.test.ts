@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../../src/core/rng';
 import { MAX_TABLE_DEPTH, rollTable, type TableDef, type TableOutcome } from '../../src/core/tables';
+import { MAX_TABLE_DEPTH as SCHEMA_MAX_TABLE_DEPTH } from '../../src/schema/validate';
 
 /**
  * Scripted 0-based bounds stream: `int(maxExclusive)` returns the next value
@@ -220,6 +221,10 @@ describe('nested tables (depth-bounded, E-TBL-01 contract)', () => {
     );
     expect(failure.reason).toBe('depth-exceeded');
     expect(failure.jsonPath).toBe('tables.chain' + '->entries[0]'.repeat(8));
+  });
+
+  it('MAX_TABLE_DEPTH is the schema validator’s bound — two declarations pinned together (C2)', () => {
+    expect(MAX_TABLE_DEPTH).toBe(SCHEMA_MAX_TABLE_DEPTH);
   });
 
   it('an unresolvable reference is a typed failure naming the entry (E-REF-01 territory)', () => {
