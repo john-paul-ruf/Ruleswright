@@ -25,7 +25,7 @@ No blocker gates S01. S01 is dispatchable.
 
 | # | Session | Modules | Owns | Status | Checkpoint | Completed | Notes |
 |---|---|---|---|---|---|---|---|
-| 01 | Author re-entry (DB): contract v1.8, `featSlots` | — (DB) | `program/Ruleswright/specs/database.md`, `src/schema/contracts/pack.schema.json` | pending | — | — | authorized 2026-10-04 |
+| 01 | Author re-entry (DB): contract v1.8, `featSlots` | — (DB) | `program/Ruleswright/specs/database.md`, `src/schema/contracts/pack.schema.json` | done | 2/2 | 2026-10-04 | v1.8 landed: ck1 `3f63fd3`, ck2 `f4cc597`; CA-F1…F3 rechecked, no meaning delta |
 | 02 | Feat-slot column: mirror + validator, engine cap on every path, theme content, journey | M01, M03, M04 | `src/schema/artifacts.ts`, `src/schema/validate/sections/progression.ts`, `src/runtime/feats.ts`, `src/runtime/progression.ts`, `src/runtime/snapshots.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `README.md`, `tests/schema/validate.test.ts`, `tests/runtime/feats.test.ts`, `tests/runtime/progression.test.ts`, `tests/snapshots/character.test.ts`, `tests/compiler/coverage-floor.test.ts`, `tests/proofs/feat-slots-journey.test.ts` | pending | — | — | depends on S01 + CA recheck |
 
 ## Wave Plan
@@ -173,9 +173,9 @@ Observed by Planner at `2e69863` on 2026-10-04 (actual runs, not inherited):
 
 | ID | Required meaning / authority | Producer → boundary → consumer | Mapping / constraints | Correction + proof owners / checkpoints | Agreement | Producer | Proof / evidence / checked sources |
 |----|---|---|---|---|---|---|---|
-| CA-F1 | The meaning of `featSlots` (DD-F1…F5) | `pack.schema.json` `classProgression.featSlots` (S01) → `artifacts.ts` `ClassProgression.featSlots?` + `validate/sections/progression.ts` (S02 ck1) → `feats.ts` cap helper (S02 ck2) → theme JSON (S02 ck3) | see below | S01 ck1/ck2 text; S02 ck1/ck2/ck3 proofs | agreed (human Q1/Q3) — **provisional** until S01 lands | planned | planned |
-| CA-F2 | The refusal semantics (DD-F6a/b/d) | `feats.ts` `learnFeat`, `progression.ts` `validateBuild`/`levelSet`/`awardXp` → host | see below | S01 ck1 text; S02 ck2 proofs | agreed — provisional until S01 | planned | planned |
-| CA-F3 | Restore refusal (DD-F6c, human Q2) | snapshot JSON → `snapshots.ts` `characterStateRefusals` → `validateBuild` → `restoreCharacter` / `restoreParty` | see below | S01 ck1 text; S02 ck2 proof | agreed (human Q2) — provisional until S01 | planned | planned |
+| CA-F1 | The meaning of `featSlots` (DD-F1…F5) | `pack.schema.json` `classProgression.featSlots` (S01) → `artifacts.ts` `ClassProgression.featSlots?` + `validate/sections/progression.ts` (S02 ck1) → `feats.ts` cap helper (S02 ck2) → theme JSON (S02 ck3) | see below | S01 ck1/ck2 text; S02 ck1/ck2/ck3 proofs | agreed (human Q1/Q3); landed v1.8, rechecked 2026-10-04 — no delta | contract: landed S01 ck1 `3f63fd3` (database.md §progression *Feat slots*) + ck2 `f4cc597` (`classProgression.featSlots`); mirror/validator/runtime: planned S02 ck1/ck2 | planned (S02 ck1/ck2/ck3, journey leg 1) |
+| CA-F2 | The refusal semantics (DD-F6a/b/d) | `feats.ts` `learnFeat`, `progression.ts` `validateBuild`/`levelSet`/`awardXp` → host | see below | S01 ck1 text; S02 ck2 proofs | agreed; landed v1.8, rechecked 2026-10-04 — no meaning delta (lettering, see below) | contract text: landed S01 ck1 `3f63fd3`; runtime: planned S02 ck2 | planned (S02 ck2, journey legs 2–6, 8) |
+| CA-F3 | Restore refusal (DD-F6c, human Q2) | snapshot JSON → `snapshots.ts` `characterStateRefusals` → `validateBuild` → `restoreCharacter` / `restoreParty` | see below | S01 ck1 text; S02 ck2 proof | agreed (human Q2); landed v1.8, rechecked 2026-10-04 — no meaning delta | contract text: landed S01 ck1 `3f63fd3` (§progression (d) + Snapshot Envelopes bullet); runtime: planned S02 ck2 | planned (S02 ck2, journey leg 7) |
 
 **CA-F1 mapping**
 
@@ -205,7 +205,9 @@ Observed by Planner at `2e69863` on 2026-10-04 (actual runs, not inherited):
 - `runtime.nextCharacterId` is unchanged on refusal (nothing minted).
 - A snapshot at or under the cap round-trips byte-exact, and a snapshot with no `feats` key still has none.
 
-**Provisional rule:** all three CAs are provisional against **S01 ck1 (database.md)** and **S01 ck2 (pack.schema.json)**. Orchestrator re-reads the landed text and amends any row whose meaning moved **before** dispatching S02. S02 is dispatched against the amended text.
+**S01 recheck (Orchestrator, 2026-10-04, against `f4cc597`).** Every CA-F1/F2/F3 mapping row matches the landed `database.md` v1.8 *Feat slots* paragraph, the Snapshot Envelopes bullet, Version Registry row 9 and `pack.schema.json` `classProgression.featSlots` (`{type: array, minItems: 1, items: {type: integer, minimum: 0}}`, not in `required` (`[hd, saves]`), `additionalProperties: false`). No meaning moved. **Lettering delta:** `database.md` letters the refusal paths (a) `learnFeat`, (b) `levelSet`, (c) `awardXp`, (d) restore, while DD-F6 above uses (c) restore and (d) `awardXp`; and "compatibility caveat (d)" is a separate label. From here on, cite refusal paths **by name**, not by letter.
+
+**Provisional rule (history):** all three CAs were provisional against **S01 ck1 (database.md)** and **S01 ck2 (pack.schema.json)**. Orchestrator re-reads the landed text and amends any row whose meaning moved **before** dispatching S02. S02 is dispatched against the amended text.
 
 ## Planning Completeness Review
 
@@ -244,3 +246,17 @@ Open human questions, carried; none blocks this feature:
 - restricts symmetry.
 
 ## Handoff Notes
+
+### SESSION-01 — received 2026-10-04 (handle h-Snk5, base `7a7a8d3`) — done 2/2
+
+Commits: ck1 `3f63fd3` (database.md), ck2 `f4cc597` (database.md + pack.schema.json), inside the lease. Orchestrator gates at receive: typecheck 0, lint 0, format:check 0, `pnpm exec vitest run tests/schema` 4 files 111/111; schema property checked by node.
+
+Worker notes (verbatim): "Checkpoint-0 recheck passed: `grep -rn featSlots src program/Ruleswright/specs` returned nothing. `classProgression.properties` was exactly `hd`, `attackTable`, `attackBonus`, `saves`, `slots`, with `additionalProperties: false`. Version Registry's last row was 8 (v1.7). Human answer as applied: "1 per class per level - 2 refuse - 3 approved" → 1. the field is `progression.<classId>.featSlots`, indexed by class level (DD-F1); 2. restore refuses an over-cap character (refusal path "(d) restore" in `database.md`); 3. this re-entry is contract v1.8."
+
+Surprises (verbatim): "The (c)/(d) lettering mismatch between SESSION-01 and STATE.md DD-F6" — SESSION-01 letters (c) `awardXp`, (d) restore; DD-F6 letters (c) restore, (d) `awardXp`.
+
+followUp (verbatim): "Fix the lettering in the CA rows and STATE before S02 dispatches (Orchestrator). F-FP2 (`features` row) and F-P7 (feat-slotted predicate counts monster-only entries) are still carried, untouched."
+
+Deviations (verbatim, wording only): "Status line: SESSION-01's text ended with ")". I replaced that with "; v1.7: …" so the history still follows, as earlier versions did. I also added a short clause saying what caveat (d) is. Feat slots paragraph: besides the SESSION text, it also states things already in STATE.md and the CA-F2/CA-F3 mapping tables: the card shape, the held + 1 > slots condition, the condition for (b)'s optional parameter, and that the held count includes unknown ids. It also quotes the human answer."
+
+Disposition: accepted. Lettering resolved by citing paths by name (Contract Agreements, S01 recheck paragraph). No arch fragment (data and docs).
