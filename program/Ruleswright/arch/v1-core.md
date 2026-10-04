@@ -1360,3 +1360,74 @@ pass (original text recoverable at 535247d); the feat-progression SESSION-02 mar
 collapsed at the feat-progression final pass (original text recoverable at ad2cbe3); the
 builder-rulings SESSION-02 marker (4c74017) was collapsed at the builder-rulings final pass
 (original text recoverable at 12ca6ac). -->
+
+
+<!-- combat-decomposition SESSION-01 -->
+## combat-decomposition SESSION-01 — combat spine split (M03 internal; no new module ID, no cross-module edge, no public export change)
+
+*(Orchestrator mid-run append of the session arch delta, checkpoints 17f8f18..f82b2fe; the final Archivist pass synthesizes it.)*
+
+## New files in `src/runtime/combat/`
+
+| File | Role | Value-imports |
+|---|---|---|
+| `types.ts` | every combat type `combat.ts` exported (`CombatantState`, `PendingMove`, `CombatState`, `CombatPhase`, `PendingAction`, `PendingTrigger`, `DeclareOptions`, `DeclareRejection`, `UseOptions`, `StepOutcome`, `StartCombatRequest`) plus `CastSlot` (now exported here only) | none (`import type` only) |
+| `combatants.ts` | pure combatant facts: `isDowned`, `defeatedSide`, `combatantFeats`, `copyBindings`, `profileOf(state)`, `reachOf(runtime, id)`, `ruleBaseOf(runtime, actionId)`, `validityVars(actor)`, `balancesOf(actor)` (F-D2), `applyMutation(runtime, target, request)` | none |
+| `fight.ts` | `class FightCore`: `runtime`, `state`, `rng`, `grants`, `pendingTriggers`, `offerCounter`, private `surfaced` WeakSet; `setClock()`, `collect(work)`, `reject(actorId, rejection)` (was `rejectionEvent`), `surfaceOffers(events, {feats})` | `./combatants`, `./triggers` |
+| `declare.ts` | declare gates + spend helpers: `restrictionRejection(runtime, …)`, `resolveTarget(state, …)`, `spatialGate(runtime, …)`, `atRefusal(runtime, …)`, `rangeGate(runtime, …)`, `selfTargetRefusal`, `isSelfAction`, `pickSlot`, `applyNonSlotCosts`, `castPayload` | `../conditions`, `./spatial`, `./combatants` |
+| `execute.ts` | effect execution over `FightCore`: `resolveShape(core, …)`, `flattenResolutions`, `executeBound(core, …)` (was `execute`; keeps its own event sink, nested inside `core.collect` exactly as before), `resolveAction(core, …)` (was `resolve`), `boundActionOf(runtime, …)`, `endIfSideDefeated(core)` | `../display-roll`, `./resolve`, `./combatants` |
+
+## What remains in `combat.ts`
+
+`startCombat`, `copyTerrain`, `terrainRefusals`, `rngStateOf`, `moveBudgetAst`, `ZERO_RNG`, and `class Combat`:
+public `runtime`, `get/set state` (delegating to `core.state`, DD-D3), `pendingTriggers` (the core's own array
+instance), private `core: FightCore`, constructor (signature unchanged), `offeredCount`, `roundComplete`, `step`,
+`declare` (gate order unchanged; the validity block with `this.runtime.index.validAsts[actionId]` stays inline,
+DD-D4), `use`, `respond`, `serialize`, `eventsSince`, `declareReactive`, `endTurn`, `advanceFrom`; plus, until
+SESSION-02, the movement internals (`forfeitMove`, `movementGate`, `pathQuery`, `walk`, `threatenersLeft`,
+`resumeMove`, `endMove`, `setPendingMove`, `place`) and trigger answering (`resolveReactive`,
+`resolveReactiveAgainst`, `resolveFeat`). Re-exports: the 11 types from `./types`; `isDowned`, `defeatedSide`,
+`combatantFeats`, `copyBindings` from `./combatants`; `isSelfAction` from `./declare`; `displayRoll`,
+`replenish`, `SlotLedger`, `SlotGrants` as before.
+
+Public-surface delta: `dist/runtime.d.ts` `declare class Combat` — `state: CombatState;` →
+`get state(): CombatState;` + `set state(next: CombatState);` (the one allowed DD-D3 delta). V4 export-list
+digests unchanged (`dist/runtime.d.ts 1 151 b3a0b27d400a8289`, `dist/index.d.ts 1 221 be8f98762c3bdcad`).
+
+## Derived value-import DAG (`src/runtime/combat/*.ts`, F-D7 per-statement derivation at `f82b2fe`)
+
+```
+action-economy.ts -> (none)
+combat.ts -> ../../core/rng, ./triggers, ./action-economy, ./resolve, ./spatial, ../../core/dsl/formula, ../errors, ../display-roll, ./combatants, ./declare, ./execute, ./fight
+combatants.ts -> (none)
+declare.ts -> ../conditions, ./spatial, ./combatants
+execute.ts -> ../display-roll, ./resolve, ./combatants
+fight.ts -> ./combatants, ./triggers
+resolve.ts -> ../../core/dsl/checker, ../../core/dsl/formula, ../../core/dsl/effect
+spatial.ts -> (none)
+triggers.ts -> (none)
+types.ts -> (none)
+```
+
+No file value-imports `./combat`; `triggers.ts` imports `Combat` as a type only (and now `CombatantState`,
+`PendingTrigger` as types from `./types`). Intra-module value edges moved: `combat/combat.ts → conditions.ts`
+becomes `combat/declare.ts → conditions.ts`; `combat/combat.ts → display-roll.ts` remains (re-export) and
+`combat/execute.ts → display-roll.ts` is added; `combat/combat.ts → combat/triggers.ts` remains (`emitDeclined`)
+and `combat/fight.ts → combat/triggers.ts` is added.
+
+## `arch/v1-core.md` citations now pointing into moved code (symbol citations; no line-number citation into `combat.ts` exists)
+
+- l.69 `defeatedSide` "from `combat/combat.ts`" — now defined in `combat/combatants.ts` (still re-exported from `combat.ts`).
+- l.587 `setClock` (EventStream's — unaffected; `Combat.setClock` is now `FightCore.setClock`).
+- l.611 / l.1226 combat's `restrictionRejection` — now `combat/declare.ts`.
+- l.621-624 `defeatedSide` consulted after every resolution — the end rule is now `endIfSideDefeated` in `combat/execute.ts`.
+- l.682-691 combat injects `resolveShapeTargets` per execution — now `executeBound` in `combat/execute.ts`.
+- l.721 `applyMutation` — now `combat/combatants.ts`.
+- l.746-751 `collect()`, the `execute()` idiom, `surfaceOffers`, `setClock()` — now `FightCore` in `combat/fight.ts` (`execute` renamed `executeBound`, `combat/execute.ts`).
+- l.760-765 `reachOf`, `applyNonSlotCosts`, the binding pick, `resolveShape` — now `combat/combatants.ts`, `combat/declare.ts`, `combat/execute.ts`.
+- l.769-770 `combatantFeats`, `copyBindings` — now `combat/combatants.ts` (re-exported from `combat.ts`).
+- l.775 `surfaceOffers(emitted, {feats: false})` — `FightCore.surfaceOffers`.
+- l.779-787 `resolveShape('self', …)`, `isSelfAction` "beside `moveBudgetAst`", `resolveTarget`, private `selfTargetRefusal` — now `combat/execute.ts` and `combat/declare.ts` (`isSelfAction` still re-exported from `combat.ts`).
+- l.798 "One shape resolver (`resolveShape`)" — now `combat/execute.ts`.
+- l.1019 `applyMutation` — now `combat/combatants.ts`.
+- l.1213-1215 intra-module notes (`combat/combat.ts → conditions.ts`, `combat/combat.ts → combat/triggers.ts`) — see the edge changes above.
