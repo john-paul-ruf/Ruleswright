@@ -1,7 +1,7 @@
 # Ruleswright — Architecture Record (v1-core)
 
-> **Realized state as of tree HEAD `535247d`** (action-targeting close, 2026-10-01; last source
-> commit `3cce108`), synthesized by Archivist (final pass) across **eight feature cycles**: v1-core (S01–S08, plan HEAD `53c7c91`),
+> **Realized state as of tree HEAD `ad2cbe3`** (feat-progression close, 2026-10-04; last source
+> commit `f7f6e88`), synthesized by Archivist (final pass) across **nine feature cycles**: v1-core (S01–S08, plan HEAD `53c7c91`),
 > **v1-shell** (commits `770950f`–`72346a5` — schema v1.2, class combat actions, the validate/
 > directory split, `character-profile.ts`, `combat.sideDefeated`, docs/CI honesty, packaging,
 > coverage tooling — first reconciled into this record at the grid-combat pass; its synthesis was the loot-inventory
@@ -19,22 +19,25 @@
 > defender values (`EffectApply.varsFor`), recorded spell spend + `settleSpellCasts`, the
 > `damage(half)` no-op, characters holding feats (`learnFeat`, the `feats.ts` leaf), reactive
 > feats offered in combat, the trigger grammar enforced at load, and the combat envelope's
-> `offers`/`phase`/`offeredCount`), and **action-targeting** (S01–S03, feature commits
+> `offers`/`phase`/`offeredCount`), **action-targeting** (S01–S03, feature commits
 > `82832c0`..`3cce108` — contract v1.7, the `self` shape word of `target(…)` and self actions bound
 > to their actor, the `ability(name)` formula function (registry 14 → 15), `heal` in
 > `EFFECT_VOCABULARY`, 10 bundled self-buffs retargeted onto their user, the med-kit reading the
-> vigor ability, and spell lists that reach their spells).
+> vigor ability, and spell lists that reach their spells), and **feat-progression** (S01–S02, feature commits
+> `3f63fd3`..`f7f6e88` — contract v1.8, per-class per-level `progression.<id>.featSlots` summed
+> across classes, and the runtime rule `feat-slots-exceeded` on `learnFeat`, `levelSet`, `awardXp`
+> and character/party restore; FR-6's "class features" item is still unbuilt).
 > Every cycle's mid-run delta fragments were collapsed into one module-ordered description.
-> Verified by the action-targeting final pass on a fresh run at `535247d`: `pnpm typecheck` 0 ·
-> `pnpm build` 0 (24 dist files) · `check:isolation` 0 · `pnpm test` **878/878 across 48 files** ·
-> `pnpm exec vitest run tests/proofs/` **66/66 across 9 files** (lint/format:check/security are
-> the Orchestrator receive at `3cce108`, inherited — not re-run by this pass).
+> Verified by the feat-progression final pass on a fresh run at `ad2cbe3`: `pnpm typecheck` 0 ·
+> `pnpm build` 0 (24 dist files) · `check:isolation` 0 · `pnpm test` **911/911 across 49 files** ·
+> `pnpm exec vitest run tests/proofs` **74/74 across 10 files** · `pnpm format:check` 0 (lint and
+> security are the Orchestrator receive at `f7f6e88`, inherited — not re-run by this pass).
 > Verified-by-source and verified-by-execution are distinguished below.
 >
 > *(Process history — crashes, recoveries, dispatch failures, owner-correction mechanics — lives
 > in each cycle's Final Report and ARCHIVIST-LOG.md, not here.)*
 
-<!-- Realized-state summary (Archivist synthesis, action-targeting final pass) -->
+<!-- Realized-state summary (Archivist synthesis, feat-progression final pass) -->
 
 ## Module map (as realized)
 
@@ -67,12 +70,15 @@ conditions.ts` (`matchesRestriction`, `declaredTags`; `conditions.ts` value-impo
 `./errors`), `character-profile.ts → pools.ts` (`knownSpells`, `armorBlockingCast`; `pools.ts`
 imports nothing from `character-profile`) and `character.ts → feats.ts` (the **`feats.ts` leaf**
 value-imports only `./errors`; its `./runtime`/`./character`/`./events` imports are `import
-type`). None closes a cycle. **Record correction (grid-combat final pass):** the prior
+type`). feat-progression added one more, `progression.ts → feats.ts` (`featSlotTally`,
+`featSlotsExceeded`); `feats.ts` gained only an `import type` of `../schema/error-card`, so it
+stays a leaf. None closes a cycle. **Record correction (grid-combat final pass):** the prior
 synthesis listed `combat/triggers.ts → combat.ts` as a second value-import cycle; git shows
 `triggers.ts`'s `Combat`/`CombatantState`/`PendingTrigger` imports were `import type` at creation
 (`6afbe31`) and remain so — the edge is type-only. `character ⇄ progression` is real.
-Guards held at `535247d` (re-grepped by the action-targeting final pass; action-targeting added or
-removed no `import`/`export … from` line in `src/` — `git diff 0b5787e..535247d -- src`): no `compiler` reference in `src/runtime` except the CI-checked bundle
+Guards held at `ad2cbe3` (re-grepped by the feat-progression final pass; `git diff
+-G'^(import|export .* from)' d97f269..b2db48b -- src` shows import changes only in `feats.ts`
+(type-only) and `progression.ts` (the `./feats` value import)): no `compiler` reference in `src/runtime` except the CI-checked bundle
 rule comment; no `runtime` import in `src/compiler` (grep-asserted in tests). The runtime-only
 bundle is **proven** free of `generateCampaign` by `scripts/check-runtime-isolation.mjs`
 (passed by this pass on a fresh build; also wired into CI's `package` job).
@@ -81,7 +87,8 @@ bundle is **proven** free of `generateCampaign` by `scripts/check-runtime-isolat
 
 - `ruleswright/schema` — the full M01 re-export: pack/artifact types (incl. `Pack.spatial?`,
   `SpatialDef`, `SpatialReach` — v1.3; v1.5 widens `SpatialDef.model` to `'grid' | 'hex'` and
-  adds `SpatialDef.terrain?` + `TerrainKind`; v1.6 adds `SpellTargeting.range?`), `validatePack(json, dslChecker?)`,
+  adds `SpatialDef.terrain?` + `TerrainKind`; v1.6 adds `SpellTargeting.range?`; v1.8 adds
+  `ClassProgression.featSlots?`), `validatePack(json, dslChecker?)`,
   `DslChecker`/`DslCheckRequest`/`deferredDslChecker`, `checkSchemaVersion`, `packContentHash`,
   `MAX_TABLE_DEPTH`, `nearestIds`, overrides API, `ErrorCard`/`makeErrorCard`/`RULE_IDS`
   (15 ids, `E-SPAT-01` last — v1.4 and v1.5 added no rule id). v1.4 (equipment-consumables): `Pack.equipSlots?`,
@@ -112,7 +119,9 @@ bundle is **proven** free of `generateCampaign` by `scripts/check-runtime-isolat
   `DeclareOptions.at`, the `Combat` constructor option `offeredCount` (+ read-only getter),
   `PendingTrigger.source`, `CombatSnapshot.offers?/phase?/offeredCount?`, and removed
   `parsePackEffects`. action-targeting added no barrel export (`isSelfAction` is an intra-runtime
-  export of `combat.ts`, like `moveBudgetAst`). (`SnapshotOffer`, the element type of `CombatSnapshot.offers`, is exported
+  export of `combat.ts`, like `moveBudgetAst`). feat-progression added none either (DD-F7):
+  `featSlotTally`/`FeatSlotTally`/`featSlotsExceeded` are intra-runtime exports of `feats.ts`,
+  and the only public change is `validateBuild`'s optional 4th parameter `heldFeats`. (`SnapshotOffer`, the element type of `CombatSnapshot.offers`, is exported
   from `snapshots.ts` but not re-exported by the barrel — see drift notes.) **M03 barrel completed at v1-core S08**
   (D19, 9afa86c) and extended additively by every later feature (inventory verbs, spatial
   exports, `packSpatialModel` — the grid S03 one-line barrel export was outside that session's
@@ -127,7 +136,7 @@ constructing an `Rng` requires importing `ruleswright` (root) or `ruleswright/co
 src. Recorded for the next Author/DB re-entry or v1.1 surface decision. `EQUIPMENT_SCALARS` (core)
 is likewise reachable only through the root/core barrel, not a subpath surface.
 
-## Cross-cutting decisions (accepted across the eight cycles)
+## Cross-cutting decisions (accepted across the nine cycles)
 
 v1-core (D9–D21): **D9** `src/core/index.ts` internal barrel; **D11** `src/runtime/errors.ts` +
 `RuntimeRuleError` (engine-named rule ids distinct from the DB E-* registry); **D10** DSL grammar
@@ -269,7 +278,7 @@ human's "cost a turn", read as the whole turn; the reaction stays) and declares 
 **DD-S10** in combat a spell is restricted by `actions.tagged:` **or** `spells.tagged:` through
 the exported `matchesRestriction`; out of combat `isRestricted` stays kind-exact (asymmetry
 carried as a human question). **DD-S11** `learnFeat`; `CharacterState.feats?` absent until the
-first learn; no feat-slot cap (FR-6 gap). **DD-S12** reactive feats are offered like reactive
+first learn; uncapped in v1.6 (since v1.8 the cap is pack data — feat-progression below). **DD-S12** reactive feats are offered like reactive
 actions (after them), cost nothing, pass no gate, act on the holder, and never chain (events
 raised while a feat resolves offer no feats). **DD-S13** `trigger.on` must match the
 `eventMatches` grammar, else `E-FORM-01` at load. **DD-S14** the combat envelope carries
@@ -309,6 +318,26 @@ is a content fix" was disproved at planning; the med-kit reads `heal(2 + ability
 (a caster wards itself with `{targetId: <self>}`). **DD-A7** the spell-list fix is a class edit, not
 a list rename. **DD-A8** new journeys import the `src` barrels, not `dist/`. **DD-A9** no new
 ```ts README block (the docs-run pin stays at 4).
+
+feat-progression (DD-F1–DD-F10; full record in that run's STATE.md; human answers 2026-10-04 —
+"1 per class per level - 2 refuse - 3 approved"): **DD-F1** `progression.<classId>.featSlots?:
+integer[]`; entry *i* is the class's **running total** at class level *i + 1* (like `saves`, not
+an increment). **DD-F2** a character's slots are the sum over its classes (the vancian-slot
+precedent). **DD-F3** opt-in: a pack is *feat-slotted* when **any** progression entry declares
+`featSlots`; there a class without it contributes 0; a pack declaring none is uncapped (v1.7
+behaviour). **DD-F4** load constraints, all `E-SCHEMA-01`, no rule id: integers ≥ 0, non-empty,
+non-decreasing, length ≥ the class's shortest `saves` array. **DD-F5** every held feat occupies
+one slot, passive or reactive. **DD-F6** the runtime rule `feat-slots-exceeded` (engine-named like
+`feat-known`, not a `RULE_IDS` entry), all-or-nothing on every path: `learnFeat`
+(RuntimeRuleError, artifactId the feat id); `levelSet` through `validateBuild`'s `heldFeats`
+(CharacterBuildError, `'(character)'`); `awardXp`, checked before any mutation (same); and
+character/party restore (RuntimeRuleError; human Q2 "refuse"). The card's `jsonPath` is `feats`
+and its hint lists each class's contribution. *Cite the refusal paths by name:* `database.md` and
+STATE's DD-F6 letter them differently. **DD-F7** no new public symbol beyond `validateBuild`'s
+optional parameter. **DD-F8** all 9 bundled classes declare `[1, 1, 2, 2, 2, 3, 3, 3, 4, 4]`
+(levels 1–5 are `progression.html`'s warden column). **DD-F9** `snapshots.schema.json`, combat
+profiles and compiler source are unchanged. **DD-F10** the pre-existing `awardXp` level-lowering
+(F-FP1) is not changed; DD-F6's `awardXp` check guards the invariant regardless.
 
 ## Session-realized sections
 
@@ -418,6 +447,19 @@ theme used it. `pack.schema.json` changed its `formulas.description` only — no
 = [0]` mirrors core's `ability-name` position, so `ability(speed)` is not a `speed` reference in the
 v1.5 scan. M01 gained no import.
 
+feat-progression S01 (DB Author re-entry, `3f63fd3`/`f4cc597`): contract **v1.8** — `database.md`
+§progression row `featSlots` and the *Feat slots* paragraph, the Snapshot Envelopes restore
+bullet, the Status line and Version Registry row 9, with one compatibility caveat (d): a pack that
+adds `featSlots` refuses learning past the cap and refuses to restore an over-cap character.
+`pack.schema.json` `$defs/classProgression.featSlots` is `{type: array, minItems: 1, items:
+{integer, minimum 0}}`, not in `required`; `schemaVersion` 1; no rule id. S02 ck1 (`45483c5`):
+`ClassProgression.featSlots?: number[]` in `artifacts.ts`. `checkProgression` admits `featSlots`
+in its `forbidUnknown` list and checks it with `checkIntegerArray(…, 0)`; then, only when every
+entry is an integer ≥ 0 (so a negative entry yields one card, not two), it checks non-decreasing
+(`E-SCHEMA-01` at `progression.<id>.featSlots[i]`) and coverage of the shortest `saves` array
+(`E-SCHEMA-01` at `progression.<id>.featSlots`, only when `saves` is a plain object). M01 gained
+no import.
+
 ### M02 — Repo spine + core mechanics (v1-core S02, 35aa73f/0f8a1ab/55918ef)
 
 - `src/core/rng.ts` — `Rng` (sfc32, cyrb128 string/number seed), `RandomSource` (minimal
@@ -492,7 +534,7 @@ Module `src/core/dsl/` — value imports outside `dsl/` only `../dice` (re-deriv
 - `shared.ts` — one lexer both grammars; `MAX_PARSE_DEPTH = 24`, `MAX_EXPR_LENGTH = 512`;
   `nearestName`; `dslCard`.
 
-### M03 — Runtime I: character side (v1-core S04 via RECOVERY-04, 23f9918/4ead08b/db7eebb/b961053/d0240e6; profileFromCharacter + sideDefeated in v1-shell; inventory in loot S01; equipment in equipment-consumables S03/S05; speed in grid-movement S03; spells + feats in spells-in-combat S02/S03)
+### M03 — Runtime I: character side (v1-core S04 via RECOVERY-04, 23f9918/4ead08b/db7eebb/b961053/d0240e6; profileFromCharacter + sideDefeated in v1-shell; inventory in loot S01; equipment in equipment-consumables S03/S05; speed in grid-movement S03; spells + feats in spells-in-combat S02/S03; feat slots in feat-progression S02)
 
 - `src/runtime/errors.ts` — `RuntimeRuleError extends Error` carrying `readonly errors: readonly
   ErrorCard[]`; load failures remain PackLoadError (FR-2); `ruleCard(...)`. Runtime rule ids are
@@ -512,7 +554,14 @@ Module `src/core/dsl/` — value imports outside `dsl/` only `../dice` (re-deriv
 - `CharacterState`: plain JSON incl. per-class `classXp`; `slots` `(string|null)[]`; loot S01
   added `inventory: InventoryEntry[]` (`{id, qty}`, qty ≥ 1), initialized `[]`.
 - Progression: shared build validator; race caps; `tables.xp` or documented fallback; even XP
-  split; best-of saves; additive slots; tableLevelCeiling clamp.
+  split; best-of saves; additive slots; tableLevelCeiling clamp. Since feat-progression S02 ck2
+  (`a32ded2`): `validateBuild(runtime, race, entries, heldFeats = [])` adds one
+  `feat-slots-exceeded` card (`'(character)'`) when the pack is feat-slotted, the build produced no
+  other card and the held feats outnumber the slots. `levelSet` passes `character.feats`, restore
+  passes `saved.feats ?? []`, and `createCharacter` passes nothing. `awardXp` is **compute → check
+  → apply**: it derives each class's `classXp` and level into locals, runs the slot check, and only
+  then mutates and emits. Event order and payloads are unchanged; a side effect is that an
+  `invalid-xp-table` refusal also changes nothing (F-P4).
 - Restricts matcher: `matchesRestriction(pattern, kind, tags, declaredTags)` — exact
   `actions.tagged:`/`spells.tagged:` prefix, tag must be pack-declared; `isLivePattern(runtime,
   pattern)`; `declaredTags(runtime)`. Out of combat `isRestricted`/`restrictedIds` use it
@@ -564,8 +613,15 @@ only `./errors`): `learnFeat(runtime, character, featId)` refuses `unknown-feat`
 (RuntimeRuleError, nothing changes), appends to `CharacterState.feats?` (absent until the first
 learn — the `equipped` presence rule) and emits `feat:learned {featId}` (`why.rule`
 `content.feats.<id>`). Facade `Character.learnFeat(featId)`. `runtime.ts` `PackIndex.featEffects`
-holds the parse-once ASTs of feats that declare `effect`. No feat-slot cap (FR-6 gap, documented
-v1 limit).
+holds the parse-once ASTs of feats that declare `effect`. **Feat slots (feat-progression S02 ck2
+`a32ded2`, DD-F2/F3/F6):** `featSlotTally(runtime, classes)` returns `undefined` when no
+progression entry declares `featSlots` (no cap). Otherwise it returns `{total, hint}`: the sum of
+`featSlots[level - 1]` over the classes (0 for a class without the field) and a hint like
+`warden 1 → 1, hexer 1 → 0`. `featSlotsExceeded(artifactId, held, tally)` builds the
+`feat-slots-exceeded` card at `feats`. `learnFeat` refuses it after `unknown-feat`/`feat-known`
+when `held + 1 > total` (RuntimeRuleError, nothing changes). These are module exports, not barrel
+exports (DD-F7), and `progression.ts` consumes them. `feats.ts` is still a leaf: its new
+`ErrorCard` import is `import type`.
 
 ### M03 — Combat engine (v1-core S05, 6efaa16/c7a2d44/6afbe31/4be9e6c; spatial integration in grid-combat S03; item use in equipment-consumables S05; movement in grid-movement S03; spells + feats in spells-in-combat S02/S03; self actions in action-targeting S02)
 
@@ -769,7 +825,7 @@ equippedUnits`; `runtime.ts` `PackIndex.itemEffects` (only items declaring `use`
 ck5); the private `rollText` copy (C8) is gone. `useItem` binds `speed` (grid-movement, above)
 and, since action-targeting S03 ck1, `ability:<n>` from `view.abilities` (equipment-composed).
 
-### M03/M05 — Snapshots + root surface (v1-core S06, f1af841/9e18ee2/daac7b7/a6d89ff/bb01e92; positions in grid-combat S03; sideDefeated in v1-shell; terrain + paused moves in grid-movement S03; spend, feats and the envelope in spells-in-combat S02/S03)
+### M03/M05 — Snapshots + root surface (v1-core S06, f1af841/9e18ee2/daac7b7/a6d89ff/bb01e92; positions in grid-combat S03; sideDefeated in v1-shell; terrain + paused moves in grid-movement S03; spend, feats and the envelope in spells-in-combat S02/S03; the feat-slot restore refusal in feat-progression S02)
 
 - `src/runtime/snapshots.ts` (M03): FR-14 serializers `serializeCharacter/serializeParty/
   serializeCombat` + loud-refusal loaders `restoreCharacter/restoreParty/deserializeCombat`;
@@ -796,7 +852,11 @@ and, since action-targeting S03 ck1, `ability:<n>` from `view.abilities` (equipm
   level with no re-stated slots, an index out of range or bound to `null`, a duplicate index), all
   before any rebuild (fixes the latent v1.5 loss of pool/vancian spend on restore). S03 ck2: the
   character snapshot carries `feats` only when present; restore refuses an unknown feat id
-  (E-SNAP-01 at `<path>.feats[i]`). **S03 ck4 (`c6128bd`) — the envelope (DD-S14):**
+  (E-SNAP-01 at `<path>.feats[i]`). feat-progression S02 ck2 (`a32ded2`): `characterStateRefusals`
+  passes `saved.feats ?? []` to `validateBuild`, so `restoreCharacter` and `restoreParty` refuse an
+  over-cap character with `feat-slots-exceeded` at `feats`. The held count includes unknown ids,
+  and the unknown-id E-SNAP-01 card may appear beside it. Every card is returned at once and
+  nothing is minted (`nextCharacterId` unchanged). **S03 ck4 (`c6128bd`) — the envelope (DD-S14):**
   `CombatSnapshot.phase?`, `offeredCount?` and `offers?: SnapshotOffer[]` (`{actorId, source, id,
   on}`); `serializeCombat` always writes `phase` and `offeredCount`, writes `offers` (every open
   offer in queue order, actions and feats) only when non-empty, and no longer writes the
@@ -817,7 +877,7 @@ and, since action-targeting S03 ck1, `ability:<n>` from `view.abilities` (equipm
   refusal. Combat restore takes the sides/profiles explicitly (`CombatRestoreRequest`).
 - M05 `src/index.ts`: dumb `export *` from './schema' | './runtime' | './compiler'.
 
-### M04 — Compiler + themes (v1-core S07, 116fc7e/01af260/786923b/1676c42/5d30d2f/3faf836; items+wyldwood in loot S02; spatial pass-through in grid-combat S04; equipSlots + equipment content in equipment-consumables S04; movement content in grid-movement S04; spell cost/range + feat patterns in spells-in-combat S02/S03; self-wrapped actions, med-kit and spell lists in action-targeting S02/S03)
+### M04 — Compiler + themes (v1-core S07, 116fc7e/01af260/786923b/1676c42/5d30d2f/3faf836; items+wyldwood in loot S02; spatial pass-through in grid-combat S04; equipSlots + equipment content in equipment-consumables S04; movement content in grid-movement S04; spell cost/range + feat patterns in spells-in-combat S02/S03; self-wrapped actions, med-kit and spell lists in action-targeting S02/S03; feat slots in feat-progression S02)
 
 Module `src/compiler/` — imports only `../schema` + `../core` (no runtime import). Zero I/O.
 
@@ -905,15 +965,21 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   matches a spell and every spell list is drawn by a class (`tests/compiler/spell-lists.test.ts`,
   10). S03 ck3: the med-kit line above. Newly reachable through these lists: the `mending` spells
   (drift notes).
+  feat-progression S02 ck3 (`7bf5fa6`, no compiler source change — `stages/classes.ts` copies
+  `progression` verbatim): all 9 bundled classes (3 per theme) declare `featSlots [1, 1, 2, 2, 2,
+  3, 3, 3, 4, 4]`, so a generated character is capped end to end. Because the themes changed,
+  older bundled-pack snapshots already fail the `contentHash` identity gate.
   Byte-identity proofs (CA-5): equal hash + equal bytes, different-seed divergence, in-process
   AND across fresh module loads; no ambient values.
-- FR-21 conformance: `tests/compiler/coverage-floor.test.ts` (88 tests since spells-in-combat
+- FR-21 conformance: `tests/compiler/coverage-floor.test.ts` (91 tests since feat-progression S02
+  ck3, which added a per-theme `featSlots` floor over every `content.classes` id — the
+  `playerClasses` filter would have skipped 3 of 9, F-P2; 88 since spells-in-combat
   S03 ck1, which added a per-theme trigger-grammar check; 85 since
   grid-movement S04, which added a per-theme "v1.5 movement" test; 82 since equipment-consumables S04 — the FR-17/CA-1 generate→validatePack dogfood path sees the spatial
   and equipment sections on all three packs and produces zero cards; CAP-G6/CAP-E6 evidence,
   plus a CA-EG3 content-pairing assertion).
 
-### M05 — Packaging, CI, proofs, docs (v1-core S08, 02752a9/8f67611/9afa86c/32c7ade/d5bacba; v1-shell packaging/docs/CI/coverage; loot S03; grid S05; equipment-consumables S06; grid-movement S04; spells-in-combat S02/S03; action-targeting S02/S03)
+### M05 — Packaging, CI, proofs, docs (v1-core S08, 02752a9/8f67611/9afa86c/32c7ade/d5bacba; v1-shell packaging/docs/CI/coverage; loot S03; grid S05; equipment-consumables S06; grid-movement S04; spells-in-combat S02/S03; action-targeting S02/S03; feat-progression S02)
 
 - Build: `tsup.config.ts` — four per-entry builds (index/schema/runtime/compiler), dual ESM/CJS +
   rolled dts, target es2020; `package.json` exports map covers `.` / `./runtime` / `./schema` /
@@ -934,7 +1000,7 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   (grid S05: the FR-11 journey, below), `equipment-journey.test.ts` (equipment-consumables S06,
   below), `movement-journey.test.ts` (grid-movement S04, below), `spells-journey.test.ts`
   (spells-in-combat S02/S03, below), `self-target-journey.test.ts` (action-targeting S02, below),
-  `docs-run.test.ts` (NFR-DX made mechanical: executes the
+  `feat-slots-journey.test.ts` (feat-progression S02, below), `docs-run.test.ts` (NFR-DX made mechanical: executes the
   README's fenced ```ts blocks verbatim AND typechecks them under strict tsc; asserts the
   README's own output lines and the block-count pin; since spells-in-combat S03 ck5 it also
   guards that the README names `settleSpellCasts` and `learnFeat`). `rules-are-data.test.ts`
@@ -998,6 +1064,16 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   theater leg (`spatial` deleted) → seven content checks across zombie-urban and wyldwood →
   `withdraw {targetId: <enemy>}` is `invalid-target` with state deep-equal. Negative control: 13/13
   fail at `5b4abca`.
+- The **feat-slot journey** (feat-progression S02 ck4 `f7f6e88`,
+  `tests/proofs/feat-slots-journey.test.ts`, 8 tests, through the `src` barrels; every leg runs on
+  `generateCampaign({theme, seed: 42})` and a fresh `Runtime`, with no fixture pack; CAP-F5, the
+  feature's first narrow journey): load (every class carries `featSlots`) → a level-1 warden learns
+  one feat and the second is refused with nothing changed → `levelSet` up opens a slot, while
+  `levelSet` down and an `awardXp` that lowers the level (F-FP1) are refused → multi-class warden 1 +
+  hexer 1 holds two → JSON snapshot round trip, with an over-cap character and party member refused
+  → zombie-urban and wyldwood, every class → an unslotted control (`featSlots` stripped) learns all
+  4 feats. Negative control (worker-reported): with `learnFeat`'s check removed, legs 2, 6 and 8
+  (×2) fail.
 - README: quickstart blocks 01–04 (generate / character / one combat round / loot) — block 03
   passes host-declared `positions` (grid S05; `d20[9]=9 < ac12` unchanged — positions consume no
   RNG, proved by run); block 04 loot (observed `[{ id: 'grave-ward', qty: 1 }]`). A **Grid
@@ -1021,10 +1097,14 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   burst-spell paragraph); S03 ck3 (`3cce108`) rewrote the med-kit JSON line, prose ("heals 12") and
   expected-output lines, added an `ability(name)` sentence to the Consumables bullet, and corrected
   the line that said zombie-urban's classes know no spells — still 4 ```ts blocks.
-- Full gates at action-targeting close (Orchestrator receive at `3cce108`): typecheck 0; lint 0;
-  format:check 0; build 0; isolation 0; security 0; `pnpm test` **878/878 across 48 files**.
-  Re-run fresh by the action-targeting final pass at `535247d`: typecheck 0, build 0 (24 dist
-  files), isolation 0, 878/878 (48 files), proofs 66/66 (9 files). (spells-in-combat close was
+  feat-progression S02 ck3 (`7bf5fa6`) added a **Feat slots** bullet after the Feats bullet and
+  replaced "v1 limits: there is no feat-slot cap" with "The feat-slot cap is pack data …" (prose
+  only — still 4 ```ts blocks, and `learnFeat` is still named).
+- Full gates at feat-progression close (Orchestrator receive at `f7f6e88`): typecheck 0; lint 0;
+  format:check 0; build 0; isolation 0; security 0; `pnpm test` **911/911 across 49 files**.
+  Re-run fresh by the feat-progression final pass at `ad2cbe3`: typecheck 0, build 0 (24 dist
+  files), isolation 0, 911/911 (49 files), proofs 74/74 (10 files). (action-targeting close was
+  878/878 across 48 files, proofs 66/66 across 9; spells-in-combat close was
   829/829 across 44 files, proofs 53/53 across 8; grid-movement close 741/741 across 40 files,
   proofs 47/47 across 7; equipment-consumables close 661/661 across 37, proofs 38/38.)
 
@@ -1055,9 +1135,10 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
 
 ## Recorded drift & intra-module notes (for the next cycle)
 
-- **Intra-M03 value-import pairs** (derived mechanically at `94d40f3`; unchanged at `535247d` —
-  action-targeting touched no import line): `character.ts ⇄
-  progression.ts`, `character.ts → {inventory, feats}.ts` (`feats.ts` a leaf),
+- **Intra-M03 value-import pairs** (derived mechanically at `94d40f3`; at `ad2cbe3` the only
+  change is feat-progression's `progression.ts → feats.ts`): `character.ts ⇄
+  progression.ts`, `character.ts → inventory.ts`, `{character, progression}.ts → feats.ts`
+  (`feats.ts` a leaf),
   `{character, pools, inventory, character-profile}.ts → equipment.ts` (a leaf),
   `character-profile.ts → {inventory, pools}.ts`, `combat/combat.ts → conditions.ts`,
   `{combat/combat, equipment}.ts → display-roll.ts` (grid-movement leaf; imports only `core/dice`
@@ -1146,8 +1227,8 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   - **Content:** the zombie-urban empty `spellLists` and the wyldwood `hedge-mage` mismatch are
     CLOSED by action-targeting S03 ck2 (`7c1b8b6`). The 12 fail-branch-free `damage(half)` sites
     remain (a pack author may want real half damage). Owner: the next content feature.
-  - **FR-6 feat slots:** no progression field, so `learnFeat` has no cap (README states the v1
-    limit). Owner: a future feat-progression feature (schema event).
+  - **FR-6 feat slots: CLOSED by feat-progression** (contract v1.8; S02 `45483c5`..`f7f6e88`).
+    FR-6's "class features" item is still open (feat-progression residuals below).
   - **DD-S19 consequence:** the DC and attack bonus keep `ctx.vars = effectVars(actor, bound)`, so
     a `targetId` cast's DC sees the primary target's saves and an `at` cast's DC the caster's.
     Every bundled DC is a literal; documented in database.md.
@@ -1164,6 +1245,22 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
     "med-kit = heal(2 + vigor)". It is outside every lease, was accepted stale and is carried to the
     next cleanup run (cleanup C14).
   - **Restricts symmetry** stays the open spells-in-combat human question (above).
+- **feat-progression residuals (carried, owners named in its Final Report):**
+  - **F-FP1 / F-P3: human question.** `awardXp` can lower a directly set class level
+    (`progression.ts` assigns `min(levelForXp, cap, ceiling)` even when it is lower). With the cap,
+    a directly levelled character at its feat cap has every XP award below its level's threshold
+    refused, and because a refusal leaves `classXp` unchanged, small awards never accumulate.
+    Journey leg 5 and the `progression.test.ts` awardXp guard depend on today's behaviour (DD-F10).
+  - **F-P7: human question.** A pack that declares `featSlots` only on a monster-only progression
+    entry is feat-slotted, so every player class is capped at 0, with no load warning (the approved
+    "any entry" meaning). Bundled content cannot reach this.
+  - **F-FP2 / F-P5: FR-6 "class features".** `database.md` §progression lists a `features`
+    (`{level, ref}`) row that is in neither `pack.schema.json` nor the validator. Owner: DB, in a
+    future human-authorized re-entry.
+  - **CAP-F1 compiler leg (optional).** The compiler's stage-8 refusal of a malformed `featSlots` is
+    proven only by an ad hoc probe (VERIFICATION P1), not by a committed `tests/compiler` case.
+  - **Host query (optional, DD-F7 follow-up).** There is no public "slots remaining" query; a host
+    learns the cap only through refusals.
 - **v1.1 follow-ups carried across cycles:** browser-mode Vitest config (CI's browser leg);
   byte-level snapshot conformance; `pnpm approve-builds` advisory for esbuild/tsup; an
   out-of-combat point-pool cast verb (would give wyldwood's charm armor teeth, DD-EG5); item
@@ -1182,23 +1279,5 @@ grid-movement final pass (original text recoverable at 6ab880a); the spells-in-c
 SESSION-02, OWNER-M02-HALF and SESSION-03 markers (4caf973, ae0f480, da4665c) were collapsed at
 the spells-in-combat final pass (original text recoverable at 94d40f3); the action-targeting
 SESSION-02 and SESSION-03 markers (a84dd52, 42a1fd3) were collapsed at the action-targeting final
-pass (original text recoverable at 535247d). -->
-
-<!-- feat-progression SESSION-02 -->
-## feat-progression SESSION-02 delta (Orchestrator mid-run append; contract v1.8, S01 3f63fd3/f4cc597; S02 45483c5..f7f6e88)
-
-- **M01 Schema.** `ClassProgression.featSlots?: number[]` (artifacts.ts). `checkProgression` accepts `featSlots`: each entry an integer ≥ 0, non-empty, non-decreasing, and at least as long as the class's shortest `saves` array. Every violation is `E-SCHEMA-01` at `progression.<id>.featSlots` or `…featSlots[i]`. No rule id is added. M01 still imports nothing internal.
-- **M03 Runtime — `feats.ts`** has two new **module exports that are not on the barrel** (DD-F7):
-  - `featSlotTally(runtime, classes): FeatSlotTally | undefined` returns `{total, hint}`: the per-class `featSlots[level-1]`, summed across classes. It returns `undefined` (no cap) when no progression entry declares `featSlots`. In a slotted pack, a class without `featSlots` contributes 0.
-  - `featSlotsExceeded(artifactId, held, tally): ErrorCard` builds the runtime rule `feat-slots-exceeded` at `jsonPath 'feats'`.
-  - `learnFeat` refuses `feat-slots-exceeded` (RuntimeRuleError, artifactId = feat id) after `unknown-feat`/`feat-known` when held + 1 > slots.
-  - `feats.ts` is still a leaf: its only value import is `./errors`; everything else is type-only.
-- **M03 Runtime — `progression.ts`:**
-  - `validateBuild(runtime, race, entries, heldFeats: readonly string[] = [])` takes an optional 4th parameter. It emits `feat-slots-exceeded` (`artifactId '(character)'`) only when the pack is feat-slotted, the build produced no other card, and the held count exceeds the slots.
-  - Callers: `levelSet` passes `character.feats`; `snapshots.ts` `characterStateRefusals` passes `saved.feats ?? []` (restore; the held count includes unknown ids). `createCharacter` passes nothing.
-  - `awardXp` is now **compute → check → apply**. It derives each class's `classXp` and level into locals, refuses `feat-slots-exceeded` (CharacterBuildError) when the derived levels leave the held feats over the slots, and only then mutates `xp`, `classXp`, levels and progression and emits the events. Event order and payloads are unchanged. As a side effect, an `invalid-xp-table` refusal now also changes nothing.
-  - The new intra-M03 value edge `progression.ts → feats.ts` creates no cycle, because `feats.ts` imports only types from `./character`/`./runtime`.
-- **M04 Compiler.** All 9 bundled classes declare `featSlots [1, 1, 2, 2, 2, 3, 3, 3, 4, 4]` (theme JSON only; no compiler `.ts` change; `stages/classes.ts` copies it verbatim).
-- **Retire:** "no feat-slot cap (FR-6 gap)" (v1-core.md l.272 and l.567). The cap is now pack data, and a pack declaring no `featSlots` is uncapped.
-
-_Pending Archivist synthesis: l.272 and l.567 above still read "no feat-slot cap (FR-6 gap)" and are retired by this delta._
+pass (original text recoverable at 535247d); the feat-progression SESSION-02 marker (3da588a) was
+collapsed at the feat-progression final pass (original text recoverable at ad2cbe3). -->
