@@ -1431,3 +1431,44 @@ and `combat/fight.ts → combat/triggers.ts` is added.
 - l.798 "One shape resolver (`resolveShape`)" — now `combat/execute.ts`.
 - l.1019 `applyMutation` — now `combat/combatants.ts`.
 - l.1213-1215 intra-module notes (`combat/combat.ts → conditions.ts`, `combat/combat.ts → combat/triggers.ts`) — see the edge changes above.
+
+<!-- combat-decomposition SESSION-02 -->
+## combat-decomposition SESSION-02 — movement, terrain and trigger answering out of `Combat` (M03 internal)
+
+*(Orchestrator mid-run append of the session arch delta, checkpoints 62c1418..39d754d; supersedes the SESSION-01 section's "What remains in `combat.ts`" and the `combat.ts`/`triggers.ts` lines of its value-import list; the final Archivist pass synthesizes both.)*
+
+Commits: ck1 `62c1418`, ck2 `0eabcbc`, ck3 `d728c51`, ck4 `39d754d`. M03 internal only; no new module ID, no cross-module edge, no export, signature, event or snapshot change.
+
+## Final roles
+
+| File | Responsibility | Value-imports (internal, derived per statement at `39d754d`) |
+|---|---|---|
+| `combat/movement.ts` (new, 351 lines) | movement and terrain over `FightCore`: `copyTerrain`, `terrainRefusals` (shared with snapshot restore), `forfeitMove`, `movementGate` (DD-M9), `pathQuery`, `walk` (leaving-reach pauses, R-GM-3 resumed first step), `threatenersLeft`, `resumeMove` (DD-M10 re-checks), `endMove`, `setPendingMove`, `place` (whole-object `core.state` reassignment), `moveBudgetAst`; private `ZERO_RNG` (DD-M8). The module header holds the former `combat.ts` "Movement (v1.5, FR-11)" paragraph. | `../../core/dsl/formula`, `../errors`, `./resolve`, `./spatial`, `./combatants`, `./declare` |
+| `combat/triggers.ts` (280 lines) | offer grammar and emission (unchanged, all 7 prior exports) plus trigger answering: `answerOffer` (decline → `setClock` + `trigger:declined`, otherwise take), `resolveReactive` (restriction → self → target → reach), `resolveReactiveAgainst` (cost → spend → `collect(resolveAction)` → `surfaceOffers`), `resolveFeat` (holder check → effect → `surfaceOffers(…, {feats: false})`, no-chain). Takes `FightCore` as `import type`. New exports are internal and are not on the runtime barrel. | `./action-economy`, `./combatants`, `./declare`, `./execute` |
+| `combat/combat.ts` (1088 → 671 lines) | `startCombat`, `rngStateOf`, and `class Combat`: the constructor, `state` accessor, `offeredCount`, `roundComplete`, the public verbs `step` (calls `forfeitMove`), `declare` (inline validity gate, calls `movementGate`; DD-D4), `use`, `respond` (lookup + `splice`, then `answerOffer`, then `resumeMove` when the queue is empty), `serialize`, `eventsSince`, `declareReactive` (calls `resolveReactive`), and the turn advance (`endTurn`, `advanceFrom`). Its only private members are `core`, `endTurn` and `advanceFrom`. It re-exports `copyTerrain`, `terrainRefusals` and `moveBudgetAst` from `./movement`, plus all of S01's re-exports. | `../../core/rng`, `./triggers`, `./action-economy`, `../../core/dsl/formula`, `../errors`, `../display-roll`, `./combatants`, `./declare`, `./execute`, `./fight`, `./movement` |
+
+The value edges `combat.ts → ./resolve` and `combat.ts → ./spatial` are now type-only; they were dropped, not moved elsewhere. Unchanged from S01: `fight.ts → ./combatants, ./triggers`; `declare.ts → ../conditions, ./spatial, ./combatants`; `execute.ts → ../display-roll, ./resolve, ./combatants`; `types`, `combatants`, `spatial` and `action-economy` have no internal value imports; `resolve.ts → core/dsl/{checker,formula,effect}`.
+
+DAG is acyclic. None of `declare.ts`, `execute.ts`, `combatants.ts` or `movement.ts` value-imports `fight.ts`. No file value-imports `./combat` (`triggers.ts` still imports `Combat` as a type only, for `resolveTriggered`). `balancesOf` is defined in `combatants.ts` and imported by `combat.ts` and `triggers.ts`.
+
+Intra-module edge changes for the PROGRAM-CONFIG registry (final Archivist):
+- `combat/combat.ts → combat/triggers.ts` remains, now `answerOffer`/`resolveReactive` instead of `emitDeclined`.
+- Added: `combat/triggers.ts → combat/{declare, execute, action-economy, combatants}`.
+- Added: `combat/movement.ts → combat/{spatial, resolve, declare, combatants}`, `../errors`, `../../core/dsl/formula`.
+- Added: `combat/combat.ts → combat/movement.ts`.
+
+## `arch/v1-core.md` citations now pointing into moved code (symbol citations; final Archivist re-keys)
+
+- l.70: the edge `combat/combat.ts → combat/triggers.ts` (value) still holds; it now carries `answerOffer`/`resolveReactive`.
+- l.127: `moveBudgetAst` as an "export of `combat.ts`". It is now defined in `combat/movement.ts` and re-exported from `combat.ts`.
+- l.707: the reach gate "wired at declare and `resolveReactive`". `resolveReactive` is now in `combat/triggers.ts`.
+- l.720: "a shared `execute` used by `declare`, `respond` and `use`". The take path behind `respond` is now `triggers.ts` `answerOffer` → `resolveReactive`/`resolveFeat`.
+- l.728-743 (the grid-movement move column): the movement gate, walk, leaving-reach pause, `respond()` resume with its re-checks, the forfeit on `step()`, and the startCombat terrain refusals. Now `combat/movement.ts` (`movementGate`, `walk`, `threatenersLeft`, `resumeMove`, `forfeitMove`, `terrainRefusals`). `respond`/`step`/`startCombat` stay in `combat.ts` and call them.
+- l.744-749: "the reactive resolution behind `respond(…, 'take')` collect[s] their own events". Now `triggers.ts` `resolveReactiveAgainst`. The "offers raised inside a walk surface when raised" part is now `movement.ts` `walk`.
+- l.751-752: "`respond(…, 'decline')` now calls `setClock()` first" is now `triggers.ts` `answerOffer`. The intra-runtime exports `copyTerrain`, `terrainRefusals`, `moveBudgetAst` are now defined in `combat/movement.ts` and re-exported from `combat.ts` (still off the barrel).
+- l.772-776: `respond(…, 'take')` on a feat runs `resolveFeat`. Now `triggers.ts` `resolveFeat`.
+- l.782: `isSelfAction` "beside `moveBudgetAst`". `isSelfAction` is in `combat/declare.ts` (S01) and `moveBudgetAst` in `combat/movement.ts`; both are re-exported from `combat.ts`.
+- l.784-788: `resolveReactive` binding the reactor, and "`resolveReactive` now ends in the private `resolveReactiveAgainst`". Both are now exported free functions in `combat/triggers.ts`.
+- l.811-817: the `combat/triggers.ts` entry. It now also holds trigger answering (`answerOffer`, `resolveReactive`, `resolveReactiveAgainst`, `resolveFeat`). The edge note stands: `triggers.ts → combat.ts` is type-only.
+- l.1278: R-GM-3, the resumed walk skipping its first leaving-reach check. Now `movement.ts` `walk(…, resumed)`.
+- l.1380-1416 (S01's "What remains in `combat.ts`" and value-import list) is superseded by the tables above. `copyTerrain`, `terrainRefusals`, `moveBudgetAst`, `ZERO_RNG` and the movement/trigger internals are no longer in `combat.ts`. The `combat.ts` and `triggers.ts` lines of the derived list are replaced by the ones above, and a `movement.ts` line is added.
