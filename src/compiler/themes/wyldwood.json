@@ -415,7 +415,7 @@
           "shape": "single",
           "range": 6
         },
-        "effect": "damage(1d8 - vigor, mending)",
+        "effect": "heal(1d8 + ability(vigor))",
         "tags": ["casting"]
       },
       "hex-bolt": {

@@ -378,7 +378,7 @@ function startCombatWith(rt: Runtime, profile: CombatantProfile) {
 /**
  * CA-EG5 settlement / CAP-E8 (S05 ck3): a finished fight's item spend is written
  * back to the character's inventory by the host-called `settleItemUses`. Real
- * zombie-urban pack (seed 42, `med-kit` = heal(2 + vigor)) plus two in-test
+ * zombie-urban pack (seed 42, `med-kit` = heal(2 + ability(vigor))) plus two in-test
  * items: `field-dose` (consumable) and `stim-belt` (equippable AND consumable).
  */
 describe('CA-EG5 — settleItemUses writes the fight’s spend back to the inventory', () => {
