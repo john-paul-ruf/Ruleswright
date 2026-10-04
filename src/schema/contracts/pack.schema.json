@@ -494,6 +494,12 @@
             "items": { "type": "integer", "minimum": 0 },
             "description": "Vancian slots per class level, indexed by spell level (FR-8)"
           }
+        },
+        "featSlots": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "integer", "minimum": 0 },
+          "description": "v1.8 (FR-6): feats the class grants in total at each class level (index 0 = level 1); a running total like saves, not an increment. Non-decreasing, and at least as long as the class's shortest saves array (semantic rules; E-SCHEMA-01). A character's feat slots are the sum over its classes. Optional: in a pack where any progression entry declares featSlots, a class without it contributes 0; a pack that declares none has no feat cap."
         }
       }
     },
