@@ -6,7 +6,7 @@
 - **Feature:** `feat-progression`
 - **Plan HEAD:** `2e69863` (source last changed at `3cce108`)
 - **Planned:** 2026-10-04 by Planner
-- **Intent:** close the last unbuilt FR-6 item. Pack progression tables declare **feat slots** per class per level. A character's slots are the sum over its classes. The engine refuses every path that would leave a character holding more feats than its slots: `learnFeat`, `levelSet`, `awardXp` and snapshot restore (FR-5: "illegal builds … rejected with the violated rule named").
+- **Intent:** close FR-6's feat-slot item (FR-6 "class features" remains unbuilt — F-FP2/F-P5). Pack progression tables declare **feat slots** per class per level. A character's slots are the sum over its classes. The engine refuses every path that would leave a character holding more feats than its slots: `learnFeat`, `levelSet`, `awardXp` and snapshot restore (FR-5: "illegal builds … rejected with the violated rule named").
 - **Sessions:** 2, serial (S01 → S02).
 
 **Human answers on record (2026-10-04).** Planner asked three questions before planning:
@@ -78,7 +78,8 @@ These line numbers were checked at plan HEAD `2e69863`:
 - restricts symmetry (human question);
 - cone/line shapes (FR-11 deferral);
 - cleanup items C1/C2/C14;
-- prior-ledger carries listed in `arch/v1-core.md`.
+- prior-ledger carries listed in `arch/v1-core.md`, explicitly including the `useItem` condition-duration display (`arch/v1-core.md:1084-1086`), the 12 fail-branch-free `damage(half)` sites, and the `evalPackFormula` parse-once debt (F-P6);
+- FR-6 "class features" / the `database.md` `features` row (F-FP2, F-P5): a future human-authorized DB re-entry.
 
 ## Design Decisions
 
@@ -206,12 +207,39 @@ Observed by Planner at `2e69863` on 2026-10-04 (actual runs, not inherited):
 
 **Provisional rule:** all three CAs are provisional against **S01 ck1 (database.md)** and **S01 ck2 (pack.schema.json)**. Orchestrator re-reads the landed text and amends any row whose meaning moved **before** dispatching S02. S02 is dispatched against the amended text.
 
+## Planning Completeness Review
+
+Archivist, read-only, 2026-10-04 (handle h-ZxIS). **Reviewed plan revision `d97f269`; source revision `3cce108`.** Raw note: Orchestrator scratch (`.program/archivist-notes.md`).
+
+| # | Dimension | Verdict | Evidence (abridged) |
+|---|---|---|---|
+| D1 | requirement coverage | pass | CAP-F1..F5 routed to S02 ck1–ck4; Q1/Q2/Q3 → DD-F1 / DD-F6c / S01 |
+| D2 | fact origins | pass | held feats `feats.ts:25`; ceiling `progression.ts:119,243`; slot data passes `stages/classes.ts:53` |
+| D3 | ownership | pass | arch → Orchestrator at S02 receive; Custom Rule 1 → Archivist final; F-FP1 human, F-FP2 DB |
+| D4 | lease coverage | pass | no literal hash pins in `tests/`; README 4 ```ts blocks = docs-run l.49; serial waves |
+| D5 | declared vs real deps | pass | S02 depends on S01's contract text only; no code reads `pack.schema.json` |
+| D6 | early integration | pass | ck2 tests via `new Runtime` (`validatePack`, `runtime.ts:93`) + public methods; ck4 generated-pack journey |
+| D7 | runtime wiring | pass | `featSlotTally` consumed by `learnFeat`/`validateBuild`/`awardXp`; 4th param passed by `levelSet` l.327 and `characterStateRefusals` l.319 |
+
+No `fail`: no wave is blocked by the review.
+
+**Findings and dispositions (Orchestrator, standing authority):**
+- **F-P1 (fix before S02):** `cloneRuntimePack` warden `saves` length is 4 (`tests/runtime/fixtures/pack.ts:114-118`), so the prescribed `featSlots [1, 2]` in `progression.test.ts` and `snapshots/character.test.ts` fails DD-F4 coverage at load. `emberMarchesPack` (saves length 2) makes `feats.test.ts`'s `[1,2]`/`[1,1]` valid. **Disposition:** carried in S02's envelope: slotted arrays must be at least the fixture's ceiling long (e.g. `[1, 2, 2, 2]` on `cloneRuntimePack`). Test-data correction only; DD-F1…F6 unchanged.
+- **F-P2 (fix before S02):** the coverage-floor `playerClasses` filter (l.244-247) drops dark-fantasy/wyldwood `warden` and zombie-urban `scavenger`. **Disposition:** carried in S02's envelope: the ck3 featSlots floor iterates every `content.classes` id (9/9).
+- **F-P3 (human, folded into F-FP1):** with DD-F6d + DD-F10, a directly levelled character at its feat cap has every XP award below its level's threshold refused, and because refusal leaves `classXp` unchanged, small awards never accumulate. Added to the F-FP1 question below. Not blocking.
+- **F-P4 (S02 reports):** compute-then-apply also makes `invalid-xp-table` all-or-nothing (today `xp` is mutated first, l.278). **Disposition:** S02 reports it as an R1 deviation and may add one nothing-changes assertion.
+- **F-P5 (STATE wording):** FR-6 also asks for "class features" (requirements.md:68; `database.md:480` `features` row = F-FP2). The Intent is narrowed below to "FR-6 feat slots"; F-FP2 is deferred to a future human-authorized class-features DB re-entry (S01 stays told not to touch it). The §progression table is at database.md l.473-480 (STATE said 472-479).
+- **F-P6 (carries):** explicit deferrals added to Out of scope: `useItem` condition-duration display (`arch/v1-core.md:1084-1086`), the 12 fail-branch-free `damage(half)` sites, the `evalPackFormula` parse-once debt. None is in this feature's scope.
+- **F-P7 (design flag, human):** the "feat-slotted" predicate counts monster-only progression entries, so a pack declaring `featSlots` only on a monster table caps every player class at 0 with no load-time warning. **Disposition:** the approved meaning ("any progression entry", CA-F1) is kept unchanged; carried to the human as a pack-authoring question. Bundled themes declare it on every class, so this is unreachable in bundled content.
+- **F-P8 (cosmetic):** merge the `./character` type imports in `feats.ts`; carried in S02's envelope.
+
 ## Current Blockers
 
 None. S01 is dispatchable (human answers 2026-10-04).
 
 Open human questions, carried; none blocks this feature:
-- F-FP1: is `awardXp` lowering a directly-set level intended?
+- F-FP1: is `awardXp` lowering a directly-set level intended? Consequence under this plan (F-P3): a directly levelled character at its feat cap has every XP award below its level threshold refused, and small awards never accumulate (refusal leaves `classXp` unchanged).
+- F-P7: should a pack that declares `featSlots` only on monster-only progression entries cap every player class at 0 (current approved meaning), or should only player-class entries make a pack feat-slotted?
 - the `mending` spells (3 sites);
 - restricts symmetry.
 
