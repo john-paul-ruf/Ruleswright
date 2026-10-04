@@ -329,11 +329,18 @@ active condition restricts it (`restricted`; dark-fantasy's `hexbound` restricts
 passes → range (`out-of-range`, `E-SPAT-01`) → equipped armor the caster's classes
 cannot cast in blocks a slot (vancian) spell (`armor-not-castable`) → the cost
 (turn slots, pool points) → a vancian spell needs an uncast slot bound to it
-(`E-VANC-01`).
+(`E-VANC-01`). Out of combat, `isRestricted(rt, state, 'spell', id)` and
+`restrictedIds` apply the same rule as a combat declare: a spell is blocked by
+`actions.tagged:` or `spells.tagged:` (an action only by `actions.tagged:`).
 
 - **Targeting.** A spell may target any combatant, ally or enemy, within its
   `targeting.range` (default: the caster's reach). A burst may be centered on an
   empty cell instead: `fight.declare('ember-bloom', { at: { x: 4, y: 1 } })`.
+- **Healing spells.** zombie-urban `bind-the-bite` and the `warden`'s
+  `bind-wound` in dark-fantasy and wyldwood heal: `heal(1d8 + ability(vigor))`,
+  read from the caster's vigor ability, never above the target's `maxHp`. Name
+  the ally (`{ targetId }`); a spell declared with no target picks the only
+  opponent.
 - **Cost.** In the sample themes a spell costs the whole turn (`main` + `move`);
   the reaction slot stays free.
 - **Snapshot spend.** The fight never writes to the character. A combat snapshot
@@ -350,7 +357,9 @@ cannot cast in blocks a slot (vancian) spell (`armor-not-castable`) → the cost
   level; a character's slots add across its classes, and `learnFeat`,
   `levelSet`, `awardXp` and snapshot restore refuse a character holding more
   feats than its slots (`feat-slots-exceeded`). The sample themes grant 1 feat
-  at level 1, 2 at level 3, 3 at level 6 and 4 at level 9.
+  at level 1, 2 at level 3, 3 at level 6 and 4 at level 9. An XP award never
+  lowers a level: a character set directly to level 3 keeps level 3 until its
+  XP reaches level 4.
 - **Reactive feats.** A held feat with a `trigger` is offered like a reaction
   (`trigger:fired` with `source: 'feat'`) and answered with `fight.respond`. It
   is free (no slot), acts on its holder, and never chains: taking it raises no
@@ -383,7 +392,10 @@ restored.declare('ember-bloom', { targetId: 'wight' })
 ```
 
 The feat-slot cap is pack data: a pack that declares no `featSlots` leaves
-feats uncapped (a character may learn any number of them).
+feats uncapped (a character may learn any number of them). Once any class
+declares `featSlots`, a class that declares none grants 0 — including a class
+only statblocks use, since the pack has no player/monster class distinction.
+Slot every class a character may take.
 
 The spells journey — vancian and point-pool legs, plus the feat leg above — runs
 in `tests/proofs/spells-journey.test.ts` against the built package and the real
