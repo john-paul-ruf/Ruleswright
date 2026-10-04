@@ -22,13 +22,6 @@
  * charges and runs the item's parse-once `use` effect through the same
  * executor path as an action. A heal arrives as a negative-amount damage
  * mutation and clamps at the combatant's `maxHp` (CA-EG4, R-2).
- *
- * Movement (v1.5, FR-11): a move action — an action whose parse-once effect
- * root is `move(<formula>)` — targets its actor, passes the movement gate
- * (destination + cheapest legal path within the budget, DD-M9) where other
- * actions pass the reach gate, and walks the planned path through
- * `apply.move`, emitting `move:advanced` / `move:ended`. Theater-of-mind packs
- * resolve it as a no-op (DD-M11). Terrain is host-placed per fight.
  */
 import type { ActionDef } from '../../schema/artifacts';
 import { Rng, type RandomSource, type RngState } from '../../core/rng';

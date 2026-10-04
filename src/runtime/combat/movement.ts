@@ -1,3 +1,11 @@
+/**
+ * Movement (v1.5, FR-11): a move action — an action whose parse-once effect
+ * root is `move(<formula>)` — targets its actor, passes the movement gate
+ * (destination + cheapest legal path within the budget, DD-M9) where other
+ * actions pass the reach gate, and walks the planned path through
+ * `apply.move`, emitting `move:advanced` / `move:ended`. Theater-of-mind packs
+ * resolve it as a no-op (DD-M11). Terrain is host-placed per fight.
+ */
 import type { RandomSource } from '../../core/rng';
 import type { Runtime } from '../runtime';
 import type { RuntimeEvent } from '../events';
