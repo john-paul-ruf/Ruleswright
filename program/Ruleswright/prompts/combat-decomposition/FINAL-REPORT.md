@@ -237,4 +237,85 @@ none at the checkpoint level. Every session committed every checkpoint, and none
 | VERIFY-01 followUp | "F-FP2 stays queued." | **carried** to the next Planner run |
 
 ### Archivist's Note
-{pending: appended verbatim once the final Archivist returns}
+*(Final Archivist, handle h-R3_o, returned 2026-10-04; commit `fcc7b90`. One host await idle timeout, re-awaited. Appended verbatim.)*
+
+## Archivist Note
+
+- **role:** archivist
+- **registryUpdated:** true
+- **reconciled:**
+  - `program/Ruleswright/arch/v1-core.md`
+    - **Delta sections merged:** the three combat-decomposition delta sections are merged into the main record, and their markers are gone. The original text is recoverable at `a2f117f`. Where SESSION-02 replaced parts of SESSION-01's section, the record follows git at `0c56866`.
+    - **Combat engine:** new *File layout* table for all 11 `combat/*.ts` files, with each file's contents, line count and internal value imports, plus a map from old names to new ones.
+    - **Snapshots:** new *File layout* for `snapshots/{index,envelope,character,combat}.ts`.
+    - **Citations re-keyed:** every moved-code citation the fragments listed was located by content. Each one now points at the new file or is still true as written.
+    - **C1/C2 drift notes:** C1 is retired (kept as public API, DD-D9). C2 is closed by the cross-pin test (DD-D10).
+    - **Spec drift:** F-D8 is recorded with `architecture.md:62`. The `:62` `validate.ts` drift had never been recorded here before.
+    - **Record correction:** three real value edges that no earlier list named: `character-profile → combat/resolve`, `bestiary → combat/resolve`, `encounter → bestiary`. All three already existed at `c39ef87`.
+  - `program/Ruleswright/PROGRAM-CONFIG.MD`
+    - **Registry:** reconciled to `a2f117f`. The M03 *Key Files* list now shows the combat split, and `snapshots/{index,envelope,character,combat}.ts` replaces `snapshots.ts`.
+    - **Edges:** the intra-module edges were re-derived per import statement, `import type` excluded. For example, `combat/combat.ts → conditions.ts` became `combat/declare.ts → conditions.ts`, and the two `snapshots/*` edges replaced the single `snapshots.ts` edge.
+  - `program/Ruleswright/ARCHIVIST-LOG.md`
+- **Final Report figures:** all reproduce against `db38f31`:
+  - 17 paths (12 A + 4 M + 1 D), +3,245/−2,359;
+  - 16 paths with rename detection (R059), 23 in total;
+  - every line count, totalling 4,291;
+  - 11 checkpoint commits (`--grep checkpoint`).
+- **Fresh gate run at `a2f117f`:** build, typecheck and check:isolation all exit 0. 938/938 tests pass across 52 files, and the proofs suite is 92/92 across 12 files.
+- **conventionsAdded:**
+  - **Minted, cycles axis crossed (feat-progression `b2db48b`, builder-rulings `6534364`, combat-decomposition `db38f31`):** VERIFICATION.md under the gitignored `prompts/` is committed by Orchestrator with `git add -f -- <path>` and an explicit pathspec. The worker reports the refused `commit_pathspec` as a surprise, not a deviation.
+  - **Sharpened, pin-lease ownership (6 cycles, 8 instances; F-D8):** the doc-pin grep also covers `specs/**` and `arch/**`. Author-owned hits are listed with their re-entry owner.
+  - **Evidence notes updated:**
+    - factual-premise rule: 9 cycles, 41 instances (F-D1, F-D2, F-D5, F-D9 caught before dispatch);
+    - Final Report facts rule: held;
+    - idle-timeout rule: 6 cycles, 11 instances (three timeouts, each re-awaited).
+- **proposedForFramework:**
+  - **3092a46b (new; 1 cycle, 1 instance; F-D6):** the baseline said "Hazards: none" although `dist/`-importing journeys and the linted `.program/` were already known. PLANNER.md's baseline step should grep for `dist/` importers and check lint/format ignore lists before writing "none".
+  - **2674d8c2 (new; 1 · 1; F-D7):** prescribed import derivations should match whole statements, not single lines.
+  - **0880dd57 (new; 1 · 1; F-D4):** a prescribed negative control's target file goes in `Owns`, marked scratch-only, with a `git diff --quiet` revert check.
+  - **3658f327 (reworded; 2 cycles, 2 instances; F-D3):** the tooling note should name `git rm -- <path>` and say never `git add -A`, even with a pathspec. The old "two-step" wording produced the banned recipe in SESSION-03 and MASTER.
+  - **c187bed6 (3 · 3, now promoted for this program):** give `commit_pathspec` a `force` option limited to the write set, or have ORCHESTRATOR.md say Orchestrator force-adds the file.
+  - **Carried with higher counts:** 576a2816 (9 · 41), 1cc46f93 (6 · 8), cecd2115 (6 · 11).
+- **logEntry:** dated entry "2026-10-04 — final pass, cycle `combat-decomposition`" appended to ARCHIVIST-LOG.md.
+  - **Deviations by rule (FR-19):** R1 0; R2 2 (both S02, both inside its lease); R3 0; R4 0.
+  - **Adoption check:** the role docs' sha1 and mtime are unchanged since the prior pass, so no row is adopted.
+  - **Commit:** `fcc7b90`, with an explicit pathspec.
+
+### cleanupBriefs
+
+None crossed a threshold. The 2026-09-28 duplicated-logic brief is closed: C1 is **retired** (kept as public API) and C2 is **accepted** (closed by `0c56866`).
+
+One new candidate is tracking, not briefed. **C15:** eight helpers in the split files are exported but used only inside their own file — `execute.ts` `flattenResolutions`, `boundActionOf`; `movement.ts` `pathQuery`, `threatenersLeft`, `endMove`, `setPendingMove`; `triggers.ts` `resolveReactiveAgainst`, `resolveFeat`. Confidence is low; removing `export` would change no behaviour.
+
+### standingRecommendations
+
+| id | pattern | cycles | instances | firstSeen | status |
+|---|---|---:|---:|---|---|
+| b32fc8d0c8c92d52 | Exhaustive checkpoint-0 read sweeps exhaust context | 2 | 2 | v1-core | open |
+| f57dbe4d010638fe | Subagent fabricates tool inputs under long-recovery prompts | 2 | 8 | v1-core | open |
+| b85c8f3e113a6764 | Barrel completeness gaps found at integration | 2 | 3 | v1-core | open |
+| c1ed872bea557b96 | run tool argv misrouting | 2 | 3 | v1-core | open |
+| 3658f327cc9cff2f | Single-command commits fail on deleted files | 2 | 2 | v1-core | open (reworded: `git rm`) |
+| 1cc46f93038f1d9a | Cross-suite pins land without a named owner | 6 | 8 | loot-inventory | promoted; framework wording open |
+| 576a281656f83b23 | Envelope factual premises reach sessions unverified | 9 | 41 | loot-inventory | promoted; framework wording open |
+| 854ceecd39d4b0d3 | Whole-repo fast gates red at role-scoped receives | 4 | 4 | v1-core | promoted |
+| 17f4803c1b08da77 | Provider aborts kill subagents mid-session | 3 | 5 | loot-inventory | open |
+| 6f6b491bdbe37bf0 | Bare npx misresolves; use pnpm exec vitest | 3 | 4 | loot-inventory | open |
+| 1d910de11732c6c4 | Aborted final pass leaves a double synthesis | 2 | 2 | loot-inventory | open |
+| c172cd30e8dfc756 | Commit gates hard-code a stale base SHA | 1 | 1 | equipment-consumables | open |
+| cecd211504587426 | Host await idle timeout; re-await reattaches | 6 | 11 | equipment-consumables | promoted; framework wording open |
+| f68c42a3f6224eb1 | Final Report facts transcribed, not derived | 4 | 4 | v1-core | promoted; framework wording open |
+| a368039028d463d6 | Role docs say Spec/DB never spawned vs planned re-entries | 7 | 7 | grid-combat | promoted; framework wording open |
+| 3983f8eb6d18a5f2 | STATE row matcher writes into the wrong rows | 1 | 2 | grid-movement | open |
+| f4621ac12fba3456 | Pin audits miss behaviour pins | 3 | 4 | grid-combat | open |
+| 760b67f17edbd346 | New execution path exposes latent content hazards | 2 | 2 | spells-in-combat | open |
+| 82b4e0abbda105d6 | Concurrent sessions share one working tree | 1 | 2 | spells-in-combat | open (narrowed) |
+| c3c94358b35f8316 | Cited `<base>..HEAD` stops reproducing after the report commit | 1 | 1 | action-targeting | open |
+| c187bed6bb5132a7 | VERIFICATION.md under gitignored path; commit_pathspec cannot force-add | 3 | 3 | feat-progression | promoted (2026-10-04); framework wording open |
+| 8039d6869169267c | Plan artifacts carry internal inconsistencies | 1 | 2 | feat-progression | open |
+| d2415cb4497e0049 | Author/DB handoffs report deviations without R1–R4 | 1 | 1 | feat-progression | open |
+| 3092a46b564d1d36 | Baseline "Hazards: none" despite known hazards | 1 | 1 | combat-decomposition | open |
+| 2674d8c2f948ae0a | Prescribed derivations are line-based greps | 1 | 1 | combat-decomposition | open |
+| 0880dd5734025fd4 | Negative control perturbs a file outside the lease | 1 | 1 | combat-decomposition | open |
+
+The patterns above are shortened. The full wording of each row is in the log entry.
