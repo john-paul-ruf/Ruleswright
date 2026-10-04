@@ -22,7 +22,19 @@ import type { Runtime } from '../runtime';
 import type { RuntimeEvent } from '../events';
 import type { ActionDef, FeatDef } from '../../schema/artifacts';
 import type { Combat } from './combat';
+import type { FightCore } from './fight';
 import type { CombatantState, PendingTrigger } from './types';
+import { checkCost, spend } from './action-economy';
+import { balancesOf } from './combatants';
+import {
+  applyNonSlotCosts,
+  isSelfAction,
+  resolveTarget,
+  restrictionRejection,
+  selfTargetRefusal,
+  spatialGate,
+} from './declare';
+import { endIfSideDefeated, executeBound, resolveAction } from './execute';
 
 /** A reactive action registered from the pack: the action id + its pattern. */
 export interface ReactiveAction {
@@ -144,6 +156,118 @@ export function emitDeclined(runtime: Runtime, offer: PendingTrigger): void {
     },
     why: { rule: triggerRule(offer), rolls: [] },
   });
+}
+
+/**
+ * Answer a taken-off-the-queue offer: a decline emits `trigger:declined`
+ * stamped with the fight's clock; a take resolves the feat or reactive action.
+ */
+export function answerOffer(
+  core: FightCore,
+  offer: PendingTrigger,
+  choice: 'take' | 'decline',
+  targetId: string | undefined,
+): readonly RuntimeEvent[] {
+  if (choice === 'decline') {
+    core.setClock(); // stamp with the fight's clock — a restored fight's stream starts at round 0
+    emitDeclined(core.runtime, offer);
+    const declined = core.runtime.events.sinceRound(core.state.round);
+    return [declined[declined.length - 1]!];
+  }
+  return offer.source === 'feat'
+    ? resolveFeat(core, offer, targetId)
+    : resolveReactive(core, offer, targetId);
+}
+
+/** Resolve a taken trigger through the same pipeline as a declared action (FR-4, FR-12 proof 2). */
+export function resolveReactive(
+  core: FightCore,
+  offer: PendingTrigger,
+  targetId: string | undefined,
+): readonly RuntimeEvent[] {
+  const reactor = core.state.combatants[offer.actorId]!;
+  const def = core.runtime.pack.actions[offer.actionId]!;
+  const restriction = restrictionRejection(core.runtime, reactor, def);
+  if (restriction !== undefined) {
+    return [core.reject(reactor.id, restriction)];
+  }
+  if (isSelfAction(core.runtime, offer.actionId)) {
+    // DD-A2: a self reaction binds its reactor — no opponent resolution, no reach gate.
+    const refusal = selfTargetRefusal(offer.actionId, reactor.id, targetId);
+    if (refusal !== undefined) return [core.reject(reactor.id, refusal)];
+    return resolveReactiveAgainst(core, offer, def, reactor, reactor);
+  }
+  const target = resolveTarget(core.state, reactor, targetId);
+  if ('rejection' in target) {
+    return [core.reject(reactor.id, target.rejection)];
+  }
+  const spatial = spatialGate(core.runtime, reactor, target.combatant);
+  if (spatial !== undefined) {
+    return [core.reject(reactor.id, spatial)];
+  }
+  return resolveReactiveAgainst(core, offer, def, reactor, target.combatant);
+}
+
+/** The cost gates, spend and resolution of a taken reaction whose target is bound. */
+export function resolveReactiveAgainst(
+  core: FightCore,
+  offer: PendingTrigger,
+  def: ActionDef,
+  reactor: CombatantState,
+  target: CombatantState,
+): readonly RuntimeEvent[] {
+  const costRejection = checkCost(def.cost, core.grants, balancesOf(reactor));
+  if (costRejection !== undefined) {
+    return [core.reject(reactor.id, costRejection)];
+  }
+  const spendRejection = spend(reactor.slots, core.grants, def.cost);
+  if (spendRejection !== undefined) {
+    return [core.reject(reactor.id, spendRejection)];
+  }
+  applyNonSlotCosts(reactor, def.cost);
+  const { result: events, emitted } = core.collect(() =>
+    resolveAction(core, reactor, offer.actionId, def, target, {}),
+  );
+  core.surfaceOffers(emitted);
+  return events;
+}
+
+/**
+ * Take a reactive feat (DD-S12): feats declare no cost and pass no
+ * restriction or reach gate; the parse-once effect runs with the holder as
+ * its target and `why.rule` `content.feats.<id>`. A `targetId` other than
+ * the holder is `invalid-target` (the offer has still left the queue).
+ * Events it emits never offer feats — the no-chain rule.
+ */
+export function resolveFeat(
+  core: FightCore,
+  offer: PendingTrigger,
+  targetId: string | undefined,
+): readonly RuntimeEvent[] {
+  const holder = core.state.combatants[offer.actorId]!;
+  if (targetId !== undefined && targetId !== holder.id) {
+    return [
+      core.reject(holder.id, {
+        kind: 'invalid-target',
+        rule: 'E-REF-01',
+        resource: targetId,
+        message: `feat "${offer.actionId}" acts on its holder "${holder.id}" only (DD-S12).`,
+      }),
+    ];
+  }
+  const feat = core.runtime.pack.content.feats?.[offer.actionId];
+  const ast = core.runtime.index.featEffects[offer.actionId];
+  if (feat?.effect === undefined || ast === undefined) return [];
+  const emitted = executeBound(
+    core,
+    holder,
+    { id: offer.actionId, def: { cost: {}, effect: feat.effect }, ast },
+    holder,
+    `content.feats.${offer.actionId}`,
+  );
+  endIfSideDefeated(core);
+  core.surfaceOffers(emitted, { feats: false });
+  return emitted;
 }
 
 /** The reactive executor's entry: resolve a taken trigger through the same pipeline as a declare (FR-4). */
