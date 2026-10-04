@@ -45,21 +45,12 @@ import {
   type SlotGrants,
   type SlotLedger,
 } from './action-economy';
-import { effectVars, type CombatantProfile, type Side } from './resolve';
-import { entryCost, findPath, terrainAt, type Position } from './spatial';
-import { evalFormula, evalValidity, valueOfFormula, type FormulaAst } from '../../core/dsl/formula';
+import type { CombatantProfile, Side } from './resolve';
+import type { Position } from './spatial';
+import { evalValidity } from '../../core/dsl/formula';
 import { RuntimeRuleError, ruleCard } from '../errors';
 import { displayRoll } from '../display-roll';
-import {
-  balancesOf,
-  combatantFeats,
-  copyBindings,
-  defeatedSide,
-  isDowned,
-  profileOf,
-  ruleBaseOf,
-  validityVars,
-} from './combatants';
+import { balancesOf, combatantFeats, copyBindings, defeatedSide, isDowned, validityVars } from './combatants';
 import {
   applyNonSlotCosts,
   atRefusal,
@@ -76,21 +67,17 @@ import { endIfSideDefeated, executeBound, resolveAction, resolveShape } from './
 import { FightCore } from './fight';
 import {
   copyTerrain,
-  endMove,
+  forfeitMove,
   moveBudgetAst,
-  pathQuery,
-  place,
-  setPendingMove,
+  movementGate,
+  resumeMove,
   terrainRefusals,
-  threatenersLeft,
-  ZERO_RNG,
 } from './movement';
 import type {
   CastSlot,
   CombatantState,
   CombatState,
   DeclareOptions,
-  DeclareRejection,
   PendingTrigger,
   StartCombatRequest,
   StepOutcome,
@@ -338,18 +325,10 @@ export class Combat {
       };
     }
     if (this.state.phase === 'resolved' || this.state.phase === 'awaiting-trigger-response') {
-      this.forfeitMove();
+      forfeitMove(this.core);
       return this.endTurn();
     }
     return { kind: 'awaiting-declare', combatantId: this.state.active };
-  }
-
-  /** `step()` while a move is paused forfeits it (`move:ended {reason: 'forfeited'}`) before its usual effect (DD-M10). */
-  private forfeitMove(): void {
-    const pending = this.state.combatants[this.state.active]?.pendingMove;
-    if (pending === undefined) return;
-    this.core.setClock();
-    endMove(this.core, this.state.active, pending.actionId, 'forfeited');
   }
 
   /**
@@ -456,7 +435,7 @@ export class Combat {
     }
     let move: ((budget: number) => void) | undefined;
     if (budgetAst !== undefined) {
-      const gate = this.movementGate(actor, actionId, budgetAst, options.to);
+      const gate = movementGate(this.core, actor, actionId, budgetAst, options.to);
       if ('rejection' in gate) {
         return [this.core.reject(actorId, gate.rejection)];
       }
@@ -627,7 +606,7 @@ export class Combat {
     }
     // Every answer — a decline, a take, even a refused take — leaves the queue;
     // once it is empty a paused move resumes (DD-M10).
-    return this.pendingTriggers.length === 0 ? [...events, ...this.resumeMove()] : events;
+    return this.pendingTriggers.length === 0 ? [...events, ...resumeMove(this.core)] : events;
   }
 
   /**
@@ -641,168 +620,6 @@ export class Combat {
   /** Events at or after `round` (api-map: fight.events.sinceRound). */
   eventsSince(round: number): readonly RuntimeEvent[] {
     return this.runtime.events.sinceRound(round);
-  }
-
-  /**
-   * The movement gate (DD-M9), where the reach gate runs for other actions:
-   * the destination, then the cheapest legal path within the budget. The
-   * budget is the move statement's dice-free formula over the same actor vars
-   * the executor binds (`speed` included), evaluated without RNG. A passable
-   * cell holds no standing enemy; an endable cell holds no standing combatant,
-   * the mover included (DD-M6). Theater packs: a no-op walk, no gate (DD-M11).
-   */
-  private movementGate(
-    actor: CombatantState,
-    actionId: string,
-    budgetAst: FormulaAst,
-    to: Position | undefined,
-  ): { move: (budget: number) => void } | { rejection: DeclareRejection } {
-    const geometry = this.runtime.spatial;
-    if (!geometry.enabled) return { move: () => undefined };
-    if (to === undefined) {
-      return {
-        rejection: {
-          kind: 'no-destination',
-          rule: 'E-SPAT-01',
-          resource: actionId,
-          message: `move action "${actionId}" needs a destination — declare it with { to: { x, y } }.`,
-        },
-      };
-    }
-    const from = actor.position;
-    if (from === undefined) {
-      return {
-        rejection: {
-          kind: 'spatial',
-          rule: 'E-SPAT-01',
-          resource: actor.id,
-          message: `this pack declares a spatial model, but the mover's position is missing (${actor.id}: absent).`,
-        },
-      };
-    }
-    const profile = profileOf(actor);
-    const budget = valueOfFormula(evalFormula(budgetAst, effectVars(profile, profile), ZERO_RNG));
-    const plan = findPath(geometry, pathQuery(this.core, actor, from, to, budget));
-    if (!plan.ok) {
-      const cell = `(${to.x},${to.y})`;
-      const messages: Record<typeof plan.kind, string> = {
-        blocked: `destination ${cell} is a blocking terrain cell — it can never be entered (budget ${budget}).`,
-        occupied: `destination ${cell} is held by a standing combatant — a move cannot end on an occupied cell (budget ${budget}).`,
-        unreachable: `no legal path reaches ${cell} at any cost (budget ${budget}).`,
-        'out-of-range': `the cheapest legal path to ${cell} costs ${plan.cost ?? '?'}, but the movement budget is ${budget}.`,
-      };
-      return {
-        rejection: {
-          kind: plan.kind,
-          rule: 'E-SPAT-01',
-          resource: `${to.x},${to.y}`,
-          message: messages[plan.kind],
-        },
-      };
-    }
-    return { move: (walked) => this.walk(actor.id, actionId, to, plan.path, walked) };
-  }
-
-  /**
-   * `apply.move`: walk the planned path cell by cell. Before each step from P
-   * to Q, every standing opponent T whose reach covers P but not Q raises
-   * `move:leaving-reach {actor: mover, target: T, payload: {at: P, next: Q}}`,
-   * surfaced as offers at once (no affordability filter, F-P10b). Any offer
-   * pauses the move at P: `move:advanced` for the segment walked (omitted when
-   * empty) and `pendingMove {actionId, to, remaining}`. Otherwise the walk
-   * lands on `to`: `move:advanced` then `move:ended {reason: 'arrived'}`.
-   * A resumed walk (`resumed`) does not re-check its first step out of the
-   * paused cell: that step's leaving-reach offers were already raised and
-   * answered (spatial.html: the move resumes straight to its destination).
-   */
-  private walk(
-    moverId: string,
-    actionId: string,
-    to: Position,
-    path: readonly Position[],
-    budget: number,
-    resumed = false,
-  ): void {
-    const from = this.state.combatants[moverId]!.position!;
-    const kindAt = terrainAt(this.runtime.pack.spatial?.terrain ?? {}, this.state.terrain);
-    const why = { rule: ruleBaseOf(this.runtime, actionId), rolls: [] };
-    const walked: Position[] = [];
-    let cost = 0;
-    let at = from;
-    const advanced = () => {
-      if (walked.length === 0) return;
-      this.runtime.events.emit({
-        type: 'move:advanced',
-        actor: moverId,
-        payload: {
-          from: { ...from },
-          to: { ...at },
-          path: walked.map((cell) => ({ ...cell })),
-          cost,
-          remaining: budget - cost,
-        },
-        why,
-      });
-    };
-    for (const [index, next] of path.entries()) {
-      let offers = 0;
-      const threateners = resumed && index === 0 ? [] : threatenersLeft(this.core, moverId, at, next);
-      for (const threatener of threateners) {
-        const leaving = this.runtime.events.emit({
-          type: 'move:leaving-reach',
-          actor: moverId,
-          target: threatener,
-          payload: { at: { ...at }, next: { ...next } },
-          why,
-        });
-        offers += this.core.surfaceOffers([leaving]);
-      }
-      if (offers > 0) {
-        place(this.core, moverId, at);
-        advanced();
-        setPendingMove(this.core, moverId, { actionId, to: { x: to.x, y: to.y }, remaining: budget - cost });
-        return;
-      }
-      cost += entryCost(kindAt(next))!;
-      walked.push(next);
-      at = next;
-    }
-    place(this.core, moverId, at);
-    advanced();
-    endMove(this.core, moverId, actionId, 'arrived');
-  }
-
-  /**
-   * Resume the active combatant's paused move once the offer queue is empty
-   * (DD-M10). Re-checks, in order: downed → `downed`; an active condition now
-   * restricts the action → `restricted`; otherwise re-plan from the current
-   * cell with the remaining budget against current occupancy — no path →
-   * `blocked`, else walk again (which may pause again). Offers raised here are
-   * surfaced per call.
-   */
-  private resumeMove(): readonly RuntimeEvent[] {
-    const moverId = this.state.active;
-    const mover = this.state.combatants[moverId];
-    const pending = mover?.pendingMove;
-    if (mover === undefined || pending === undefined) return [];
-    this.core.setClock();
-    const { emitted } = this.core.collect(() => {
-      if (isDowned(mover)) return endMove(this.core, moverId, pending.actionId, 'downed');
-      const def = this.runtime.pack.actions[pending.actionId]!;
-      if (restrictionRejection(this.runtime, mover, def) !== undefined) {
-        return endMove(this.core, moverId, pending.actionId, 'restricted');
-      }
-      const from = mover.position!;
-      const plan = findPath(
-        this.runtime.spatial,
-        pathQuery(this.core, mover, from, pending.to, pending.remaining),
-      );
-      if (!plan.ok) return endMove(this.core, moverId, pending.actionId, 'blocked');
-      setPendingMove(this.core, moverId, undefined);
-      this.walk(moverId, pending.actionId, pending.to, plan.path, pending.remaining, true);
-    });
-    this.core.surfaceOffers(emitted);
-    return emitted;
   }
 
   /** Resolve a taken trigger through the same pipeline as a declared action (FR-4, FR-12 proof 2). */

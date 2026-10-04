@@ -1,12 +1,15 @@
 import type { RandomSource } from '../../core/rng';
 import type { Runtime } from '../runtime';
+import type { RuntimeEvent } from '../events';
 import type { ErrorCard } from '../../schema/error-card';
-import type { FormulaAst } from '../../core/dsl/formula';
+import { evalFormula, valueOfFormula, type FormulaAst } from '../../core/dsl/formula';
 import { ruleCard } from '../errors';
-import { entryCost, type Position, type TerrainCell } from './spatial';
-import { isDowned, reachOf, ruleBaseOf } from './combatants';
+import { effectVars } from './resolve';
+import { entryCost, findPath, terrainAt, type Position, type TerrainCell } from './spatial';
+import { isDowned, profileOf, reachOf, ruleBaseOf } from './combatants';
+import { restrictionRejection } from './declare';
 import type { FightCore } from './fight';
-import type { CombatantState, PendingMove } from './types';
+import type { CombatantState, DeclareRejection, PendingMove } from './types';
 
 /** Plain-JSON copies of host terrain cells (FR-14: state never aliases host objects). */
 export function copyTerrain(cells: readonly TerrainCell[]): TerrainCell[] {
@@ -81,6 +84,75 @@ export function terrainRefusals(
   return cards;
 }
 
+/** `step()` while a move is paused forfeits it (`move:ended {reason: 'forfeited'}`) before its usual effect (DD-M10). */
+export function forfeitMove(core: FightCore): void {
+  const pending = core.state.combatants[core.state.active]?.pendingMove;
+  if (pending === undefined) return;
+  core.setClock();
+  endMove(core, core.state.active, pending.actionId, 'forfeited');
+}
+
+/**
+ * The movement gate (DD-M9), where the reach gate runs for other actions:
+ * the destination, then the cheapest legal path within the budget. The
+ * budget is the move statement's dice-free formula over the same actor vars
+ * the executor binds (`speed` included), evaluated without RNG. A passable
+ * cell holds no standing enemy; an endable cell holds no standing combatant,
+ * the mover included (DD-M6). Theater packs: a no-op walk, no gate (DD-M11).
+ */
+export function movementGate(
+  core: FightCore,
+  actor: CombatantState,
+  actionId: string,
+  budgetAst: FormulaAst,
+  to: Position | undefined,
+): { move: (budget: number) => void } | { rejection: DeclareRejection } {
+  const geometry = core.runtime.spatial;
+  if (!geometry.enabled) return { move: () => undefined };
+  if (to === undefined) {
+    return {
+      rejection: {
+        kind: 'no-destination',
+        rule: 'E-SPAT-01',
+        resource: actionId,
+        message: `move action "${actionId}" needs a destination — declare it with { to: { x, y } }.`,
+      },
+    };
+  }
+  const from = actor.position;
+  if (from === undefined) {
+    return {
+      rejection: {
+        kind: 'spatial',
+        rule: 'E-SPAT-01',
+        resource: actor.id,
+        message: `this pack declares a spatial model, but the mover's position is missing (${actor.id}: absent).`,
+      },
+    };
+  }
+  const profile = profileOf(actor);
+  const budget = valueOfFormula(evalFormula(budgetAst, effectVars(profile, profile), ZERO_RNG));
+  const plan = findPath(geometry, pathQuery(core, actor, from, to, budget));
+  if (!plan.ok) {
+    const cell = `(${to.x},${to.y})`;
+    const messages: Record<typeof plan.kind, string> = {
+      blocked: `destination ${cell} is a blocking terrain cell — it can never be entered (budget ${budget}).`,
+      occupied: `destination ${cell} is held by a standing combatant — a move cannot end on an occupied cell (budget ${budget}).`,
+      unreachable: `no legal path reaches ${cell} at any cost (budget ${budget}).`,
+      'out-of-range': `the cheapest legal path to ${cell} costs ${plan.cost ?? '?'}, but the movement budget is ${budget}.`,
+    };
+    return {
+      rejection: {
+        kind: plan.kind,
+        rule: 'E-SPAT-01',
+        resource: `${to.x},${to.y}`,
+        message: messages[plan.kind],
+      },
+    };
+  }
+  return { move: (walked) => walk(core, actor.id, actionId, to, plan.path, walked) };
+}
+
 /** The path request for a mover, against the fight's current occupancy and terrain. */
 export function pathQuery(
   core: FightCore,
@@ -108,6 +180,76 @@ export function pathQuery(
   };
 }
 
+/**
+ * `apply.move`: walk the planned path cell by cell. Before each step from P
+ * to Q, every standing opponent T whose reach covers P but not Q raises
+ * `move:leaving-reach {actor: mover, target: T, payload: {at: P, next: Q}}`,
+ * surfaced as offers at once (no affordability filter, F-P10b). Any offer
+ * pauses the move at P: `move:advanced` for the segment walked (omitted when
+ * empty) and `pendingMove {actionId, to, remaining}`. Otherwise the walk
+ * lands on `to`: `move:advanced` then `move:ended {reason: 'arrived'}`.
+ * A resumed walk (`resumed`) does not re-check its first step out of the
+ * paused cell: that step's leaving-reach offers were already raised and
+ * answered (spatial.html: the move resumes straight to its destination).
+ */
+export function walk(
+  core: FightCore,
+  moverId: string,
+  actionId: string,
+  to: Position,
+  path: readonly Position[],
+  budget: number,
+  resumed = false,
+): void {
+  const from = core.state.combatants[moverId]!.position!;
+  const kindAt = terrainAt(core.runtime.pack.spatial?.terrain ?? {}, core.state.terrain);
+  const why = { rule: ruleBaseOf(core.runtime, actionId), rolls: [] };
+  const walked: Position[] = [];
+  let cost = 0;
+  let at = from;
+  const advanced = () => {
+    if (walked.length === 0) return;
+    core.runtime.events.emit({
+      type: 'move:advanced',
+      actor: moverId,
+      payload: {
+        from: { ...from },
+        to: { ...at },
+        path: walked.map((cell) => ({ ...cell })),
+        cost,
+        remaining: budget - cost,
+      },
+      why,
+    });
+  };
+  for (const [index, next] of path.entries()) {
+    let offers = 0;
+    const threateners = resumed && index === 0 ? [] : threatenersLeft(core, moverId, at, next);
+    for (const threatener of threateners) {
+      const leaving = core.runtime.events.emit({
+        type: 'move:leaving-reach',
+        actor: moverId,
+        target: threatener,
+        payload: { at: { ...at }, next: { ...next } },
+        why,
+      });
+      offers += core.surfaceOffers([leaving]);
+    }
+    if (offers > 0) {
+      place(core, moverId, at);
+      advanced();
+      setPendingMove(core, moverId, { actionId, to: { x: to.x, y: to.y }, remaining: budget - cost });
+      return;
+    }
+    cost += entryCost(kindAt(next))!;
+    walked.push(next);
+    at = next;
+  }
+  place(core, moverId, at);
+  advanced();
+  endMove(core, moverId, actionId, 'arrived');
+}
+
 /** Standing opponents with a position whose reach covers `at` but not `next` — the leaving-reach threateners, in initiative order. */
 export function threatenersLeft(
   core: FightCore,
@@ -123,6 +265,36 @@ export function threatenersLeft(
     const reach = reachOf(core.runtime, id) ?? 1;
     return geometry.canReach(other.position, at, reach) && !geometry.canReach(other.position, next, reach);
   });
+}
+
+/**
+ * Resume the active combatant's paused move once the offer queue is empty
+ * (DD-M10). Re-checks, in order: downed → `downed`; an active condition now
+ * restricts the action → `restricted`; otherwise re-plan from the current
+ * cell with the remaining budget against current occupancy — no path →
+ * `blocked`, else walk again (which may pause again). Offers raised here are
+ * surfaced per call.
+ */
+export function resumeMove(core: FightCore): readonly RuntimeEvent[] {
+  const moverId = core.state.active;
+  const mover = core.state.combatants[moverId];
+  const pending = mover?.pendingMove;
+  if (mover === undefined || pending === undefined) return [];
+  core.setClock();
+  const { emitted } = core.collect(() => {
+    if (isDowned(mover)) return endMove(core, moverId, pending.actionId, 'downed');
+    const def = core.runtime.pack.actions[pending.actionId]!;
+    if (restrictionRejection(core.runtime, mover, def) !== undefined) {
+      return endMove(core, moverId, pending.actionId, 'restricted');
+    }
+    const from = mover.position!;
+    const plan = findPath(core.runtime.spatial, pathQuery(core, mover, from, pending.to, pending.remaining));
+    if (!plan.ok) return endMove(core, moverId, pending.actionId, 'blocked');
+    setPendingMove(core, moverId, undefined);
+    walk(core, moverId, pending.actionId, pending.to, plan.path, pending.remaining, true);
+  });
+  core.surfaceOffers(emitted);
+  return emitted;
 }
 
 /** End a move: clear any `pendingMove` and emit `move:ended {reason, at}`. */
@@ -162,7 +334,7 @@ export function place(core: FightCore, id: string, at: Position): void {
 }
 
 /** Move statements evaluate their dice-free budget without consuming the fight's dice (DD-M8). */
-export const ZERO_RNG: RandomSource = { int: () => 0 };
+const ZERO_RNG: RandomSource = { int: () => 0 };
 
 /** A move action's budget formula: the argument of a root `move(...)` statement; `undefined` = not a move action. */
 export function moveBudgetAst(runtime: Runtime, actionId: string): FormulaAst | undefined {
