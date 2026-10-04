@@ -16,16 +16,21 @@
  *   vancian slot counts add across classes (progression.html).
  * - Both paths run the same build validator: a level-N direct set and a
  *   level-N earned set produce identical progression state (FR-5, FR-14).
+ * - Feat slots (v1.8, DD-F6): in a feat-slotted pack, a level change that
+ *   would leave the held feats over the slots is refused before anything
+ *   changes — `levelSet` through the build validator, `awardXp` by computing
+ *   its levels before applying them.
  *
  * Illegal builds throw `CharacterBuildError` carrying ErrorCards with the
  * violated rule named (FR-5): unknown-race, unknown-class, duplicate-class,
- * invalid-level, missing-progression, race-cap-exceeded.
+ * invalid-level, missing-progression, race-cap-exceeded, feat-slots-exceeded.
  */
 import type { ErrorCard } from '../schema/error-card';
 import type { ClassEntry } from './character';
 import type { CharacterState, Runtime } from './runtime';
 import type { RuntimeEvent } from './events';
 import { reserveValue } from './character';
+import { featSlotTally, featSlotsExceeded } from './feats';
 import { initPools } from './pools';
 import { Rng } from '../core/rng';
 
@@ -45,9 +50,16 @@ export class CharacterBuildError extends Error {
 /**
  * The shared build validator (FR-5/FR-6): every path — direct level-set and
  * earned XP — passes through this before state changes. All cards at once,
- * never partial.
+ * never partial. `heldFeats` (v1.8, DD-F6) adds `feat-slots-exceeded` when the
+ * pack is feat-slotted, the build is otherwise clean, and the held feats
+ * outnumber the build's feat slots; omitted, no feat check runs.
  */
-export function validateBuild(runtime: Runtime, race: string, entries: readonly ClassEntry[]): ErrorCard[] {
+export function validateBuild(
+  runtime: Runtime,
+  race: string,
+  entries: readonly ClassEntry[],
+  heldFeats: readonly string[] = [],
+): ErrorCard[] {
   const cards: ErrorCard[] = [];
   const races = runtime.pack.content.races ?? {};
   if (races[race] === undefined) {
@@ -135,6 +147,12 @@ export function validateBuild(runtime: Runtime, race: string, entries: readonly 
         rule: 'race-cap-exceeded',
         message: `level ${entry.level} exceeds the ${race} cap for "${entry.id}" (${cap}) — demihuman caps are pack data (FR-6).`,
       });
+    }
+  }
+  if (cards.length === 0 && heldFeats.length > 0) {
+    const tally = featSlotTally(runtime, entries);
+    if (tally !== undefined && heldFeats.length > tally.total) {
+      cards.push(featSlotsExceeded('(character)', heldFeats.length, tally));
     }
   }
   return cards;
@@ -257,6 +275,9 @@ export function xpSplit(total: number, count: number): number[] {
  * policy, derives each class's level from pack thresholds (race caps clamp),
  * reapplies progression, and emits `xp:awarded` (why: host.grant) followed by
  * `level:reached` per class whose level changed. Returns the emitted events.
+ * Computes, checks, then applies: a refusal (`feat-slots-exceeded` when the
+ * derived levels leave the held feats over the slots, or `invalid-xp-table`)
+ * changes nothing.
  */
 export function awardXp(
   runtime: Runtime,
@@ -274,21 +295,31 @@ export function awardXp(
       },
     ]);
   }
-  const events: RuntimeEvent[] = [];
-  character.xp += amount;
   const shares = xpSplit(amount, character.classes.length);
-  const reached: Array<{ classId: string; level: number }> = [];
-  character.classes.forEach((entry, index) => {
-    character.classXp[entry.id] = (character.classXp[entry.id] ?? 0) + shares[index]!;
+  const next = character.classes.map((entry, index) => {
+    const classXp = (character.classXp[entry.id] ?? 0) + shares[index]!;
     const cap = runtime.pack.content.races?.[character.race]?.caps?.[entry.id];
-    const computed = Math.min(
-      levelForXp(runtime, character.classXp[entry.id]!),
+    const level = Math.min(
+      levelForXp(runtime, classXp),
       cap ?? Number.MAX_SAFE_INTEGER,
       tableLevelCeiling(runtime, entry.id),
     );
-    if (computed !== entry.level) {
-      entry.level = computed;
-      reached.push({ classId: entry.id, level: computed });
+    return { id: entry.id, level, classXp };
+  });
+  const held = character.feats?.length ?? 0;
+  const tally = featSlotTally(runtime, next);
+  if (tally !== undefined && held > tally.total) {
+    throw new CharacterBuildError([featSlotsExceeded('(character)', held, tally)]);
+  }
+  const events: RuntimeEvent[] = [];
+  character.xp += amount;
+  const reached: Array<{ classId: string; level: number }> = [];
+  character.classes.forEach((entry, index) => {
+    const { classXp, level } = next[index]!;
+    character.classXp[entry.id] = classXp;
+    if (level !== entry.level) {
+      entry.level = level;
+      reached.push({ classId: entry.id, level });
     }
   });
   applyProgression(runtime, character);
@@ -324,7 +355,7 @@ export function levelSet(
   character: CharacterState,
   entries: readonly ClassEntry[],
 ): readonly RuntimeEvent[] {
-  const errors = validateBuild(runtime, character.race, entries);
+  const errors = validateBuild(runtime, character.race, entries, character.feats);
   if (errors.length > 0) throw new CharacterBuildError(errors);
   const previous = new Map(character.classes.map((entry) => [entry.id, entry.level]));
   character.classes = entries.map((entry) => ({ ...entry }));

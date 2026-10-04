@@ -113,3 +113,93 @@ describe('profile.feats (CA-S4 feats half)', () => {
     expect(Object.keys(runtime.index.featEffects)).toEqual(['second-gust']);
   });
 });
+
+describe('feat slots (v1.8, CAP-F2)', () => {
+  /** featPack plus warden `featSlots [1, 2]` (and hexer when given) and a third feat — pack data only. */
+  function slottedPack(hexerSlots?: number[]): Pack {
+    const pack = featPack();
+    pack.content.feats!['deep-root'] = { name: 'Deep Root' };
+    pack.progression['warden']!.featSlots = [1, 2];
+    if (hexerSlots !== undefined) pack.progression['hexer']!.featSlots = hexerSlots;
+    return pack;
+  }
+
+  function slotRefusal(run: () => unknown): RuntimeRuleError {
+    try {
+      run();
+    } catch (error) {
+      expect(error).toBeInstanceOf(RuntimeRuleError);
+      return error as RuntimeRuleError;
+    }
+    throw new Error('expected a refusal');
+  }
+
+  it('a level-1 warden learns one feat; the second is refused and nothing changes', () => {
+    const runtime = new Runtime(slottedPack());
+    const character = brynn(runtime);
+    character.learnFeat('iron-will');
+    const before = runtime.events.sinceRound(0).length;
+    expect(refusal(() => character.learnFeat('second-gust'))).toEqual({
+      rule: 'feat-slots-exceeded',
+      artifactId: 'second-gust',
+      jsonPath: 'feats',
+    });
+    expect(character.state.feats).toEqual(['iron-will']);
+    expect(runtime.events.sinceRound(0)).toHaveLength(before);
+  });
+
+  it('at warden level 2 the second learn succeeds', () => {
+    const runtime = new Runtime(slottedPack());
+    const character = runtime.createCharacter({
+      name: 'Brynn',
+      race: 'ashling',
+      classes: [{ id: 'warden', level: 2 }],
+    });
+    character.learnFeat('iron-will');
+    character.learnFeat('second-gust');
+    expect(character.state.feats).toEqual(['iron-will', 'second-gust']);
+  });
+
+  it('slots sum across classes (DD-F2): warden 1 + hexer 1 learns two, the third is refused', () => {
+    const runtime = new Runtime(slottedPack([1, 1]));
+    const character = runtime.createCharacter({
+      name: 'Twin',
+      race: 'ashling',
+      classes: [
+        { id: 'warden', level: 1 },
+        { id: 'hexer', level: 1 },
+      ],
+    });
+    character.learnFeat('iron-will');
+    character.learnFeat('second-gust');
+    expect(refusal(() => character.learnFeat('deep-root')).rule).toBe('feat-slots-exceeded');
+    expect(character.state.feats).toEqual(['iron-will', 'second-gust']);
+  });
+
+  it('in a slotted pack a class without featSlots contributes 0 (DD-F3)', () => {
+    const runtime = new Runtime(slottedPack());
+    const character = runtime.createCharacter({ name: 'Hex', race: 'ashling', classes: ['hexer'] });
+    expect(refusal(() => character.learnFeat('iron-will'))).toEqual({
+      rule: 'feat-slots-exceeded',
+      artifactId: 'iron-will',
+      jsonPath: 'feats',
+    });
+    expect('feats' in character.state).toBe(false);
+  });
+
+  it("the refusal's hint names each class's contribution", () => {
+    const runtime = new Runtime(slottedPack([0, 1]));
+    const character = runtime.createCharacter({
+      name: 'Twin',
+      race: 'ashling',
+      classes: [
+        { id: 'warden', level: 1 },
+        { id: 'hexer', level: 1 },
+      ],
+    });
+    character.learnFeat('iron-will');
+    const card = slotRefusal(() => character.learnFeat('deep-root')).errors[0]!;
+    expect(card.hint).toBe('feat slots by class: warden 1 → 1, hexer 1 → 0');
+    expect(card.message).toContain('grant 1');
+  });
+});

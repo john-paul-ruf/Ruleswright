@@ -404,3 +404,76 @@ describe('feat snapshots (DD-S11, CAP-S5)', () => {
     expect(target.nextCharacterId).toBe(1);
   });
 });
+
+describe('feat-slot restore (v1.8, CAP-F4)', () => {
+  /** cloneRuntimePack with warden feat slots covering its 4 readable levels (pack data only). */
+  function slottedRuntime(): Runtime {
+    const pack = cloneRuntimePack();
+    pack.progression['warden']!.featSlots = [1, 2, 2, 2];
+    return new Runtime(pack);
+  }
+
+  function oneSlotWarden(runtime: Runtime): CharacterState {
+    const character = createCharacter(runtime, { name: 'Ald', race: 'ashkin', classes: ['warden'] });
+    character.learnFeat('ironhide');
+    return character.state;
+  }
+
+  function cardsOf(run: () => unknown): string[][] {
+    try {
+      run();
+    } catch (error) {
+      return (error as { errors: readonly { rule: string; jsonPath: string }[] }).errors.map((card) => [
+        card.rule,
+        card.jsonPath,
+      ]);
+    }
+    throw new Error('expected a refusal');
+  }
+
+  it("a 1-slot warden's snapshot round-trips byte-exact", () => {
+    const runtime = slottedRuntime();
+    const text = JSON.stringify(serializeCharacter(runtime, oneSlotWarden(runtime)));
+    const restored = restoreCharacter(slottedRuntime(), JSON.parse(text));
+    expect(restored.state.feats).toEqual(['ironhide']);
+    expect(JSON.stringify(serializeCharacter(runtime, restored.state))).toBe(text);
+  });
+
+  it('a second declared feat appended is refused (feat-slots-exceeded at feats), nothing minted', () => {
+    const runtime = slottedRuntime();
+    const snap = JSON.parse(JSON.stringify(serializeCharacter(runtime, oneSlotWarden(runtime)))) as {
+      state: { feats: string[] };
+    };
+    snap.state.feats.push('vengeful-strike');
+    const target = slottedRuntime();
+    expect(cardsOf(() => restoreCharacter(target, snap as never))).toEqual([
+      ['feat-slots-exceeded', 'feats'],
+    ]);
+    expect(target.nextCharacterId).toBe(1);
+  });
+
+  it('an unknown and a declared feat appended give both feat-slots-exceeded and E-SNAP-01', () => {
+    const runtime = slottedRuntime();
+    const snap = JSON.parse(JSON.stringify(serializeCharacter(runtime, oneSlotWarden(runtime)))) as {
+      state: { feats: string[] };
+    };
+    snap.state.feats.push('moon-step', 'vengeful-strike');
+    const target = slottedRuntime();
+    expect(cardsOf(() => restoreCharacter(target, snap as never))).toEqual([
+      ['feat-slots-exceeded', 'feats'],
+      ['E-SNAP-01', 'state.feats[1]'],
+    ]);
+    expect(target.nextCharacterId).toBe(1);
+  });
+
+  it('restoreParty with one over-cap member refuses the party; nothing is minted', () => {
+    const runtime = slottedRuntime();
+    const party = JSON.parse(
+      JSON.stringify(serializeParty(runtime, [oneSlotWarden(runtime), oneSlotWarden(runtime)])),
+    ) as { members: { feats: string[] }[] };
+    party.members[1]!.feats.push('vengeful-strike');
+    const target = slottedRuntime();
+    expect(cardsOf(() => restoreParty(target, party as never))).toEqual([['feat-slots-exceeded', 'feats']]);
+    expect(target.nextCharacterId).toBe(1);
+  });
+});

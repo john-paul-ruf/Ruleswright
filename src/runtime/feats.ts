@@ -1,16 +1,48 @@
 /**
  * M03 — feats a character holds (FR-5, DD-S11). A leaf: it imports only
- * `./errors` plus types. v1 has no feat-slot cap (progression declares no
- * feat-slot field — the FR-6 gap); the host decides when a character learns.
+ * `./errors` plus types. v1.8 caps learning by feat slots when the pack declares
+ * them (`progression.<id>.featSlots`, summed across classes, DD-F1…F3); a pack
+ * declaring none has no cap, and the host decides when a character learns.
  * `CharacterState.feats` stays absent until the first learn (the `equipped`
  * presence rule), so characters that never learned round-trip byte-exact.
  */
+import type { ErrorCard } from '../schema/error-card';
 import type { Runtime } from './runtime';
-import type { CharacterState } from './character';
+import type { CharacterState, ClassEntry } from './character';
 import type { RuntimeEvent } from './events';
 import { RuntimeRuleError, ruleCard } from './errors';
 
-/** Learn a pack-declared feat: `unknown-feat` / `feat-known` refuse with nothing changed; else emits `feat:learned`. */
+/** DD-F1…F3 — a character's feat slots (summed across classes), or undefined when the pack declares none (no cap). */
+export interface FeatSlotTally {
+  readonly total: number;
+  readonly hint: string;
+}
+
+export function featSlotTally(runtime: Runtime, classes: readonly ClassEntry[]): FeatSlotTally | undefined {
+  const tables = runtime.pack.progression;
+  if (!Object.values(tables).some((table) => table.featSlots !== undefined)) return undefined;
+  let total = 0;
+  const parts: string[] = [];
+  for (const entry of classes) {
+    const slots = tables[entry.id]?.featSlots?.[entry.level - 1] ?? 0;
+    total += slots;
+    parts.push(`${entry.id} ${entry.level} → ${slots}`);
+  }
+  return { total, hint: `feat slots by class: ${parts.join(', ')}` };
+}
+
+/** DD-F6 — the one refusal card: `feat-slots-exceeded` at `feats`. */
+export function featSlotsExceeded(artifactId: string, held: number, tally: FeatSlotTally): ErrorCard {
+  return ruleCard(
+    'feat-slots-exceeded',
+    artifactId,
+    'feats',
+    `holding ${held} feat(s) needs ${held} feat slot(s); the character's classes grant ${tally.total} (FR-6).`,
+    tally.hint,
+  );
+}
+
+/** Learn a pack-declared feat: `unknown-feat` / `feat-known` / `feat-slots-exceeded` refuse with nothing changed; else emits `feat:learned`. */
 export function learnFeat(runtime: Runtime, character: CharacterState, featId: string): RuntimeEvent {
   if (runtime.pack.content.feats?.[featId] === undefined) {
     throw new RuntimeRuleError([
@@ -21,6 +53,11 @@ export function learnFeat(runtime: Runtime, character: CharacterState, featId: s
     throw new RuntimeRuleError([
       ruleCard('feat-known', featId, 'feats', `"${character.id}" already holds feat "${featId}".`),
     ]);
+  }
+  const held = character.feats?.length ?? 0;
+  const tally = featSlotTally(runtime, character.classes);
+  if (tally !== undefined && held + 1 > tally.total) {
+    throw new RuntimeRuleError([featSlotsExceeded(featId, held + 1, tally)]);
   }
   character.feats = [...(character.feats ?? []), featId];
   return runtime.events.emit({

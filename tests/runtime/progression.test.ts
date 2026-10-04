@@ -150,3 +150,89 @@ describe('XP split policy', () => {
     expect(character.state.classes.map((entry) => entry.level)).toEqual([2, 2]);
   });
 });
+
+describe('feat slots on level changes (v1.8, CAP-F3)', () => {
+  /** cloneRuntimePack with warden feat slots covering its 4 readable levels (pack data only). */
+  function slottedRuntime(): Runtime {
+    const pack = cloneRuntimePack();
+    pack.progression['warden']!.featSlots = [1, 2, 2, 2];
+    return new Runtime(pack);
+  }
+
+  function wardenTwoHoldingTwo(runtime: Runtime): ReturnType<Runtime['createCharacter']> {
+    const character = runtime.createCharacter({
+      name: 'Brynn',
+      race: 'ashkin',
+      classes: [{ id: 'warden', level: 2 }],
+    });
+    character.learnFeat('ironhide');
+    character.learnFeat('vengeful-strike');
+    return character;
+  }
+
+  function buildRules(run: () => unknown): string[] {
+    try {
+      run();
+    } catch (error) {
+      expect(error).toBeInstanceOf(CharacterBuildError);
+      return (error as CharacterBuildError).errors.map((card) => card.rule);
+    }
+    throw new Error('expected a CharacterBuildError');
+  }
+
+  it('levelSet below the held feats is refused (feat-slots-exceeded) and nothing changes', () => {
+    const runtime = slottedRuntime();
+    const character = wardenTwoHoldingTwo(runtime);
+    const saves = structuredClone(character.state.saves);
+    const slots = structuredClone(character.state.slots);
+    const before = runtime.events.sinceRound(0).length;
+    expect(buildRules(() => runtime.levelSet(character, [{ id: 'warden', level: 1 }]))).toContain(
+      'feat-slots-exceeded',
+    );
+    expect(character.state.classes).toEqual([{ id: 'warden', level: 2 }]);
+    expect(character.state.saves).toEqual(saves);
+    expect(character.state.slots).toEqual(slots);
+    expect(runtime.events.sinceRound(0)).toHaveLength(before);
+  });
+
+  it('levelSet to the same level within the cap succeeds', () => {
+    const runtime = slottedRuntime();
+    const character = wardenTwoHoldingTwo(runtime);
+    expect(runtime.levelSet(character, [{ id: 'warden', level: 2 }])).toEqual([]);
+    expect(character.state.classes).toEqual([{ id: 'warden', level: 2 }]);
+  });
+
+  it('awardXp whose derived level leaves the feats over the slots is refused (F-FP1 path)', () => {
+    const runtime = slottedRuntime();
+    const character = wardenTwoHoldingTwo(runtime);
+    const before = runtime.events.sinceRound(0).length;
+    // classXp 0 + 100 derives level 1 on the fallback curve: 1 slot for 2 feats
+    expect(buildRules(() => runtime.awardXp(character, 100))).toEqual(['feat-slots-exceeded']);
+    expect(character.state.xp).toBe(0);
+    expect(character.state.classXp).toEqual({ warden: 0 });
+    expect(character.state.classes).toEqual([{ id: 'warden', level: 2 }]);
+    expect(runtime.events.sinceRound(0)).toHaveLength(before);
+  });
+
+  it('a character within its cap still levels by XP with the same events', () => {
+    const runtime = slottedRuntime();
+    const character = runtime.createCharacter({ name: 'Brynn', race: 'ashkin', classes: ['warden'] });
+    character.learnFeat('ironhide');
+    const events = runtime.awardXp(character, 1000);
+    expect(events.map((event) => [event.type, event.payload])).toEqual([
+      ['xp:awarded', { amount: 1000, total: 1000, classXp: { warden: 1000 } }],
+      ['level:reached', { classId: 'warden', level: 2 }],
+    ]);
+    character.learnFeat('vengeful-strike');
+    expect(character.state.feats).toEqual(['ironhide', 'vengeful-strike']);
+  });
+
+  it('an invalid-xp-table refusal also changes nothing (compute-then-apply)', () => {
+    const runtime = new Runtime(cloneRuntimePack());
+    runtime.pack.tables['xp'] = { kind: 'ranged', entries: [{ min: 0, max: 999999, value: 'one' }] };
+    const character = runtime.createCharacter({ name: 'X', race: 'ashkin', classes: ['warden'] });
+    expect(buildRules(() => runtime.awardXp(character, 100))).toEqual(['invalid-xp-table']);
+    expect(character.state.xp).toBe(0);
+    expect(character.state.classXp).toEqual({ warden: 0 });
+  });
+});
