@@ -45,14 +45,13 @@ import {
   type SlotGrants,
   type SlotLedger,
 } from './action-economy';
-import { effectVars, executeAgainst, type BoundAction, type CombatantProfile, type Side } from './resolve';
+import { effectVars, type CombatantProfile, type Side } from './resolve';
 import { entryCost, findPath, terrainAt, type Position, type TerrainCell } from './spatial';
 import { evalFormula, evalValidity, valueOfFormula, type FormulaAst } from '../../core/dsl/formula';
 import { RuntimeRuleError, ruleCard } from '../errors';
 import { displayRoll } from '../display-roll';
 import type { ErrorCard } from '../../schema/error-card';
 import {
-  applyMutation,
   balancesOf,
   combatantFeats,
   copyBindings,
@@ -75,6 +74,7 @@ import {
   selfTargetRefusal,
   spatialGate,
 } from './declare';
+import { endIfSideDefeated, executeBound, resolveAction, resolveShape } from './execute';
 import { FightCore } from './fight';
 import type {
   CastSlot,
@@ -314,22 +314,6 @@ export function terrainRefusals(
   return cards;
 }
 
-/** Flatten nested effect resolutions (sequence/target wrappers) for the attack-event loop. */
-function flattenResolutions(
-  outcomes: readonly import('../../core/dsl/effect').EffectResolution[],
-): readonly import('../../core/dsl/effect').EffectResolution[] {
-  const flat: import('../../core/dsl/effect').EffectResolution[] = [];
-  for (const outcome of outcomes) {
-    flat.push(outcome);
-    if (outcome.kind === 'sequence') flat.push(...flattenResolutions(outcome.steps));
-    else if (outcome.kind === 'target') flat.push(...flattenResolutions(outcome.outcomes));
-    else if (outcome.kind === 'save') {
-      for (const perTarget of outcome.perTarget) flat.push(...flattenResolutions(perTarget.outcomes));
-    }
-  }
-  return flat;
-}
-
 function rngStateOf(rng: RandomSource): RngState {
   if ('getState' in rng && typeof (rng as Rng).getState === 'function') {
     return (rng as Rng).getState();
@@ -521,7 +505,8 @@ export class Combat {
       const ok = evalValidity(
         validity,
         validityVars(actor),
-        (shape) => this.resolveShape(shape, actor, target.combatant.position, target.combatant).length > 0,
+        (shape) =>
+          resolveShape(this.core, shape, actor, target.combatant.position, target.combatant).length > 0,
       );
       if (!ok) {
         return [
@@ -596,7 +581,7 @@ export class Combat {
     const aim = at !== undefined ? { at: { x: at.x, y: at.y } } : { targetId: target.combatant.id };
     const cast = spell === undefined ? undefined : castPayload(actionId, def.cost, aim, slot);
     const { result: events, emitted } = this.core.collect(() =>
-      this.resolve(actor, actionId, def, target.combatant, { move, cast, at }),
+      resolveAction(this.core, actor, actionId, def, target.combatant, { move, cast, at }),
     );
     this.core.surfaceOffers(emitted);
     return events;
@@ -681,8 +666,8 @@ export class Combat {
       payload: { itemId, remaining: remaining - 1 },
       why: { rule, rolls: [] },
     });
-    const effectEvents = this.execute(actor, { id: itemId, def, ast }, target, rule);
-    this.endIfSideDefeated();
+    const effectEvents = executeBound(this.core, actor, { id: itemId, def, ast }, target, rule);
+    endIfSideDefeated(this.core);
     this.core.surfaceOffers(effectEvents);
     return [usedEvent, ...effectEvents];
   }
@@ -950,194 +935,6 @@ export class Combat {
     };
   }
 
-  /**
-   * The one shape resolver (CA-G4): the executor's resolveTargets, the
-   * validity gate's hasTarget, and target() statements all resolve shapes
-   * here — once, combat-side. A burst resolves around `center`: the bound
-   * target's position, or an `at` cell (DD-S8). Theater-of-mind: every shape
-   * answers with the bound targets (the no-op discipline — spatial.html's
-   * absent-column).
-   */
-  private resolveShape(
-    shape: string,
-    actor: CombatantState,
-    center: Position | undefined,
-    bound: CombatantState,
-  ): readonly string[] {
-    if (shape === 'self') return [actor.id]; // DD-A1: every pack, theater-of-mind included
-    const geometry = this.runtime.spatial;
-    if (!geometry.enabled) return [bound.id];
-    if (shape === 'adjacent') {
-      return this.state.order.filter((id) => {
-        const other = this.state.combatants[id]!;
-        return (
-          other.side !== actor.side &&
-          other.position !== undefined &&
-          actor.position !== undefined &&
-          reachOf(this.runtime, actor.id) !== undefined &&
-          geometry.canReach(actor.position, other.position, reachOf(this.runtime, actor.id)!)
-        );
-      });
-    }
-    if (shape.startsWith('burst-')) {
-      const radius = Number(shape.slice('burst-'.length));
-      if (center === undefined) return [];
-      const candidates: (readonly [string, Position])[] = [];
-      for (const id of this.state.order) {
-        const combatant = this.state.combatants[id]!;
-        if (combatant.hp.current <= 0 || combatant.position === undefined) continue;
-        candidates.push([id, combatant.position]);
-      }
-      return geometry.inBurst(center, radius, candidates);
-    }
-    return [];
-  }
-
-  private resolve(
-    actor: CombatantState,
-    actionId: string,
-    def: ActionDef,
-    target: CombatantState,
-    {
-      move,
-      cast,
-      at,
-    }: {
-      readonly move?: ((budget: number) => void) | undefined;
-      /** A spell's `spell:cast` payload (DD-S17); absent for actions. */
-      readonly cast?: Readonly<Record<string, unknown>> | undefined;
-      /** An empty-cell burst's center (DD-S8): `action:resolved` carries it instead of `targetId`. */
-      readonly at?: Position | undefined;
-    },
-  ): readonly RuntimeEvent[] {
-    if (cast !== undefined) {
-      // DD-S17: `spell:cast` precedes the effect's events, inside the declare's own collection.
-      this.core.setClock();
-      this.runtime.events.emit({
-        type: 'spell:cast',
-        actor: actor.id,
-        ...(typeof cast['targetId'] === 'string' ? { target: cast['targetId'] } : {}),
-        payload: cast,
-        why: { rule: ruleBaseOf(this.runtime, actionId), rolls: [] },
-      });
-    }
-    this.execute(
-      actor,
-      this.boundActionOf(actionId, def),
-      target,
-      ruleBaseOf(this.runtime, actionId),
-      move,
-      at,
-    );
-    this.state = { ...this.state, phase: 'resolved' };
-    this.runtime.events.emit({
-      type: 'action:resolved',
-      actor: actor.id,
-      payload: at !== undefined ? { actionId, at: { x: at.x, y: at.y } } : { actionId, targetId: target.id },
-      why: { rule: `${ruleBaseOf(this.runtime, actionId)}`, rolls: [] },
-    });
-    this.endIfSideDefeated();
-    return this.runtime.events.sinceRound(this.state.round);
-  }
-
-  /**
-   * Run a bound effect for one target through the executor: mutations land on
-   * state as `damage:applied` / `condition:applied`, attack verdicts as
-   * `attack:rolled`, every event provenanced by `rule`. Returns the events it
-   * emitted; the rng state is saved afterwards.
-   */
-  private execute(
-    actor: CombatantState,
-    boundAction: BoundAction,
-    target: CombatantState,
-    rule: string,
-    move?: (budget: number) => void,
-    at?: Position,
-  ): RuntimeEvent[] {
-    const emitted: RuntimeEvent[] = [];
-    const sink = (event: RuntimeEvent) => {
-      emitted.push(event);
-    };
-    this.runtime.events.on(sink);
-    try {
-      this.core.setClock();
-      // The attack gate: the executor's damage callbacks only land when the
-      // pending attack for this target hit. One action = one attack verdict.
-      let attackLanded: boolean | undefined;
-      const outcomes = executeAgainst(
-        boundAction,
-        { id: actor.id, side: actor.side, profile: profileOf(actor) },
-        { id: target.id, side: target.side, profile: profileOf(target) },
-        this.core.rng,
-        (request) => {
-          // CA-G4: burst scopes reach ids outside the primary target — apply
-          // each mutation to the combatant the executor named, not the bound
-          // target. The attack gate stays: one action = one attack verdict.
-          const subject = this.state.combatants[request.targetId] ?? target;
-          const isDamage = request.kind === 'damage';
-          if (isDamage && attackLanded === false) return; // onHit anatomy: gated damage never applies
-          const hpBefore = subject.hp.current; // captured before the (possibly clamped) mutation
-          applyMutation(this.runtime, subject, request);
-          this.runtime.events.emit({
-            type: isDamage ? 'damage:applied' : 'condition:applied',
-            actor: actor.id,
-            target: request.targetId,
-            payload: isDamage
-              ? {
-                  amount: request.amount,
-                  type: request.damageType,
-                  hp: `${hpBefore}→${subject.hp.current}`,
-                }
-              : { conditionId: request.conditionId, duration: request.duration },
-            why: { rule, rolls: request.rolls.map((roll) => displayRoll(roll)) },
-          });
-        },
-        (shape) => this.resolveShape(shape, actor, at ?? target.position, target),
-        move,
-        (id) => {
-          // DD-S19: every target a shape scope names saves and defends with its own values.
-          const combatant = this.state.combatants[id];
-          return combatant === undefined ? undefined : profileOf(combatant);
-        },
-      );
-      // Attack outcomes are events too (attack:rolled) — one per target, with the verdict.
-      // The executor nests statements in sequence/target/save wrappers; flatten first.
-      for (const outcome of flattenResolutions(outcomes)) {
-        if (outcome.kind === 'attack') {
-          attackLanded = outcome.hit;
-          this.runtime.events.emit({
-            type: 'attack:rolled',
-            actor: actor.id,
-            target: outcome.targetId,
-            payload: { actionId: boundAction.id, verdict: outcome.roll.verdict, total: outcome.roll.total },
-            why: { rule: `${rule}.attackBonus`, rolls: [displayRoll(outcome.roll)] },
-          });
-        }
-      }
-    } finally {
-      this.runtime.events.off(sink);
-    }
-    this.state = { ...this.state, rng: this.core.rng.getState() };
-    return emitted;
-  }
-
-  /**
-   * The end rule (engine-universal, not pack data): once every combatant on one
-   * side is at hp ≤ 0, the fight is over — open offers lapse and one
-   * `combat:ended` event names the winning side.
-   */
-  private endIfSideDefeated(): void {
-    const defeated = defeatedSide(this.state.combatants);
-    if (defeated === undefined) return;
-    this.state = { ...this.state, phase: 'combat-over' };
-    this.pendingTriggers.length = 0;
-    this.runtime.events.emit({
-      type: 'combat:ended',
-      payload: { winner: defeated === 'allies' ? 'enemies' : 'allies', defeated },
-      why: { rule: 'combat.sideDefeated', rolls: [] },
-    });
-  }
-
   /** Resolve a taken trigger through the same pipeline as a declared action (FR-4, FR-12 proof 2). */
   private resolveReactive(offer: PendingTrigger, targetId: string | undefined): readonly RuntimeEvent[] {
     const reactor = this.state.combatants[offer.actorId]!;
@@ -1180,7 +977,7 @@ export class Combat {
     }
     applyNonSlotCosts(reactor, def.cost);
     const { result: events, emitted } = this.core.collect(() =>
-      this.resolve(reactor, offer.actionId, def, target, {}),
+      resolveAction(this.core, reactor, offer.actionId, def, target, {}),
     );
     this.core.surfaceOffers(emitted);
     return events;
@@ -1208,13 +1005,14 @@ export class Combat {
     const feat = this.runtime.pack.content.feats?.[offer.actionId];
     const ast = this.runtime.index.featEffects[offer.actionId];
     if (feat?.effect === undefined || ast === undefined) return [];
-    const emitted = this.execute(
+    const emitted = executeBound(
+      this.core,
       holder,
       { id: offer.actionId, def: { cost: {}, effect: feat.effect }, ast },
       holder,
       `content.feats.${offer.actionId}`,
     );
-    this.endIfSideDefeated();
+    endIfSideDefeated(this.core);
     this.core.surfaceOffers(emitted, { feats: false });
     return emitted;
   }
@@ -1222,17 +1020,6 @@ export class Combat {
   /** A reactive action resolving outside the declare flow (host took a trigger offer). */
   declareReactive(offer: PendingTrigger, targetId: string | undefined): readonly RuntimeEvent[] {
     return this.resolveReactive(offer, targetId);
-  }
-
-  /** A declared id's bound action: its parse-once AST from the action index, else the spell index (CA-S1). */
-  private boundActionOf(actionId: string, def: ActionDef): BoundAction {
-    const ast = this.runtime.index.actionEffects[actionId] ?? this.runtime.index.spellEffects[actionId];
-    if (ast === undefined) {
-      throw new Error(
-        `action "${actionId}" has no parse-once AST — Runtime load compiles every action (CA-2)`,
-      );
-    }
-    return { id: actionId, def, ast };
   }
 
   private endTurn(): StepOutcome {
