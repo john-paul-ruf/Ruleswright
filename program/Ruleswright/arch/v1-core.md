@@ -1183,3 +1183,22 @@ SESSION-02, OWNER-M02-HALF and SESSION-03 markers (4caf973, ae0f480, da4665c) we
 the spells-in-combat final pass (original text recoverable at 94d40f3); the action-targeting
 SESSION-02 and SESSION-03 markers (a84dd52, 42a1fd3) were collapsed at the action-targeting final
 pass (original text recoverable at 535247d). -->
+
+<!-- feat-progression SESSION-02 -->
+## feat-progression SESSION-02 delta (Orchestrator mid-run append; contract v1.8, S01 3f63fd3/f4cc597; S02 45483c5..f7f6e88)
+
+- **M01 Schema.** `ClassProgression.featSlots?: number[]` (artifacts.ts). `checkProgression` accepts `featSlots`: each entry an integer ≥ 0, non-empty, non-decreasing, and at least as long as the class's shortest `saves` array. Every violation is `E-SCHEMA-01` at `progression.<id>.featSlots` or `…featSlots[i]`. No rule id is added. M01 still imports nothing internal.
+- **M03 Runtime — `feats.ts`** has two new **module exports that are not on the barrel** (DD-F7):
+  - `featSlotTally(runtime, classes): FeatSlotTally | undefined` returns `{total, hint}`: the per-class `featSlots[level-1]`, summed across classes. It returns `undefined` (no cap) when no progression entry declares `featSlots`. In a slotted pack, a class without `featSlots` contributes 0.
+  - `featSlotsExceeded(artifactId, held, tally): ErrorCard` builds the runtime rule `feat-slots-exceeded` at `jsonPath 'feats'`.
+  - `learnFeat` refuses `feat-slots-exceeded` (RuntimeRuleError, artifactId = feat id) after `unknown-feat`/`feat-known` when held + 1 > slots.
+  - `feats.ts` is still a leaf: its only value import is `./errors`; everything else is type-only.
+- **M03 Runtime — `progression.ts`:**
+  - `validateBuild(runtime, race, entries, heldFeats: readonly string[] = [])` takes an optional 4th parameter. It emits `feat-slots-exceeded` (`artifactId '(character)'`) only when the pack is feat-slotted, the build produced no other card, and the held count exceeds the slots.
+  - Callers: `levelSet` passes `character.feats`; `snapshots.ts` `characterStateRefusals` passes `saved.feats ?? []` (restore; the held count includes unknown ids). `createCharacter` passes nothing.
+  - `awardXp` is now **compute → check → apply**. It derives each class's `classXp` and level into locals, refuses `feat-slots-exceeded` (CharacterBuildError) when the derived levels leave the held feats over the slots, and only then mutates `xp`, `classXp`, levels and progression and emits the events. Event order and payloads are unchanged. As a side effect, an `invalid-xp-table` refusal now also changes nothing.
+  - The new intra-M03 value edge `progression.ts → feats.ts` creates no cycle, because `feats.ts` imports only types from `./character`/`./runtime`.
+- **M04 Compiler.** All 9 bundled classes declare `featSlots [1, 1, 2, 2, 2, 3, 3, 3, 4, 4]` (theme JSON only; no compiler `.ts` change; `stages/classes.ts` copies it verbatim).
+- **Retire:** "no feat-slot cap (FR-6 gap)" (v1-core.md l.272 and l.567). The cap is now pack data, and a pack declaring no `featSlots` is uncapped.
+
+_Pending Archivist synthesis: l.272 and l.567 above still read "no feat-slot cap (FR-6 gap)" and are retired by this delta._
