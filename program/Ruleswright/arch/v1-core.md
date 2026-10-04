@@ -1472,3 +1472,50 @@ Intra-module edge changes for the PROGRAM-CONFIG registry (final Archivist):
 - l.811-817: the `combat/triggers.ts` entry. It now also holds trigger answering (`answerOffer`, `resolveReactive`, `resolveReactiveAgainst`, `resolveFeat`). The edge note stands: `triggers.ts → combat.ts` is type-only.
 - l.1278: R-GM-3, the resumed walk skipping its first leaving-reach check. Now `movement.ts` `walk(…, resumed)`.
 - l.1380-1416 (S01's "What remains in `combat.ts`" and value-import list) is superseded by the tables above. `copyTerrain`, `terrainRefusals`, `moveBudgetAst`, `ZERO_RNG` and the movement/trigger internals are no longer in `combat.ts`. The `combat.ts` and `triggers.ts` lines of the derived list are replaced by the ones above, and a `movement.ts` line is added.
+
+<!-- combat-decomposition SESSION-03 -->
+## combat-decomposition SESSION-03 — snapshots split; C2 cross-pin (M03 internal, M01 comment)
+
+*(Orchestrator mid-run append of the session arch delta, checkpoints 8b1ed0b..0c56866; the final Archivist pass synthesizes it.)*
+
+## M03 — `src/runtime/snapshots.ts` → `src/runtime/snapshots/` (ck1 `8b1ed0b`)
+
+Verbatim move (DD-D7, following the `validate.ts` → `validate/` precedent). Importers keep the path
+`…/runtime/snapshots` (resolves to `snapshots/index.ts`); `src/runtime/index.ts` is not edited.
+No export, signature, snapshot byte or refusal changed.
+
+| File | Role | Value imports (F-D7 per-statement derivation) |
+|---|---|---|
+| `snapshots/index.ts` | module header (three envelopes, identity gate, no migration); re-exports exactly the base names: values `serializeCharacter`, `serializeParty`, `restoreCharacter`, `restoreParty`, `serializeCombat`, `deserializeCombat`; types `SnapshotPackIdentity`, `SnapshotClassEntry`, `SnapshotActiveCondition`, `SnapshotInventoryEntry`, `SnapshotEquippedEntry`, `SnapshotCharacterState`, `CharacterSnapshot`, `PartySnapshot`, `SnapshotCombatant`, `SnapshotOffer`, `CombatSnapshot`, `CombatRestoreRequest` | `./character`, `./combat` (`./envelope` type-only) |
+| `snapshots/envelope.ts` | identity gate + shared helpers: `SnapshotPackIdentity`, `SNAPSHOT_VERSION`, `packIdentity`, `envelopeRefusals`, `declaredIdentityId`, `display`, `isRecord` (module-internal exports; not re-exported) | `../../schema/version`, `../../schema/error-card` |
+| `snapshots/character.ts` | field-mapping header; character/party types, `serializeCharacter/Party`, `restoreCharacter/Party`, `characterStateRefusals`, `featRefusals`, `equippedRefusals`, `restoreCharacterState` | `../../schema/error-card`, `../../core/rng`, `../errors`, `../progression`, `../character`, `./envelope` |
+| `snapshots/combat.ts` | combat types (incl. `SnapshotOffer`), `UINT32_MAX_WORD`, `serializeCombat`, `deserializeCombat`, `spatialRestoreRefusals`, `combatRestoreRefusals`, `COMBAT_PHASES`, `envelopeV16Refusals`, `frozenSideDefeated`, `spendRefusals`, `copySlotsCast`, `remainingPools`, `remainingBound`, `copyPendingMove`, `validateRngWords` | `../../schema/error-card`, `../errors`, `../combat/combat`, `./envelope` (`./character` type-only) |
+
+Union of value edges equals base `snapshots.ts` (`schema/version`, `schema/error-card`, `core/rng`, `errors`,
+`progression`, `character`, `combat/combat`): no new cross-module edge (CA-D4). `snapshots/combat.ts` imports
+only `../combat/combat` from `combat/` as values (not `../combat/movement` etc.).
+
+Line counts: `character.ts` 302, `combat.ts` 671, `envelope.ts` 123, `index.ts` 35.
+
+M01: `src/schema/error-card.ts:46` comment now reads "enforced by runtime/snapshots/ (S06)".
+
+## C2 cross-pin (ck2 `0c56866`, CA-D5, DD-D10)
+
+`tests/core/tables.test.ts` case "MAX_TABLE_DEPTH is the schema validator’s bound — two declarations pinned
+together (C2)" asserts `core/tables.ts:32` `MAX_TABLE_DEPTH` === `schema/validate` (`helpers.ts:544`,
+re-exported `validate/index.ts:36`). Declared separately by layering; pinned together like
+EQUIPMENT_SCALARS ↔ RESERVED_GRANT_KEYS. C1 (`isLivePattern`) retired as public API, no code (DD-D9).
+
+## Stale citations naming `snapshots.ts` (for the final Archivist re-key; not edited here)
+
+- `arch/v1-core.md`: l.52 (M03 key files), l.68 (`snapshots.ts → {character, progression}`), l.132, l.624,
+  l.753, l.770, l.873 (`src/runtime/snapshots.ts` (M03) serializer entry), l.1215
+  (`snapshots.ts → {character, progression, combat/combat}`), l.1222.
+- `PROGRAM-CONFIG.MD`: l.82 (intra-module edge note `snapshots.ts → {character, …}`), l.92 (Module Registry
+  M03 *Key Files*). New edges to record: `snapshots/{character,combat}.ts → snapshots/envelope.ts`,
+  `snapshots/character.ts → {character, progression}`, `snapshots/combat.ts → combat/combat`.
+
+## Spec drift (F-D8; Author-owned, carried to a Spec re-entry)
+
+`program/Ruleswright/specs/architecture.md:80` (`combat.ts` location), `:88`
+(`snapshots.ts — three serializers + loud-refusal load`), `:208` (`snapshots.ts` owns exactly three serializers).
