@@ -202,16 +202,46 @@ describe('feat slots on level changes (v1.8, CAP-F3)', () => {
     expect(character.state.classes).toEqual([{ id: 'warden', level: 2 }]);
   });
 
-  it('awardXp whose derived level leaves the feats over the slots is refused (F-FP1 path)', () => {
+  it('awardXp never lowers a directly set level; XP accumulates (v1.9, DD-R4)', () => {
     const runtime = slottedRuntime();
     const character = wardenTwoHoldingTwo(runtime);
+    // classXp 0 + 100 derives level 1 on the fallback curve; the directly set level 2 stays
+    const events = runtime.awardXp(character, 100);
+    expect(events.map((event) => event.type)).toEqual(['xp:awarded']);
+    expect(character.state.xp).toBe(100);
+    expect(character.state.classXp).toEqual({ warden: 100 });
+    expect(character.state.classes).toEqual([{ id: 'warden', level: 2 }]);
+  });
+
+  it('an over-cap character (edited state) is still refused by awardXp and nothing changes', () => {
+    const runtime = slottedRuntime();
+    const character = runtime.createCharacter({ name: 'Brynn', race: 'ashkin', classes: ['warden'] });
+    // an edited state: two feats held against the 1 slot of a level-1 warden
+    character.state.feats = ['ironhide', 'vengeful-strike'];
     const before = runtime.events.sinceRound(0).length;
-    // classXp 0 + 100 derives level 1 on the fallback curve: 1 slot for 2 feats
     expect(buildRules(() => runtime.awardXp(character, 100))).toEqual(['feat-slots-exceeded']);
     expect(character.state.xp).toBe(0);
     expect(character.state.classXp).toEqual({ warden: 0 });
-    expect(character.state.classes).toEqual([{ id: 'warden', level: 2 }]);
+    expect(character.state.classes).toEqual([{ id: 'warden', level: 1 }]);
     expect(runtime.events.sinceRound(0)).toHaveLength(before);
+  });
+
+  it('a directly set level rises only once XP passes it', () => {
+    const runtime = new Runtime(cloneRuntimePack());
+    expect(runtime.pack.progression['warden']!.saves['reflex']).toHaveLength(4); // warden ceiling 4
+    const character = runtime.createCharacter({
+      name: 'Brynn',
+      race: 'ashkin',
+      classes: [{ id: 'warden', level: 3 }],
+    });
+    // classXp 1000 → level 2 on the fallback curve: level 3 kept, no level:reached
+    expect(runtime.awardXp(character, 1000).map((event) => event.type)).toEqual(['xp:awarded']);
+    expect(character.state.classes).toEqual([{ id: 'warden', level: 3 }]);
+    // classXp 3000 → level 4: the level rises
+    const events = runtime.awardXp(character, 2000);
+    expect(events.map((event) => event.type)).toEqual(['xp:awarded', 'level:reached']);
+    expect(events[1]!.payload).toEqual({ classId: 'warden', level: 4 });
+    expect(character.state.classes).toEqual([{ id: 'warden', level: 4 }]);
   });
 
   it('a character within its cap still levels by XP with the same events', () => {

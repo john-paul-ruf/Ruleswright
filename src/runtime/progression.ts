@@ -20,6 +20,8 @@
  *   would leave the held feats over the slots is refused before anything
  *   changes — `levelSet` through the build validator, `awardXp` by computing
  *   its levels before applying them.
+ * - XP never lowers a level (v1.9, DD-R4): a level set directly stays until
+ *   its XP passes it.
  *
  * Illegal builds throw `CharacterBuildError` carrying ErrorCards with the
  * violated rule named (FR-5): unknown-race, unknown-class, duplicate-class,
@@ -272,12 +274,13 @@ export function xpSplit(total: number, count: number): number[] {
 
 /**
  * FR-6 — the host awards; the engine reports. Accumulates XP, splits it per
- * policy, derives each class's level from pack thresholds (race caps clamp),
- * reapplies progression, and emits `xp:awarded` (why: host.grant) followed by
- * `level:reached` per class whose level changed. Returns the emitted events.
- * Computes, checks, then applies: a refusal (`feat-slots-exceeded` when the
- * derived levels leave the held feats over the slots, or `invalid-xp-table`)
- * changes nothing.
+ * policy, derives each class's level from pack thresholds (race caps clamp)
+ * and keeps the higher of that and the current level — an award never lowers
+ * a level (v1.9, DD-R4) — reapplies progression, and emits `xp:awarded`
+ * (why: host.grant) followed by `level:reached` per class whose level rose.
+ * Returns the emitted events. Computes, checks, then applies: a refusal
+ * (`invalid-xp-table`, or `feat-slots-exceeded`, which can then fire only for
+ * a character already over its slots) changes nothing.
  */
 export function awardXp(
   runtime: Runtime,
@@ -299,10 +302,13 @@ export function awardXp(
   const next = character.classes.map((entry, index) => {
     const classXp = (character.classXp[entry.id] ?? 0) + shares[index]!;
     const cap = runtime.pack.content.races?.[character.race]?.caps?.[entry.id];
-    const level = Math.min(
-      levelForXp(runtime, classXp),
-      cap ?? Number.MAX_SAFE_INTEGER,
-      tableLevelCeiling(runtime, entry.id),
+    const level = Math.max(
+      entry.level,
+      Math.min(
+        levelForXp(runtime, classXp),
+        cap ?? Number.MAX_SAFE_INTEGER,
+        tableLevelCeiling(runtime, entry.id),
+      ),
     );
     return { id: entry.id, level, classXp };
   });

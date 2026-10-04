@@ -69,7 +69,7 @@ describe('feat-slot journey (CAP-F5) — dark-fantasy, seed 42', () => {
     expect(rt.events.sinceRound(0)).toHaveLength(before);
   });
 
-  it('legs 3–5 — level up opens a slot; level down and an XP award that lowers the level are refused', () => {
+  it('legs 3–5 — level up opens a slot; level down is refused; an XP award never lowers the level', () => {
     const rt = new Runtime(pack);
     const c = warden(rt, 1);
     c.learnFeat('ironhide');
@@ -80,10 +80,11 @@ describe('feat-slot journey (CAP-F5) — dark-fantasy, seed 42', () => {
     expect(refusedRules(() => rt.levelSet(c, [{ id: 'warden', level: 1 }]))).toEqual(['feat-slots-exceeded']);
     expect(c.state.classes).toEqual([{ id: 'warden', level: 3 }]);
 
-    // F-FP1: awardXp derives level 1 from 100 XP, below the directly set level 3
-    expect(refusedRules(() => rt.awardXp(c, 100))).toEqual(['feat-slots-exceeded']);
-    expect(c.state.xp).toBe(0);
+    // v1.9 (DD-R4): 100 XP reaches level 1, below the directly set level 3 — the level is kept
+    expect(() => rt.awardXp(c, 100)).not.toThrow();
+    expect(c.state.xp).toBe(100);
     expect(c.state.classes).toEqual([{ id: 'warden', level: 3 }]);
+    expect(c.state.feats).toEqual(['ironhide', 'steady-hands']);
   });
 
   it('leg 6 — multi-class: warden 1 + hexer 1 learns two feats, the third is refused', () => {
