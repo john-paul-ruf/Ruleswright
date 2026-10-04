@@ -1281,3 +1281,57 @@ the spells-in-combat final pass (original text recoverable at 94d40f3); the acti
 SESSION-02 and SESSION-03 markers (a84dd52, 42a1fd3) were collapsed at the action-targeting final
 pass (original text recoverable at 535247d); the feat-progression SESSION-02 marker (3da588a) was
 collapsed at the feat-progression final pass (original text recoverable at ad2cbe3). -->
+
+<!-- builder-rulings SESSION-02 -->
+### builder-rulings SESSION-02 — arch delta (v1.9; DD-R1, DD-R3, DD-R4, DD-R5)
+
+Commits: ck1 `1056f48`, ck2 `b9e52e3`, ck3 `4be2a57`, ck4 `c851de2`. No new module, no new export
+(`src/runtime/index.ts` unchanged); behaviour of existing public APIs changed.
+
+#### Public API behaviour
+
+- **`awardXp` level rule (DD-R4, CA-R2; `progression.ts`).** Each class becomes
+  `max(currentLevel, min(levelForXp(classXp), raceCap ?? ∞, tableLevelCeiling))`. XP and `classXp`
+  always accumulate. `level:reached` fires only for a class whose level rose. The compute → check →
+  apply order is unchanged. `feat-slots-exceeded` stays as a guard, but it is now reachable only
+  from an edited over-cap state (refusal (c)). F-FP1 and F-P3 are closed.
+- **`isRestricted` / `restrictedIds` spell-kind rule (DD-R3, CA-R1; `conditions.ts`).** For kind
+  `'action'`, only `actions.tagged:` matches. For kind `'spell'`, `actions.tagged:` **or**
+  `spells.tagged:` matches. This is the same rule as combat's `restrictionRejection` (DD-S10),
+  so the answer is the same in and out of combat. `matchesRestriction`, `declaredTags` and
+  `isLivePattern` are unchanged, and so is load-time integrity (`actions.tagged:` only).
+- **Feat-slotted predicate (DD-R5, CA-R3).** No code change. The README now states that once any
+  class declares `featSlots`, a class without it grants 0.
+
+#### Bundled content (DD-R1, CA-R4)
+
+- zombie-urban `bind-the-bite`, dark-fantasy `bind-wound` and wyldwood `bind-wound` now read
+  `heal(1d8 + ability(vigor))`, using the **caster's** vigor ability. Name, cost, targeting, tags
+  and lists are unchanged. In combat the heal is a negative `damage:applied` amount clamped at
+  `maxHp` (`combat.ts` `applyMutation`). The `type` is undefined, and the dice face appears only in
+  `why.rolls[0]` (e.g. `d8[-7]-10=-17`). The `contentHash` of all three themes changes.
+- Proof: `tests/proofs/rulings-journey.test.ts` (9 tests; legs 1–6 on the seed-42 generated packs).
+
+#### arch/v1-core.md lines that should retire or change (Orchestrator integrates; not edited here)
+
+- **l.279** "out of combat `isRestricted` stays kind-exact (asymmetry …)" → symmetric since v1.9
+  (DD-R3).
+- **l.340** "(F-FP1) is not changed; DD-F6's `awardXp` check guards…" → F-FP1 closed: `awardXp`
+  never lowers a level (DD-R4). The guard remains and is reachable only from an edited state.
+- **l.566-568** (Restricts matcher bullet) "Out of combat `isRestricted`/`restrictedIds` use it
+  kind-exact" → a spell matches `actions.tagged:` or `spells.tagged:` (v1.9).
+- **l.966** "Newly reachable through these lists: the `mending` spells" → they now heal
+  (`heal(1d8 + ability(vigor))`).
+- **l.1072** "`levelSet` down and an `awardXp` that lowers the level (F-FP1) are refused" → the
+  feat-slots journey legs 3–5 now prove that `levelSet` down is refused and that an `awardXp`
+  below the set level is accepted with the level kept.
+- **l.1215-1220** (spells-in-combat residual "Out-of-combat restricts asymmetry") → the asymmetry
+  part is CLOSED by builder-rulings. Keep the `spells.tagged:` load-time integrity gap as carried.
+- **l.1236-1240** (`mending` spells residual) → CLOSED (DD-R1).
+- **l.1244-1246** (stale `character-profile.test.ts:381` comment) → cleanup **C14 CLOSED**
+  (`4be2a57`).
+- **l.1247** ("Restricts symmetry stays the open … human question") → CLOSED (DD-R3).
+- **l.1249-…** (F-FP1 / F-P3 human question) → CLOSED (DD-R4).
+- Carried mock residual: `mocks/progression.html:70-80` (F-R6) is unchanged and Author-owned.
+
+Orchestrator note (receive 2026-10-04): the line references above are at `8eae481`; the planning-completeness review (F-R7) named the same set. Retiring/rewriting those lines is the final Archivist synthesis.
