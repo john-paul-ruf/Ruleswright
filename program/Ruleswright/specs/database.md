@@ -1,6 +1,6 @@
 # Database Design — Ruleswright
 
-> **Status:** v1.8, revised — DB, schema-change Author re-entry (builder-authorized 2026-10-04, feat-progression: per-class feat slots `progression.<id>.featSlots`; additive-optional, no rule id added; one documented compatibility caveat (d) — a feat-slotted pack refuses learning past the cap and refuses to restore an over-cap character; v1.7: builder-authorized 2026-10-01, action-targeting: the `target(self, …)` shape word + self actions and the `ability(name)` formula function, registry 14→15; no field added, no rule id added, one documented compatibility caveat (c) — `target(self, …)` now resolves to the actor; v1.6: builder-authorized 2026-09-30, spells-in-combat: spells declarable in combat with a pack-declared range and empty-cell area centers, spend recorded in combat snapshots, characters hold feats, reactive feats offered, trigger grammar enforced, combat envelope offers/phase/offeredCount; additive-optional with two documented compatibility caveats — the `trigger.on` grammar and the legacy-read-only per-combatant `pendingTrigger` — no rule id added; v1.5: builder-authorized 2026-09-29, grid-movement: hex model, pack-declared terrain vocabulary, `move(formula)` + reserved `speed`, snapshot `pendingMove`; additive-optional with one documented `speed` compatibility caveat, no rule id added; v1.4: builder-authorized 2025-09-27, equipment-consumables: slot-based equipment + consumables + the `heal` effect, snapshot `equipped`/`itemsUsed`/`maxHp`; v1.3: optional spatial section (FR-11) + E-SPAT-01 registration; v1.2: UI B-1 class combat actions; v1.1: S-CONTRACT-GAP).
+> **Status:** v1.9, revised — DB, Author re-entry (builder-authorized 2026-10-04, builder-rulings: out-of-combat restricts follow the in-combat rule; `awardXp` never lowers a class level; the feat-slotted predicate stated plainly; description only — no field, no rule id; two documented compatibility caveats (e) and (f); v1.8, revised — DB, schema-change Author re-entry (builder-authorized 2026-10-04, feat-progression: per-class feat slots `progression.<id>.featSlots`; additive-optional, no rule id added; one documented compatibility caveat (d) — a feat-slotted pack refuses learning past the cap and refuses to restore an over-cap character; v1.7: builder-authorized 2026-10-01, action-targeting: the `target(self, …)` shape word + self actions and the `ability(name)` formula function, registry 14→15; no field added, no rule id added, one documented compatibility caveat (c) — `target(self, …)` now resolves to the actor; v1.6: builder-authorized 2026-09-30, spells-in-combat: spells declarable in combat with a pack-declared range and empty-cell area centers, spend recorded in combat snapshots, characters hold feats, reactive feats offered, trigger grammar enforced, combat envelope offers/phase/offeredCount; additive-optional with two documented compatibility caveats — the `trigger.on` grammar and the legacy-read-only per-combatant `pendingTrigger` — no rule id added; v1.5: builder-authorized 2026-09-29, grid-movement: hex model, pack-declared terrain vocabulary, `move(formula)` + reserved `speed`, snapshot `pendingMove`; additive-optional with one documented `speed` compatibility caveat, no rule id added; v1.4: builder-authorized 2025-09-27, equipment-consumables: slot-based equipment + consumables + the `heal` effect, snapshot `equipped`/`itemsUsed`/`maxHp`; v1.3: optional spatial section (FR-11) + E-SPAT-01 registration; v1.2: UI B-1 class combat actions; v1.1: S-CONTRACT-GAP).
 > v1.0 (phase `database`, final Author phase) approved; v1.1 adds the turn-economy
 > declaration (`economy.turnSlots`) and action/spell `tags` with `restricts`
 > reference semantics. Read with `specs/architecture.md` (approved),
@@ -354,9 +354,9 @@ B-AT-1). Formula registry **14 → 15**: `ability` — arity 1, kind `formula`, 
 Seven maps, keyed by id: `classes`, `races`, `skills`, `feats`, `spells`, `conditions`, `items`.
 Highlights (full field lists in the JSON Schema):
 
-- **conditions**: `duration` (uint ≥ 1), `stacking` (`refresh | stack | ignore` — pack-declared policy, FR-7), `restricts?` (array of action tag patterns — the "teeth", e.g. blocks casting actions). **v1.1:** each pattern `actions.tagged:<tag>` must reference a tag declared on at least one action or spell → `E-REF-01` (see *Tag integrity*). (v1.6: combat declares also match spells against `actions.tagged:`; see spells)
+- **conditions**: `duration` (uint ≥ 1), `stacking` (`refresh | stack | ignore` — pack-declared policy, FR-7), `restricts?` (array of action tag patterns — the "teeth", e.g. blocks casting actions). **v1.1:** each pattern `actions.tagged:<tag>` must reference a tag declared on at least one action or spell → `E-REF-01` (see *Tag integrity*). (v1.6: combat declares also match spells against `actions.tagged:`; v1.9: so do `isRestricted`/`restrictedIds` out of combat; see spells)
 - **classes** (v1.2): optional `actions` — unique action ids a character of this class may declare in combat, the character-side mirror of `Statblock.actions` (FR-16: monsters and characters ride the same action machinery). Each id must be a key of the pack's `actions` map → `E-REF-01`. Absent = the class grants no combat actions. No level gating in v1 (all listed actions are available from class level 1); level-gated grants are a future additive field.
-- **spells**: `magic` ({level: 1–9, lists: class ids}) + `cost` (vancian level or pool draw) + `effect` + optional `targeting` = `{shape, radius?, range?}` ({shape: `single | burst`, radius: uint, required iff burst; range: uint, optional, v1.6}) + optional `tags` (same matching semantics as action tags — spells participate in `restricts` checks through the same matcher as actions in combat (v1.6), FR-9).
+- **spells**: `magic` ({level: 1–9, lists: class ids}) + `cost` (vancian level or pool draw) + `effect` + optional `targeting` = `{shape, radius?, range?}` ({shape: `single | burst`, radius: uint, required iff burst; range: uint, optional, v1.6}) + optional `tags` (same matching semantics as action tags — spells participate in `restricts` checks through the same matcher as actions, in combat (v1.6) and out of combat (v1.9), FR-9).
   **v1.6 — spells in combat** (builder-authorized 2026-09-30; STATE DD-S2, DD-S4, DD-S5,
   DD-S8, DD-S10, DD-S17, DD-S18, DD-S19):
 
@@ -398,12 +398,14 @@ Highlights (full field lists in the JSON Schema):
     range, ignore `at`, and resolve a burst to the bound target. **v1.7 (DD-A2, DD-A6):** a
     spell is never a self action, so this targeting is unchanged, and a `self` inside a
     spell's effect resolves to the caster.
-  - **Restricts and spells, scoped to combat (DD-S10).** In combat, a spell declare is
-    blocked while an active condition carries `actions.tagged:<t>` or `spells.tagged:<t>` and
-    `<t>` is one of the spell's tags (a spell is an action, FR-9). Action declares are
-    unchanged (`actions.tagged:` only). Out of combat, the v1.1 matcher is unchanged in v1.6:
-    `isRestricted` and `restrictedIds` match by kind, so only `spells.tagged:` restricts a
-    spell there. Load-time tag integrity still checks `actions.tagged:` patterns only.
+  - **Restricts and spells (DD-S10; symmetric since v1.9, builder-rulings DD-R3).** A spell
+    is blocked while an active condition carries `actions.tagged:<t>` or `spells.tagged:<t>`
+    and `<t>` is one of the spell's tags (a spell is an action, FR-9) — in a combat declare
+    **and** out of combat: `isRestricted(runtime, character, 'spell', id)` and
+    `restrictedIds(runtime, character, 'spell')` apply the same rule (v1.9; v1.6 matched by
+    kind out of combat). Actions are unchanged everywhere: only `actions.tagged:` restricts an
+    action. A pattern naming a tag no action or spell declares matches nothing. Load-time tag
+    integrity still checks `actions.tagged:` patterns only.
   - **Binding pick (DD-S18).** A vancian spell at level `L = magic.level` consumes the
     **lowest** index `i` with `bindings[L][i] === spellId` and `i` not in `slotsCast[L]`; none
     → `{kind: 'vancian', rule: 'E-VANC-01', resource: L}`,
@@ -490,7 +492,11 @@ progression tables; v1.8 adds them as one optional field per class (builder-auth
   `featSlots[level - 1]`, as vancian slots add across classes.
 - **Opt-in (DD-F3).** A pack is *feat-slotted* when **any** `progression` entry declares
   `featSlots`. In a feat-slotted pack, a class without the field contributes **0**. A pack
-  that declares none has **no cap** — the v1.7 behaviour, unchanged.
+  that declares none has **no cap** — the v1.7 behaviour, unchanged. **Any** class counts,
+  including one only statblocks use: the pack format has no player/monster class
+  distinction (every progression entry pairs with a `content.classes` entry, E-REF-03), so a
+  pack author who slots one class should slot every class a character may take (builder
+  ruling 2026-10-04, builder-rulings DD-R5).
 - **Every held feat (DD-F5)**, passive or reactive, occupies one slot.
 - **Load (DD-F4).** A non-integer or negative entry, an empty array, a decrease from one
   level to the next, or an array shorter than the class's level ceiling (its shortest
@@ -514,12 +520,27 @@ progression tables; v1.8 adds them as one optional field per class (builder-auth
     validator's third path, fed the snapshot's `feats`) — RuntimeRuleError, nothing
     minted. The unknown-feat `E-SNAP-01` card is unchanged and may appear alongside; the
     held count includes unknown ids.
+- **XP never lowers a level (v1.9, builder ruling 2026-10-04, builder-rulings DD-R4).**
+  `awardXp` adds the award to `xp` and the split shares to `classXp`, then sets each class to
+  the **higher** of its current level and the level its class XP reaches (clamped, as before,
+  by the race cap and the class's level ceiling). A level set directly (`createCharacter`,
+  `levelSet`) is never lowered by an award; `level:reached` is emitted only for a class whose
+  level rose. Because levels then only rise and `featSlots` never decrease, refusal (c) can
+  fire only for a character already holding more feats than its slots (an edited state). It
+  stays as a guard.
 - **Compatibility caveat (d).** A pack that adds `featSlots` makes `learnFeat` refuse once
   a character's slots are full, and refuses to restore a snapshot holding more feats than
   its slots. Packs that declare no `featSlots` are unaffected. Bundled-theme snapshots
   taken before v1.8 already fail the `contentHash` identity check (FR-14), so this caveat
   is reachable only through a pack that adds slots without changing content, or through
   an edited snapshot.
+- **Compatibility caveat (e) (v1.9).** Out of combat, a condition with `actions.tagged:<t>`
+  now also restricts a spell tagged `<t>` in `isRestricted`/`restrictedIds`. Combat behaviour
+  is unchanged. No bundled theme outcome changes: the bundled `actions.tagged:` patterns are
+  `sapped` (`main`) and `rooted` (`move`), and every bundled spell is tagged only `casting`.
+- **Compatibility caveat (f) (v1.9).** `awardXp` no longer lowers a class level that was set
+  above the level its XP reaches. Such a character keeps its level, and its XP accumulates
+  until the level is reached.
 
 ### `bestiary`
 Map `monsterId → Statblock`: `name`, `threat` (number — the FR-16 budget weight), `level?`,
