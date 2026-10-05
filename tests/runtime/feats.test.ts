@@ -14,6 +14,7 @@ import {
   type Character,
 } from '../../src/runtime';
 import { emberMarchesPack } from './fixtures/packs';
+import { cloneRuntimePack } from './fixtures/pack';
 import type { Pack } from '../../src/schema/pack';
 
 /** The fixture pack plus a passive feat and warden combat actions (pack data only). */
@@ -201,5 +202,42 @@ describe('feat slots (v1.8, CAP-F2)', () => {
     const card = slotRefusal(() => character.learnFeat('deep-root')).errors[0]!;
     expect(card.hint).toBe('feat slots by class: warden 1 → 1, hexer 1 → 0');
     expect(card.message).toContain('grant 1');
+  });
+});
+
+describe('granted is not learned (v1.10, DD-C2, CA-C3)', () => {
+  /** RUNTIME_PACK: warden L1 is granted the passive `feature-warden-oath`; featSlots added (pack data only). */
+  function grantingRuntime(): Runtime {
+    const pack = cloneRuntimePack();
+    expect(pack.progression['warden']!.features).toEqual([{ level: 1, ref: 'feature-warden-oath' }]);
+    pack.progression['warden']!.featSlots = [1, 1, 2, 2];
+    return new Runtime(pack);
+  }
+
+  it('learning a granted feat is refused feat-known, naming the class feature; nothing changes', () => {
+    const runtime = grantingRuntime();
+    const warden = runtime.createCharacter({ name: 'Brynn', race: 'ashkin', classes: ['warden'] });
+    const before = runtime.events.sinceRound(0).length;
+    try {
+      learnFeat(runtime, warden.state, 'feature-warden-oath');
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(RuntimeRuleError);
+      const cards = (error as RuntimeRuleError).errors;
+      expect(cards.map((card) => [card.rule, card.artifactId, card.jsonPath])).toEqual([
+        ['feat-known', 'feature-warden-oath', 'feats'],
+      ]);
+      expect(cards[0]!.message).toContain('by a class feature');
+    }
+    expect('feats' in warden.state).toBe(false);
+    expect(runtime.events.sinceRound(0)).toHaveLength(before);
+  });
+
+  it('the granted feat uses no slot: a warden L1 (1 slot) still learns one feat', () => {
+    const runtime = grantingRuntime();
+    const warden = runtime.createCharacter({ name: 'Brynn', race: 'ashkin', classes: ['warden'] });
+    warden.learnFeat('ironhide');
+    expect(warden.state.feats).toEqual(['ironhide']);
+    expect(refusal(() => warden.learnFeat('vengeful-strike')).rule).toBe('feat-slots-exceeded');
   });
 });

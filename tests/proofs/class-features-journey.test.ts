@@ -13,15 +13,24 @@ import { describe, expect, it } from 'vitest';
 import { generateCampaign, loadTheme } from '../../src/compiler';
 import {
   Runtime,
+  RuntimeRuleError,
   bestiaryIds,
+  deserializeCombat,
   knownSpells,
+  learnFeat,
+  levelSet,
   profileFromCharacter,
+  restoreCharacter,
+  serializeCharacter,
+  serializeCombat,
   spawnMonster,
   startCombat,
   type Character,
   type Combat,
+  type CombatSnapshot,
   type RuntimeEvent,
 } from '../../src/runtime';
+import { classFeatures } from '../../src/runtime/features';
 import { Rng } from '../../src/core/rng';
 
 const SEED = 42;
@@ -40,6 +49,16 @@ function recorded(rt: Runtime): RuntimeEvent[] {
 
 function ofType(events: readonly RuntimeEvent[], type: string): RuntimeEvent[] {
   return events.filter((event) => event.type === type);
+}
+
+function refusedRule(run: () => unknown): string {
+  try {
+    run();
+  } catch (error) {
+    expect(error).toBeInstanceOf(RuntimeRuleError);
+    return (error as RuntimeRuleError).errors.map((card) => card.rule).join(',');
+  }
+  throw new Error('expected a RuntimeRuleError');
 }
 
 function cryptWarden(rt: Runtime, level: number): Character {
@@ -192,5 +211,69 @@ describe('class features journey (CAP-C3…C6)', () => {
       expect.objectContaining({ cost: 'points', pool: 'stamina' }),
     ]);
     expect(high.fight.state.combatants['medic']!.pools['stamina']).toBe(stamina - 2);
+  });
+  it('leg 4 (CAP-C3, CA-C3) — a granted feat is not learned: refused feat-known, no slot, held once, dropped by levelSet', () => {
+    const rt = runtimeFor('dark-fantasy');
+    const cw = cryptWarden(rt, 3);
+    expect(refusedRule(() => learnFeat(rt, cw.state, 'crypt-vigil'))).toBe('feat-known');
+    expect(cw.state.feats).toBeUndefined();
+
+    expect(rt.pack.progression['crypt-warden']!.featSlots![2]).toBe(2);
+    learnFeat(rt, cw.state, 'ironhide');
+    learnFeat(rt, cw.state, 'second-gust');
+    expect(cw.state.feats).toEqual(['ironhide', 'second-gust']);
+    expect(refusedRule(() => learnFeat(rt, cw.state, 'woodwise'))).toBe('feat-slots-exceeded');
+    expect(profileFromCharacter(rt, cw, 'cw').profile.feats).toEqual(['second-gust', 'crypt-vigil']);
+
+    const early = cryptWarden(rt, 2);
+    learnFeat(rt, early.state, 'crypt-vigil');
+    levelSet(rt, early.state, [{ id: 'crypt-warden', level: 3 }]);
+    expect(early.state.feats).toEqual(['crypt-vigil']);
+    expect(profileFromCharacter(rt, early, 'cw').profile.feats).toEqual(['crypt-vigil']);
+
+    const events = recorded(rt);
+    const lowered = cryptWarden(rt, 3);
+    const seen = events.length;
+    levelSet(rt, lowered.state, [{ id: 'crypt-warden', level: 1 }]);
+    expect(classFeatures(rt, lowered.state).filter((view) => view.active)).toEqual([]);
+    expect(events.slice(seen).map((event) => event.type)).toEqual(['level:reached']);
+    expect('feats' in profileFromCharacter(rt, lowered, 'cw').profile).toBe(false);
+  });
+
+  it('leg 5 (CAP-C3, CA-C3) — snapshots: the grant is not serialized, re-derived on restore, and an open offer survives', () => {
+    const rt = runtimeFor('dark-fantasy');
+    const cw = cryptWarden(rt, 3);
+    const snap = JSON.parse(JSON.stringify(serializeCharacter(rt, cw.state))) as ReturnType<
+      typeof serializeCharacter
+    >;
+    expect('feats' in snap.state).toBe(false);
+    const rtB = runtimeFor('dark-fantasy');
+    const restored = restoreCharacter(rtB, snap);
+    expect(restored.state.feats).toBeUndefined();
+    expect(profileFromCharacter(rtB, restored, 'cw').profile.feats).toEqual(['crypt-vigil']);
+
+    const fight = gazed(rt, cw);
+    expect(fight.pendingTriggers.map((offer) => offer.triggerId)).toEqual(['cw.crypt-vigil']);
+    const frozen = JSON.parse(
+      JSON.stringify(serializeCombat(fight, { pairsWith: 'party-1' })),
+    ) as CombatSnapshot;
+    const rtC = runtimeFor('dark-fantasy');
+    const eventsC = recorded(rtC);
+    const pair = profileFromCharacter(rtC, cryptWarden(rtC, 3), 'cw');
+    const resumed = deserializeCombat(rtC, frozen, {
+      allies: [{ id: 'cw', profile: { ...pair.profile, initiativeBonus: -100 }, balances: pair.balances }],
+      enemies: [
+        { id: 'wight', profile: { ...spawnMonster(rtC, 'barrow-wight', 'wight'), initiativeBonus: 100 } },
+      ],
+      positions: { cw: { x: 0, y: 0 }, wight: { x: 1, y: 0 } },
+    });
+    resumed.respond('cw.crypt-vigil', 'take');
+    expect(
+      ofType(eventsC, 'condition:applied').map((event) => [
+        event.target,
+        event.payload['conditionId'],
+        event.why.rule,
+      ]),
+    ).toEqual([['cw', 'braced', 'content.feats.crypt-vigil']]);
   });
 });

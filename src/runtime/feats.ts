@@ -1,16 +1,21 @@
 /**
- * M03 — feats a character holds (FR-5, DD-S11). A leaf: it imports only
- * `./errors` plus types. v1.8 caps learning by feat slots when the pack declares
+ * M03 — feats a character holds (FR-5, DD-S11). It value-imports only
+ * `./errors` and the class-features leaf `./features` (type imports only),
+ * plus types. v1.8 caps learning by feat slots when the pack declares
  * them (`progression.<id>.featSlots`, summed across classes, DD-F1…F3); a pack
  * declaring none has no cap, and the host decides when a character learns.
  * `CharacterState.feats` stays absent until the first learn (the `equipped`
  * presence rule), so characters that never learned round-trip byte-exact.
+ * v1.10 (DD-C2): a feat a class feature grants is held but not learned — it is
+ * derived, never stored, uses no slot (the tally counts learned feats only),
+ * and `learnFeat` refuses it `feat-known`.
  */
 import type { ErrorCard } from '../schema/error-card';
 import type { Runtime } from './runtime';
 import type { CharacterState, ClassEntry } from './character';
 import type { RuntimeEvent } from './events';
 import { RuntimeRuleError, ruleCard } from './errors';
+import { grantedFeats } from './features';
 
 /** DD-F1…F3 — a character's feat slots (summed across classes), or undefined when the pack declares none (no cap). */
 export interface FeatSlotTally {
@@ -42,7 +47,7 @@ export function featSlotsExceeded(artifactId: string, held: number, tally: FeatS
   );
 }
 
-/** Learn a pack-declared feat: `unknown-feat` / `feat-known` / `feat-slots-exceeded` refuse with nothing changed; else emits `feat:learned`. */
+/** Learn a pack-declared feat: `unknown-feat` / `feat-known` (held or granted) / `feat-slots-exceeded` refuse with nothing changed; else emits `feat:learned`. */
 export function learnFeat(runtime: Runtime, character: CharacterState, featId: string): RuntimeEvent {
   if (runtime.pack.content.feats?.[featId] === undefined) {
     throw new RuntimeRuleError([
@@ -52,6 +57,16 @@ export function learnFeat(runtime: Runtime, character: CharacterState, featId: s
   if (character.feats?.includes(featId) === true) {
     throw new RuntimeRuleError([
       ruleCard('feat-known', featId, 'feats', `"${character.id}" already holds feat "${featId}".`),
+    ]);
+  }
+  if (grantedFeats(runtime, character.classes).includes(featId)) {
+    throw new RuntimeRuleError([
+      ruleCard(
+        'feat-known',
+        featId,
+        'feats',
+        `"${character.id}" is granted feat "${featId}" by a class feature (FR-6).`,
+      ),
     ]);
   }
   const held = character.feats?.length ?? 0;
