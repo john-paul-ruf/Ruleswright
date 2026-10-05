@@ -33,7 +33,7 @@ The human answered: "**1 a,b 2 no 3 move it, fix packs, 4 fix the broken packs, 
 | # | Session | Modules | Owns | Status | Checkpoint | Completed | Notes |
 |---|---|---|---|---|---|---|---|
 | S01 | Author re-entry (DB): contract v1.10, class features | — (DB) | `program/Ruleswright/specs/database.md`, `src/schema/contracts/pack.schema.json` | pending | — | — | |
-| S03 | Schema mirror, validator, bundled themes, fixtures, characterization re-key | M01, M04, tests | `src/schema/artifacts.ts`, `src/schema/error-card.ts`, `src/schema/validate/index.ts`, `src/schema/validate/sections/content.ts`, `src/schema/validate/sections/progression.ts`, `src/schema/validate/sections/cross.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `tests/runtime/fixtures/pack.ts`, `tests/schema/fixtures.ts`, `tests/schema/validate.test.ts`, `tests/compiler/coverage-floor.test.ts`, `tests/proofs/combat-characterization.test.ts`; scratch-only, never committed: `tests/proofs/characterization-dump.scratch.test.ts` | pending | — | — | |
+| S03 | Schema mirror, validator, bundled themes, fixtures, characterization re-key | M01, M04, tests | `src/schema/artifacts.ts`, `src/schema/error-card.ts`, `src/schema/validate/index.ts`, `src/schema/validate/sections/content.ts`, `src/schema/validate/sections/progression.ts`, `src/schema/validate/sections/cross.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `tests/runtime/fixtures/pack.ts`, `tests/schema/fixtures.ts`, `tests/schema/validate.test.ts`, `tests/compiler/coverage-floor.test.ts`, `tests/proofs/combat-characterization.test.ts`, `tests/proofs/feat-slots-journey.test.ts` (lease rev 2, F-C1); scratch-only, never committed: `tests/proofs/characterization-dump.scratch.test.ts` | pending | — | — | |
 | S04 | Runtime: granted feats, unlocked actions and spells, host query, journey, README | M03, tests, docs | `src/runtime/features.ts`, `src/runtime/feats.ts`, `src/runtime/pools.ts`, `src/runtime/character-profile.ts`, `src/runtime/index.ts`, `tests/runtime/features.test.ts`, `tests/runtime/feats.test.ts`, `tests/runtime/pools.test.ts`, `tests/runtime/combat/character-profile.test.ts`, `tests/runtime/combat/module-surface.test.ts`, `tests/proofs/class-features-journey.test.ts`, `tests/proofs/docs-run.test.ts`, `README.md` | pending | — | — | |
 | S05 | Author re-entry (Designer): `progression.html` F-R6 + class-features panel | — (Designer) | `program/Ruleswright/mocks/progression.html` | pending | — | — | |
 | S02 | Author re-entry (Architect): F-D8 file-location drift + `features.ts` | — (Architect) | `program/Ruleswright/specs/architecture.md` | pending | — | — | |
@@ -197,8 +197,9 @@ Observed by Planner at `f36d4ae`, 2026-10-04 ~17:00. `src`/`tests` are identical
 | `coverage-floor.test.ts:225-241` | pack-wide unique ids | holds: new ids verified unused |
 | `coverage-floor.test.ts:276-278` | first reactive feat matches `/condition:applied/` | holds: new feats appended after `second-gust` |
 | `coverage-floor.test.ts:296` | every reactive feat ends `[target=self]` | holds (DD-C10 shape) |
-| `tests/proofs/docs-run.test.ts:49` | quickstart has 4 ```ts blocks | holds: S04's README section is outside the quickstart and adds no ```ts block to it |
+| `tests/proofs/docs-run.test.ts:49` | quickstart has 4 ```ts blocks | holds: the count is over the **whole** README (`docs-run.test.ts:48-49`, ARCH-PRE F-C9), so S04's README section adds no ```ts block anywhere (use a ```json fence) |
 | `docs-run.test.ts:179-180` | dark-fantasy 3 classes, 33 spells | holds: no class or spell added |
+| `tests/proofs/feat-slots-journey.test.ts:131-140` leg 9 | dark-fantasy `Object.keys(content.feats)` `toHaveLength(4)` + learn-all loop (ARCH-PRE F-C1; missed by the field grep) | S03 ck2 (lease rev 2): filter to feats no `progression.*.features[].ref` names, keep `toHaveLength(4)` and the loop, rename to "learnable feats"; forward-compatible with S04 ck3 |
 | `tests/runtime/fixtures/pack.ts:52`, `tests/schema/fixtures.ts:56` | old location | S03 ck1 (move), ck2 (feat) |
 | `src/schema/error-card.ts:12` | example path `content.classes.warden.features[0].level` | S03 ck1 (comment) |
 | `src/schema/validate/sections/content.ts:81-134` | old-location validation | S03 ck1 |
@@ -230,7 +231,7 @@ Observed by Planner at `f36d4ae`, 2026-10-04 ~17:00. `src`/`tests` are identical
 **First narrow journey (S04 ck1).** Public API only, the real validator, compiler and combat engine, nothing mocked:
 - `new Runtime(generateCampaign({theme: loadTheme('dark-fantasy'), seed: 42}))` → `createCharacter` crypt-warden L3 → `profileFromCharacter` (`profile.feats` contains granted `crypt-vigil`; `state.feats` stays absent).
 - `startCombat` with the crypt-warden at initiative −100 and `spawnMonster(rt, 'barrow-wight', 'wight')` at +100, positions `{cw: {x: 0, y: 0}, wight: {x: 1, y: 0}}`.
-- `step()` → the wight declares `grave-gaze` on the crypt-warden. `save(reason, 12, applyCondition(hexbound, 2), applyCondition(hexbound, 1))` applies `hexbound` on either branch.
+- `step()` → `turn:began` (active = wight); the host then calls `fight.declare('grave-gaze', {targetId: 'cw'})` on the wight's turn (**corrected by ARCH-PRE F-C3**: `step()` alone does not declare; matches the characterization `featLeg`). `save(reason, 12, applyCondition(hexbound, 2), applyCondition(hexbound, 1))` applies `hexbound` on either branch.
 - The offer `cw.crypt-vigil` opens → `respond('cw.crypt-vigil', 'take')` → `condition:applied braced`, `why.rule` `content.feats.crypt-vigil`.
 
 **Planner probe (`f36d4ae` `dist/`, 2026-10-04):** the same script with today's `second-gust` *learned* by a crypt-warden L3 opens and takes `cw.second-gust`. A **self** condition (`declare('brace')`) raises **no** feat offer. Do not build the journey on a self action. CAP-C4/C5 legs and the README work build on this journey.
@@ -256,11 +257,34 @@ Observed by Planner at `f36d4ae`, 2026-10-04 ~17:00. `src`/`tests` are identical
 - `tests/compiler/coverage-floor.test.ts:195-298`, `tests/proofs/combat-characterization.test.ts:56-345`, `tests/proofs/docs-run.test.ts:49,179-180`, `tests/runtime/combat/module-surface.test.ts:20-60`, fixtures;
 - `specs/database.md:3,473-544,719-757`, `specs/requirements.md:66-72`, `mocks/progression.html:60-90`, `specs/architecture.md:60-90,205-210`.
 
-**Ref probe (`f36d4ae`):** 13 bundled refs; 11 resolve to nothing; dark-fantasy warden L3 and crypt-warden L2 `wardens-glyph` resolve to a warden-list spell both classes already know.
+**Ref probe (`f36d4ae`):** ~~13 bundled refs; 11 resolve to nothing~~ **corrected by ARCH-PRE F-C2 (2026-10-05): 12 bundled refs; 10 resolve to nothing** (`dark-fantasy.json:130,140,146`, `zombie-urban.json:129,138,152`, `wyldwood.json:237,252,271`); dark-fantasy warden L3 and crypt-warden L2 `wardens-glyph` resolve to a warden-list spell both classes already know. The DD-C10 table (ten "was unresolved" rows) is unchanged.
+
+## Planning Completeness Review (ARCH-PRE, 2026-10-05)
+
+Archivist h-mTx3. Reviewed plan revision `f1fa3f9`; source revision `f1fa3f9` (`src`/`tests` = `db38f31`).
+
+| # | Dimension | Verdict | Evidence (summary) |
+|---|---|---|---|
+| D1 | requirement coverage | pass | FR-6 (`requirements.md:68`) → CAP-C1..C7, one integration owner each; human answers 1–5 mapped |
+| D2 | fact origins | pass | `registerId` pack-wide over actions/feats/spells; ceiling = shortest `saves`; granted feats ride `profile.feats` (`triggers.ts:73-83`, `snapshots/combat.ts:515-517`); journey probed |
+| D3 | ownership | fail | `tests/proofs/feat-slots-journey.test.ts:131-140` correction unowned (F-C1) |
+| D4 | lease coverage | fail | S03 ck2 forced outside lease by the same pin (F-C1) |
+| D5 | declared vs real dependencies | pass | S03→S01, S04→S03, S05→S03, S02→S04; compiler passes content through (`structuredClone`) |
+| D6 | early integration | pass | S04 ck1 leg 1 crosses validator → Runtime → combat via public API |
+| D7 | runtime wiring | pass | `checkClassFeatures` in `validate/index.ts`; `features.ts` consumed by feats/pools/character-profile; barrel export ck4 |
+
+Fails reach W2 (S03) only. Dispositions (Orchestrator, 2026-10-05):
+- **F-C1** (blocking S03): controlled lease revision S03 rev 1 → rev 2, `+ tests/proofs/feat-slots-journey.test.ts`; ck2 edit prescribed in the pin audit row; closing assertion: the file is green after S03 ck2 and after S04 ck3. **Cleared by lease revision** (D3/D4 → routed).
+- **F-C2** (blocking S03 ck0): counts corrected above (12/10); carried as S01 and S03 envelope amendments (S01 must not write "11"/"13" into `database.md`).
+- **F-C3**: journey setup corrected above; S04 envelope amendment.
+- **F-C4** (`pools.test.ts` vancian case uses `grave-light`), **F-C5** (`pools.ts:14-17` import-discipline comment): S04 envelope amendments inside its lease.
+- **F-C6** (`database.md:77,437-438,441-442` cross-refs), **F-C7** (Prettier check of `pack.schema.json` at S01 ck2), **F-C12** (DD-C4 spell-redundancy wording): S01 envelope amendments.
+- **F-C8** (`architecture.md` themes line missing wyldwood; l.73 `knownSpells` location): S02 envelope amendment.
+- **F-C9**: pin row wording corrected above. **F-C10**: S05 receive attributes whole-repo reds to S04 (standing rec 82b4e0ab). **F-C11**: Orchestrator replaces `arch/v1-core.md:1411-1413` when retiring the "unbuilt" lines.
 
 ## Current Blockers
 
-none. Every decision this feature needs is on record (human answers 2026-10-04). Before dispatch: the planning-completeness review (Archivist) at the first quiet boundary, before S01.
+none open. ARCH-PRE F-C1/F-C2 (blocking S03) routed: lease rev 2 and envelope amendments (see *Planning Completeness Review*).
 
 ## Handoff Notes
 
