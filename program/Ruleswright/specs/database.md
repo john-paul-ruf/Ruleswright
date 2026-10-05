@@ -1,6 +1,6 @@
 # Database Design — Ruleswright
 
-> **Status:** v1.9, revised — DB, Author re-entry (builder-authorized 2026-10-04, builder-rulings: out-of-combat restricts follow the in-combat rule; `awardXp` never lowers a class level; the feat-slotted predicate stated plainly; description only — no field, no rule id; two documented compatibility caveats (e) and (f); v1.8, revised — DB, schema-change Author re-entry (builder-authorized 2026-10-04, feat-progression: per-class feat slots `progression.<id>.featSlots`; additive-optional, no rule id added; one documented compatibility caveat (d) — a feat-slotted pack refuses learning past the cap and refuses to restore an over-cap character; v1.7: builder-authorized 2026-10-01, action-targeting: the `target(self, …)` shape word + self actions and the `ability(name)` formula function, registry 14→15; no field added, no rule id added, one documented compatibility caveat (c) — `target(self, …)` now resolves to the actor; v1.6: builder-authorized 2026-09-30, spells-in-combat: spells declarable in combat with a pack-declared range and empty-cell area centers, spend recorded in combat snapshots, characters hold feats, reactive feats offered, trigger grammar enforced, combat envelope offers/phase/offeredCount; additive-optional with two documented compatibility caveats — the `trigger.on` grammar and the legacy-read-only per-combatant `pendingTrigger` — no rule id added; v1.5: builder-authorized 2026-09-29, grid-movement: hex model, pack-declared terrain vocabulary, `move(formula)` + reserved `speed`, snapshot `pendingMove`; additive-optional with one documented `speed` compatibility caveat, no rule id added; v1.4: builder-authorized 2025-09-27, equipment-consumables: slot-based equipment + consumables + the `heal` effect, snapshot `equipped`/`itemsUsed`/`maxHp`; v1.3: optional spatial section (FR-11) + E-SPAT-01 registration; v1.2: UI B-1 class combat actions; v1.1: S-CONTRACT-GAP).
+> **Status:** v1.10, revised — DB, schema-change Author re-entry (builder-authorized 2026-10-04, class-features: class features at `progression.<id>.features` grant a feat or unlock an action or spell at a class level; `content.classes.<id>.features` removed; refs resolve at load; no rule id; pre-release in-place revision, compatibility caveat (g); v1.9, revised — DB, Author re-entry (builder-authorized 2026-10-04, builder-rulings: out-of-combat restricts follow the in-combat rule; `awardXp` never lowers a class level; the feat-slotted predicate stated plainly; description only — no field, no rule id; two documented compatibility caveats (e) and (f); v1.8, revised — DB, schema-change Author re-entry (builder-authorized 2026-10-04, feat-progression: per-class feat slots `progression.<id>.featSlots`; additive-optional, no rule id added; one documented compatibility caveat (d) — a feat-slotted pack refuses learning past the cap and refuses to restore an over-cap character; v1.7: builder-authorized 2026-10-01, action-targeting: the `target(self, …)` shape word + self actions and the `ability(name)` formula function, registry 14→15; no field added, no rule id added, one documented compatibility caveat (c) — `target(self, …)` now resolves to the actor; v1.6: builder-authorized 2026-09-30, spells-in-combat: spells declarable in combat with a pack-declared range and empty-cell area centers, spend recorded in combat snapshots, characters hold feats, reactive feats offered, trigger grammar enforced, combat envelope offers/phase/offeredCount; additive-optional with two documented compatibility caveats — the `trigger.on` grammar and the legacy-read-only per-combatant `pendingTrigger` — no rule id added; v1.5: builder-authorized 2026-09-29, grid-movement: hex model, pack-declared terrain vocabulary, `move(formula)` + reserved `speed`, snapshot `pendingMove`; additive-optional with one documented `speed` compatibility caveat, no rule id added; v1.4: builder-authorized 2025-09-27, equipment-consumables: slot-based equipment + consumables + the `heal` effect, snapshot `equipped`/`itemsUsed`/`maxHp`; v1.3: optional spatial section (FR-11) + E-SPAT-01 registration; v1.2: UI B-1 class combat actions; v1.1: S-CONTRACT-GAP).
 > v1.0 (phase `database`, final Author phase) approved; v1.1 adds the turn-economy
 > declaration (`economy.turnSlots`) and action/spell `tags` with `restricts`
 > reference semantics. Read with `specs/architecture.md` (approved),
@@ -74,7 +74,7 @@ These rules are semantic validator duties (FR-2); every one maps to a registered
 | **Global uniqueness** | An id must be unique **across the entire pack**, not merely within its section — overrides address artifacts by id, so a duplicate makes addressing ambiguous. → `E-DUP-01` |
 | **Map-as-namespace** | Sections are JSON objects keyed by id (`content.spells["grave-light"]`). The key IS the id; a def object repeating a mismatched `id` field is an error. → `E-SCHEMA-02` |
 | **Reference grammar** | Dotted paths from a section root: `bestiary.barrow-wight.claw`, `tables.district-scavenge`. Bare ids resolve within the consuming section's context. |
-| **Referential integrity** | Every reference must resolve at validation time: action→condition, spell→class list, race cap→class, statblock→action/progression, table→table (nested). → `E-REF-01`; unknown class specifically → `E-REF-02`; orphaned/missing progression for a declared class → `E-REF-03` |
+| **Referential integrity** | Every reference must resolve at validation time: action→condition, spell→class list, race cap→class, statblock→action/progression, table→table (nested), class feature `ref`→feat / action / spell (v1.10; see §progression *Class features (v1.10)*). → `E-REF-01`; unknown class specifically → `E-REF-02`; orphaned/missing progression for a declared class → `E-REF-03` |
 | **Tag integrity (v1.1)** | A condition `restricts` pattern of the form `actions.tagged:<tag>` must reference a tag declared on at least one action or spell in the pack. → `E-REF-01`. This makes a condition's teeth statically checkable — a condition that can never bite is a broken reference, not a silent no-op. |
 | **No ambient values** | **No timestamps, no ambient entropy, no environment reads anywhere in a generated pack.** Provenance is exactly `{theme, seed, knobs}` (FR-18). This is what makes byte-identical regeneration (FR-17) structurally possible rather than aspirational. |
 | **Integers** | HP, slots, weights, durations, levels, and save entries are integers. Dice results are integer arithmetic throughout (sfc32, FR-1). |
@@ -355,7 +355,7 @@ Seven maps, keyed by id: `classes`, `races`, `skills`, `feats`, `spells`, `condi
 Highlights (full field lists in the JSON Schema):
 
 - **conditions**: `duration` (uint ≥ 1), `stacking` (`refresh | stack | ignore` — pack-declared policy, FR-7), `restricts?` (array of action tag patterns — the "teeth", e.g. blocks casting actions). **v1.1:** each pattern `actions.tagged:<tag>` must reference a tag declared on at least one action or spell → `E-REF-01` (see *Tag integrity*). (v1.6: combat declares also match spells against `actions.tagged:`; v1.9: so do `isRestricted`/`restrictedIds` out of combat; see spells)
-- **classes** (v1.2): optional `actions` — unique action ids a character of this class may declare in combat, the character-side mirror of `Statblock.actions` (FR-16: monsters and characters ride the same action machinery). Each id must be a key of the pack's `actions` map → `E-REF-01`. Absent = the class grants no combat actions. No level gating in v1 (all listed actions are available from class level 1); level-gated grants are a future additive field.
+- **classes** (v1.2): optional `actions` — unique action ids a character of this class may declare in combat, the character-side mirror of `Statblock.actions` (FR-16: monsters and characters ride the same action machinery). Each id must be a key of the pack's `actions` map → `E-REF-01`. Absent = the class grants no combat actions. No level gating in v1 (all listed actions are available from class level 1); level-gated grants are a future additive field. **v1.10:** class features are not a class field; they live in `progression.<id>.features` (see §progression *Class features*). A level-gated action grant is a class feature whose `ref` is an action.
 - **spells**: `magic` ({level: 1–9, lists: class ids}) + `cost` (vancian level or pool draw) + `effect` + optional `targeting` = `{shape, radius?, range?}` ({shape: `single | burst`, radius: uint, required iff burst; range: uint, optional, v1.6}) + optional `tags` (same matching semantics as action tags — spells participate in `restricts` checks through the same matcher as actions, in combat (v1.6) and out of combat (v1.9), FR-9).
   **v1.6 — spells in combat** (builder-authorized 2026-09-30; STATE DD-S2, DD-S4, DD-S5,
   DD-S8, DD-S10, DD-S17, DD-S18, DD-S19):
@@ -435,12 +435,13 @@ Highlights (full field lists in the JSON Schema):
   **v1.6 — feats held and offered** (STATE DD-S11, DD-S12, DD-S13):
   - **Characters hold feats (DD-S11).** `learnFeat(runtime, state, featId)` (facade
     `character.learnFeat(id)`) rejects an unknown feat (`unknown-feat`) and a feat already
-    held (`feat-known`), and emits `feat:learned {featId}`. `CharacterState.feats` is absent
+    held (`feat-known`; **v1.10:** also refused for a feat the character is currently granted by a class feature, see §progression *Class features (v1.10)*), and emits `feat:learned {featId}`. `CharacterState.feats` is absent
     until the first learn (the `equipped` presence rule). **v1.8:** learning is capped by the
     character's feat slots when the pack declares them (see §progression *Feat slots*); a
     pack that declares none keeps the uncapped v1.6 behaviour.
   - **Reactive feats in combat (DD-S12).** A combatant's `feats` hold every reactive feat
-    the character has learned. A matching event offers the feat exactly as a reactive action
+    the character has learned **or (v1.10) is granted by a class feature** (see §progression
+    *Class features (v1.10)*). A matching event offers the feat exactly as a reactive action
     is offered (per call, once per (reactor, event), never to a downed combatant);
     `trigger:fired` carries `source: 'feat'` and `why.rule` `content.feats.<id>.trigger`.
     **Take:** the feat costs nothing and passes no restriction or reach gate; its parse-once
@@ -481,7 +482,7 @@ Map `classId → ClassProgression`, **required for every id in `content.classes`
 | `saves` | map | saveName → per-level int array | Array length = max level; names must exist in `stats.saves` |
 | `slots` | map? | spellLevel → per-level int array | Vancian slot tables (FR-8); levels need not be contiguous |
 | `featSlots` | int array? | each ≥ 0; non-decreasing; length ≥ the class's level ceiling (its shortest `saves` array) | **v1.8.** Feats the class grants **in total** at each class level (index 0 = level 1) — a running total like `saves`, not an increment. See *Feat slots* below |
-| `features` | array? | `{level, ref}` | Class features granted at level, referenced by id |
+| `features` | array? | `{level, ref}`: `level` integer 1..the class's level ceiling; `ref` a feat, action or spell id; unique per class | **v1.10.** Granted feat or unlocked action/spell from that class level on. See *Class features* below |
 
 **Feat slots (v1.8, feat-progression DD-F1…F6).** FR-6 lists feat slots among the
 progression tables; v1.8 adds them as one optional field per class (builder-authorized
@@ -541,6 +542,69 @@ progression tables; v1.8 adds them as one optional field per class (builder-auth
 - **Compatibility caveat (f) (v1.9).** `awardXp` no longer lowers a class level that was set
   above the level its XP reaches. Such a character keeps its level, and its XP accumulates
   until the level is reached.
+
+**Class features (v1.10, class-features DD-C1…C9).** FR-6 lists class features among the
+progression tables; v1.10 defines what one does and moves the field here from
+`content.classes` (builder-authorized 2026-10-04: "1 a,b 2 no 3 move it, fix packs, 4 fix
+the broken packs, 5 you have my auth for whatever you need").
+- **What a feature is (DD-C1).** `progression.<classId>.features[i] = {level, ref}`. Ids are
+  unique pack-wide (`E-DUP-01`), so `ref` names exactly one artifact. Its map decides what the
+  feature does, while the character's level **in that class** is ≥ `level`:
+  - `content.feats` → the feat is **granted**;
+  - `actions` → the action is **unlocked** (declarable in combat);
+  - `content.spells` → the spell is **unlocked** (known).
+- **Load rules (DD-C4).**
+  - The ref resolves in none of the three maps → `E-REF-01` at
+    `progression.<c>.features[i].ref`, with a did-you-mean hint over feats ∪ actions ∪ spells.
+  - An action ref also listed in `content.classes.<c>.actions` → `E-REF-01` (that list grants
+    it from level 1, so the level gate would be ignored).
+  - A spell ref whose `magic.lists` intersect the class's `spellLists` → `E-REF-01` (already
+    known; the unlock would be dead).
+  - `level` not an integer in 1..the class's level ceiling (its shortest `saves` array, as
+    for `featSlots`) → `E-SCHEMA-01`.
+  - `ref` not a kebab id string → `E-SCHEMA-01`.
+  - A `ref` repeated within one class → `E-SCHEMA-01`.
+  - `content.classes.<id>.features` → `E-SCHEMA-02` (unknown field; the closed-contract card
+    every `additionalProperties: false` object already uses; DD-C3).
+
+  No new rule id; all cards at once (FR-2).
+- **Granted feats (DD-C2, human answer "2 no").**
+  - Granted feats are derived from the pack and the character's classes, like known spells.
+    They are never written to `CharacterState.feats` and never serialized; the character
+    snapshot is unchanged.
+  - They occupy **no feat slot**: the cap counts held (learned) feats only.
+  - Reactive granted feats are offered in combat exactly like learned ones (DD-S12 offer,
+    take, decline, no chain). A combatant's `feats` are the held reactive feats in held
+    order, then the granted reactive feats not already held (DD-C9).
+  - `learnFeat` of a feat the character is currently granted refuses `feat-known`; the
+    message names the granting class feature.
+  - A feat learned before its class grants it stays held and keeps its slot (no refund in v1).
+  - Lowering a class level (`levelSet`) removes the grant, and no event is emitted.
+- **Unlocked actions and spells (DD-C8, DD-C9).**
+  - An unlocked action joins the combat profile's actions after the class `actions` union
+    (those not already present). An unlocked spell joins the known spells, in pack order
+    (list match **or** active unlock).
+  - Both then ride the unchanged pipeline: restricts, reach/range gates, costs,
+    `armorCasting`, slot or pool spend. An unlocked vancian spell still needs a bound slot to
+    cast.
+  - `no-combat-actions` counts unlocked actions.
+  - A character with no active feature gets a byte-identical profile and known-spell list.
+- **Multi-class (DD-C5).** Each class contributes its own features at its own class level.
+  Unions keep first-occurrence order (class order, then feature order).
+- **Characters only (DD-C6).** Statblocks keep their explicit `actions` list, even when a
+  statblock uses a class's `attackTable`.
+- **Events and query (DD-C7).** There is no feature event; `level:reached` is unchanged. The
+  host reads `classFeatures(runtime, character)` →
+  `{classId, level, ref, kind: 'feat' | 'action' | 'spell', active}[]`, in DD-C5 order,
+  including features not yet reached (`active: false`).
+- **Compatibility caveat (g) (v1.10, DD-C3).** This is a pre-release in-place revision
+  (*Versioning discipline*: "Until first release, v1 remains revisable by DB"); `schemaVersion`
+  stays 1. Effects:
+  - a pack declaring `content.classes.<id>.features` now fails `E-SCHEMA-02`;
+  - a pack whose feature refs do not resolve, or are redundant, now fails `E-REF-01`;
+  - the bundled themes are migrated in the same feature (DD-C10), so their generated packs'
+    `contentHash` changes, and snapshots taken against pre-v1.10 bundled packs fail the
+    identity check (FR-14), as under caveat (d).
 
 ### `bestiary`
 Map `monsterId → Statblock`: `name`, `threat` (number — the FR-16 budget weight), `level?`,
@@ -718,10 +782,11 @@ all built or compiled once at load (architecture: parse once, play many):
 
 ## Seed Data
 
-The only initial data in the repository are the **two sample theme templates**
-(`src/compiler/themes/dark-fantasy.json`, `zombie-urban.json`) — JSON, not code (FR-21).
+The only initial data in the repository are the **three sample theme templates**
+(`src/compiler/themes/dark-fantasy.json`, `zombie-urban.json`, `wyldwood.json` — wyldwood since
+loot-inventory) — JSON, not code (FR-21).
 DB owns their **shape** (knob declarations, stage inputs, patch vocabulary, and the v1.1
-fields: `economy.turnSlots` grants, action/spell `tags`, `restricts` patterns); their content
+fields: `economy.turnSlots` grants, action/spell `tags`, `restricts` patterns; from v1.10, class features at `progression.<id>.features`); their content
 is authored coined material per the FR-21 coverage floor and expression policy (Q7/Q8).
 No database seeding exists — there is no database.
 
