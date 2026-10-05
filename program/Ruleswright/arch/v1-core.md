@@ -1471,3 +1471,16 @@ builder-rulings SESSION-02 marker (4c74017) was collapsed at the builder-rulings
 (original text recoverable at 12ca6ac); the combat-decomposition SESSION-01..03 markers (5a0b764,
 576a307, ac39708) were collapsed at the combat-decomposition final pass (original text recoverable
 at a2f117f). -->
+
+<!-- class-features SESSION-03 -->
+## class-features SESSION-03 — arch delta (contract v1.10 mirror, validator, bundled content)
+
+- **M01 `artifacts.ts`:** `ClassDef.features` removed. `ClassProgression.features?: ClassFeature[]` added (v1.10, FR-6): `ref` names a `content.feats` id (granted while class level >= `level`), an `actions` id or a `content.spells` id (unlocked from that level). `ClassFeature {level, ref}` kept; doc comment updated.
+- **M01 validator:**
+  - `sections/content.ts`: the class `forbidUnknown` no longer allows `features`; the old shape block is gone. A pack declaring `content.classes.<id>.features` gets the closed-contract `E-SCHEMA-02` at that path.
+  - `sections/progression.ts`: `features` allowed on a progression entry; new private `checkFeatures` (array of `{level, ref}`; `level` integer >= 1 and <= the class level ceiling; `ref` kebab; `ref` unique per class — all `E-SCHEMA-01`) and `levelCeiling(saves)` (shortest `saves` array), now shared with the v1.8 `featSlots` coverage rule.
+  - `sections/cross.ts`: new exported `checkClassFeatures(ctx, json)` — reads `progression`, `content.{feats,spells,classes}` and `actions` directly; `E-REF-01` at `progression.<c>.features[i].ref` when the ref names no feat/action/spell (did-you-mean over feats ∪ actions ∪ spells), when an action ref is already in `content.classes.<c>.actions`, or when a spell ref's `magic.lists` intersect the class's `spellLists`. Malformed entries are skipped (structural cards already exist).
+  - `validate/index.ts`: pass 3 calls `checkClassFeatures(ctx, json)` after `checkProgressionPairing(ctx)`.
+  - `error-card.ts`: jsonPath doc example is now `progression.warden.features[0].level` (comment only).
+- **M04 themes (content only, no compiler source change):** every class's `features` lives at `progression.<id>.features` (last key) and every ref resolves (DD-C10). New feats appended after existing ones — dark-fantasy `oath-of-the-warden`, `wardens-resolve`, `hexers-eye`, `crypt-vigil` (reactive); zombie-urban `scavengers-instinct`, `block-runner`, `milers-read`, `field-surgery`, `steady-pulse` (reactive); wyldwood `oath-of-the-verge`, `verges-glyph`, `hexers-eye`, `hedges-eye`, `bramble-vigil` (reactive). New main actions appended after existing ones, in no class or statblock list: dark-fantasy `barrow-rite`, zombie-urban `jury-rig`, wyldwood `thornward`. Spell unlock: zombie-urban medic L3 `rot-read`.
+- No new module, no new cross-module edge, no rule id. `src/runtime/**` untouched (S04 consumes `ClassProgression.features`).
