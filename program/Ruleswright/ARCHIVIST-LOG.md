@@ -1936,3 +1936,320 @@ C2 was accepted and landed (`0c56866`). No campaign crosses a threshold.
   Commands, Git Config, Session Defaults, Stack, Custom Rules and Author Sources are byte-unchanged.
 - **Role docs:** `PLANNER.md`, `CODER.md`, `UI-CODER.md` and `ORCHESTRATOR.md` are byte-identical to how
   this pass found them.
+
+## 2026-10-05 — final pass, cycle `class-features` (feature commits `8d5828c` → tree HEAD `c915610`)
+
+Inputs:
+- the Final Report (`c915610`);
+- STATE.md (every section, including the ARCH-PRE table and all five Handoff Notes);
+- VERIFICATION.md (`5c53524`);
+- `arch/v1-core.md`, `PROGRAM-CONFIG.MD`, and the combat-decomposition and builder-rulings entries of this log;
+- `git log`/`git diff` over `f36d4ae..5c53524`.
+
+### Reconciled
+
+- **`arch/v1-core.md`: two delta sections synthesized and collapsed.**
+  - **Markers removed:** the class-features SESSION-03 and SESSION-04 markers (`c7d517f`, `de67360`) are
+    gone. Their text is recoverable at `c915610`, and the historical-delta comment says so.
+  - **Where the content went:**
+    - **M01 section:** a class-features S01/S03 paragraph. It covers `database.md` v1.10 (l.485,
+      l.546-608, caveat (g) l.600, cross-refs l.77/358/438/443-444, Seed Data l.786, Version Registry
+      row 11 l.813). It covers the `pack.schema.json` move, `artifacts.ts:164`, `progression.ts`
+      `checkFeatures` (l.220) and `levelCeiling` (l.211, the S03 R1), and `cross.ts:92`
+      `checkClassFeatures`, called at `validate/index.ts:86`.
+    - **M03 character side:** a `features.ts` paragraph. It covers `featureKind`, `classFeatures` and the
+      three internal helpers, with line numbers. It also covers the three consumers and the
+      byte-stability rule, and records that combat and snapshots are unchanged.
+    - **M04:** the 18 DD-C10 rows, with coverage-floor raised to 94 tests.
+    - **M05:** the class-features journey (7 tests), the F-C1 change to `feat-slots-journey`, the
+      CA-C5 re-key of the characterization pin, the README `## Class features` section
+      (`README.md:408-464`), and the gates (970/54, proofs 99/13).
+    - **Elsewhere:** a class-features DD-C1..C13 paragraph in *Cross-cutting decisions*, the Surfaces
+      lines (schema v1.10; barrel `classFeatures`/`ClassFeatureView`), and the module-map M03 row
+      (31 `.ts`; `features.ts` leaf; `feats.ts` "a leaf until class-features").
+  - **Header:** twelve cycles, verified at `c915610`.
+  - **Orchestrator's mid-run retirement edits (`de67360`), checked:**
+    - former l.29 (header) reads correctly as written;
+    - former l.1392 pointed at "the class-features SESSION-03/04 markers below", which no longer exist.
+      It now points at the decisions paragraph and the M01/M03/M04 sections;
+    - former l.1411-1413 (F-FP2 / F-P5 CLOSED, with the F-C11 replacement sentence) is kept.
+  - **Closures recorded in the drift section:**
+    - **F-FP2 / F-P5 closed** (existing bullet, verified against `c0a23b1`/`64a3231`).
+    - **F-R6 closed** by S05 ck1 `e5850e2`. `progression.html:115-128` shows a level-1 Ald with
+      `awardXp(ald, 6000)` → `level:reached warden 4`, and VERIFY-01 probe P2 reproduced it.
+    - **F-D8 closed** by S02 `4eb8402`/`b8973ec`, together with ARCH-PRE F-C8: wyldwood is in the
+      `themes/` list at `architecture.md:123`, and known spells are attributed to `pools.ts` at l.86-87.
+      I checked this by grep.
+    - **The `database.md:721-722` seed-data drift closed** by S01 `8d5828c`. The paragraph is now l.786
+      and names wyldwood.
+  - **New residual blocks:**
+    - **Architect observations**, carried to the next Architect re-entry and recorded only (`specs/` not
+      edited): the unlisted runtime and `validate/` files, the `character.ts` "inventory" line (l.82),
+      and "both FR-21 packs" (l.220).
+    - **class-features residuals:** no refund on grant; the optional `new Runtime` old-location test;
+      docs prose unpinned.
+  - **Re-read checks:**
+    - 2 `<!--` and 2 `-->`;
+    - no live `class-features SESSION` heading;
+    - the leaf claims agree: l.94-96 says "stayed a leaf … no longer a leaf", and l.743 "stayed a leaf
+      there … until class-features".
+  - **One self-correction before commit:** I briefly listed `pools.ts → equipment.ts` twice in the drift
+    list and removed the duplicate.
+- **Module registry (`PROGRAM-CONFIG.MD`)**, reconciled to `c915610`:
+  - **Realized-state note:** twelve cycles.
+  - **Registry blurb:** gains the class-features delta.
+  - **M01 *Key Files*:** `ClassProgression.features?` replaces `ClassDef.features`; `cross.ts`
+    `checkClassFeatures`; `progression.ts` `checkFeatures` + shared `levelCeiling`; `content.ts`.
+  - **M03 *Key Files*:**
+    - the `features.ts` leaf;
+    - `feats.ts` no longer a leaf, with the grant refusal;
+    - `pools.ts` unlocks;
+    - `character-profile.ts` unlocks and grants.
+  - **M04:** the 18 rows (14 feats, 3 action unlocks, 1 spell unlock, one reactive grant per theme).
+  - **Custom Rule 1:** gains v1.10, caveat (g) and Version Registry row 11.
+  - **Intra-module notes, re-derived mechanically:** the whole-statement regex
+    `/^(import|export)\s[\s\S]*?from\s+'([^']+)';/gm` over `git show <rev>:<file>` for every
+    `src/**/*.ts`, at `f36d4ae` and `5c53524`, dropping `import type`/`export type` and all-`type`
+    brace clauses (`/tmp/ruleswright-class-features/edges.mjs`).
+    - The diff is exactly five files: `feats.ts` `[./errors]` → `[./errors, ./features]`; `pools.ts`
+      gains `./features`; `character-profile.ts` gains `./features`; `index.ts` gains `./features`; and
+      the new `features.ts` has `[]`.
+    - This matches the Final Report and the envelope edge for edge.
+    - No other file in `src/` changed its value-import set, so there is no cross-module edge, and M02→M01
+      stays type-only.
+  - **No new module ID or rule id** (`RULE_IDS` still 15).
+- **Contract Agreements CA-C1..CA-C5, sampled.**
+  - **CA-C1:** `pack.schema.json` `$defs.classProgression.properties.features` and `artifacts.ts:164`
+    match the STATE mapping. VERIFICATION DD-C3 cites the `E-SCHEMA-02` card.
+  - **CA-C2:** `cross.ts:92` and `features.ts:19` `featureKind` (feats → actions → spells) agree.
+  - **CA-C3:** `feats.ts:62` refusal. `featSlotTally` is untouched, and leg 5 shows no `feats` key
+    serialized.
+  - **CA-C4:** `pools.ts:316` and `character-profile.ts:85`. The byte-stability case exists.
+  - **CA-C5:** characterization unchanged since `c0a23b1` (`git diff --quiet` per the S04/VERIFY-01
+    records).
+  - **Result:** no mismatch, and no required fact missing from the inventory.
+- **Capability Readiness vs VERIFICATION.md:** STATE marks CAP-C1..C7 verified. VERIFICATION has 12/12
+  verified (CAP-C1..C7, FR-6, DD-C1, DD-C2, DD-C3, DD-C10), with 0 present-unverified, 0 failed and
+  0 blocked.
+  - No drift.
+  - Current Blockers is empty and correct.
+  - VERIFY-01's two disclosures (CAP-C7 rests on text review; DD-C3's `new Runtime` path rests on probe
+    P1) are carried as residuals. They are not counterevidence.
+- **Counterevidence:** none against any inherited verified claim.
+- **Final Report mechanical facts:** every figure reproduces.
+  - **Files:** `git diff --name-status f36d4ae..5c53524` gives 41 paths (11 A, 30 M), and
+    `--shortstat` gives +2934/−202. The groups 7+5+3+13+5+8 = 41 and the A column 0+1+0+2+0+8 = 11
+    were both checked path by path.
+  - **Checkpoints:** `git log --oneline f36d4ae..5c53524 --grep 'SESSION-0[1-5]: checkpoint' | wc -l` =
+    **12** (2+2+4+2+2).
+  - **Tests:** N₀ 938 → N 970.
+  - **Value-import line citations:** `feats.ts:18`, `pools.ts:27`, `character-profile.ts:28` and
+    `index.ts:29` are confirmed by grep.
+  - **No figure fails to reproduce.**
+  - One structural oddity: the report has two `## Verification` headings (new row 318c816b below).
+- **Deviation counts by rule (FR-19)**, from the structured `deviations` fields in STATE's Handoff
+  Notes:
+  - **R1: 1.** S03 ck1: `levelCeiling` was extracted in `progression.ts`, inside the lease, with
+    `featSlots` behaviour unchanged.
+  - **R2: 0. R3: 0. R4: 0.** S04 reported `—` and S05 reported none.
+  - **Unclassified: 2.** S01 (DB) listed precision additions and S02 (Architect) listed two wording
+    items, but neither gave a rule number. That is a recurrence of d2415cb4.
+  - **Granularity signal:** none. The one R1 is in-lease dedup.
+- **Process metrics (Final Report):**
+  - 5/5 first-dispatch completion; 0 integration rework; 0 lease violations.
+  - 1 unplanned correction: the S03 lease revision (F-C1), made before dispatch.
+  - Twelve ARCH-PRE findings, all dispositioned before their session dispatched.
+  - One disproved premise reached a session (S03's negative-control value). It was harmless and
+    contract-consistent.
+  - Four await idle timeouts. These are environmental.
+  - No product decision was taken by a worker.
+- **Verified by execution** (fresh, by this pass at `c915610`; `src`/`tests` equal to `5c53524`; clean
+  tree before edits):
+  - `pnpm build` 0
+  - `pnpm typecheck` 0
+  - `pnpm lint` 0
+  - `pnpm format:check` 0
+  - `pnpm check:security` 0
+  - `pnpm check:isolation` 0 (24 dist files)
+  - `pnpm test` **970/970 across 54 files**
+  - `pnpm exec vitest run tests/proofs` 99/99 across 13 files
+- **Adoption check, done before carrying rows forward.** `program-agents/` is gitignored, so I compared
+  content and mtime instead of history.
+  - **No role doc changed since the prior pass.** Every file still has mtime `2026-10-04 13:41:46`. The
+    sha1s of `PLANNER.md` `17bfe4ea…`, `CODER.md` `7348bfc4…`, `UI-CODER.md` `010bbf0b…` and
+    `ORCHESTRATOR.md` `40439bad…` equal the combat-decomposition values.
+  - **Spot checks of the content:**
+    - `CODER.md:186`, `:623` and `ORCHESTRATOR.md:380` still say `npx vitest run`;
+    - `ORCHESTRATOR.md` has no force-add step for VERIFICATION.md;
+    - `PLANNER.md` has no pin-audit or content-delta text.
+  - **Result:** no row is adopted.
+  - **Separate claim:** the four role docs are byte-identical to how this pass found them.
+
+### Crossed thresholds (Principle 4)
+
+- **Sharpened: pin-lease ownership** (1cc46f93). It is now at **7 cycles · 9 instances**.
+  - **What happened:** the pin audit grepped for the moved field (`features`) and missed
+    `feat-slots-journey.test.ts:131-140`, which counts `Object.keys(content.feats)` — a map the feature
+    adds to (F-C1). It was caught at ARCH-PRE.
+  - **Change:** the promoted convention gains one sentence on **content-delta pins**: grep for tests
+    that count or iterate a map a session adds entries to.
+  - **Why now:** the parent row crossed long ago, and this is the ARCH-PRE proposal, so it is not
+    deferred.
+- **Sharpened: factual-premise verification** (576a2816). It is now at **10 cycles · 45 instances**:
+  F-C2, F-C3 and F-C4 before dispatch, plus the S03 negative-control value. F-C1 is counted under
+  1cc46f93.
+  - **Change:** one clause. A prescribed negative-control value is a premise, so probe that the
+    perturbation reaches the rule under test rather than an earlier check.
+- **Held, evidence notes updated:**
+  - Author re-entry (a3680390): **8 · 10**. Three Author sessions on one blanket answer, none
+    re-litigated.
+  - Idle timeout (cecd2115): **7 · 15**. Four timeouts, each re-awaited.
+  - VERIFICATION.md forced commit (c187bed6): **4 · 4**, applied at `5c53524`.
+  - Final Report facts derived (f68c42a3): **4 · 4**. Every figure reproduced.
+  - Whole-repo fast gates (854ceecd): **4 · 4**. No red gate.
+- **Not promoted:**
+  - d2415cb4: **2 · 3**. Below both axes; the within-cycle count is 2.
+  - 318c816b: new, **1 · 1**.
+  - Every other open row: no recurrence.
+
+### Proposed for the framework (Principle 3: no threshold)
+
+- **New: duplicate `## Verification` headings in a Final Report** (318c816b, **1 cycle · 1 instance**).
+  - **What happened:** the report's gate section is `## Verification`, and the FR-17 pass is appended as
+    a second `## Verification` after `## Follow-up`. The first says "see `## Verification` below".
+  - **Recommendation:** ORCHESTRATOR.md's Final Report template should name the FR-17 block distinctly
+    (e.g. `## Feature Verification`) or nest it under the gates section, so a reader or parser that
+    keys on headings gets one section per name.
+- **Carried, count raised:**
+  - **1cc46f93, 7 · 9.** PLANNER.md's pin-audit step should name all four pin kinds: count/shape,
+    behaviour, doc (including `specs/`/`arch/`), and **content-delta**. The last is ARCH-PRE's
+    proposal: grep tests that count or iterate maps the session adds to, not only the moved field.
+  - **576a2816, 10 · 45.** PLANNER.md should say that journey test-setup values and negative-control
+    values are premises to probe before dispatch.
+  - **cecd2115, 7 · 15.** The 300 s await timeout is environmental. ORCHESTRATOR.md should say
+    "re-await the same handle".
+  - **c187bed6, 4 · 4.** Give `commit_pathspec` a `force` option restricted to the envelope's write set,
+    or have ORCHESTRATOR.md's verification step say Orchestrator force-adds the file.
+  - **a3680390, 8 · 10.** The role docs' "never spawned" wording versus orchestrated Author re-entries.
+  - **d2415cb4, 2 · 3.** AUTHOR/DB/ARCHITECT/DESIGNER handoffs should classify deviations R1–R4, or
+    the handoff schema should state that Author deviations carry no rule. S01 and S02 listed
+    deviations with no rule this cycle.
+- **Carried, no recurrence this cycle:**
+  - 3658f327 (no deletion this cycle);
+  - 6f6b491b;
+  - 82b4e0ab (S04 ∥ S05 was safe by construction: S05 ran no code gate, F-C10);
+  - f4621ac1;
+  - f68c42a3;
+  - c3c94358 (an explicit end SHA was cited);
+  - 854ceecd;
+  - 8039d686;
+  - 760b67f1;
+  - c172cd30;
+  - 3983f8eb;
+  - 17f4803c;
+  - 1d910de1;
+  - b85c8f3e (S04 owned `index.ts` and the barrel pin);
+  - 3092a46b (this plan's baseline listed H1–H8, including both previously missed hazards; that is a
+    program-level fix, and the framework text is still absent);
+  - 2674d8c2 (Orchestrator derived per statement);
+  - 0880dd57 (S03's control perturbed an in-lease theme, and S04's used `/tmp` copies).
+  - b32fc8d0, f57dbe4d and c1ed872b have now gone **nine** consecutive cycles without recurrence; a
+    human may retire them.
+
+### Standing recommendations
+
+| id | pattern | cycles | in-cycle instances | first seen | status |
+|----|---------|-------:|-------------------:|------------|--------|
+| b32fc8d0c8c92d52 | Large single-session builds exhaust context on exhaustive checkpoint-0 read sweeps (empty-final crash; recovery = checkpoint-scoped reading) | 2 | 2 | v1-core | open |
+| f57dbe4d010638fe | Subagent model fabricates tool inputs (invented paths, invented project state, fabricated git output) under long-recovery prompts | 2 | 8 | v1-core | open |
+| b85c8f3e113a6764 | Public surface/barrel completeness gaps discovered at integration (lease gaps across wave-spanning modules) | 2 | 3 | v1-core | open |
+| c1ed872bea557b96 | run tool drops/misroutes argv; workers pass whole command lines as single argv entries | 2 | 3 | v1-core | open |
+| 3658f327cc9cff2f | commit_pathspec-style single-command commits fail on deleted files | 2 | 2 | v1-core | open (recommendation reworded 2026-10-04: name `git rm`, never `git add -A`) |
+| 1cc46f93038f1d9a | Cross-suite pinning tests (docs-run block-count pin, registry-count pin) land without a named owner in the plan | 7 | 9 | loot-inventory | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-27; widened 2026-09-30 and 2026-10-01; sharpened 2026-10-04 builder-rulings and combat-decomposition; sharpened 2026-10-05 class-features: content-delta pins); framework wording open |
+| 576a281656f83b23 | Envelope factual premises (mock-vs-prompt anatomy, cross-suite counts) reach sessions unverified; mechanical premise verification at planning time is the fix | 10 | 45 | loot-inventory | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-27; widened 2026-10-04 builder-rulings: journey test-setup values are premises; sharpened 2026-10-05 class-features: negative-control values are premises); framework wording open |
+| 854ceecd39d4b0d3 | Whole-repo fast gates (typecheck/lint/format:check) go red at role-scoped receives; cleared by format-only owner corrections | 4 | 4 | v1-core | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-27; held in class-features) |
+| 17f4803c1b08da77 | Provider stream aborts / capacity failures kill subagents mid-session with zero commits; recovery resumes from the preserved tree | 3 | 5 | loot-inventory | open (promotion held: carried cycle attribution ambiguous) |
+| 6f6b491bdbe37bf0 | Bare npx misresolves in this runtime; the working gate forms are pnpm exec vitest run <path> and node_modules/.bin/vitest | 3 | 4 | loot-inventory | open (cycles axis crossed 2026-10-04; the program rule already lives in PROGRAM-CONFIG Verification Commands; framework text still says npx) |
+| 1d910de11732c6c4 | Final Archivist pass aborts on provider capacity leave the next cycle's pass a double synthesis (prior cycle's integrated fragments + record-debt) | 2 | 2 | loot-inventory | open |
+| c172cd30e8dfc756 | Session commit gates hard-code a plan-time base SHA that a later replan makes stale | 1 | 1 | equipment-consumables | open |
+| cecd211504587426 | Host await idle timeout (300 s) interrupts long subagent waits; re-awaiting the same handle reattaches with no work lost | 7 | 15 | equipment-consumables | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-30); framework wording open |
+| f68c42a3f6224eb1 | Final Report mechanical facts (test-file counts, realized module edges) transcribed from handoffs rather than derived from the tree | 4 | 4 | v1-core | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-30; sharpened 2026-10-04: a cited command must reproduce its figure; held in class-features); framework wording open |
+| a368039028d463d6 | Role documents say Spec/DB are never spawned, while plans dispatch orchestrated Author re-entry sessions on recorded human authorization | 8 | 10 | grid-combat | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-30); framework wording open |
+| 3983f8eb6d18a5f2 | Orchestrator STATE row matcher hits a CA-ID column inside the CAP table and writes contract-leg notes into the wrong rows | 1 | 2 | grid-movement | open |
+| f4621ac12fba3456 | Pin audits enumerate count/shape pins but miss behavior pins: tests asserting a value whose derivation a decision changes surface red at a quiet boundary, some outside every lease | 3 | 4 | grid-combat | open |
+| 760b67f17edbd346 | A feature opens a content class to a new execution path, and latent content hazards become reachable without a planning-time scan (damage(half) with no fail-branch damage, 12 spell sites) | 2 | 2 | spells-in-combat | open |
+| 82b4e0abbda105d6 | Concurrent sessions on disjoint leases share one working tree: a sibling's uncommitted edits turn another worker's gates red or inflate its whole-suite counts | 1 | 2 | spells-in-combat | open (narrowed: wave-close re-verify present at ORCHESTRATOR.md:374-391; the temporary-worktree half absent) |
+| c3c94358b35f8316 | Final Report cites `git diff <base>..HEAD` while its own commit then moves HEAD, so the cited command no longer reproduces the reported count | 1 | 1 | action-targeting | open |
+| c187bed6bb5132a7 | A new file the role documents order committed through commit_pathspec lives under a gitignored path (VERIFICATION.md under program/<slug>/prompts/), and commit_pathspec cannot force-add it | 4 | 4 | feat-progression | **promoted** (PROGRAM-CONFIG Conventions, 2026-10-04 combat-decomposition: Orchestrator force-adds with an explicit pathspec; surprise, not deviation); framework wording open |
+| 8039d6869169267c | Plan artifacts carry internal inconsistencies into sessions: refusal paths lettered differently in SESSION and STATE, and a prescribed validator snippet that double-cards a negative entry | 1 | 2 | feat-progression | open |
+| d2415cb4497e0049 | Author/DB re-entry handoffs report deviations without an R1-R4 rule, so per-rule deviation counts cannot include them | 2 | 3 | feat-progression | open |
+| 3092a46b564d1d36 | A Verification Baseline records 'Hazards: none' while the inspected record already holds known hazards (dist/-importing journeys pass a stale build; ESLint lints the .program/ scratch directory) | 1 | 1 | combat-decomposition | open |
+| 2674d8c2f948ae0a | Plan-prescribed mechanical derivations are line-based greps that miss multi-line statements (value imports spread over several lines) | 1 | 1 | combat-decomposition | open |
+| 0880dd5734025fd4 | A prescribed negative control perturbs a file outside the session's lease (scratch edit of a non-owned file), a D4 gap found only at preflight | 1 | 1 | combat-decomposition | open |
+| 318c816b6920dd3d | A Final Report carries two `## Verification` sections (gates, then the FR-17 pass appended at the end), and the first cross-references the second as "below" | 1 | 1 | class-features | open |
+
+- **IDs:** 26 are copied verbatim. 1 was minted this pass from the normative formula (`first seen`
+  `class-features`).
+- **Count changes:**
+  - 1cc46f93: 6/8 → 7/9.
+  - 576a2816: 9/41 → 10/45.
+  - cecd2115: 6/11 → 7/15.
+  - a3680390: 7/7 → 8/10.
+  - c187bed6: 3/3 → 4/4.
+  - d2415cb4: 1/1 → 2/3.
+- **Blocked signal:** no session returned blocked, and the table is not empty.
+
+### Cleanup ledger (carried forward; maintained here, no separate CLEANUP-LEDGER.md yet)
+
+| id | candidate | evidence | confidence | blast radius | proposed check | cluster | status |
+|----|-----------|----------|------------|--------------|----------------|---------|--------|
+| C1 | `isLivePattern` (`src/runtime/conditions.ts`) has no non-test consumer | combat-decomposition DD-D9: kept as public API, pinned in `module-surface.test.ts` | — | — | — | duplicated-logic | **retired** (intentionally retained, 2026-10-04) |
+| C2 | `MAX_TABLE_DEPTH = 8` declared in core and schema | resolved by cross-pin, DD-D10 (`tests/core/tables.test.ts:226-228`) | high | — | — | duplicated-logic | **accepted** (closed by `0c56866`) |
+| C3 | `readPatch` exported from the compiler surface but consumed only by tests | unchanged (no compiler source change this cycle) | low | compiler surface | decide public-surface intent (FR-20 host-side composition) | compiler-surface | **tracking** |
+| C4 | `EventSeed`/`EventSink` exported from the runtime surface, no consumer | unchanged (`events.ts` untouched; `index.ts` changed only by the `features` re-export) | low | runtime surface | same surface-first decision | runtime-surface | **tracking** |
+| C5 | Final Report test-file count 28 vs 29 | corrected at v1-core close (`0290d47`) | high | report accuracy | — | report-accuracy | **retired** |
+| C6 | `parsePackEffects` had zero consumers | deleted at `010d730` | high | M03 internal | — | spell-asts | **accepted** (closed by `010d730`) |
+| C7 | `WYLDWOOD` exported from the compiler surface, consumed only via theme-loader/index | unchanged | low | compiler surface | same surface-first decision as C3/C4 | compiler-surface | **tracking** |
+| C8 | `equipment.ts` private `rollText` duplicated `displayRoll` | closed at `27c77f4` | high | M03 internal | — | duplicated-logic | **accepted** (closed by `27c77f4`) |
+| C9 | equipment-consumables Final Report *Architecture impact* omitted two value edges | corrected in the living record since 2026-09-28 | high | report accuracy only | — | report-accuracy | **retired** |
+| C10 | `Combat.use`'s restriction gate cannot block (`ItemDef` has no `tags`) | unchanged; combat untouched this cycle | low | M03 combat | retain as forward-compat unless item tags are rejected as a product direction | item-tags | **tracking** (intentional; resumption: item tags decision) |
+| C11 | Theme feat triggers never matched / feats never registered | closed at `d9a6d71`/`8d04c5e` | medium | — | — | inert-content | **accepted** |
+| C12 | `heal` was registry entry 13 but absent from `EFFECT_VOCABULARY` | closed at `4c1e1e6` | low | — | — | vocabulary-drift | **accepted** (closed by `4c1e1e6`) |
+| C13 | spells-in-combat Final Report *Files* breakdown mismatch | corrected by Orchestrator at `0b5787e` | high | report accuracy only | — | report-accuracy | **accepted** (closed by `0b5787e`) |
+| C14 | Stale comment `character-profile.test.ts:381` | closed at `4be2a57` (DD-R7) | high | one comment line | — | stale-docs | **accepted** (closed by `4be2a57`) |
+| C15 | Split-file helpers exported with no consumer outside their own file (`execute.ts` `flattenResolutions`, `boundActionOf`; `movement.ts` `pathQuery`, `threatenersLeft`, `endMove`, `setPendingMove`; `triggers.ts` `resolveReactiveAgainst`, `resolveFeat`) | unchanged: `src/runtime/combat` is untouched since `c0a23b1` (`git diff --quiet`) | low | M03 internal (`export` keyword only) | `pnpm typecheck` + `pnpm lint` + module-surface + characterization green after dropping `export` | split-internal-exports | **tracking** (below threshold) |
+
+**Cleanup scout of this cycle's diff:** no new candidate.
+- `features.ts`'s three internal exports each have a non-test consumer: `grantedFeats` →
+  `feats.ts`/`character-profile.ts`, `unlockedActions` → `character-profile.ts`, and `unlockedSpells` →
+  `pools.ts` (`grep -rlw`).
+- `checkClassFeatures` is consumed by `validate/index.ts`.
+- `levelCeiling` has two call sites in `progression.ts` (l.192, l.206): it is a dedup, not dead code.
+- The old location has no leftover in `src`. The `wardens-glyph` *spell* (`dark-fantasy.json:436`) is
+  live content; only the two feature refs moved.
+- `grep -n 'TODO\|FIXME'` over `features.ts`, `cross.ts` and `progression.ts` is empty.
+- `classFeatures`'s skip of an unresolvable ref is unreachable on a valid pack. It is defensive by the
+  CA-C2 mapping, not cleanup.
+
+**Cleanup brief status:** no campaign crosses a threshold, so there is no brief.
+
+### Verification of this pass
+
+- **Sources.** Every realized-state claim traces to:
+  - git at `f36d4ae`/`5c53524`/`c915610`: name-status, shortstat, `git show <rev>:<file>` and the
+    per-statement derivation;
+  - grep of the current `src/`, `specs/`, `mocks/` and README for every cited line;
+  - STATE.md, VERIFICATION.md and the Final Report;
+  - this pass's fresh gate runs.
+- **No contradiction** with STATE.md, VERIFICATION.md or the Final Report. Every Final Report figure
+  reproduced.
+- **PROGRAM-CONFIG diff scope:**
+  - **Changed:** the header realized-state note, the Module Registry blurb and intra-module notes, the
+    M01/M03/M04 *Key Files* cells, Custom Rule 1's realized-events parenthetical, and Conventions (the
+    evidence notes, one pin-lease sentence and one factual-premise sentence).
+  - **Byte-unchanged:** Verification Commands, Git Config, Session Defaults, Stack, Architecture, Author
+    Sources and the other Custom Rules.
+- **Not edited:** `specs/`, `mocks/`, STATE.md, FINAL-REPORT.md, `src/` and `tests/`. I wrote no
+  scratch file in the repo; all scratch went to `/tmp/ruleswright-class-features/`.
+- **Role docs:** `PLANNER.md`, `CODER.md`, `UI-CODER.md` and `ORCHESTRATOR.md` are byte-identical to how
+  this pass found them.
