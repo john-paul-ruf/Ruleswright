@@ -35,7 +35,7 @@ The human answered: "**1 a,b 2 no 3 move it, fix packs, 4 fix the broken packs, 
 | S01 | Author re-entry (DB): contract v1.10, class features | — (DB) | `program/Ruleswright/specs/database.md`, `src/schema/contracts/pack.schema.json` | done | 2/2 | 2026-10-05 | ck1 `8d5828c`, ck2 `efa971d`; V1–V7 green, 938/938 |
 | S03 | Schema mirror, validator, bundled themes, fixtures, characterization re-key | M01, M04, tests | `src/schema/artifacts.ts`, `src/schema/error-card.ts`, `src/schema/validate/index.ts`, `src/schema/validate/sections/content.ts`, `src/schema/validate/sections/progression.ts`, `src/schema/validate/sections/cross.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `tests/runtime/fixtures/pack.ts`, `tests/schema/fixtures.ts`, `tests/schema/validate.test.ts`, `tests/compiler/coverage-floor.test.ts`, `tests/proofs/combat-characterization.test.ts`, `tests/proofs/feat-slots-journey.test.ts` (lease rev 2, F-C1); scratch-only, never committed: `tests/proofs/characterization-dump.scratch.test.ts` | done | 2/2 | 2026-10-05 | ck1 `c3fc398`, ck2 `c0a23b1`; N 938 → 943 → 951; arch `c7d517f` |
 | S04 | Runtime: granted feats, unlocked actions and spells, host query, journey, README | M03, tests, docs | `src/runtime/features.ts`, `src/runtime/feats.ts`, `src/runtime/pools.ts`, `src/runtime/character-profile.ts`, `src/runtime/index.ts`, `tests/runtime/features.test.ts`, `tests/runtime/feats.test.ts`, `tests/runtime/pools.test.ts`, `tests/runtime/combat/character-profile.test.ts`, `tests/runtime/combat/module-surface.test.ts`, `tests/proofs/class-features-journey.test.ts`, `tests/proofs/docs-run.test.ts`, `README.md` | done | 4/4 | 2026-10-05 | ck1 `3a49d9f`, ck2 `dd70d3e`, ck3 `32eaa35`, ck4 `64a3231`; N 951 → 970; arch `de67360` |
-| S05 | Author re-entry (Designer): `progression.html` F-R6 + class-features panel | — (Designer) | `program/Ruleswright/mocks/progression.html` | pending | — | — | |
+| S05 | Author re-entry (Designer): `progression.html` F-R6 + class-features panel | — (Designer) | `program/Ruleswright/mocks/progression.html` | done | 2/2 | 2026-10-05 | ck1 `e5850e2` (F-R6), ck2 `7298b73` (panel `#class-features`) |
 | S02 | Author re-entry (Architect): F-D8 file-location drift + `features.ts` | — (Architect) | `program/Ruleswright/specs/architecture.md` | pending | — | — | |
 
 (Session numbers follow authoring order. The Wave Plan gives the execution order.)
@@ -230,7 +230,7 @@ Observed by Planner at `f36d4ae`, 2026-10-04 ~17:00. `src`/`tests` are identical
 | CAP-C4 | An action-unlock feature makes the action declarable from level L. Below L, `declare` → `declare:rejected {kind: 'no-action'}`, nothing spent | `unlockedActions` S04 ck2 | CA-C4; S03 | S04 ck2 | **verified** (S04 `dd70d3e`; re-run at `64a3231`) | journey leg 2: L1 `barrow-rite` → one `declare:rejected` `no-action`, state unchanged; L2 `action:resolved` | — |
 | CAP-C5 | A spell-unlock feature makes the spell known from level L (`knownSpells`, `profile.spells`), so it can be declared in combat (points) and prepared (vancian). Below L it is not known | `unlockedSpells` S04 ck2 | CA-C4; S03 | S04 ck2 | **verified** (S04 `dd70d3e`; re-run at `64a3231`) | journey leg 3 (medic L2 unknown → L3 `spell:cast` points/stamina −2); `pools.test.ts` vancian unlock with `grave-light` (F-C4) | — |
 | CAP-C6 | The host lists a character's class features with kind and active flag (`classFeatures`) | `features.ts` S04 ck1/ck4 | CA-C3, CA-C4 | S04 ck4 | **verified** (S04 `3a49d9f`, `64a3231`; re-run) | `features.test.ts` (5); journey leg 6 via barrel; module-surface pin includes `classFeatures` | — |
-| CAP-C7 | Docs match behaviour: `database.md` v1.10 (S01), README class-features section (S04), `progression.html` (S05), `architecture.md` (S02) | Author roles + S04 | CA-C1 | S02 (last) | in progress: DB (S01 `8d5828c`), README (S04 `64a3231`, docs-run anatomy green) done; Designer (S05) and Architect (S02) pending | text review at receive; docs-run anatomy check (S04 ck4) | — |
+| CAP-C7 | Docs match behaviour: `database.md` v1.10 (S01), README class-features section (S04), `progression.html` (S05), `architecture.md` (S02) | Author roles + S04 | CA-C1 | S02 (last) | in progress: DB (S01 `8d5828c`), README (S04 `64a3231`, docs-run anatomy green) done; Designer (S05 `e5850e2`, `7298b73`: F-R6 closed, class-features panel; ids grep-verified) done; Architect (S02) pending | text review at receive; docs-run anatomy check (S04 ck4) | — |
 
 **First narrow journey (S04 ck1).** Public API only, the real validator, compiler and combat engine, nothing mocked:
 - `new Runtime(generateCampaign({theme: loadTheme('dark-fantasy'), seed: 42}))` → `createCharacter` crypt-warden L3 → `profileFromCharacter` (`profile.feats` contains granted `crypt-vigil`; `state.feats` stays absent).
@@ -572,3 +572,33 @@ Orchestrator receive: both commits inside lease rev 2 (`git show --name-only`); 
   - (not committed, envelope-authorized: `.program/signal/SESSION-04.arch.md`)
 
 Orchestrator receive: all four commits inside lease rev 1; S05 commits `e5850e2`, `7298b73` interleaved (its own lease, not attributed to S04). Gates at `64a3231`: V1–V4 0, V5 54 files 970/970, V6/V7 0; 7 S04 test files 86/86 re-run. Value imports derived per statement: `feats.ts:18`, `pools.ts:27`, `character-profile.ts:28` → `./features`; `features.ts` type-only. Arch delta integrated and "class features unbuilt" lines retired (F-C11) `de67360`. CAP-C3..C6 verified; CA-C2 (both sides), CA-C3, CA-C4 proven.
+
+### SESSION-05 (Designer re-entry) — received 2026-10-05, done 2/2 (e5850e2, 7298b73)
+
+- **session:** SESSION-05 (class-features)
+- **status:** done
+- **checkpoint:** 2
+- **notes:** F-R6 closed in `mocks/progression.html` (earned path is a level-1 Ald given 6000 XP → warden 4; the callout no longer claims byte-identical state); class-features panel `#class-features` added after the leveling table.
+- **delivered:** ck1 `e5850e2` "class-features SESSION-05: checkpoint 1 — F-R6 earned path"; ck2 `7298b73` "class-features SESSION-05: checkpoint 2 — class-features panel".
+  - **Before l.70-85:** left panel Brynn warden 4. Right panel `rt.awardXp(brynn, 2400)` with comments `xp:awarded`, `level:reached warden 4`, "engine emits…". Callout: "…produce byte-identical state (FR-5, FR-14)."
+  - **After (now l.104-134; the new section moved it down 40 lines):** left panel unchanged. Right panel: `const ald = rt.createCharacter({ name: "Ald", race: "hillfolk", classes: [{ id: "warden", level: 1 }] }); rt.awardXp(ald, 6000);` with the three required comments plus `// an award never lowers a level set directly (v1.9)`. Callout, verbatim from SESSION-05: "Both paths run the same build validator — a level-4 direct set and a level-4 earned set are judged by identical rules (FR-5, FR-6); only the XP bookkeeping differs."
+  - **Inserted section:** `<section id="class-features" class="mb-12">` at l.64-102, the only `id` attribute in the file. It has the required heading and lede and a code panel `progression.crypt-warden.features — sample pack, excerpt` (theme lines 642-645 copied from the file, not retyped). It also has a 3-row kind table with columns kind / ref resolves in / from that class level on: feat → content.feats, action → actions, spell → content.spells. The two callouts: ✓ "Granted is not learned — `learnFeat` refuses a feat your class grants (`feat-known`)" and ◈ "`classFeatures(rt, character)` lists every feature with its kind and whether it is active".
+- **verification:**
+  - **HTML:** a Python HTMLParser tag-balance check found 0 mismatches and 0 unclosed tags after each checkpoint.
+  - **Excerpt:** with markup stripped, the code panel matches theme l.642-645 byte for byte (`/tmp/ruleswright-class-features/excerpt.json`).
+  - **Ids:** grep confirms `barrow-rite` (actions, l.116), `crypt-vigil` (content.feats, l.189, has a trigger so it is reactive), `crypt-warden`, `warden`, and `hillfolk` (caps warden 10, so warden 4 is allowed).
+  - **awardXp:** theme `tables.xp` gives 0–999 → 1, 1000–2999 → 2, 3000–5999 → 3, 6000–9999 → 4. That matches the Planner probe (2400 → 2, 6000 → 4).
+  - **Scope:** `git log d1cc6f7..HEAD -- program/Ruleswright/mocks/` lists only my 2 commits, and `git show --name-only HEAD` lists only `progression.html` for both. No test suite was run (H8; `program/` is excluded).
+- **surprises:**
+  - The original callout cited FR-14; the required callout text cites FR-6. The header chips (FR-6/13/14) are unchanged.
+  - I added a "ref resolves in" column to the kind table. It restates database.md DD-C1's map names; no new behaviour.
+  - I added `id="class-features"` as an anchor so the section has an id to report; neighbour sections have none.
+- **followUp:** The final Archivist records F-R6 as closed. The ◈ callout uses the short name `classFeatures(rt, character)` from SESSION-05. The full signature in DD-C7 is `classFeatures(runtime, character: CharacterState): readonly ClassFeatureView[]`. I did not read S04's working tree.
+- **deviations:** none
+- **needsOwnerCorrection:** none
+- **needsDesignSource:** none
+- **blockedReason:** —
+- **filesTouched:**
+  - `program/Ruleswright/mocks/progression.html`
+
+Orchestrator receive: both commits touch only `progression.html` (`git show --name-only`); V1–V3 0 at `7298b73`+ (S02 in flight on `specs/architecture.md`, excluded from gates); HTML tag balance 0 mismatches; panel excerpt shows `barrow-rite`@2, `crypt-vigil`@3 as landed. F-R6 closed (final Archivist records it). Accepted.
