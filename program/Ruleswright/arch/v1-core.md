@@ -26,7 +26,7 @@
 > vigor ability, and spell lists that reach their spells), **feat-progression** (S01–S02, feature commits
 > `3f63fd3`..`f7f6e88` — contract v1.8, per-class per-level `progression.<id>.featSlots` summed
 > across classes, and the runtime rule `feat-slots-exceeded` on `learnFeat`, `levelSet`, `awardXp`
-> and character/party restore; FR-6's "class features" item is still unbuilt), and **builder-rulings**
+> and character/party restore; FR-6's "class features" item was then unbuilt — closed by class-features, v1.10), and **builder-rulings**
 > (S01–S02, feature commits `cfda5dc`..`c851de2` — contract v1.9, description only: the human's four
 > rulings of 2026-10-04 — the three `mending` spells heal, out-of-combat restricts follow the combat
 > rule for spells, `awardXp` never lowers a level, and the feat-slotted predicate is documented as
@@ -1389,7 +1389,8 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
     CLOSED by action-targeting S03 ck2 (`7c1b8b6`). The 12 fail-branch-free `damage(half)` sites
     remain (a pack author may want real half damage). Owner: the next content feature.
   - **FR-6 feat slots: CLOSED by feat-progression** (contract v1.8; S02 `45483c5`..`f7f6e88`).
-    FR-6's "class features" item is still open (feat-progression residuals below).
+    FR-6's "class features" item: CLOSED by class-features (contract v1.10; S03 `c3fc398`..`c0a23b1`,
+    S04 `3a49d9f`..`64a3231`; see the class-features SESSION-03/04 markers below).
   - **DD-S19 consequence:** the DC and attack bonus keep `ctx.vars = effectVars(actor, bound)`, so
     a `targetId` cast's DC sees the primary target's saves and an `at` cast's DC the caster's.
     Every bundled DC is a literal; documented in database.md.
@@ -1408,11 +1409,13 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
     checkpoint.
   - **F-P7: CLOSED as intended behaviour by builder-rulings** (DD-R5): "any class counts" is kept
     and now stated in `database.md` DD-F3 and `README.md:395`. No load warning was added.
-  - **F-FP2 / F-P5: FR-6 "class features".** `database.md` §progression lists a `features`
-    (`{level, ref}`) row that is in neither `pack.schema.json` nor the validator, while the bundled
-    themes already carry `content.classes.<id>.features` (e.g. `dark-fantasy.json:140`, `:146`).
-    Owner: DB, in a human-authorized re-entry with a product decision on what a feature does — the
-    next feature.
+  - **F-FP2 / F-P5: FR-6 "class features": CLOSED by class-features** (human answers 2026-10-04,
+    DD-C1..C13). Contract v1.10 (`database.md` S01 `8d5828c`, `pack.schema.json` `efa971d`) moves
+    the field to `progression.<id>.features`; the validator resolves refs (`checkClassFeatures`, S03
+    `c0a23b1`); every bundled ref resolves; the runtime grants feats and unlocks actions/spells via the
+    `features.ts` leaf (S04 `3a49d9f`..`64a3231`). (Replaces the earlier note that the row was "in
+    neither `pack.schema.json` nor the validator" — both carried it at the old
+    `content.classes.<id>.features` location until v1.10; ARCH-PRE F-C11.)
   - **CAP-F1 compiler leg (optional).** The compiler's stage-8 refusal of a malformed `featSlots` is
     proven only by an ad hoc probe (VERIFICATION P1), not by a committed `tests/compiler` case.
   - **Host query (optional, DD-F7 follow-up).** There is no public "slots remaining" query; a host
@@ -1484,3 +1487,36 @@ at a2f117f). -->
   - `error-card.ts`: jsonPath doc example is now `progression.warden.features[0].level` (comment only).
 - **M04 themes (content only, no compiler source change):** every class's `features` lives at `progression.<id>.features` (last key) and every ref resolves (DD-C10). New feats appended after existing ones — dark-fantasy `oath-of-the-warden`, `wardens-resolve`, `hexers-eye`, `crypt-vigil` (reactive); zombie-urban `scavengers-instinct`, `block-runner`, `milers-read`, `field-surgery`, `steady-pulse` (reactive); wyldwood `oath-of-the-verge`, `verges-glyph`, `hexers-eye`, `hedges-eye`, `bramble-vigil` (reactive). New main actions appended after existing ones, in no class or statblock list: dark-fantasy `barrow-rite`, zombie-urban `jury-rig`, wyldwood `thornward`. Spell unlock: zombie-urban medic L3 `rot-read`.
 - No new module, no new cross-module edge, no rule id. `src/runtime/**` untouched (S04 consumes `ClassProgression.features`).
+
+<!-- class-features SESSION-04 -->
+## class-features SESSION-04 — arch delta (runtime class features)
+
+### M03 Runtime — new leaf `src/runtime/features.ts`
+
+- **Leaf:** value-imports nothing. Type imports only: `../schema/pack` (`Pack`), `./runtime` (`Runtime`), `./character` (`ClassEntry`).
+- **Exports:**
+  - `interface ClassFeatureView { classId; level; ref; kind: 'feat' | 'action' | 'spell'; active }`
+  - `classFeatures(runtime: Runtime, character: { readonly classes: readonly ClassEntry[] }): readonly ClassFeatureView[]` (public, on the runtime barrel). Order is DD-C5: class order, then feature order. Inactive features are included. The kind lookup is feats → actions → spells (CA-C2). A ref found in none of them is skipped.
+  - `grantedFeats(runtime, classes)`, `unlockedActions(runtime, classes)`, `unlockedSpells(runtime, classes)`: each returns `readonly string[]` of active refs, in DD-C5 order, first occurrence wins. These are internal and not on the barrel.
+
+### New intra-M03 value-import edges (per statement; `import type` excluded)
+
+- `feats.ts → features.ts` (`import { grantedFeats } from './features'`). `feats.ts` used to be a leaf importing only `./errors`. It now value-imports `./errors` and `./features`.
+- `pools.ts → features.ts` (`import { unlockedSpells } from './features'`). `pools.ts` now value-imports two runtime leaves: `./equipment` and `./features`.
+- `character-profile.ts → features.ts` (`import { grantedFeats, unlockedActions } from './features'`).
+- `index.ts → features.ts` (`export { classFeatures, type ClassFeatureView } from './features'`, a runtime re-export).
+
+`features.ts` imports nothing back, so these edges add no cycle. There is no new cross-module edge: M03 → M01 is type-only for this file.
+
+### Behaviour of the consumers (v1.10, DD-C2/C8/C9)
+
+- `learnFeat` refuses a currently granted feat with `feat-known` ("is granted feat … by a class feature (FR-6)"). `featSlotTally` is unchanged and still counts held feats only.
+- `knownSpells` returns pack spell order, filtered by list match **or** an active spell unlock. `prepareSpell` inherits this through `knownSpells`.
+- `profileFromCharacter`:
+  - `actions` is the class-actions union, then unlocked actions not already present. `no-combat-actions` is checked after the unlocked actions are added.
+  - `feats` is the held reactive feats, then the granted reactive feats not already held.
+
+### Runtime barrel
+
+- The value list gains `classFeatures` (pinned in `tests/runtime/combat/module-surface.test.ts`). The barrel also exports the type `ClassFeatureView`.
+- `src/runtime/combat/**` and `src/runtime/snapshots/**` are unchanged.
