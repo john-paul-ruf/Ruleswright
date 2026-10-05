@@ -12,9 +12,10 @@
  * a schema event (v1.1 declares no refill fields).
  *
  * All state is plain JSON inside the character snapshot (FR-14). This module
- * imports only core, errors, types and ONE runtime value module — the
- * equipment leaf (`./equipment`, which never imports pools/character; R-11) —
- * so the character/progression modules can depend on it without a cycle.
+ * imports only core, errors, types and two runtime leaves — equipment
+ * (`./equipment`, which never imports pools/character; R-11) and class
+ * features (`./features`, type imports only; v1.10) — so the
+ * character/progression modules can depend on it without a cycle.
  */
 import { evalFormula, valueOfFormula } from '../core/dsl/formula';
 import { Rng } from '../core/rng';
@@ -23,6 +24,7 @@ import type { CharacterState } from './character';
 import { RuntimeRuleError, ruleCard } from './errors';
 import type { RuntimeEvent } from './events';
 import { equipmentView } from './equipment';
+import { unlockedSpells } from './features';
 
 /**
  * Evaluate a pool-capacity formula against the character's scalars (CA-4: the
@@ -127,9 +129,10 @@ export function spendPool(
 }
 
 /**
- * FR-9 — memorization binds a KNOWN spell (FR-9 gating: the spell's
- * `magic.lists` must intersect one of the character's classes' spellLists)
- * into an empty slot of the matching level. Emits `spell:prepared`.
+ * FR-9 — memorization binds a KNOWN spell (`knownSpells`: the spell's
+ * `magic.lists` intersect one of the character's classes' spellLists, or a
+ * class feature unlocks it) into an empty slot of the matching level. Emits
+ * `spell:prepared`.
  */
 export function prepareSpell(
   runtime: Runtime,
@@ -154,7 +157,7 @@ export function prepareSpell(
         'spell-not-known',
         spellId,
         'spells',
-        `spell "${spellId}" is not known — its lists (${spell.magic.lists.join(', ')}) match none of the character's classes (FR-9).`,
+        `spell "${spellId}" is not known — its lists (${spell.magic.lists.join(', ')}) match none of the character's classes and no class feature unlocks it (FR-9).`,
       ),
     ]);
   }
@@ -301,7 +304,8 @@ export function castSpell(
 /**
  * FR-9 — known spells: a spell is known when its `magic.lists` intersect one
  * of the character's classes' `spellLists` (the pack's v1 restriction
- * gating). Derived from pack + classes — never stored, so it cannot drift
+ * gating), or (v1.10, DD-C9) an active class feature unlocks it. Pack spell
+ * order. Derived from pack + classes — never stored, so it cannot drift
  * from the snapshot's class list.
  */
 export function knownSpells(runtime: Runtime, character: CharacterState): readonly string[] {
@@ -309,8 +313,9 @@ export function knownSpells(runtime: Runtime, character: CharacterState): readon
   for (const entry of character.classes) {
     for (const list of runtime.pack.content.classes?.[entry.id]?.spellLists ?? []) lists.add(list);
   }
+  const unlocked = new Set(unlockedSpells(runtime, character.classes));
   return Object.entries(runtime.pack.content.spells ?? {})
-    .filter(([, spell]) => spell.magic.lists.some((list) => lists.has(list)))
+    .filter(([id, spell]) => spell.magic.lists.some((list) => lists.has(list)) || unlocked.has(id))
     .map(([id]) => id);
 }
 

@@ -13,6 +13,8 @@ import { describe, expect, it } from 'vitest';
 import { generateCampaign, loadTheme } from '../../src/compiler';
 import {
   Runtime,
+  bestiaryIds,
+  knownSpells,
   profileFromCharacter,
   spawnMonster,
   startCombat,
@@ -115,5 +117,80 @@ describe('class features journey (CAP-C3…C6)', () => {
     ]);
     expect(ofType(events, 'trigger:fired').filter((event) => event.payload['source'] === 'feat')).toEqual([]);
     expect(() => fight.respond('cw.crypt-vigil', 'take')).toThrow(/no pending trigger/);
+  });
+  it('leg 2 (CAP-C4, CA-C4) — barrow-rite is refused no-action at crypt-warden L1, then resolves at L2', () => {
+    const rt1 = runtimeFor('dark-fantasy');
+    const events1 = recorded(rt1);
+    const low = cwVsWight(rt1, cryptWarden(rt1, 1), 'cw');
+    expect(low.state.active).toBe('cw');
+    const before = low.serialize();
+    const seen = events1.length;
+    const answer = low.declare('barrow-rite', { targetId: 'wight' });
+    expect(answer).toHaveLength(1);
+    expect(answer[0]).toMatchObject({
+      type: 'declare:rejected',
+      actor: 'cw',
+      payload: { kind: 'no-action', resource: 'barrow-rite' },
+      why: { rule: 'E-REF-01' },
+    });
+    expect(answer[0]!.payload['message']).toContain('does not have action');
+    expect(events1.slice(seen)).toEqual(answer);
+    expect(low.serialize()).toEqual(before);
+
+    const rt2 = runtimeFor('dark-fantasy');
+    const events2 = recorded(rt2);
+    const high = cwVsWight(rt2, cryptWarden(rt2, 2), 'cw');
+    high.declare('barrow-rite', { targetId: 'wight' });
+    expect(ofType(events2, 'declare:rejected')).toEqual([]);
+    expect(ofType(events2, 'action:resolved').map((event) => event.payload['actionId'])).toEqual([
+      'barrow-rite',
+    ]);
+  });
+
+  it('leg 3 (CAP-C5, CA-C4) — rot-read is unknown to a medic L2, known and cast for points at L3', () => {
+    const medicFight = (level: number) => {
+      const rt = runtimeFor('zombie-urban');
+      const events = recorded(rt);
+      const medic = rt.createCharacter({
+        name: 'medic',
+        race: 'mile-born',
+        classes: [{ id: 'medic', level }],
+      });
+      const pair = profileFromCharacter(rt, medic, 'medic');
+      const foe = bestiaryIds(rt)[0]!;
+      const fight = startCombat(rt, {
+        allies: [
+          { id: 'medic', profile: { ...pair.profile, initiativeBonus: 100 }, balances: pair.balances },
+        ],
+        enemies: [{ id: 'foe', profile: { ...spawnMonster(rt, foe, 'foe'), initiativeBonus: -100 } }],
+        positions: { medic: { x: 0, y: 0 }, foe: { x: 1, y: 0 } },
+        rng: new Rng('class-features-journey'),
+      });
+      fight.step();
+      expect(fight.state.active).toBe('medic');
+      return { rt, events, medic, profile: pair.profile, fight };
+    };
+
+    const low = medicFight(2);
+    expect(low.profile.spells ?? []).not.toContain('rot-read');
+    expect(knownSpells(low.rt, low.medic.state)).not.toContain('rot-read');
+    const before = low.fight.serialize();
+    const answer = low.fight.declare('rot-read', { targetId: 'foe' });
+    expect(answer).toHaveLength(1);
+    expect(answer[0]).toMatchObject({ type: 'declare:rejected', payload: { kind: 'no-action' } });
+    expect(answer[0]!.payload['message']).toContain('does not know spell');
+    expect(ofType(low.events, 'spell:cast')).toEqual([]);
+    expect(low.fight.serialize()).toEqual(before);
+
+    const high = medicFight(3);
+    expect(high.profile.spells).toContain('rot-read');
+    expect(knownSpells(high.rt, high.medic.state)).toContain('rot-read');
+    const stamina = high.fight.state.combatants['medic']!.pools['stamina']!;
+    high.fight.declare('rot-read', { targetId: 'foe' });
+    expect(ofType(high.events, 'declare:rejected')).toEqual([]);
+    expect(ofType(high.events, 'spell:cast').map((event) => event.payload)).toEqual([
+      expect.objectContaining({ cost: 'points', pool: 'stamina' }),
+    ]);
+    expect(high.fight.state.combatants['medic']!.pools['stamina']).toBe(stamina - 2);
   });
 });

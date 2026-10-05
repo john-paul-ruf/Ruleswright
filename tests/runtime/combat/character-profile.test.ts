@@ -367,6 +367,60 @@ describe('v1.6 — the spell bridge (CA-S4): spells, castBlockedBy, bindings', (
   });
 });
 
+/**
+ * v1.10 (CA-C4, DD-C9) — class features compose onto the profile: unlocked
+ * actions after the class-actions union, granted reactive feats after the held
+ * ones. A character with no active non-passive feature is byte-identical to
+ * the same character on a pack with every `progression.*.features` deleted.
+ */
+describe('v1.10 — class features compose byte-stably (CA-C4, DD-C9)', () => {
+  function featureless(pack: Pack): Pack {
+    const clone = structuredClone(pack);
+    for (const table of Object.values(clone.progression)) delete table.features;
+    return clone;
+  }
+
+  it('a dark-fantasy warden L1 (passive features only): profile and knownSpells are byte-identical', () => {
+    const pack = packFor('dark-fantasy');
+    expect(pack.progression['warden']!.features).toEqual([
+      { level: 1, ref: 'oath-of-the-warden' },
+      { level: 3, ref: 'wardens-resolve' },
+    ]);
+    const withFeatures = new Runtime(pack);
+    const without = new Runtime(featureless(pack));
+    const a = hero(withFeatures, 'ashkin', [{ id: 'warden', level: 1 }]);
+    const b = hero(without, 'ashkin', [{ id: 'warden', level: 1 }]);
+    expect(JSON.stringify(profileFromCharacter(withFeatures, a, 'hero'))).toBe(
+      JSON.stringify(profileFromCharacter(without, b, 'hero')),
+    );
+    expect(JSON.stringify(knownSpells(withFeatures, a.state))).toBe(
+      JSON.stringify(knownSpells(without, b.state)),
+    );
+  });
+
+  it('crypt-warden L3: barrow-rite after the class actions; held reactive feats, then granted ones', () => {
+    const rt = new Runtime(packFor('dark-fantasy'));
+    const cw = hero(rt, 'ashkin', [{ id: 'crypt-warden', level: 3 }]);
+    const classActions = rt.pack.content.classes!['crypt-warden']!.actions!;
+    expect(profileFromCharacter(rt, cw).profile.actions).toEqual([...classActions, 'barrow-rite']);
+    expect(profileFromCharacter(rt, cw).profile.feats).toEqual(['crypt-vigil']);
+    cw.learnFeat('second-gust');
+    expect(profileFromCharacter(rt, cw).profile.feats).toEqual(['second-gust', 'crypt-vigil']);
+    const l1 = hero(rt, 'ashkin', [{ id: 'crypt-warden', level: 1 }]);
+    expect(profileFromCharacter(rt, l1).profile.actions).toEqual(classActions);
+  });
+
+  it('no-combat-actions counts unlocked actions: a stripped crypt-warden fights from L2 on', () => {
+    const pack = packFor('dark-fantasy');
+    delete pack.content.classes!['crypt-warden']!.actions;
+    const rt = new Runtime(pack);
+    const l1 = hero(rt, 'ashkin', [{ id: 'crypt-warden', level: 1 }]);
+    expect(() => profileFromCharacter(rt, l1)).toThrow(/no combat actions/);
+    const l2 = hero(rt, 'ashkin', [{ id: 'crypt-warden', level: 2 }]);
+    expect(profileFromCharacter(rt, l2).profile.actions).toEqual(['barrow-rite']);
+  });
+});
+
 function startCombatWith(rt: Runtime, profile: CombatantProfile) {
   return startCombat(rt, {
     allies: [{ id: 'hero', profile }],

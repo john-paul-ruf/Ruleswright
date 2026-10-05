@@ -216,3 +216,48 @@ describe('CAP-E3 — armorCasting gates the slot cast (CA-EG3)', () => {
     expect(castSpell(multi, sela.state, 'grave-light').type).toBe('spell:cast');
   });
 });
+
+describe('v1.10 — a class feature unlocks a vancian spell (CAP-C5, CA-C4)', () => {
+  /** The fixture warden (spellLists [warden], slots 1: [1, 2, 2, 3]) unlocks hexer-list grave-light ({vancian: 1}) at 2. */
+  function unlockPack() {
+    const pack = cloneRuntimePack();
+    expect(pack.content.spells!['grave-light']).toMatchObject({
+      magic: { level: 1, lists: ['hexer'] },
+      cost: { vancian: 1 },
+    });
+    pack.progression['warden']!.features!.push({ level: 2, ref: 'grave-light' });
+    return new Runtime(pack);
+  }
+
+  it('warden L1: not known, and prepareSpell refuses spell-not-known with nothing changed', () => {
+    const runtime = unlockPack();
+    const warden = runtime.createCharacter({ name: 'Brynn', race: 'ashkin', classes: ['warden'] });
+    expect(knownSpells(runtime, warden.state)).toEqual([]);
+    const before = JSON.stringify(warden.state);
+    try {
+      prepareSpell(runtime, warden.state, 'grave-light');
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(RuntimeRuleError);
+      expect((error as RuntimeRuleError).errors[0]!.rule).toBe('spell-not-known');
+    }
+    expect(JSON.stringify(warden.state)).toBe(before);
+  });
+
+  it('warden L2: known (pack order), and prepareSpell binds it and emits spell:prepared', () => {
+    const runtime = unlockPack();
+    const warden = runtime.createCharacter({
+      name: 'Brynn',
+      race: 'ashkin',
+      classes: [{ id: 'warden', level: 2 }],
+    });
+    expect(knownSpells(runtime, warden.state)).toEqual(['grave-light']);
+    const event = prepareSpell(runtime, warden.state, 'grave-light');
+    expect(event).toMatchObject({
+      type: 'spell:prepared',
+      payload: { spellId: 'grave-light', slotLevel: '1', slotIndex: 0 },
+      why: { rule: 'content.spells.grave-light' },
+    });
+    expect(warden.state.slots['1']).toEqual(['grave-light', null]);
+  });
+});
