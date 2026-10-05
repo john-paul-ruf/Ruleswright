@@ -75,15 +75,21 @@
       </div>
       <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
         <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">earned — the host awards, the engine reports</div>
-        <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>rt.awardXp(brynn, <span class="num">2400</span>);          <span class="com">// host policy, host call</span>
+        <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="kw">const</span> ald = rt.createCharacter({
+  name: <span class="str">"Ald"</span>,
+  race: <span class="str">"hillfolk"</span>,
+  classes: [{ id: <span class="str">"warden"</span>, level: <span class="num">1</span> }],
+});
+rt.awardXp(ald, <span class="num">6000</span>);            <span class="com">// host policy, host call</span>
 <span class="com">// → event: xp:awarded  why: host.grant</span>
 <span class="com">// → event: level:reached  warden 4 (pack thresholds)</span>
-<span class="com">// engine emits; it never decides awards (FR-6, FR-13)</span></code></pre>
+<span class="com">// engine emits; it never decides awards (FR-6, FR-13)</span>
+<span class="com">// an award never lowers a level set directly (v1.9)</span></code></pre>
       </div>
     </div>
     <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3 mt-4">
       <span class="text-[#7BA05B] shrink-0">✓</span>
-      <p class="text-sm">Both paths run the same build validator — a level-4 direct set and a level-4 earned set produce byte-identical state (FR-5, FR-14).</p>
+      <p class="text-sm">Both paths run the same build validator — a level-4 direct set and a level-4 earned set are judged by identical rules (FR-5, FR-6); only the XP bookkeeping differs.</p>
     </div>
   </section>
 
