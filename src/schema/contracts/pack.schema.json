@@ -255,15 +255,6 @@
                 "items": { "type": "string" },
                 "description": "Armor types in which this class may cast — pack data (FR-9)"
               },
-              "features": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": ["level", "ref"],
-                  "properties": { "level": { "type": "integer", "minimum": 1 }, "ref": { "type": "string" } }
-                }
-              },
               "actions": {
                 "type": "array",
                 "items": { "$ref": "#/$defs/idPattern" },
@@ -500,6 +491,19 @@
           "minItems": 1,
           "items": { "type": "integer", "minimum": 0 },
           "description": "v1.8 (FR-6): feats the class grants in total at each class level (index 0 = level 1); a running total like saves, not an increment. Non-decreasing, and at least as long as the class's shortest saves array (semantic rules; E-SCHEMA-01). A character's feat slots are the sum over its classes. Optional: in a pack where any progression entry declares featSlots, a class without it contributes 0; a pack that declares none has no feat cap."
+        },
+        "features": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["level", "ref"],
+            "properties": {
+              "level": { "type": "integer", "minimum": 1 },
+              "ref": { "$ref": "#/$defs/idPattern" }
+            }
+          },
+          "description": "v1.10 (FR-6): class features. ref names a content.feats id (granted while the class level >= level; no feat slot), an actions id (unlocked for combat) or a content.spells id (unlocked: known). Semantic rules (validator): ref resolves (E-REF-01); redundant refs fail E-REF-01 — an action ref also in the class's actions, or a spell ref whose magic.lists intersect the class's spellLists; level <= the class's level ceiling and ref unique per class (E-SCHEMA-01). Replaces content.classes.<id>.features, now an unknown field (E-SCHEMA-02)."
         }
       }
     },
