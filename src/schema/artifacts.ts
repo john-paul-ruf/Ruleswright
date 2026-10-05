@@ -65,7 +65,7 @@ export interface SpellDef {
   tags?: KebabId[];
 }
 
-/** Class features granted at level, referenced by id. */
+/** v1.10 — one class feature `{level, ref}` (`progression.<classId>.features`): `ref` names a feat, an action or a spell id; its map decides what the feature does. */
 export interface ClassFeature {
   level: number;
   ref: string;
@@ -77,7 +77,6 @@ export interface ClassDef {
   spellLists?: string[];
   /** Armor types in which this class may cast — pack data (FR-9). */
   armorCasting?: string[];
-  features?: ClassFeature[];
   /**
    * v1.2 — action ids a character of this class may declare in combat (FR-16
    * parity with statblock actions). Unique; each must be a key of the pack's
@@ -161,6 +160,8 @@ export interface ClassProgression {
   slots?: Record<string, number[]>;
   /** v1.8 (FR-6) — feats the class grants in total at each class level (index 0 = level 1); summed across classes. Absent in a pack that declares any = 0; a pack declaring none has no cap. */
   featSlots?: number[];
+  /** v1.10 (FR-6) — class features: `ref` names a content.feats id (granted while the class level >= level), an actions id or a content.spells id (unlocked from that level). */
+  features?: ClassFeature[];
 }
 
 /** $defs/statblock — monsters use the same character machinery (FR-16). */

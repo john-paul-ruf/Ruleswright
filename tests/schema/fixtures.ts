@@ -53,7 +53,6 @@ export const VALID_PACK: Pack = {
         name: 'Warden',
         spellLists: ['warden'],
         armorCasting: ['mail'],
-        features: [{ level: 1, ref: 'feature-warden-oath' }],
       },
       hexer: { name: 'Hexer', spellLists: ['hexer'] },
     },
@@ -102,6 +101,7 @@ export const VALID_PACK: Pack = {
         luck: [0, 0, 1, 1],
       },
       slots: { '1': [1, 2, 2, 3] },
+      features: [{ level: 1, ref: 'feature-warden-oath' }],
     },
     hexer: {
       hd: 'd6',

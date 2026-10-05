@@ -364,8 +364,8 @@ describe('CAP-D1 — combat characterization (behaviour pin)', () => {
     expect(ofType(leg.events, 'move:leaving-reach')).toHaveLength(1);
     expect(ofType(leg.events, 'move:ended').map((event) => event.payload['reason'])).toEqual(['arrived']);
     expect(digests(leg)).toEqual({
-      sha256: 'b7c89ee4b304be94baf9d8a3615fbe1c2fda498ec24328d4bead635aadbdf6b1',
-      contentHash: '1c81f3d7',
+      sha256: '1bbcd2d2135a93f20c7ec7628fded88e005235cc05c4ec483c4d3262f1c03792',
+      contentHash: '6c8558c7',
     });
   });
 
@@ -379,8 +379,8 @@ describe('CAP-D1 — combat characterization (behaviour pin)', () => {
       'slot-exhausted',
     ]);
     expect(digests(leg)).toEqual({
-      sha256: '4b79a4d1382eda176152458fa19e1e06b499bc9188cf1fd0dc8ac4dcd3ece5ad',
-      contentHash: 'dbf35a57',
+      sha256: 'ec107e2f4c5e897e092303c227b3b005fbfec540eaa3a930be7bf0bb80d7f530',
+      contentHash: 'd6bc9ea8',
     });
   });
 
@@ -388,8 +388,8 @@ describe('CAP-D1 — combat characterization (behaviour pin)', () => {
     const leg = poolLeg();
     expect(ofType(leg.events, 'spell:cast').map((event) => event.payload['cost'])).toEqual(['points']);
     expect(digests(leg)).toEqual({
-      sha256: '49fed1e8b42d5010967f82960f07b041e13bcf072524e3ccd8d391b5c7e47c6c',
-      contentHash: '04519945',
+      sha256: 'a3721aa07139037eb1d050aa448cf28c7314bb7cf21882e21c8800b6840361df',
+      contentHash: '3a990bff',
     });
   });
 
@@ -397,8 +397,8 @@ describe('CAP-D1 — combat characterization (behaviour pin)', () => {
     const leg = useLeg();
     expect(ofType(leg.events, 'item:used')).toHaveLength(2);
     expect(digests(leg)).toEqual({
-      sha256: '1f015930a835a9e75ad96e58f917963f21812388ec4288a50982d20ef291bcfb',
-      contentHash: '008c2497',
+      sha256: '10fbaf2569c01e2abde962eaffdf9d6c617cd3820f7991f553affe69db32bb2c',
+      contentHash: '007b3cc3',
     });
   });
 
@@ -423,8 +423,8 @@ describe('CAP-D1 — combat characterization (behaviour pin)', () => {
       ofType(leg.events, 'condition:applied').map((event) => [event.actor, event.target, event.why.rule]),
     ).toEqual([['warden', 'warden', 'actions.withdraw']]);
     expect(digests(leg)).toEqual({
-      sha256: 'd1b501cd2fdccbdb768c18c34c36be2f39ab65f6b5ff68848f01beeb527c3377',
-      contentHash: '5b854d01',
+      sha256: 'f1d8a33ac736f428fab8289b2e727903859cab5ec8305d137aee8718aef631f2',
+      contentHash: 'e5e992e2',
     });
   });
 
@@ -436,8 +436,8 @@ describe('CAP-D1 — combat characterization (behaviour pin)', () => {
       ofType(leg.events, 'turn:ended').length + ofType(leg.events, 'turn:started').length,
     ).toBeGreaterThan(0);
     expect(digests(leg)).toEqual({
-      sha256: 'f2f4a2058c56d1ac0e28559c067c5d78b9b2ada5fb2967cd3d1ff9a1b993fc00',
-      contentHash: '9b871c1e',
+      sha256: '7ccd2b0dc912971763d72c47ceb5f775e0fd70a03e770df9c7bed4b26bddede4',
+      contentHash: 'c0e47550',
     });
   });
 
@@ -446,8 +446,8 @@ describe('CAP-D1 — combat characterization (behaviour pin)', () => {
     expect(leg.snapshots).toHaveLength(4);
     expect(leg.snapshots[1]).toEqual(leg.snapshots[0]);
     expect(digests(leg)).toEqual({
-      sha256: '62468c03d0d7027e5fbe68b4318d5e37be4b107f3b7645dde6550809538717fa',
-      contentHash: '1c28bc2e',
+      sha256: 'a05217b2d52345424335b4f80e50049261c9eb5f559a6e63593c75a8160c6d84',
+      contentHash: 'e2f20ba2',
     });
   });
 });

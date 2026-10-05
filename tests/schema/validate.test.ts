@@ -9,6 +9,7 @@ import {
 import { RULE_IDS } from '../../src/schema/error-card';
 import type { Pack } from '../../src/schema/pack';
 import { packDslChecker } from '../../src/core/dsl/checker';
+import { cloneRuntimePack } from '../runtime/fixtures/pack';
 
 /** Accepts only expressions that mention "might" — used to prove the checker is invoked with the right context. */
 const pickyChecker: DslChecker = (request) =>
@@ -1006,5 +1007,67 @@ describe('progression featSlots (v1.8, CAP-F1)', () => {
       (pack) => ((pack.progression.warden as unknown as Record<string, unknown>).featSlots = '1,1,2,2'),
     );
     expect(paths(cards)).toEqual([['E-SCHEMA-01', 'progression.warden.featSlots']]);
+  });
+});
+
+describe('class features (v1.10, CAP-C1)', () => {
+  const paths = (cards: ReturnType<typeof errorsFor>): string[][] =>
+    cards.map((card) => [card.rule, card.jsonPath]);
+  const oldLocation = (pack: Pack): void => {
+    (pack.content.classes!['warden'] as unknown as Record<string, unknown>)['features'] = [
+      { level: 1, ref: 'feature-warden-oath' },
+    ];
+  };
+  const firstLevel = (level: number) => (pack: Pack) => {
+    pack.progression.warden!.features![0]!.level = level;
+  };
+
+  it('(a) the moved fixture validates clean: features live at progression.<id>.features', () => {
+    expect(VALID_PACK.progression.warden!.features).toEqual([{ level: 1, ref: 'feature-warden-oath' }]);
+    expect(VALID_PACK.content.classes!['warden']).not.toHaveProperty('features');
+    expect(validatePack(VALID_PACK, stubDslChecker)).toEqual([]);
+    expect(validatePack(cloneRuntimePack(), packDslChecker)).toEqual([]);
+  });
+
+  it('(b) content.classes.<id>.features is the closed-contract E-SCHEMA-02, one card', () => {
+    const cards = errorsFor(oldLocation);
+    expect(paths(cards)).toEqual([['E-SCHEMA-02', 'content.classes.warden.features']]);
+    expect(cards[0]!.message).toBe(
+      'unknown field "features" — the contract is closed (additionalProperties: false).',
+    );
+  });
+
+  it('(c) level 0, a fractional level and a level above the ceiling are E-SCHEMA-01 at .level', () => {
+    for (const level of [0, 1.5, 5]) {
+      expect(paths(errorsFor(firstLevel(level))), String(level)).toEqual([
+        ['E-SCHEMA-01', 'progression.warden.features[0].level'],
+      ]);
+    }
+    expect(errorsFor(firstLevel(5))[0]!.message).toBe(
+      "feature level 5 is above the class's level ceiling 4 (FR-6).",
+    );
+    expect(errorsFor(firstLevel(4))).toEqual([]);
+  });
+
+  it('(d) a repeated ref within a class, or a non-kebab ref, is E-SCHEMA-01 at .ref', () => {
+    const repeated = errorsFor((pack) => {
+      pack.progression.warden!.features!.push({ level: 2, ref: 'feature-warden-oath' });
+    });
+    expect(paths(repeated)).toEqual([['E-SCHEMA-01', 'progression.warden.features[1].ref']]);
+    const nonKebab = errorsFor((pack) => {
+      pack.progression.warden!.features![0]!.ref = 'Warden Oath';
+    });
+    expect(paths(nonKebab)).toEqual([['E-SCHEMA-01', 'progression.warden.features[0].ref']]);
+  });
+
+  it('(e) all at once: the old location and a bad level yield both cards (FR-2)', () => {
+    const cards = errorsFor((pack) => {
+      oldLocation(pack);
+      firstLevel(0)(pack);
+    });
+    expect(paths(cards)).toEqual([
+      ['E-SCHEMA-02', 'content.classes.warden.features'],
+      ['E-SCHEMA-01', 'progression.warden.features[0].level'],
+    ]);
   });
 });

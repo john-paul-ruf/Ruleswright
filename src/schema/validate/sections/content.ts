@@ -78,60 +78,10 @@ function checkClasses(ctx: Ctx, value: unknown): void {
       continue;
     }
     reqFields(ctx, def, ['name'], id, basePath);
-    forbidUnknown(ctx, def, ['name', 'spellLists', 'armorCasting', 'features', 'actions'], id, basePath);
+    forbidUnknown(ctx, def, ['name', 'spellLists', 'armorCasting', 'actions'], id, basePath);
     checkStringField(ctx, def, 'name', id, basePath, 1);
     checkStringArray(ctx, def['spellLists'], id, `${basePath}.spellLists`);
     checkStringArray(ctx, def['armorCasting'], id, `${basePath}.armorCasting`);
-    const features = def['features'];
-    if (features !== undefined) {
-      if (!Array.isArray(features)) {
-        add(
-          ctx,
-          makeErrorCard(
-            'E-SCHEMA-01',
-            id,
-            `${basePath}.features`,
-            'features must be an array of {level, ref}.',
-          ),
-        );
-      } else {
-        for (const [index, feature] of features.entries()) {
-          const featurePath = `${basePath}.features[${index}]`;
-          if (!isPlainObject(feature)) {
-            add(
-              ctx,
-              makeErrorCard('E-SCHEMA-01', id, featurePath, 'feature must be an object {level, ref}.'),
-            );
-            continue;
-          }
-          reqFields(ctx, feature, ['level', 'ref'], id, featurePath);
-          forbidUnknown(ctx, feature, ['level', 'ref'], id, featurePath);
-          const level = feature['level'];
-          if (level !== undefined && (!isInteger(level) || level < 1)) {
-            add(
-              ctx,
-              makeErrorCard(
-                'E-SCHEMA-01',
-                id,
-                `${featurePath}.level`,
-                'feature.level must be an integer >= 1.',
-              ),
-            );
-          }
-          if (feature['ref'] !== undefined && typeof feature['ref'] !== 'string') {
-            add(
-              ctx,
-              makeErrorCard(
-                'E-SCHEMA-01',
-                id,
-                `${featurePath}.ref`,
-                'feature.ref must be a string (the feature artifact id).',
-              ),
-            );
-          }
-        }
-      }
-    }
     checkClassActions(ctx, def['actions'], id, `${basePath}.actions`);
   }
 }

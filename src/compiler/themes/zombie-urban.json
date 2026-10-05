@@ -126,16 +126,11 @@
       "scavenger": {
         "name": "Scavenger",
         "spellLists": [],
-        "features": [
-          { "level": 1, "ref": "scavengers-instinct" },
-          { "level": 4, "ref": "block-runner" }
-        ],
         "actions": ["baton-blow", "crossbow-bolt", "fall-back", "dodge-roll", "hustle", "cheap-shot"]
       },
       "fixer": {
         "name": "Fixer",
         "spellLists": ["fixer"],
-        "features": [{ "level": 1, "ref": "milers-read" }],
         "actions": [
           "baton-blow",
           "pistol-shot",
@@ -149,7 +144,6 @@
       "medic": {
         "name": "Medic",
         "spellLists": ["medic"],
-        "features": [{ "level": 2, "ref": "field-surgery" }],
         "actions": ["baton-blow", "fall-back", "dodge-roll", "hustle", "cheap-shot"]
       }
     },
@@ -312,7 +306,11 @@
         "tenacity": [0, 1, 1, 1, 2, 2, 2, 3, 3, 3],
         "presence": [0, 0, 1, 1, 1, 1, 2, 2, 2, 2]
       },
-      "featSlots": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4]
+      "featSlots": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4],
+      "features": [
+        { "level": 1, "ref": "scavengers-instinct" },
+        { "level": 4, "ref": "block-runner" }
+      ]
     },
     "fixer": {
       "hd": "d8",
@@ -322,7 +320,8 @@
         "reason": [0, 0, 1, 1, 1, 2, 2, 2, 2, 3],
         "presence": [2, 2, 3, 3, 4, 4, 4, 5, 5, 5]
       },
-      "featSlots": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4]
+      "featSlots": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4],
+      "features": [{ "level": 1, "ref": "milers-read" }]
     },
     "medic": {
       "hd": "d6",
@@ -332,7 +331,8 @@
         "vigor": [0, 0, 1, 1, 1, 1, 2, 2, 2, 2],
         "presence": [0, 1, 1, 1, 2, 2, 2, 2, 3, 3]
       },
-      "featSlots": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4]
+      "featSlots": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4],
+      "features": [{ "level": 2, "ref": "field-surgery" }]
     }
   },
   "bestiary": {

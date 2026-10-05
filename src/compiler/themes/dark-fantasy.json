@@ -127,23 +127,17 @@
         "name": "Warden",
         "spellLists": ["warden"],
         "armorCasting": ["mail"],
-        "features": [
-          { "level": 1, "ref": "oath-of-the-warden" },
-          { "level": 3, "ref": "wardens-glyph" }
-        ],
         "actions": ["strike", "cut-down", "withdraw", "brace", "parry", "stride", "opportunist"]
       },
       "hexer": {
         "name": "Hexer",
         "spellLists": ["hexer"],
         "armorCasting": ["leather"],
-        "features": [{ "level": 1, "ref": "hexers-eye" }],
         "actions": ["hurl", "long-shot", "withdraw", "ward-glint", "ember-surge", "stride", "opportunist"]
       },
       "crypt-warden": {
         "name": "Crypt Warden",
         "spellLists": ["warden", "hexer"],
-        "features": [{ "level": 2, "ref": "wardens-glyph" }],
         "actions": ["strike", "long-shot", "withdraw", "brace", "ward-glint", "stride", "opportunist"]
       }
     },
@@ -553,7 +547,11 @@
         "2": [0, 0, 2, 2, 3, 3, 3, 3, 3, 3],
         "3": [0, 0, 0, 0, 0, 2, 2, 3, 3, 3]
       },
-      "featSlots": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4]
+      "featSlots": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4],
+      "features": [
+        { "level": 1, "ref": "oath-of-the-warden" },
+        { "level": 3, "ref": "wardens-glyph" }
+      ]
     },
     "hexer": {
       "hd": "d6",
@@ -568,7 +566,8 @@
         "2": [0, 2, 3, 3, 3, 4, 4, 4, 4, 4],
         "3": [0, 0, 0, 1, 2, 2, 3, 3, 3, 4]
       },
-      "featSlots": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4]
+      "featSlots": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4],
+      "features": [{ "level": 1, "ref": "hexers-eye" }]
     },
     "crypt-warden": {
       "hd": "d8",
@@ -625,7 +624,8 @@
         "2": [0, 0, 1, 1, 2, 2, 2, 3, 3, 3],
         "3": [0, 0, 0, 0, 0, 1, 1, 2, 2, 2]
       },
-      "featSlots": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4]
+      "featSlots": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4],
+      "features": [{ "level": 2, "ref": "wardens-glyph" }]
     }
   },
   "bestiary": {

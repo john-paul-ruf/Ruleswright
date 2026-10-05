@@ -2,8 +2,10 @@
  * The progression section: per-class tables keyed BY class id (each entry is
  * the class’s own table, not a second artifact). Owns the XOR rule — exactly
  * one attack convention (attackTable or attackBonus) per class — plus hd dice,
- * save progressions, vancian slot tables, and v1.8 feat slots (non-negative,
- * non-decreasing running totals covering every level the saves can read).
+ * save progressions, vancian slot tables, v1.8 feat slots (non-negative,
+ * non-decreasing running totals covering every level the saves can read) and
+ * the v1.10 class-feature shape ({level, ref}, level within the ceiling, ref
+ * unique per class; ref resolution is cross.ts's checkClassFeatures).
  */
 import type { Ctx } from '../context';
 import { makeErrorCard } from '../../error-card';
@@ -60,7 +62,7 @@ export function checkProgression(ctx: Ctx, value: unknown): void {
     forbidUnknown(
       ctx,
       prog,
-      ['hd', 'attackTable', 'attackBonus', 'saves', 'slots', 'featSlots'],
+      ['hd', 'attackTable', 'attackBonus', 'saves', 'slots', 'featSlots', 'features'],
       classId,
       basePath,
     );
@@ -187,25 +189,103 @@ export function checkProgression(ctx: Ctx, value: unknown): void {
           }
         }
         // coverage (DD-F4): every readable level reads a value
-        if (isPlainObject(saves)) {
-          const lengths = Object.values(saves)
-            .filter(Array.isArray)
-            .map((values) => values.length);
-          const ceiling = lengths.length > 0 ? Math.min(...lengths) : 0;
-          if (featSlots.length < ceiling) {
-            add(
-              ctx,
-              makeErrorCard(
-                'E-SCHEMA-01',
-                classId,
-                `${basePath}.featSlots`,
-                `feat slots cover ${featSlots.length} level(s); the class's tables read ${ceiling} — declare a value for every level (FR-6).`,
-              ),
-            );
-          }
+        const ceiling = levelCeiling(saves);
+        if (ceiling !== undefined && featSlots.length < ceiling) {
+          add(
+            ctx,
+            makeErrorCard(
+              'E-SCHEMA-01',
+              classId,
+              `${basePath}.featSlots`,
+              `feat slots cover ${featSlots.length} level(s); the class's tables read ${ceiling} — declare a value for every level (FR-6).`,
+            ),
+          );
         }
       }
     }
+    checkFeatures(ctx, prog['features'], classId, `${basePath}.features`, levelCeiling(saves));
+  }
+}
+
+/** A class's level ceiling: its shortest saves array (DD-F4); undefined while saves is unreadable or empty. */
+function levelCeiling(saves: unknown): number | undefined {
+  if (!isPlainObject(saves)) return undefined;
+  const lengths = Object.values(saves)
+    .filter(Array.isArray)
+    .map((values) => values.length);
+  return lengths.length > 0 ? Math.min(...lengths) : undefined;
+}
+
+/** v1.10 class features (CA-C1): {level, ref} entries, level 1..ceiling, kebab ref unique per class. */
+function checkFeatures(
+  ctx: Ctx,
+  value: unknown,
+  classId: string,
+  basePath: string,
+  ceiling: number | undefined,
+): void {
+  if (value === undefined) return;
+  if (!Array.isArray(value)) {
+    add(ctx, makeErrorCard('E-SCHEMA-01', classId, basePath, 'features must be an array of {level, ref}.'));
+    return;
+  }
+  const seen = new Set<string>();
+  for (const [index, feature] of value.entries()) {
+    const featurePath = `${basePath}[${index}]`;
+    if (!isPlainObject(feature)) {
+      add(ctx, makeErrorCard('E-SCHEMA-01', classId, featurePath, 'feature must be an object {level, ref}.'));
+      continue;
+    }
+    reqFields(ctx, feature, ['level', 'ref'], classId, featurePath);
+    forbidUnknown(ctx, feature, ['level', 'ref'], classId, featurePath);
+    const level = feature['level'];
+    if (level !== undefined && (!isInteger(level) || level < 1)) {
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          classId,
+          `${featurePath}.level`,
+          'feature.level must be an integer >= 1.',
+        ),
+      );
+    } else if (isInteger(level) && ceiling !== undefined && level > ceiling) {
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          classId,
+          `${featurePath}.level`,
+          `feature level ${level} is above the class's level ceiling ${ceiling} (FR-6).`,
+        ),
+      );
+    }
+    const ref = feature['ref'];
+    if (ref === undefined) continue;
+    if (typeof ref !== 'string' || !ID_PATTERN.test(ref)) {
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          classId,
+          `${featurePath}.ref`,
+          'feature.ref must be a feat, action or spell id matching ^[a-z][a-z0-9-]*$.',
+        ),
+      );
+      continue;
+    }
+    if (seen.has(ref)) {
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          classId,
+          `${featurePath}.ref`,
+          `class feature "${ref}" repeats in class "${classId}" — a ref appears at most once per class.`,
+        ),
+      );
+    }
+    seen.add(ref);
   }
 }
 

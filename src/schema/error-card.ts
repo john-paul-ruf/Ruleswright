@@ -9,7 +9,7 @@ export interface ErrorCard {
   severity: ErrorSeverity;
   /** Id of the offending artifact; the owning section name for section-level errors, "(pack)" for document-level ones. */
   artifactId: string;
-  /** Dot path from the pack root; array entries use bracket indices ("content.classes.warden.features[0].level"). */
+  /** Dot path from the pack root; array entries use bracket indices ("progression.warden.features[0].level"). */
   jsonPath: string;
   /** Registered rule id (see RULE_IDS). */
   rule: string;

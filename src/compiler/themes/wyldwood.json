@@ -234,27 +234,11 @@
         "name": "Warden",
         "spellLists": ["warden"],
         "armorCasting": ["leather"],
-        "features": [
-          {
-            "level": 1,
-            "ref": "oath-of-the-verge"
-          },
-          {
-            "level": 5,
-            "ref": "verges-glyph"
-          }
-        ],
         "actions": ["strike", "thorn-lash", "fall-back", "circle-path", "ward-step", "glide", "bramble-snap"]
       },
       "hexer": {
         "name": "Hexer",
         "spellLists": ["hexer"],
-        "features": [
-          {
-            "level": 1,
-            "ref": "hexers-eye"
-          }
-        ],
         "actions": [
           "bow-volley",
           "glade-spear",
@@ -268,12 +252,6 @@
       "hedge-mage": {
         "name": "Hedge Mage",
         "spellLists": ["hedge-mage"],
-        "features": [
-          {
-            "level": 2,
-            "ref": "hedges-eye"
-          }
-        ],
         "actions": [
           "thorn-lash",
           "gloam-light",
@@ -836,7 +814,17 @@
         "reason": [0, 0, 0, 1, 1, 1, 2, 2, 2, 2],
         "presence": [0, 0, 1, 1, 1, 1, 2, 2, 2, 2]
       },
-      "featSlots": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4]
+      "featSlots": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4],
+      "features": [
+        {
+          "level": 1,
+          "ref": "oath-of-the-verge"
+        },
+        {
+          "level": 5,
+          "ref": "verges-glyph"
+        }
+      ]
     },
     "hexer": {
       "hd": "d6",
@@ -846,7 +834,13 @@
         "grace": [1, 2, 2, 3, 3, 3, 4, 4, 4, 5],
         "presence": [0, 1, 1, 2, 2, 2, 3, 3, 3, 4]
       },
-      "featSlots": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4]
+      "featSlots": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4],
+      "features": [
+        {
+          "level": 1,
+          "ref": "hexers-eye"
+        }
+      ]
     },
     "hedge-mage": {
       "hd": "d8",
@@ -856,7 +850,13 @@
         "vigor": [0, 0, 1, 1, 1, 1, 2, 2, 2, 2],
         "presence": [0, 1, 1, 1, 2, 2, 2, 2, 3, 3]
       },
-      "featSlots": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4]
+      "featSlots": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4],
+      "features": [
+        {
+          "level": 2,
+          "ref": "hedges-eye"
+        }
+      ]
     }
   },
   "bestiary": {
