@@ -15,6 +15,7 @@ import {
   Runtime,
   RuntimeRuleError,
   bestiaryIds,
+  classFeatures,
   deserializeCombat,
   knownSpells,
   learnFeat,
@@ -30,7 +31,6 @@ import {
   type CombatSnapshot,
   type RuntimeEvent,
 } from '../../src/runtime';
-import { classFeatures } from '../../src/runtime/features';
 import { Rng } from '../../src/core/rng';
 
 const SEED = 42;
@@ -275,5 +275,18 @@ describe('class features journey (CAP-C3…C6)', () => {
         event.why.rule,
       ]),
     ).toEqual([['cw', 'braced', 'content.feats.crypt-vigil']]);
+  });
+  it('leg 6 (CAP-C6) — the host lists the class features of a medic L3 from the runtime barrel, DD-C5 order', () => {
+    const rt = runtimeFor('zombie-urban');
+    const medic = rt.createCharacter({
+      name: 'medic',
+      race: 'mile-born',
+      classes: [{ id: 'medic', level: 3 }],
+    });
+    expect(classFeatures(rt, medic.state)).toEqual([
+      { classId: 'medic', level: 2, ref: 'field-surgery', kind: 'feat', active: true },
+      { classId: 'medic', level: 3, ref: 'rot-read', kind: 'spell', active: true },
+      { classId: 'medic', level: 4, ref: 'steady-pulse', kind: 'feat', active: false },
+    ]);
   });
 });

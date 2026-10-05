@@ -232,6 +232,9 @@ describe('README quickstart runs verbatim (NFR-DX)', () => {
     // Spells and feats in combat (spells-in-combat): the settlement and feat verbs are documented.
     expect(readme).toContain('settleSpellCasts');
     expect(readme).toContain('learnFeat');
+    // Class features (class-features, v1.10): where they live and the host query are documented.
+    expect(readme).toContain('progression.<id>.features');
+    expect(readme).toContain('classFeatures');
     // CI-claim honesty (NFR-DX): the README must never promise a CI run CI
     // does not perform. The browser determinism leg is a tracked v1.1
     // follow-up — ci.yml runs the Node matrix only, and says so.

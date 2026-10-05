@@ -41,6 +41,7 @@ describe('module surfaces (CA-D1)', () => {
       'castSpell',
       'checkCost',
       'checkReach',
+      'classFeatures',
       'countItem',
       'createCharacter',
       'declaredTags',

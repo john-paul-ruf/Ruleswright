@@ -26,6 +26,7 @@ export {
   type DerivedStats,
 } from './character';
 export { learnFeat } from './feats';
+export { classFeatures, type ClassFeatureView } from './features';
 export { CharacterBuildError, validateBuild, levelForXp, xpSplit, levelSet, awardXp } from './progression';
 export {
   spendPool,

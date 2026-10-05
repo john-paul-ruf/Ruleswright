@@ -138,10 +138,12 @@ deterministic per seed, like everything else (FR-1).
 
 - `profileFromCharacter(rt, character, id?)` returns `{ profile, balances }`: current
   hp, `derived()` ac/attack bonus, the pack's `initiative` formula, the union of the
-  character's class `actions` (pack v1.2), its pool points + bound spell slots, the
-  spells it knows, its slot bindings, any armor that blocks slot casting, and its
-  reactive feats.
-  A class with no `actions` cannot fight (`no-combat-actions`).
+  character's class `actions` (pack v1.2) followed by the actions its class features
+  unlock (v1.10), its pool points + bound spell slots, the spells it knows, its slot
+  bindings, any armor that blocks slot casting, and its reactive feats (learned, then
+  granted by class features).
+  A character with no class `actions` and no unlocked action cannot fight
+  (`no-combat-actions`).
 - The fight ends by one engine rule (`combat.sideDefeated`): after any resolution, once every
   combatant on one side is at hp ≤ 0, `fight.state.phase` becomes `combat-over`, one `combat:ended`
   event names `{ winner, defeated }`, and `step()` returns `{ kind: "combat-over" }` from then on.
@@ -321,9 +323,10 @@ and dark-fantasy packs (seed 42).
 
 A spell is declared like an action, by id, on the caster's turn:
 `fight.declare('ember-bloom', { targetId: 'wight' })`. The caster must know it —
-`profileFromCharacter` carries the character's known spells, slot bindings and
-pool points. The gates run in a fixed order, and each refusal is one
-`declare:rejected` with nothing spent: the spell is known (`no-action`) → no
+`profileFromCharacter` carries the character's known spells (its classes' spell
+lists plus any spell a class feature unlocks), slot bindings and pool points.
+The gates run in a fixed order, and each refusal is one `declare:rejected` with
+nothing spent: the spell is known (`no-action`) → no
 active condition restricts it (`restricted`; dark-fantasy's `hexbound` restricts
 `spells.tagged:casting`) → the target resolves and the spell's `valid` clause
 passes → range (`out-of-range`, `E-SPAT-01`) → equipped armor the caster's classes
@@ -352,7 +355,8 @@ cannot cast in blocks a slot (vancian) spell (`armor-not-castable`) → the cost
   character; a second call returns `[]`.
 - **Feats.** `character.learnFeat(featId)` (or `learnFeat(rt, state, featId)`)
   adds a pack-declared feat (`feat:learned`; `unknown-feat` and `feat-known`
-  refuse). The character snapshot keeps `feats`.
+  refuse, and `feat-known` also refuses a feat a class feature grants). The
+  character snapshot keeps the learned `feats`.
 - **Feat slots.** A pack's progression may declare `featSlots` per class per
   level; a character's slots add across its classes, and `learnFeat`,
   `levelSet`, `awardXp` and snapshot restore refuse a character holding more
@@ -360,7 +364,7 @@ cannot cast in blocks a slot (vancian) spell (`armor-not-castable`) → the cost
   at level 1, 2 at level 3, 3 at level 6 and 4 at level 9. An XP award never
   lowers a level: a character set directly to level 3 keeps level 3 until its
   XP reaches level 4.
-- **Reactive feats.** A held feat with a `trigger` is offered like a reaction
+- **Reactive feats.** A held or granted feat with a `trigger` is offered like a reaction
   (`trigger:fired` with `source: 'feat'`) and answered with `fight.respond`. It
   is free (no slot), acts on its holder, and never chains: taking it raises no
   new offer. A combat snapshot keeps every open offer (`offers`), the offer
@@ -400,6 +404,63 @@ Slot every class a character may take.
 The spells journey — vancian and point-pool legs, plus the feat leg above — runs
 in `tests/proofs/spells-journey.test.ts` against the built package and the real
 generated packs (seed 42).
+
+## Class features
+
+A pack's progression may declare class features: `progression.<id>.features`, a
+list of `{ level, ref }`. The `ref` names exactly one pack artifact, and the map
+that declares it decides what the feature does while the character's level in
+that class is at least `level`:
+
+- a feat in `content.feats` is **granted**: the character holds it;
+- an action in `actions` is **unlocked**: the character may declare it in combat;
+- a spell in `content.spells` is **unlocked**: the character knows it.
+
+The generated dark-fantasy pack's crypt-warden (its other progression fields
+left out):
+
+```json
+"progression": {
+  "crypt-warden": {
+    "features": [
+      { "level": 2, "ref": "barrow-rite" },
+      { "level": 3, "ref": "crypt-vigil" }
+    ]
+  }
+}
+```
+
+The pack is refused at load, with every card at once, when a `ref` names nothing
+(`E-REF-01`, with a did-you-mean hint), when an unlock is one the class already
+has — an action in its `actions`, a spell its `spellLists` already know
+(`E-REF-01`) — when a `ref` repeats within one class or a `level` lies outside
+1..the class's level ceiling (`E-SCHEMA-01`). `content.classes.<id>.features` is
+not a field (`E-SCHEMA-02`).
+
+- **Granted is not learned.** A granted feat is worked out from the character's
+  classes. It is never written to the character's `feats`, never stored in a
+  snapshot, and uses no feat slot; `learnFeat` refuses it (`feat-known`). A feat
+  learned before a class feature grants it stays learned and keeps its slot.
+  Lowering a class level with `levelSet` drops the grant; no event besides
+  `level:reached` is emitted.
+- **Unlocks ride the normal pipeline.** `profileFromCharacter` appends unlocked
+  actions after the class `actions` and granted reactive feats after the learned
+  ones; `knownSpells` — and so `prepareSpell` and the combat declare — includes
+  unlocked spells, in pack order. Restrictions, range, costs, `armorCasting` and
+  slot or pool spend apply unchanged. Below the level, the declare is refused
+  `no-action` with nothing spent.
+- **Characters only.** A statblock keeps its own `actions` list, even when it
+  borrows a class's `attackTable`.
+- **The host query.** `classFeatures(rt, character.state)` lists every feature
+  of the character's classes as `{ classId, level, ref, kind, active }` — class
+  order, then feature order, inactive (future) features included.
+
+The sample themes ship features on every class. In dark-fantasy a crypt-warden
+unlocks the action `barrow-rite` at level 2 and is granted the reactive feat
+`crypt-vigil` at level 3: when a condition lands on it, it may take `braced`. In
+zombie-urban a medic unlocks the fixer-list spell `rot-read` at level 3. The
+journey runs in `tests/proofs/class-features-journey.test.ts` from source,
+against the generated packs (seed 42).
 
 ## Equipment & consumables
 
