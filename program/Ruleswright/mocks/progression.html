@@ -61,6 +61,46 @@
     </div>
   </section>
 
+  <!-- CLASS FEATURES (v1.10) -->
+  <section id="class-features" class="mb-12">
+    <h2 class="font-display text-2xl mb-4">Class features are table rows too</h2>
+    <p class="text-sm text-[#9A8F7E] mb-4 max-w-2xl">A class feature names a feat, an action or a spell, at a class level. The pack decides; the engine only checks the level (FR-6).</p>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
+      <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">progression.crypt-warden.features — sample pack, excerpt</div>
+      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code><span class="kw">"features"</span>: [
+  { <span class="kw">"level"</span>: <span class="num">2</span>, <span class="kw">"ref"</span>: <span class="str">"barrow-rite"</span> },
+  { <span class="kw">"level"</span>: <span class="num">3</span>, <span class="kw">"ref"</span>: <span class="str">"crypt-vigil"</span> }
+]</code></pre>
+    </div>
+    <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden mt-3">
+      <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">what a ref does — decided by the map it resolves in</div>
+      <table class="w-full font-data text-[13px]">
+        <thead>
+          <tr class="bg-[#2C261F] text-[#9A8F7E] text-xs text-left">
+            <th class="px-4 py-2 font-normal">kind</th>
+            <th class="px-4 py-2 font-normal">ref resolves in</th>
+            <th class="px-4 py-2 font-normal">from that class level on</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-t border-[#3A322A]"><td class="px-4 py-2 text-[#D9843B]">feat</td><td class="px-4 py-2">content.feats</td><td class="px-4 py-2">granted: no feat slot, never stored, offered in combat if reactive</td></tr>
+          <tr class="border-t border-[#3A322A]"><td class="px-4 py-2 text-[#D9843B]">action</td><td class="px-4 py-2">actions</td><td class="px-4 py-2">declarable in combat</td></tr>
+          <tr class="border-t border-[#3A322A]"><td class="px-4 py-2 text-[#D9843B]">spell</td><td class="px-4 py-2">content.spells</td><td class="px-4 py-2">known</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="space-y-3 mt-4">
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
+        <span class="text-[#7BA05B] shrink-0">✓</span>
+        <p class="text-sm">Granted is not learned — <span class="font-data text-[13px]">learnFeat</span> refuses a feat your class grants (<span class="font-data text-[13px]">feat-known</span>).</p>
+      </div>
+      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
+        <span class="text-[#6A93A8] shrink-0">◈</span>
+        <p class="text-sm"><span class="font-data text-[13px]">classFeatures(rt, character)</span> lists every feature with its kind and whether it is active.</p>
+      </div>
+    </div>
+  </section>
+
   <!-- TWO PATHS -->
   <section class="mb-12">
     <h2 class="font-display text-2xl mb-4">Two ways to level — identical validation</h2>
