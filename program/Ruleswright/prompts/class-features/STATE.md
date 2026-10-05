@@ -36,7 +36,7 @@ The human answered: "**1 a,b 2 no 3 move it, fix packs, 4 fix the broken packs, 
 | S03 | Schema mirror, validator, bundled themes, fixtures, characterization re-key | M01, M04, tests | `src/schema/artifacts.ts`, `src/schema/error-card.ts`, `src/schema/validate/index.ts`, `src/schema/validate/sections/content.ts`, `src/schema/validate/sections/progression.ts`, `src/schema/validate/sections/cross.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `tests/runtime/fixtures/pack.ts`, `tests/schema/fixtures.ts`, `tests/schema/validate.test.ts`, `tests/compiler/coverage-floor.test.ts`, `tests/proofs/combat-characterization.test.ts`, `tests/proofs/feat-slots-journey.test.ts` (lease rev 2, F-C1); scratch-only, never committed: `tests/proofs/characterization-dump.scratch.test.ts` | done | 2/2 | 2026-10-05 | ck1 `c3fc398`, ck2 `c0a23b1`; N 938 → 943 → 951; arch `c7d517f` |
 | S04 | Runtime: granted feats, unlocked actions and spells, host query, journey, README | M03, tests, docs | `src/runtime/features.ts`, `src/runtime/feats.ts`, `src/runtime/pools.ts`, `src/runtime/character-profile.ts`, `src/runtime/index.ts`, `tests/runtime/features.test.ts`, `tests/runtime/feats.test.ts`, `tests/runtime/pools.test.ts`, `tests/runtime/combat/character-profile.test.ts`, `tests/runtime/combat/module-surface.test.ts`, `tests/proofs/class-features-journey.test.ts`, `tests/proofs/docs-run.test.ts`, `README.md` | done | 4/4 | 2026-10-05 | ck1 `3a49d9f`, ck2 `dd70d3e`, ck3 `32eaa35`, ck4 `64a3231`; N 951 → 970; arch `de67360` |
 | S05 | Author re-entry (Designer): `progression.html` F-R6 + class-features panel | — (Designer) | `program/Ruleswright/mocks/progression.html` | done | 2/2 | 2026-10-05 | ck1 `e5850e2` (F-R6), ck2 `7298b73` (panel `#class-features`) |
-| S02 | Author re-entry (Architect): F-D8 file-location drift + `features.ts` | — (Architect) | `program/Ruleswright/specs/architecture.md` | pending | — | — | |
+| S02 | Author re-entry (Architect): F-D8 file-location drift + `features.ts` | — (Architect) | `program/Ruleswright/specs/architecture.md` | done | 2/2 | 2026-10-05 | ck1 `4eb8402`, ck2 `b8973ec`; F-D8 + F-C8 closed |
 
 (Session numbers follow authoring order. The Wave Plan gives the execution order.)
 
@@ -218,6 +218,8 @@ Observed by Planner at `f36d4ae`, 2026-10-04 ~17:00. `src`/`tests` are identical
 
 **Observed at S04 receive (`de67360`, Orchestrator 2026-10-05):** V1–V4 0, V5 54 files **970/970**, V6 0, V7 0; `src/runtime/{combat,snapshots}`, characterization and feat-slots-journey unchanged since `c0a23b1`.
 
+**Wave close (`b8973ec`, Orchestrator 2026-10-05):** V1–V4 0, V5 54 files **970/970** (N₀ 938 → N 970, +32: S03 +13, S04 +19), V6 0, V7 0. All five sessions done.
+
 **Feature gates:** after S04, V1–V7 green, and V5 = N₀ + the tests S03 and S04 add (each session reports its delta). Characterization digests change only as CA-C5 proves.
 
 ## Capability Readiness
@@ -230,7 +232,7 @@ Observed by Planner at `f36d4ae`, 2026-10-04 ~17:00. `src`/`tests` are identical
 | CAP-C4 | An action-unlock feature makes the action declarable from level L. Below L, `declare` → `declare:rejected {kind: 'no-action'}`, nothing spent | `unlockedActions` S04 ck2 | CA-C4; S03 | S04 ck2 | **verified** (S04 `dd70d3e`; re-run at `64a3231`) | journey leg 2: L1 `barrow-rite` → one `declare:rejected` `no-action`, state unchanged; L2 `action:resolved` | — |
 | CAP-C5 | A spell-unlock feature makes the spell known from level L (`knownSpells`, `profile.spells`), so it can be declared in combat (points) and prepared (vancian). Below L it is not known | `unlockedSpells` S04 ck2 | CA-C4; S03 | S04 ck2 | **verified** (S04 `dd70d3e`; re-run at `64a3231`) | journey leg 3 (medic L2 unknown → L3 `spell:cast` points/stamina −2); `pools.test.ts` vancian unlock with `grave-light` (F-C4) | — |
 | CAP-C6 | The host lists a character's class features with kind and active flag (`classFeatures`) | `features.ts` S04 ck1/ck4 | CA-C3, CA-C4 | S04 ck4 | **verified** (S04 `3a49d9f`, `64a3231`; re-run) | `features.test.ts` (5); journey leg 6 via barrel; module-surface pin includes `classFeatures` | — |
-| CAP-C7 | Docs match behaviour: `database.md` v1.10 (S01), README class-features section (S04), `progression.html` (S05), `architecture.md` (S02) | Author roles + S04 | CA-C1 | S02 (last) | in progress: DB (S01 `8d5828c`), README (S04 `64a3231`, docs-run anatomy green) done; Designer (S05 `e5850e2`, `7298b73`: F-R6 closed, class-features panel; ids grep-verified) done; Architect (S02) pending | text review at receive; docs-run anatomy check (S04 ck4) | — |
+| CAP-C7 | Docs match behaviour: `database.md` v1.10 (S01), README class-features section (S04), `progression.html` (S05), `architecture.md` (S02) | Author roles + S04 | CA-C1 | S02 (last) | **verified** (text review at each receive, 2026-10-05) | DB: `database.md` v1.10 (S01 `8d5828c`/`efa971d`); README `## Class features` + updated bullets (S04 `64a3231`, docs-run anatomy green); `progression.html` F-R6 + panel (S05 `e5850e2`/`7298b73`); `architecture.md` file locations + `features.ts` (S02 `4eb8402`/`b8973ec`, 26 named paths `test -e`) | text review at receive; docs-run anatomy check (S04 ck4) | — |
 
 **First narrow journey (S04 ck1).** Public API only, the real validator, compiler and combat engine, nothing mocked:
 - `new Runtime(generateCampaign({theme: loadTheme('dark-fantasy'), seed: 42}))` → `createCharacter` crypt-warden L3 → `profileFromCharacter` (`profile.feats` contains granted `crypt-vigil`; `state.feats` stays absent).
@@ -602,3 +604,57 @@ Orchestrator receive: all four commits inside lease rev 1; S05 commits `e5850e2`
   - `program/Ruleswright/mocks/progression.html`
 
 Orchestrator receive: both commits touch only `progression.html` (`git show --name-only`); V1–V3 0 at `7298b73`+ (S02 in flight on `specs/architecture.md`, excluded from gates); HTML tag balance 0 mismatches; panel excerpt shows `barrow-rite`@2, `crypt-vigil`@3 as landed. F-R6 closed (final Archivist records it). Accepted.
+
+### SESSION-02 (Architect re-entry) — received 2026-10-05, done 2/2 (4eb8402, b8973ec)
+
+- **session:** SESSION-02 (class-features), Architect re-entry, lease rev 1
+- **status:** done
+- **checkpoint:** 2/2
+  - ck1 `4eb8402`: module tree file locations
+  - ck2 `b8973ec`: mapping table and revision note
+- **notes:** Authorization quoted as given: "5 you have my auth for whatever you need" (2026-10-04, STATE.md *Human answers on record*). The revision note is dated `revised 2026-10-05` and says "builder-authorized 2026-10-04", as the envelope requires.
+- **delivered:** the changed lines, before → after (line numbers are as they were at dispatch `6670ec3`):
+  - **l.62-63:** `validate.ts — structural + semantic validator (pure, all-at-once, never partial — FR-2). The compiler imports this.` → `validate/ — … never partial — FR-2), one module per pass/section (index.ts, sections/*.ts). The compiler imports this.`
+  - **l.75 (F-C8):** `character.ts — character state, derived stats, known spells, inventory` → `character.ts — character state, derived stats, inventory`
+  - **l.76-77:** two lines added after `progression.ts`:
+    - `features.ts — class features: granted feats, unlocked actions/spells, derived from progression tables (FR-6, v1.10)`
+    - `pools.ts — drain pools + vancian bindings (FR-8)` → `… (FR-8); known spells (FR-9; class-feature unlocks via features.ts)`. This follows `pools.ts:304-319` (`knownSpells` uses `unlockedSpells` from `./features`).
+  - **l.80-84 (`combat/`):**
+    - `combat.ts — Combat: stepwise loop, initiative, rounds (FR-10)` → `combat.ts — Combat: startCombat, the public verbs, turn advance; stepwise loop, initiative, rounds (FR-10)`.
+    - Added `fight.ts` (FightCore: shared mutable state + primitives), `declare.ts` (declare gates + spend helpers), `execute.ts` (effect execution over FightCore: bound effects, action resolution, end rule), `movement.ts` (movement + terrain: move gate, path walk, FR-11), `types.ts` (plain-JSON combat state, verb shapes) and `combatants.ts` (pure combatant facts). Each duty comes from the file's header comment and `arch/v1-core.md` *File layout*.
+    - `triggers.ts` now also says "trigger answering". `action-economy.ts`, `resolve.ts` and `spatial.ts` are unchanged.
+  - **l.88:** `snapshots.ts — three serializers + loud-refusal load (FR-14)` → `snapshots/ — three serializers + loud-refusal load (FR-14)`, with sub-lines:
+    - `index.ts` (the public names)
+    - `envelope.ts` (pack-identity gate, E-SNAP-01/02)
+    - `character.ts` (character + party envelopes)
+    - `combat.ts` (combat envelope)
+  - **l.98-99 (F-C8):** `dark-fantasy, zombie-urban (FR-21; …)` → `dark-fantasy, zombie-urban, wyldwood (FR-21; …)`
+  - **l.208 (now l.232):** `` `snapshots.ts` owns exactly three serializers; … `` → `` `snapshots/` (`index.ts` re-exports `envelope`/`character`/`combat`) owns exactly three serializers; refusal is ErrorCard `E-SNAP-01`; the runtime contains no I/O code ``
+  - **Header (l.12-17, new):** `revised 2026-10-05 — Architect re-entry (class-features, builder-authorized 2026-10-04): file locations updated for the v1-shell validate/ split, the combat-decomposition combat/ and snapshots/ splits, and the class-features features.ts leaf; also wyldwood added to the sample themes/ list and known-spell derivation attributed to pools.ts (fed by features.ts), not character.ts; no boundary or contract change.`
+- **verification:**
+  - **Re-grep** (`grep -n 'validate\.ts\|snapshots\.ts\|combat\.ts' …/architecture.md`) found two hits, both real files:
+    - `90: │   │   │   ├── combat.ts       — Combat: startCombat, the public verbs, turn advance;` (`src/runtime/combat/combat.ts`)
+    - `112: │   │       └── combat.ts       — combat envelope` (`src/runtime/snapshots/combat.ts`)
+  - **Paths:** `test -e` passed for all 26 paths named in the changed lines (the validate/, runtime, combat/, snapshots/ and themes/*.json paths).
+  - **Commits:** `git show --name-only --format= HEAD` listed only `program/Ruleswright/specs/architecture.md` after each commit.
+  - **Write set:** `git diff --name-only 6670ec3..HEAD -- program/Ruleswright/specs/` lists only `architecture.md`.
+  - **Source tree:** `git diff --quiet 6670ec3 -- src` was clean at both commits.
+  - I did not run the test suite, and no code gate applies (H8).
+- **surprises:**
+  - The in-range commit `60fe17b` (Orchestrator's STATE.md update) is not mine.
+  - `mocks/progression.html` was never touched or staged.
+- **followUp (observations):**
+  - **Runtime files still missing from the tree:** `feats.ts`, `inventory.ts`, `equipment.ts`, `character-profile.ts`, `display-roll.ts`, `errors.ts` and `index.ts` in `src/runtime/`. I left them out on purpose, as the session file says.
+  - **Similar drift in `src/schema/validate/`:** the tree lists `index.ts` and `sections/*.ts`, but `collect.ts`, `context.ts`, `dsl.ts` and `helpers.ts` exist too.
+  - **The `character.ts` line still says "inventory".** `CharacterState` does hold the `inventory` field, but the logic lives in `inventory.ts` (its own header says so). I left it alone because it's outside the F-C8 amendment.
+  - **l.196 (now ~l.220), "both FR-21 packs":** there are now three sample themes. That's a CI-gates sentence, not a file location, so I didn't touch it.
+  - The final Archivist can record F-D8 as closed.
+- **deviations:**
+  - I used the date `2026-10-05` as the envelope says.
+  - The revision note adds the two F-C8 items to the wording SESSION-02.md prescribed, as the envelope requires.
+- **needsOwnerCorrection:** none
+- **needsDesignSource:** none
+- **blockedReason:** none
+- **filesTouched:** `program/Ruleswright/specs/architecture.md`
+
+Orchestrator receive: both commits touch only `architecture.md`; `src` unchanged since dispatch; wave-close whole-repo gates green (V1–V7, 970/970). F-D8 and ARCH-PRE F-C8 closed; CAP-C7 verified. Observations (unlisted runtime/validate files, `character.ts` "inventory", "both FR-21 packs" sentence) carried to the Final Report follow-up ledger.
