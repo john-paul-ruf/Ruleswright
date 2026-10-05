@@ -63,6 +63,7 @@ export const RUNTIME_PACK: Pack = {
     feats: {
       ironhide: { name: 'Ironhide' },
       'vengeful-strike': { name: 'Vengeful Strike', trigger: { on: 'damaged' }, effect: 'damage(1d4)' },
+      'feature-warden-oath': { name: 'Warden Oath' },
     },
     spells: {
       'hex-bolt': {

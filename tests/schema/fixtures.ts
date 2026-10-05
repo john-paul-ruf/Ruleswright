@@ -67,6 +67,7 @@ export const VALID_PACK: Pack = {
     feats: {
       ironhide: { name: 'Ironhide', passive: 'soak(1)' },
       'vengeful-strike': { name: 'Vengeful Strike', trigger: { on: 'damaged' }, effect: 'damage(1d4)' },
+      'feature-warden-oath': { name: 'Warden Oath' },
     },
     spells: {
       'grave-light': {

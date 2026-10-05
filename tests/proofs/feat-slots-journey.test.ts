@@ -128,12 +128,18 @@ describe('feat-slot journey (CAP-F5) — dark-fantasy, seed 42', () => {
     expect(target.nextCharacterId).toBe(1);
   });
 
-  it('leg 9 — unslotted control: with featSlots stripped, a level-1 warden learns all 4 feats', () => {
+  it('leg 9 — unslotted control: with featSlots stripped, a level-1 warden learns all 4 learnable feats', () => {
     const stripped = generated('dark-fantasy');
     for (const table of Object.values(stripped.progression)) delete table.featSlots;
     const rt = new Runtime(stripped);
     const c = warden(rt, 1);
-    const feats = Object.keys(stripped.content.feats ?? {});
+    // a feat some class feature names is granted, not learned (v1.10, DD-C2)
+    const featureRefs = new Set(
+      Object.values(stripped.progression).flatMap((table) =>
+        (table.features ?? []).map((feature) => feature.ref),
+      ),
+    );
+    const feats = Object.keys(stripped.content.feats ?? {}).filter((featId) => !featureRefs.has(featId));
     expect(feats).toHaveLength(4);
     for (const featId of feats) c.learnFeat(featId);
     expect(c.state.feats).toEqual(feats);

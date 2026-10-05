@@ -5,8 +5,9 @@
  *   1. collect      — tolerant sweep building every id namespace, so
  *                     cross-references resolve regardless of section order.
  *   2. structural + per-artifact semantic — section by section, contract order.
- *   3. pack-level semantic — progression/class pairing, restricts tag integrity,
- *                     movement DSL placement + the speed reference (v1.5).
+ *   3. pack-level semantic — progression/class pairing, class-feature refs
+ *                     (v1.10), restricts tag integrity, movement DSL placement
+ *                     + the speed reference (v1.5).
  *
  * Every card carries artifactId + jsonPath + rule + message (+ hint). A broken
  * pack yields the complete card list; a valid one yields none.
@@ -30,7 +31,12 @@ import {
 } from './sections/root';
 import { checkProgression } from './sections/progression';
 import { checkTables } from './sections/tables';
-import { checkMovementDsl, checkProgressionPairing, checkRestrictsTags } from './sections/cross';
+import {
+  checkClassFeatures,
+  checkMovementDsl,
+  checkProgressionPairing,
+  checkRestrictsTags,
+} from './sections/cross';
 
 export { deferredDslChecker, type DslCheckRequest, type DslChecker } from './dsl';
 export { MAX_TABLE_DEPTH, nearestIds } from './helpers';
@@ -77,6 +83,7 @@ export function validatePack(json: unknown, dslChecker: DslChecker = deferredDsl
   checkBestiary(ctx, json['bestiary']);
   checkTables(ctx, json['tables']);
   checkProgressionPairing(ctx);
+  checkClassFeatures(ctx, json);
   checkRestrictsTags(ctx, json['content']);
   checkMovementDsl(ctx, json);
   return ctx.errors;

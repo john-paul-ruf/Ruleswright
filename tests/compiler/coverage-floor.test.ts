@@ -270,6 +270,39 @@ describe('FR-21 floor — the shared bullets, enumerated against both packs', ()
       }
     });
 
+    it(`${name}: v1.10 class features resolve (CAP-C2)`, () => {
+      const maps = [pack.content.feats ?? {}, pack.actions, pack.content.spells ?? {}];
+      const features = Object.entries(pack.progression).flatMap(([classId, table]) =>
+        (table.features ?? []).map((feature) => ({ classId, ...feature })),
+      );
+      expect(features.length).toBeGreaterThan(0);
+      for (const { classId, ref } of features) {
+        expect(
+          maps.filter((map) => Object.keys(map).includes(ref)),
+          `${classId} → ${ref}`,
+        ).toHaveLength(1);
+      }
+      for (const [classId, def] of Object.entries(pack.content.classes ?? {}))
+        expect(def, classId).not.toHaveProperty('features');
+      const isFeat = (ref: string) => pack.content.feats?.[ref] !== undefined;
+      expect(
+        features.filter(({ ref }) => pack.content.feats?.[ref]?.trigger !== undefined).length,
+      ).toBeGreaterThanOrEqual(1);
+      expect(features.filter(({ ref }) => pack.actions[ref] !== undefined).length).toBeGreaterThanOrEqual(1);
+      if (name === 'zombie-urban')
+        expect(
+          features.filter(({ ref }) => pack.content.spells?.[ref] !== undefined).length,
+        ).toBeGreaterThanOrEqual(1);
+      // DD-C10: the classes the tests, README and characterization legs build carry passive feats only
+      for (const { classId, ref } of features.filter(({ classId }) =>
+        ['warden', 'hexer', 'scavenger'].includes(classId),
+      )) {
+        expect(isFeat(ref), `${classId} → ${ref}`).toBe(true);
+        expect(pack.content.feats?.[ref]?.passive, `${classId} → ${ref}`).toBeDefined();
+        expect(pack.content.feats?.[ref]?.trigger, `${classId} → ${ref}`).toBeUndefined();
+      }
+    });
+
     it(`${name}: reactive feat + reactive action ride the trigger patterns S05 proved`, () => {
       const reactiveAction = Object.values(pack.actions).find((action) => action.trigger?.on !== undefined);
       expect(reactiveAction?.trigger?.on).toMatch(/attack:rolled/);

@@ -1,7 +1,8 @@
 /**
  * Cross-section checks that run after every section pass: progression/class
- * pairing (E-REF-03), the v1.1 restricts-tag integrity (E-REF-01) and the v1.5
- * movement DSL rules (move placement E-FORM-02, speed reference E-REF-01).
+ * pairing (E-REF-03), the v1.1 restricts-tag integrity (E-REF-01), the v1.5
+ * movement DSL rules (move placement E-FORM-02, speed reference E-REF-01) and
+ * the v1.10 class-feature ref resolution and redundancy rules (E-REF-01).
  */
 import type { Ctx } from '../context';
 import { makeErrorCard } from '../../error-card';
@@ -73,6 +74,87 @@ export function checkRestrictsTags(ctx: Ctx, content: unknown): void {
       }
     }
   }
+}
+
+/** An optional artifact map: absent reads as empty; null when present but unreadable (its structural card is already emitted). */
+function readMap(value: unknown): Record<string, unknown> | null {
+  if (value === undefined) return {};
+  return isPlainObject(value) ? value : null;
+}
+
+/**
+ * v1.10 (CA-C2): every progression.<c>.features[i].ref names exactly one feat,
+ * action or spell (ids are pack-unique), and the feature must change something
+ * at its level — an action the class already grants, or a spell already on its
+ * lists, is a redundant ref. All E-REF-01; malformed entries are skipped
+ * (progression.ts already carries their structural cards).
+ */
+export function checkClassFeatures(ctx: Ctx, json: Record<string, unknown>): void {
+  const progression = json['progression'];
+  const content = json['content'];
+  const actions = json['actions'];
+  if (!isPlainObject(progression) || !isPlainObject(content) || !isPlainObject(actions)) return;
+  const feats = readMap(content['feats']);
+  const spells = readMap(content['spells']);
+  const classes = readMap(content['classes']);
+  if (feats === null || spells === null || classes === null) return;
+  const known = [...Object.keys(feats), ...Object.keys(actions), ...Object.keys(spells)];
+  for (const [classId, prog] of Object.entries(progression)) {
+    if (!isPlainObject(prog) || !Array.isArray(prog['features'])) continue;
+    const classDef = classes[classId];
+    const classActions = isPlainObject(classDef) ? stringsOf(classDef['actions']) : [];
+    const spellLists = isPlainObject(classDef) ? stringsOf(classDef['spellLists']) : [];
+    for (const [index, feature] of prog['features'].entries()) {
+      if (!isPlainObject(feature)) continue;
+      const ref = feature['ref'];
+      if (typeof ref !== 'string' || !ID_PATTERN.test(ref)) continue;
+      const jsonPath = `progression.${classId}.features[${index}].ref`;
+      if (!known.includes(ref)) {
+        const near = nearestId(ref, known);
+        add(
+          ctx,
+          makeErrorCard(
+            'E-REF-01',
+            classId,
+            jsonPath,
+            `class feature "${ref}" (class "${classId}", level ${String(feature['level'])}) names no feat, action or spell.`,
+            near === undefined ? 'declared feats, actions and spells: (none)' : `did you mean "${near}"?`,
+          ),
+        );
+      } else if (actions[ref] !== undefined && classActions.includes(ref)) {
+        add(
+          ctx,
+          makeErrorCard(
+            'E-REF-01',
+            classId,
+            jsonPath,
+            `class feature "${ref}" unlocks an action class "${classId}" already grants from level 1 (content.classes.${classId}.actions) — remove one.`,
+          ),
+        );
+      } else if (
+        spells[ref] !== undefined &&
+        spellListsOf(spells[ref]).some((list) => spellLists.includes(list))
+      ) {
+        add(
+          ctx,
+          makeErrorCard(
+            'E-REF-01',
+            classId,
+            jsonPath,
+            `class feature "${ref}" unlocks a spell class "${classId}" already knows through its spellLists.`,
+          ),
+        );
+      }
+    }
+  }
+}
+
+function stringsOf(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
+}
+
+function spellListsOf(spell: unknown): string[] {
+  return isPlainObject(spell) && isPlainObject(spell['magic']) ? stringsOf(spell['magic']['lists']) : [];
 }
 
 /** A root `move(` statement — exact because core's checkEffect already makes move root-only. */

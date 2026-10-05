@@ -1070,4 +1070,68 @@ describe('class features (v1.10, CAP-C1)', () => {
       ['E-SCHEMA-01', 'progression.warden.features[0].level'],
     ]);
   });
+
+  it('(f) an unresolved ref is E-REF-01 at .ref with a did-you-mean hint over feats, actions and spells', () => {
+    const cards = errorsFor((pack) => {
+      pack.progression.warden!.features![0]!.ref = 'feature-warden-oat';
+    });
+    expect(paths(cards)).toEqual([['E-REF-01', 'progression.warden.features[0].ref']]);
+    expect(cards[0]).toMatchObject({
+      artifactId: 'warden',
+      message: 'class feature "feature-warden-oat" (class "warden", level 1) names no feat, action or spell.',
+      hint: 'did you mean "feature-warden-oath"?',
+    });
+  });
+
+  it('(g) a ref naming another kind of id (a condition) is E-REF-01', () => {
+    const cards = errorsFor((pack) => {
+      pack.progression.warden!.features![0]!.ref = 'sapped';
+    });
+    expect(paths(cards)).toEqual([['E-REF-01', 'progression.warden.features[0].ref']]);
+    expect(cards[0]!.message).toContain('names no feat, action or spell');
+  });
+
+  it("(h) a feat, an action and a spell ref (on another class's list) each validate clean", () => {
+    const kinds = (pack: Pack): void => {
+      pack.progression.warden!.features = [
+        { level: 1, ref: 'feature-warden-oath' },
+        { level: 2, ref: 'strike' },
+        { level: 3, ref: 'grave-light' },
+      ];
+    };
+    expect(errorsFor(kinds)).toEqual([]);
+    expect(
+      validatePack(
+        (() => {
+          const pack = cloneRuntimePack();
+          kinds(pack);
+          return pack;
+        })(),
+        packDslChecker,
+      ),
+    ).toEqual([]);
+  });
+
+  it('(i) an action the class already grants (content.classes.<id>.actions) is a redundant E-REF-01', () => {
+    const cards = errorsFor((pack) => {
+      pack.content.classes!['warden']!.actions = ['strike'];
+      pack.progression.warden!.features!.push({ level: 2, ref: 'strike' });
+    });
+    expect(paths(cards)).toEqual([['E-REF-01', 'progression.warden.features[1].ref']]);
+    expect(cards[0]!.message).toBe(
+      'class feature "strike" unlocks an action class "warden" already grants from level 1 (content.classes.warden.actions) — remove one.',
+    );
+  });
+
+  it("(j) a spell already on the class's spellLists is a redundant E-REF-01", () => {
+    const cards = errorsFor((pack) => {
+      pack.progression.hexer!.features = [{ level: 1, ref: 'grave-light' }];
+    });
+    expect(paths(cards)).toEqual([['E-REF-01', 'progression.hexer.features[0].ref']]);
+    expect(cards[0]).toMatchObject({
+      artifactId: 'hexer',
+      message:
+        'class feature "grave-light" unlocks a spell class "hexer" already knows through its spellLists.',
+    });
+  });
 });

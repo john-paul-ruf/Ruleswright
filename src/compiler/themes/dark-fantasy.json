@@ -112,6 +112,12 @@
       "trigger": { "on": "move:leaving-reach[target=self]" },
       "effect": "sequence(attack(ac, might), damage(1d8 + might, sharp))",
       "tags": ["reaction"]
+    },
+    "barrow-rite": {
+      "cost": { "slots": { "main": 1 } },
+      "valid": "hasTarget(adjacent)",
+      "effect": "sequence(attack(ac, might), damage(1d6 + might, sharp))",
+      "tags": ["main"]
     }
   },
   "formulas": {
@@ -176,6 +182,14 @@
         "name": "Second Gust",
         "trigger": { "on": "condition:applied[target=self]" },
         "effect": "applyCondition(braced, 2)"
+      },
+      "oath-of-the-warden": { "name": "Oath of the Warden", "passive": "1" },
+      "wardens-resolve": { "name": "Warden's Resolve", "passive": "1" },
+      "hexers-eye": { "name": "Hexer's Eye", "passive": "1" },
+      "crypt-vigil": {
+        "name": "Crypt Vigil",
+        "trigger": { "on": "condition:applied[target=self]" },
+        "effect": "applyCondition(braced, 1)"
       }
     },
     "spells": {
@@ -550,7 +564,7 @@
       "featSlots": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4],
       "features": [
         { "level": 1, "ref": "oath-of-the-warden" },
-        { "level": 3, "ref": "wardens-glyph" }
+        { "level": 3, "ref": "wardens-resolve" }
       ]
     },
     "hexer": {
@@ -625,7 +639,10 @@
         "3": [0, 0, 0, 0, 0, 1, 1, 2, 2, 2]
       },
       "featSlots": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4],
-      "features": [{ "level": 2, "ref": "wardens-glyph" }]
+      "features": [
+        { "level": 2, "ref": "barrow-rite" },
+        { "level": 3, "ref": "crypt-vigil" }
+      ]
     }
   },
   "bestiary": {

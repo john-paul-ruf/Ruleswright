@@ -209,6 +209,16 @@
       },
       "effect": "sequence(attack(ac, might), damage(1d8 + might, sharp))",
       "tags": ["reaction"]
+    },
+    "thornward": {
+      "cost": {
+        "slots": {
+          "main": 1
+        }
+      },
+      "valid": "hasTarget(adjacent)",
+      "effect": "sequence(attack(ac, might), damage(1d6 + might, pierce))",
+      "tags": ["main"]
     }
   },
   "formulas": {
@@ -347,6 +357,29 @@
           "on": "condition:applied[target=self]"
         },
         "effect": "applyCondition(warded, 1)"
+      },
+      "oath-of-the-verge": {
+        "name": "Oath of the Verge",
+        "passive": "1"
+      },
+      "verges-glyph": {
+        "name": "Verge's Glyph",
+        "passive": "1"
+      },
+      "hexers-eye": {
+        "name": "Hexer's Eye",
+        "passive": "1"
+      },
+      "hedges-eye": {
+        "name": "Hedge's Eye",
+        "passive": "1"
+      },
+      "bramble-vigil": {
+        "name": "Bramble Vigil",
+        "trigger": {
+          "on": "condition:applied[target=self]"
+        },
+        "effect": "applyCondition(braced, 1)"
       }
     },
     "spells": {
@@ -855,6 +888,14 @@
         {
           "level": 2,
           "ref": "hedges-eye"
+        },
+        {
+          "level": 3,
+          "ref": "thornward"
+        },
+        {
+          "level": 4,
+          "ref": "bramble-vigil"
         }
       ]
     }

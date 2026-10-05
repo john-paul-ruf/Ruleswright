@@ -111,6 +111,12 @@
       "trigger": { "on": "move:leaving-reach[target=self]" },
       "effect": "sequence(attack(ac, might), damage(1d6 + might, bludgeon))",
       "tags": ["reaction"]
+    },
+    "jury-rig": {
+      "cost": { "slots": { "main": 1 } },
+      "valid": "hasTarget(adjacent)",
+      "effect": "sequence(attack(ac, might), damage(1d6 + might, bludgeon))",
+      "tags": ["main"]
     }
   },
   "formulas": {
@@ -181,6 +187,15 @@
         "name": "Last Legs",
         "trigger": { "on": "condition:applied[target=self]" },
         "effect": "applyCondition(spiked, 2)"
+      },
+      "scavengers-instinct": { "name": "Scavenger's Instinct", "passive": "1" },
+      "block-runner": { "name": "Block Runner", "passive": "1" },
+      "milers-read": { "name": "Miler's Read", "passive": "1" },
+      "field-surgery": { "name": "Field Surgery", "passive": "1" },
+      "steady-pulse": {
+        "name": "Steady Pulse",
+        "trigger": { "on": "condition:applied[target=self]" },
+        "effect": "applyCondition(braced, 1)"
       }
     },
     "spells": {
@@ -321,7 +336,10 @@
         "presence": [2, 2, 3, 3, 4, 4, 4, 5, 5, 5]
       },
       "featSlots": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4],
-      "features": [{ "level": 1, "ref": "milers-read" }]
+      "features": [
+        { "level": 1, "ref": "milers-read" },
+        { "level": 3, "ref": "jury-rig" }
+      ]
     },
     "medic": {
       "hd": "d6",
@@ -332,7 +350,11 @@
         "presence": [0, 1, 1, 1, 2, 2, 2, 2, 3, 3]
       },
       "featSlots": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4],
-      "features": [{ "level": 2, "ref": "field-surgery" }]
+      "features": [
+        { "level": 2, "ref": "field-surgery" },
+        { "level": 3, "ref": "rot-read" },
+        { "level": 4, "ref": "steady-pulse" }
+      ]
     }
   },
   "bestiary": {
