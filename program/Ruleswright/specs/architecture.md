@@ -59,8 +59,9 @@ Precise paths — Planner lifts these directly into its Module Registry.
 │   │   │                         race, skill, feat, item, statblock, table
 │   │   ├── error-card.ts       — ErrorCard {severity, artifactId, jsonPath, rule,
 │   │   │                         message, hint?} + rule-id registry — THE error shape
-│   │   ├── validate.ts         — structural + semantic validator (pure, all-at-once,
-│   │   │                         never partial — FR-2). The compiler imports this.
+│   │   ├── validate/           — structural + semantic validator (pure, all-at-once,
+│   │   │                         never partial — FR-2), one module per pass/section
+│   │   │                         (index.ts, sections/*.ts). The compiler imports this.
 │   │   └── version.ts          — schemaVersion contract + pack content hash
 │   ├── core/                   — shared mechanics, exported only via the two surfaces
 │   │   ├── rng.ts              — sfc32 PRNG, seed hashing, state export/import (FR-1)
@@ -72,20 +73,37 @@ Precise paths — Planner lifts these directly into its Module Registry.
 │   ├── runtime/                — SURFACE 1: the engine (imports compiler: never)
 │   │   ├── runtime.ts          — Runtime: pack load via schema.validate, artifact
 │   │   │                         index by id, compiled DSL cache, factories
-│   │   ├── character.ts        — character state, derived stats, known spells, inventory
+│   │   ├── character.ts        — character state, derived stats, inventory
 │   │   ├── progression.ts      — level-set + XP paths, multi-class, caps (FR-6)
-│   │   ├── pools.ts            — drain pools + vancian bindings (FR-8)
+│   │   ├── features.ts         — class features: granted feats, unlocked actions/spells,
+│   │   │                         derived from progression tables (FR-6, v1.10)
+│   │   ├── pools.ts            — drain pools + vancian bindings (FR-8); known spells
+│   │   │                         (FR-9; class-feature unlocks via features.ts)
 │   │   ├── conditions.ts       — condition lifecycle, stacking, restricts (FR-7)
 │   │   ├── combat/
-│   │   │   ├── combat.ts       — Combat: stepwise loop, initiative, rounds (FR-10)
+│   │   │   ├── combat.ts       — Combat: startCombat, the public verbs, turn advance;
+│   │   │   │                     stepwise loop, initiative, rounds (FR-10)
+│   │   │   ├── fight.ts        — FightCore: the fight's shared mutable state + primitives
+│   │   │   ├── declare.ts      — declare gates + spend helpers (restriction, target,
+│   │   │   │                     reach, range, slot pick)
+│   │   │   ├── execute.ts      — effect execution over FightCore: bound effects,
+│   │   │   │                     action resolution, end rule
+│   │   │   ├── movement.ts     — movement + terrain: move gate, path walk (FR-11)
 │   │   │   ├── action-economy.ts — generic slot/points economy, pack-declared (FR-4)
 │   │   │   ├── resolve.ts      — effect execution: attack/save/damage/targeting (FR-3/9/11)
 │   │   │   ├── spatial.ts      — optional spatial layer; absent = theater of mind (FR-11)
-│   │   │   └── triggers.ts     — reactive actions on the event substrate (FR-4/13)
+│   │   │   ├── triggers.ts     — reactive actions on the event substrate, trigger
+│   │   │   │                     answering (FR-4/13)
+│   │   │   ├── types.ts        — combat types: plain-JSON combat state, verb shapes
+│   │   │   └── combatants.ts   — pure combatant facts: down/defeat, profile, reach
 │   │   ├── events.ts           — typed emitter + provenance payloads (FR-13)
 │   │   ├── encounter.ts        — threat-budget assembly, deterministic (FR-16)
 │   │   ├── bestiary.ts         — statblocks → combatants, same machinery (FR-16)
-│   │   └── snapshots.ts        — three serializers + loud-refusal load (FR-14)
+│   │   └── snapshots/          — three serializers + loud-refusal load (FR-14)
+│   │       ├── index.ts        — the public names (serialize/restore per envelope)
+│   │       ├── envelope.ts     — pack-identity gate (E-SNAP-01/02)
+│   │       ├── character.ts    — character + party envelopes
+│   │       └── combat.ts       — combat envelope
 │   ├── compiler/               — SURFACE 3: the generator (dev/host territory)
 │   │   ├── generate.ts         — generateCampaign entry (FR-17)
 │   │   ├── theme.ts            — theme template load + composition base+patches (FR-20)
@@ -96,7 +114,7 @@ Precise paths — Planner lifts these directly into its Module Registry.
 │   │   │   ├── stats.ts  skills.ts  feats.ts  classes.ts
 │   │   │   └── magic.ts  bestiary.ts  tables.ts   (+ final validate stage = schema.validate)
 │   │   └── themes/             — sample theme templates as JSON: dark-fantasy,
-│   │                             zombie-urban (FR-21; data, not code)
+│   │                             zombie-urban, wyldwood (FR-21; data, not code)
 │   └── index.ts                — root entry: re-exports the three subpath entries only;
 │                                  contains no logic and no cross-surface barrel
 ├── tests/                      — Vitest; proofs/ holds the FR-12 trio + bundle check
