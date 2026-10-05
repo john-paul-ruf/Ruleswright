@@ -9,6 +9,12 @@
 > `specs/design.md` (approved, v2 — 18 surfaces). FR references throughout.
 > **Design contract compliance is tracked at the bottom** — no corrections to
 > approved design behavior were needed; see *Design Contract Ledger*.
+> **revised 2026-10-05 — Architect re-entry (class-features, builder-authorized
+> 2026-10-04):** file locations updated for the v1-shell `validate/` split, the
+> combat-decomposition `combat/` and `snapshots/` splits, and the class-features
+> `features.ts` leaf; also `wyldwood` added to the sample `themes/` list and
+> known-spell derivation attributed to `pools.ts` (fed by `features.ts`), not
+> `character.ts`; no boundary or contract change.
 
 ---
 
@@ -223,7 +229,7 @@ How the approved design constrains this architecture — no corrections were nee
 | `api-map.html` — one page of coverage; ErrorCard shape; stepwise combat verbs | Coverage honored verbatim (see API Design); `ErrorCard` lives in `schema/error-card.ts` as the single shape; `declare/respond/step/on/sinceRound` all present |
 | `generation-pipeline.html` — 8 named stages, stable interface, validate stage dogfooded | `stages/` matches the eight names exactly; stage 8 *is* `schema.validate`; `Stage` type is the stable interface |
 | `dice.html` / FR-1 — injectable RNG, structured rolls, state in snapshots | sfc32 with exportable state; `Rng` injectable at `startCombat` and everywhere rolls occur |
-| `snapshots.html` / FR-14 — three serializers, loud refusal, no I/O | `snapshots.ts` owns exactly three serializers; refusal is ErrorCard `E-SNAP-01`; the runtime contains no I/O code |
+| `snapshots.html` / FR-14 — three serializers, loud refusal, no I/O | `snapshots/` (`index.ts` re-exports `envelope`/`character`/`combat`) owns exactly three serializers; refusal is ErrorCard `E-SNAP-01`; the runtime contains no I/O code |
 | `pack-anatomy.html` — 8-section pack, overrides, schemaVersion | `pack.ts` mirrors the 8 sections; overrides merge in `Runtime` at load, documented precedence, ids address artifacts |
 | `combat-loop.html` / FR-4 — generic slot economy, classic structure as data | `action-economy.ts` implements slots/points generically; `turnSlots`/triggered actions are pack content |
 | Expression policy (Q7/Q8) | Theme templates are authored coined content; nothing in the architecture mints or transforms names |
