@@ -4,7 +4,8 @@
  * its character on a side without doing any rules math. Every number comes
  * from the character's state, its `derived()` facade (the pack's reserved
  * formulas, CA-6), or pack data; actions are the class-granted
- * `content.classes.<id>.actions` lists (v1.2).
+ * `content.classes.<id>.actions` lists (v1.2) plus the actions class features
+ * unlock (v1.10).
  *
  * The inverse direction is `settleItemUses` (CA-EG5) and `settleSpellCasts`
  * (CA-S3, v1.6): the fight never touches character state, so the host settles
@@ -24,6 +25,7 @@ import type { Combat } from './combat/combat';
 import { equipmentView, equippedUnits } from './equipment';
 import { dropItem } from './inventory';
 import { armorBlockingCast, knownSpells } from './pools';
+import { grantedFeats, unlockedActions } from './features';
 import type { RuntimeEvent } from './events';
 import type { ErrorCard } from '../schema/error-card';
 import { RuntimeRuleError, ruleCard } from './errors';
@@ -51,12 +53,15 @@ export interface CharacterCombatant {
  *   as-is; a multiclass character carries that class's row at its class level,
  *   re-keyed to the character's total level (v1 default).
  * - `actions` is the union of the character's class action lists in class
- *   order, first occurrence wins. None at all → `RuntimeRuleError`
- *   (`no-combat-actions`).
+ *   order, first occurrence wins, then (v1.10, DD-C9) the actions its active
+ *   class features unlock that are not already present. None at all →
+ *   `RuntimeRuleError` (`no-combat-actions`).
  * - `spells` (v1.6, CA-S4) is `knownSpells`, emitted only when non-empty;
  *   `castBlockedBy` is the equipped armor `armorBlockingCast` names, emitted
  *   only when it blocks (DD-S6). `feats` (CA-S4) is the character's held
- *   feats that declare a `trigger`, emitted only when non-empty.
+ *   feats that declare a `trigger`, then (v1.10, DD-C9) the reactive feats its
+ *   active class features grant that it does not hold, emitted only when
+ *   non-empty.
  * - `balances` carries the character's pool points, per spell level the count
  *   of bound (memorized) slots, (CA-EG5) the held qty of every consumable
  *   (an item with a parse-once `use` effect) — the fight's item charges — and
@@ -76,6 +81,9 @@ export function profileFromCharacter(
     for (const actionId of pack.content.classes?.[entry.id]?.actions ?? []) {
       if (!actions.includes(actionId)) actions.push(actionId);
     }
+  }
+  for (const actionId of unlockedActions(runtime, state.classes)) {
+    if (!actions.includes(actionId)) actions.push(actionId);
   }
   if (actions.length === 0) {
     const classId = state.classes[0]?.id ?? '(none)';
@@ -106,7 +114,12 @@ export function profileFromCharacter(
   const castBlockedBy = armorBlockingCast(runtime, state);
   const bindings: Record<string, (string | null)[]> = {};
   for (const [level, slots] of Object.entries(state.slots)) bindings[level] = [...slots];
-  const feats = (state.feats ?? []).filter((featId) => pack.content.feats?.[featId]?.trigger !== undefined);
+  const held = state.feats ?? [];
+  const isReactive = (featId: string): boolean => pack.content.feats?.[featId]?.trigger !== undefined;
+  const feats = [
+    ...held.filter(isReactive),
+    ...grantedFeats(runtime, state.classes).filter((featId) => isReactive(featId) && !held.includes(featId)),
+  ];
 
   return {
     profile: {
