@@ -32,7 +32,7 @@ The human answered: "**1 a,b 2 no 3 move it, fix packs, 4 fix the broken packs, 
 
 | # | Session | Modules | Owns | Status | Checkpoint | Completed | Notes |
 |---|---|---|---|---|---|---|---|
-| S01 | Author re-entry (DB): contract v1.10, class features | — (DB) | `program/Ruleswright/specs/database.md`, `src/schema/contracts/pack.schema.json` | pending | — | — | |
+| S01 | Author re-entry (DB): contract v1.10, class features | — (DB) | `program/Ruleswright/specs/database.md`, `src/schema/contracts/pack.schema.json` | done | 2/2 | 2026-10-05 | ck1 `8d5828c`, ck2 `efa971d`; V1–V7 green, 938/938 |
 | S03 | Schema mirror, validator, bundled themes, fixtures, characterization re-key | M01, M04, tests | `src/schema/artifacts.ts`, `src/schema/error-card.ts`, `src/schema/validate/index.ts`, `src/schema/validate/sections/content.ts`, `src/schema/validate/sections/progression.ts`, `src/schema/validate/sections/cross.ts`, `src/compiler/themes/dark-fantasy.json`, `src/compiler/themes/zombie-urban.json`, `src/compiler/themes/wyldwood.json`, `tests/runtime/fixtures/pack.ts`, `tests/schema/fixtures.ts`, `tests/schema/validate.test.ts`, `tests/compiler/coverage-floor.test.ts`, `tests/proofs/combat-characterization.test.ts`, `tests/proofs/feat-slots-journey.test.ts` (lease rev 2, F-C1); scratch-only, never committed: `tests/proofs/characterization-dump.scratch.test.ts` | pending | — | — | |
 | S04 | Runtime: granted feats, unlocked actions and spells, host query, journey, README | M03, tests, docs | `src/runtime/features.ts`, `src/runtime/feats.ts`, `src/runtime/pools.ts`, `src/runtime/character-profile.ts`, `src/runtime/index.ts`, `tests/runtime/features.test.ts`, `tests/runtime/feats.test.ts`, `tests/runtime/pools.test.ts`, `tests/runtime/combat/character-profile.test.ts`, `tests/runtime/combat/module-surface.test.ts`, `tests/proofs/class-features-journey.test.ts`, `tests/proofs/docs-run.test.ts`, `README.md` | pending | — | — | |
 | S05 | Author re-entry (Designer): `progression.html` F-R6 + class-features panel | — (Designer) | `program/Ruleswright/mocks/progression.html` | pending | — | — | |
@@ -240,8 +240,8 @@ Observed by Planner at `f36d4ae`, 2026-10-04 ~17:00. `src`/`tests` are identical
 
 | ID | Required meaning / authority | Producer → boundary → consumer | Mapping / constraints | Correction + proof owners / checkpoints | Agreement | Producer | Proof / evidence / checked sources |
 |---|---|---|---|---|---|---|---|
-| CA-C1 | Feature location and shape (human Q3; DD-C3, DD-C4) | `database.md` §progression + `pack.schema.json` (S01) → `artifacts.ts` `ClassProgression.features` + `validate/sections/progression.ts` (S03) → themes, fixtures (S03) → `features.ts` (S04) | `progression.<id>.features: {level: int 1..ceiling, ref: kebab}[]`, unique `ref` per class. `content.classes.<id>.features` → `E-SCHEMA-02` (closed contract) | S01 ck2; S03 ck1 | agreed (provisional against S01 ck2) | planned | validate tests S03 ck1 |
-| CA-C2 | `ref` resolution (human Q1; DD-C1, DD-C4) | `cross.ts` `checkClassFeatures` (S03) → `features.ts` kind lookup (S04) | ∈ `content.feats` → `feat`; ∈ `actions` → `action`; ∈ `content.spells` → `spell`; else `E-REF-01` (hint over all three). Redundant action / redundant spell → `E-REF-01`. At runtime the pack is valid, so `features.ts` checks feats, then actions, then spells, and treats "none" as unreachable | S01 ck1 text; S03 ck2; S04 ck1 | agreed (provisional against S01 ck2) | planned | validate tests S03 ck2; coverage-floor S03 ck2 |
+| CA-C1 | Feature location and shape (human Q3; DD-C3, DD-C4) | `database.md` §progression + `pack.schema.json` (S01) → `artifacts.ts` `ClassProgression.features` + `validate/sections/progression.ts` (S03) → themes, fixtures (S03) → `features.ts` (S04) | `progression.<id>.features: {level: int 1..ceiling, ref: kebab}[]`, unique `ref` per class. `content.classes.<id>.features` → `E-SCHEMA-02` (closed contract) | S01 ck2; S03 ck1 | agreed (contract landed `efa971d`, rechecked by Orchestrator 2026-10-05: `database.md` §progression row + *Class features (v1.10)* load rules; `pack.schema.json` `$defs.classProgression.properties.features`, old class property deleted; `ref` uses `idPattern` → non-kebab is `E-SCHEMA-01`, as DD-C4) | contract: S01 `efa971d`; mirror/validator (S03 ck1): planned | validate tests S03 ck1 |
+| CA-C2 | `ref` resolution (human Q1; DD-C1, DD-C4) | `cross.ts` `checkClassFeatures` (S03) → `features.ts` kind lookup (S04) | ∈ `content.feats` → `feat`; ∈ `actions` → `action`; ∈ `content.spells` → `spell`; else `E-REF-01` (hint over all three). Redundant action / redundant spell → `E-REF-01`. At runtime the pack is valid, so `features.ts` checks feats, then actions, then spells, and treats "none" as unreachable | S01 ck1 text; S03 ck2; S04 ck1 | agreed (contract landed `8d5828c`/`efa971d`; resolution, hint over feats ∪ actions ∪ spells, redundancy rules as DD-C4 — rechecked 2026-10-05) | contract: S01 `efa971d`; `checkClassFeatures` (S03 ck2): planned | validate tests S03 ck2; coverage-floor S03 ck2 |
 | CA-C3 | Granted vs held feats (human Q2; DD-C2, DD-C9) | `features.ts` `grantedFeats` → `feats.ts` `learnFeat`, `character-profile.ts` → combat `profile.feats` → `snapshots/combat.ts` restore (profile re-stated) | `state.feats` = learned only (snapshot unchanged). Granted = active feat features of `state.classes`. `featSlotTally` counts held only. `learnFeat(granted)` → `feat-known`. `profile.feats` = held reactive, then granted reactive not held | S04 ck1, ck3 | agreed | planned | journey legs 1, 4, 5; `feats.test.ts` |
 | CA-C4 | Unlocks (human Q1 b; DD-C8, DD-C9) | `features.ts` `unlockedActions`/`unlockedSpells` → `character-profile.ts` `actions`/`spells`, `pools.ts` `knownSpells` → combat declare, `prepareSpell` | Active action features are appended after the class-actions union. `knownSpells` = pack order, filtered by list ∪ active unlock. Byte-identical output when no feature is active | S04 ck2 | agreed | planned | journey legs 2, 3; `character-profile.test.ts` byte-stability case |
 | CA-C5 | Characterization pin re-key (DD-C12) | theme bytes (S03) → generated pack `contentHash` → snapshot JSON in legs → digests | Normalized dump (every `contentHash` string value → `"<hash>"`) is byte-equal per leg, base vs checkpoint. Only then are the digest literals replaced with the new test output | S03 ck1, ck2 | agreed | planned | handoff lists old/new digests per leg and the dump `cmp` result |
@@ -289,3 +289,74 @@ none open. ARCH-PRE F-C1/F-C2 (blocking S03) routed: lease rev 2 and envelope am
 ## Handoff Notes
 
 (Orchestrator writes here after each session — from Coder's Handoff section, verbatim.)
+
+### SESSION-01 (DB re-entry) — received 2026-10-05, done 2/2 (8d5828c, efa971d)
+
+- **session:** SESSION-01 (class-features), Author re-entry, DB role (schema-change class), lease rev 1
+- **status:** complete
+- **checkpoint:** 2 of 2
+- **notes:**
+  - **Checkpoint-0 recheck:** all four points passed at `afb054a`.
+    - `database.md:484` was the `features` row.
+    - `grep -c '^| 1[01] |'` returned 1.
+    - `"features"` appeared in `pack.schema.json` only at l.258.
+    - `git diff --quiet f36d4ae -- src/schema/contracts program/Ruleswright/specs/database.md` was clean.
+  - **Facts I checked before writing:**
+    - `package.json` is at `0.1.0` and `git tag` is empty, so this is still pre-release.
+    - The class level ceiling is the shortest `saves` array (`progression.ts:189-207`).
+    - `forbidUnknown` emits the `E-SCHEMA-02` closed-contract card.
+    - `registerId` enforces pack-wide uniqueness (`E-DUP-01`).
+    - `#/$defs/idPattern` exists at `pack.schema.json:60`.
+  - **Human answer as applied:** "1 a,b 2 no 3 move it, fix packs, 4 fix the broken packs, 5 you have my auth for whatever you need". The answer is quoted verbatim in the new subsection.
+    - 1 → DD-C1: a feature `ref` grants a feat, or unlocks an action or spell.
+    - 2 → DD-C2: granted feats use no feat slot and are never stored.
+    - 3 → DD-C3: the field is now `progression.<id>.features`; `content.classes.<id>.features` now fails `E-SCHEMA-02`, under caveat (g).
+    - 4 → DD-C10: the fix to the bundled packs is cited in caveat (g) but left to S03.
+    - 5 → authorization for this re-entry and for the seed-data fix.
+  - **CA-C1 as written (`database.md` §progression row):** `| \`features\` | array? | \`{level, ref}\`: \`level\` integer 1..the class's level ceiling; \`ref\` a feat, action or spell id; unique per class | **v1.10.** Granted feat or unlocked action/spell from that class level on. See *Class features* below |`
+    - Load-rule bullets for CA-C1: "`level` not an integer in 1..the class's level ceiling (its shortest `saves` array, as for `featSlots`) → `E-SCHEMA-01`." / "`ref` not a kebab id string → `E-SCHEMA-01`." / "A `ref` repeated within one class → `E-SCHEMA-01`." / "`content.classes.<id>.features` → `E-SCHEMA-02` (unknown field; the closed-contract card every `additionalProperties: false` object already uses; DD-C3)."
+    - Schema for CA-C1: `$defs.classProgression.properties.features` = array of `{level: integer ≥1, ref: $ref idPattern}`, with `additionalProperties: false` and `required` `[level, ref]`. The class-level `features` property is deleted, so the old location falls to `additionalProperties: false`.
+  - **CA-C2 as written:**
+    - "Ids are unique pack-wide (`E-DUP-01`), so `ref` names exactly one artifact. Its map decides what the feature does, while the character's level **in that class** is ≥ `level`: `content.feats` → the feat is **granted**; `actions` → the action is **unlocked** (declarable in combat); `content.spells` → the spell is **unlocked** (known)."
+    - "The ref resolves in none of the three maps → `E-REF-01` at `progression.<c>.features[i].ref`, with a did-you-mean hint over feats ∪ actions ∪ spells."
+    - "An action ref also listed in `content.classes.<c>.actions` → `E-REF-01` (that list grants it from level 1, so the level gate would be ignored)."
+    - "A spell ref whose `magic.lists` intersect the class's `spellLists` → `E-REF-01` (already known; the unlock would be dead)." This is the F-C12 wording.
+    - "No new rule id; all cards at once (FR-2)."
+  - **CA-C3 and CA-C4** are described in the *Granted feats* and *Unlocked actions and spells* bullets, exactly as STATE.md maps them.
+- **delivered:**
+  - **Status line:** now v1.10.
+  - **F-C6 cross-references:** added at l.77 (referential integrity), l.438 (`feat-known`) and l.443-444 (combatant `feats` held **or granted**).
+  - **§content classes bullet:** has the v1.10 note.
+  - **§progression `features` row:** rewritten as above.
+  - **New subsection:** *Class features (v1.10, class-features DD-C1…C9)*, which includes caveat (g).
+  - **Seed Data:** now names three templates, adding `wyldwood.json` (since loot-inventory), and adds class features to the shape DB owns.
+  - **Version Registry:** row 11 added, verbatim from SESSION-01.
+  - **`pack.schema.json`:** `features` moved from `content.classes` to `classProgression`, with a description.
+  - I did not write any bundled-ref count (F-C2).
+- **verification:**
+  - `node -e "JSON.parse(…pack.schema.json…)"` exits 0.
+  - `pnpm exec prettier --check src/schema/contracts/pack.schema.json` passes (F-C7).
+  - `pnpm exec vitest run tests/schema`: 4 files, 119/119 passed.
+  - `git diff --name-only f36d4ae -- src/schema/contracts` lists only `pack.schema.json`; `snapshots.schema.json` and `override.schema.json` are unchanged.
+  - `git show --name-only HEAD` stays inside the write set for both commits.
+  - `git diff --name-only f36d4ae..HEAD` over `src tests program/Ruleswright/{specs,mocks}` shows only my two lease paths. The full range also includes Orchestrator's own `prompts/class-features/` commits (`f1fa3f9`, `afb054a`).
+  - The tree is clean.
+- **surprises:** none. One thing for S03: the old `content.ts` shape check allowed any string for `ref`. The new schema uses `idPattern`, and the contract text makes a non-kebab `ref` an `E-SCHEMA-01`, as DD-C4 says. S03's validator should mirror that.
+- **followUp:**
+  - Orchestrator should re-check CA-C1 and CA-C2 against `efa971d` and promote them from provisional before dispatching S03.
+  - S03 mirrors the contract (`artifacts.ts`, `progression.ts`, `cross.ts` `checkClassFeatures`).
+  - Archivist owns `arch/v1-core.md` and the PROGRAM-CONFIG notes.
+- **deviations:** none in meaning. A few small additions, all taken from approved DD text:
+  - The classes bullet gets an extra sentence: "A level-gated action grant is a class feature whose `ref` is an action." The old "future additive field" sentence would otherwise read as still unbuilt.
+  - The `learnFeat` bullet adds "the message names the granting class feature" (from DD-C2).
+  - The granted-feats and unlocks bullets add the combatant `feats` order, the "not already present" condition and the byte-identical no-active-feature sentence (from DD-C9).
+  - The query bullet adds "in DD-C5 order" (from DD-C7).
+  - The schema description words the redundancy rule per F-C12 and adds "Replaces content.classes.<id>.features, now an unknown field (E-SCHEMA-02)."
+  - No CA or DD meaning changed, so there is no delta to report by id.
+- **needsOwnerCorrection:** none
+- **needsDesignSource:** none
+- **blockedReason:** —
+- **filesTouched:** `program/Ruleswright/specs/database.md`, `src/schema/contracts/pack.schema.json`. Scratch went only to `/tmp/ruleswright-class-features/subsection.md`.
+- **commits:** ck1 `8d5828c` "class-features SESSION-01: checkpoint 1 — v1.10 text"; ck2 `efa971d` "class-features SESSION-01: checkpoint 2 — pack.schema.json + registry row 11"
+
+Orchestrator receive: commits inside lease; no arch fragment; V1–V4 0, V5 52 files 938/938, V6 0, V7 0 at `efa971d`. CA-C1/CA-C2 promoted from provisional. CAP-C7 DB part delivered (text review).
