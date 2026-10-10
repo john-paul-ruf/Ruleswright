@@ -355,3 +355,65 @@ In a CI-order run with `dist/` moved aside, `pnpm typecheck` failed as before (e
 - **blockedReason:** —
 - **filesTouched:**
   - `.github/workflows/ci.yml`
+
+### VERIFY-01 — received 2026-10-10 (handle h-TYfd; 12 verified, 1 present-unverified (CAP-B4 Actions, B-BD-1), 0 failed, 0 blocked; VERIFICATION.md committed unchanged by Orchestrator at `8a80ec1`, sha256 933c84c5…e6d1)
+
+I wrote VERIFICATION.md, but `commit_pathspec` refused to commit it because the path is gitignored. Every requirement in scope checks out locally. The only exception is the GitHub Actions run of the new CI jobs, which doesn't exist yet because nothing has been pushed.
+
+**Result:** 13 rows: 12 verified, 1 present-unverified, 0 failed, 0 blocked.
+
+**What I ran at HEAD `5c62f8d`:**
+- **Static checks:** build, typecheck, lint, format check, isolation, security and the `ci.yml` parse all exit 0.
+- **Node:** after a fresh build, `pnpm test` passes 56 files, 974/974. No `tests/browser` file is picked up by the Node config.
+- **Browsers:** 74/74 in each of Chromium (HeadlessChrome/151.0.7922.34), Firefox (153.0) and WebKit (Version/26.5), both per engine and through `pnpm test:browser`. No `__screenshots__` were written.
+- **Electron:** `pnpm test:electron` passes 56 files, 974/974, with runtime `{"node":"24.21.0","v8":"15.2.124.28-electron.0","electron":"44.7.0"}`.
+- **Golden values:** all 18 characterization digests from `46bcf0c` are unchanged in the oracle. The only new values are the 6 pack digests, and no digest literal exists outside the oracle.
+- **Proof the tests can fail:**
+  - Changing one pack digest fails exactly that test on Node and in WebKit.
+  - The Electron guard fails under plain Node.
+  - Deleting the `test:electron` step from `ci.yml`, or the `test:browser` line from the README, fails `docs-run`.
+  - Every edited file was restored and confirmed identical with `cmp`.
+- **Type source (DD-B13):** in a clean copy of HEAD outside `$HOME`, frozen install, build and typecheck all exit 0, and no type file resolves from outside the copy.
+- **CI step order (B-BD-2):** with `dist/` removed, typecheck-first fails (34 errors) and build-then-typecheck passes.
+
+**Three things for the record (none changes a verdict):**
+1. **`docs-run` checks less than the README says.** It only checks that the two command strings appear in the README, not the prose claims (l.11-13, l.318-320, the CI paragraph). The README's sentence that `docs-run` checks "this paragraph" and `ci.yml` agree is slightly overstated.
+2. **"Verified in CI" is not true yet.** HEAD is 202 commits ahead of `origin/main`. The last visible Actions run (`dadf461`, 2026-09-27) failed, and it predates this feature.
+3. **Node 18/20/22 were not run here.** This machine only ran Node 24; the older Node versions run only on Actions.
+
+## Handoff
+
+- **session:** VERIFY-01 (browser-determinism)
+- **status:** done
+- **checkpoint:** 1
+- **notes:** VERIFICATION.md is written but **not committed**. `commit_pathspec` returned `GIT_FAILED` because `.gitignore:29` ignores `/program/Ruleswright/prompts/`. Orchestrator should run `git add -f -- program/Ruleswright/prompts/browser-determinism/VERIFICATION.md` and commit it unchanged (sha256 `933c84c5c7e34999ccdfa61e6c7ad0ffb3af6c5900cb414dd4c407d27b6ae6d1`). Verdicts: 12 verified (CAP-B1, CAP-B2, CAP-B3, CAP-B4 local, CA-B1, CA-B2, CA-B3, FR-1, FR-17, NFR-Determinism, DD-B13, B-BD-2) and 1 present-unverified (CAP-B4/B-BD-1, GitHub Actions execution). Revision `5c62f8d`.
+- **delivered:** `program/Ruleswright/prompts/browser-determinism/VERIFICATION.md`: gate-run table, quoted runtime lines, negative controls, pin-integrity check, the 13-row six-column table and 3 observations.
+- **verification:**
+  - **Static gates:** V1, V2, V3, V4, V6, V7 and V10 all 0.
+  - **Scoped Node run:** `pnpm exec vitest run` on the 4 proof files → 4 files, 16/16 (9+3+1+3), exit 0.
+  - **V5:** `pnpm build && pnpm test` → 56 files, 974/974, exit 0. No browser test selected.
+  - **V8:** 6 files, 74/74 per engine ×3, exit 0, both per engine and via `pnpm test:browser`. The three user-agent lines are quoted in the file.
+  - **V9:** `pnpm build && pnpm test:electron` → 56 files, 974/974, exit 0, `electron 44.7.0`.
+  - **Negative controls:**
+    - NC1: one changed pack digest → Node 1 failed / 2 passed (3); WebKit 1 failed / 12 passed (13).
+    - NC2: the Electron guard under plain Node → exit 1.
+    - NC3a/b: `ci.yml` step deleted, or README line deleted → `docs-run` 1 failed / 2 passed (3) each.
+    - All edited files restored and confirmed identical with `cmp`.
+  - **B-BD-2 simulation:** with `dist/` absent, typecheck exits 2 (34 errors); `pnpm build && pnpm typecheck` then exits 0.
+  - **DD-B13 clean copy:** `git archive` copy under `/private/tmp`, frozen install, build and typecheck → exit 0, with 0 files resolved outside the copy.
+  - **Cleanup:** screenshots none, port 63315 free, tree clean apart from the ignored VERIFICATION.md.
+- **surprises:**
+  - (1) The gitignore refusal was the expected hazard.
+  - (2) The `docs-run` README direction checks only the command strings, not the prose claims, so README l.588's statement about what `docs-run` checks says more than the test enforces.
+  - (3) The last visible Actions run on `origin/main` (`dadf461`, 2026-09-27) ended in failure. It predates this feature, and HEAD is 202 commits ahead.
+  - (4) The first `--listFiles` count was a false 381 because `/tmp` is a link to `/private/tmp`; recounted as 0 against the real path.
+- **deviations:** —
+- **followUp:**
+  - B-BD-1 (human push, then Archivist): read the Actions results for the `test` job on Node 18/20/22, for `browser` (chromium/firefox/webkit) and for `electron`. Expect older CI drift to show up too.
+  - Optional: tighten CA-B3 to cover the README prose claims (owner: Planner, next feature touching `docs-run`).
+  - The DD-B3 Electron renderer residual is unchanged.
+- **needsOwnerCorrection:** —
+- **needsDesignSource:** —
+- **blockedReason:** —
+- **filesTouched:**
+  - `program/Ruleswright/prompts/browser-determinism/VERIFICATION.md`
