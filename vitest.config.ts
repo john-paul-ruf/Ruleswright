@@ -1,9 +1,12 @@
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    environment: 'node', // D4 — node env locally; the browser determinism leg is a v1.1 follow-up (tracked in ci.yml's header, README says so)
+    // Node env here. The browser determinism leg runs from vitest.browser.config.ts
+    // (`pnpm test:browser`); its file uses global WebCrypto, which Node 18 lacks.
+    environment: 'node',
     include: ['tests/**/*.test.ts'],
+    exclude: [...configDefaults.exclude, 'tests/browser/**'],
     coverage: {
       // Measured coverage (FR-2's validator, the engine, and the compiler are the
       // product; tests, scripts, and config are not). v8 provider via the
