@@ -90,8 +90,8 @@ Observed by Planner at `46bcf0c`, 2026-10-09 ~21:20, Node v24.20.0, pnpm 10.15.0
 | V5 | `pnpm test` (`vitest run`, `tests/**/*.test.ts`, node env) after V4 | **54 files, 970/970** (observed; N₀ = 970) |
 | V6 | `pnpm check:isolation` | 0 (observed) |
 | V7 | `pnpm check:security` | 0 (observed) |
-| V8 | `pnpm test:browser` (new, ck2) | planned; plan-time probe equivalent passed (below) |
-| V9 | `pnpm build && pnpm test:electron` (new, ck3) | planned; plan-time probe equivalent passed 970/970 |
+| V8 | `pnpm test:browser` (new, ck2) | **74/74 × 3** (observed by Orchestrator at S01 receive, `66af2e8`) |
+| V9 | `pnpm build && pnpm test:electron` (new, ck3) | **56 files 974/974**, `electron 44.7.0` (observed by Orchestrator at S01 receive, `66af2e8`) |
 | V10 | `ruby -ryaml -e 'YAML.load_file(".github/workflows/ci.yml")'` (`/usr/bin/ruby`) | 0 (observed on current file) |
 
 **Plan-time probes** (scratch copy `/tmp/rw-probe` of `src/`, `tests/`, `tsconfig.json` at `46bcf0c`; never in the repo; Planner installed nothing in the repo):
@@ -193,7 +193,7 @@ The D2/D3 failures affect S01 ck3 only, not ck1/ck2; no replan is needed. **Enve
 | ID | Affects | Next action | Owner | Evidence to clear |
 |---|---|---|---|---|
 | B-BD-1 | CAP-B4 (Actions execution only); does **not** block S01 or VERIFY-01 | After S01 lands, the human pushes (agents never push). The next Orchestrator run or the final Archivist reads the Actions result for jobs `browser (chromium/firefox/webkit)` and `electron` | human (push) → Archivist (record) | all four new jobs green on GitHub Actions, **and** the existing `test` job's `pnpm typecheck` (`ci.yml:44`) green on 18/20/22, because before DD-B13 that typecheck depended on a host-only `@types/node` (H13). If WebKit/Firefox `--with-deps` or Electron shared libraries fail on `ubuntu-latest`, that is a mechanical CI owner-correction (H10), not a product question |
-| B-BD-2 | CAP-B4 (Actions execution of the existing `test` job); does not block VERIFY-01 | Pre-existing (not caused by this feature; S01 surprise 2, Orchestrator-verified): `ci.yml` `test` job runs `pnpm typecheck` (l.50) before `pnpm build` (l.51), and 4 journey tests import `dist/` → fresh checkout typecheck exit 2 (34 `error TS` with `dist/` moved aside). Owner correction OWNER-M05-CI-ORDER swaps the two steps (standing authority; DD-B11 "existing jobs unchanged" amended for this mechanical defect only) | Orchestrator → OWNER-M05-CI-ORDER | with `dist/` absent, `pnpm build && pnpm typecheck` exits 0; V10, V3, docs-run green |
+| B-BD-2 | CAP-B4 (existing `test` job typecheck) | **Cleared 2026-10-10** by OWNER-M05-CI-ORDER `fb2bf0e` (`ci.yml` only, +2/−1): `test` job now runs `pnpm build` before `pnpm typecheck`. Orchestrator recheck: with `dist/` absent, `pnpm build && pnpm typecheck` 0; V2/V3/V6/V7/V10 0; V5 56 files 974/974. Actions confirmation folds into B-BD-1 | — | cleared locally |
 | — | Planning completeness | **Done:** ARCH-PRE 2026-10-10 (see *Planning Completeness Review*). D2/D3 failures reach ck3 only and are closed by DD-B13 plus envelope amendments A1–A4 | Orchestrator | cleared at dispatch; ck3 closing assertion (DD-B13) |
 
 ## Handoff Notes
@@ -320,3 +320,38 @@ As planned, two things stay unproven:
   - `pnpm-lock.yaml`
   - `.github/workflows/ci.yml`
   - `README.md`
+
+### OWNER-M05-CI-ORDER — received 2026-10-10 (handle h-8CmY; accepted done 1/1)
+
+I swapped the two steps in the CI `test` job so `pnpm build` runs before `pnpm typecheck`, which fixes B-BD-2. Every check you listed passed, and the change is committed as `fb2bf0e`. It touches only `.github/workflows/ci.yml`. It has only been checked on this Mac; GitHub Actions hasn't run it yet.
+
+In a CI-order run with `dist/` moved aside, `pnpm typecheck` failed as before (exit 2, 34 `error TS`). Then `pnpm build && pnpm typecheck` exited 0.
+
+## Handoff
+
+- **session:** OWNER-M05-CI-ORDER (browser-determinism)
+- **status:** done
+- **checkpoint:** 1
+- **notes:** B-BD-2 fixed under lease rev 1. Commit `fb2bf0e` (parent `84ac934`): the `ci.yml` `test` job now runs `pnpm build` before `pnpm typecheck`, so the `dist/`-importing journeys (H1) get a build before they are type-checked. Contributes to CAP-B4. GitHub Actions has not run it yet (B-BD-1).
+- **delivered:** One change to the `test` job only.
+  - Before (l.50–52): `      - run: pnpm typecheck` / `      - run: pnpm build` / `        # The loot/equipment journeys read dist/, so the suite needs a fresh build first.`
+  - After (l.50–53): `      - run: pnpm build` / `        # The loot/equipment journeys read dist/, so the suite needs a fresh build first.` / `        # Build precedes typecheck too: the dist/-importing journeys fail TS2307 without it.` / `      - run: pnpm typecheck`
+  - The header, step names, the other jobs, and the `browser`/`electron` `- run:` lines are unchanged. The diff is +2/−1.
+- **verification:**
+  - `/usr/bin/ruby -ryaml` load → exit 0. The parsed `test` steps are `[install, build, typecheck, test]`.
+  - `pnpm format:check` → exit 0.
+  - `pnpm exec vitest run tests/proofs/docs-run.test.ts` → 1 file, 3/3 passed, exit 0.
+  - CI-order simulation: moved `dist/` to `/tmp/ruleswright-browser-determinism/dist-aside`.
+    - `pnpm typecheck` → exit 2 with 34 `error TS` (15 TS2307, 14 TS7006, 3 TS7031, 2 TS18046). This matches the count the Orchestrator reproduced.
+    - `pnpm build && pnpm typecheck` → exit 0.
+    - `dist/` is rebuilt fresh, and the aside copy and logs are deleted.
+  - `pnpm lint` → exit 0. `pnpm typecheck` → exit 0.
+  - `git show --name-only --format= HEAD` → `.github/workflows/ci.yml` only. Working tree is clean.
+- **surprises:** —
+- **deviations:** —
+- **followUp:** B-BD-1 is still open. After the human pushes, read the Actions results for the `test` job's typecheck on Node 18/20/22, plus the `browser` (chromium/firefox/webkit) and `electron` jobs. B-BD-2's acceptance condition holds locally: with `dist/` absent, build then typecheck exits 0, and lint, typecheck and docs-run pass.
+- **needsOwnerCorrection:** —
+- **needsDesignSource:** —
+- **blockedReason:** —
+- **filesTouched:**
+  - `.github/workflows/ci.yml`
