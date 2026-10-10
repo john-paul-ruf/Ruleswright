@@ -1,7 +1,8 @@
 # Ruleswright — Architecture Record (v1-core)
 
-> **Realized state as of tree HEAD `c915610`** (class-features close, 2026-10-05; last source
-> commit `64a3231`), synthesized by Archivist (final pass) across **twelve feature cycles**: v1-core (S01–S08, plan HEAD `53c7c91`),
+> **Realized state as of tree HEAD `6566236`** (browser-determinism close, 2026-10-10; last source
+> commit still `64a3231` — `git diff --name-status 46bcf0c..6566236 -- src` is empty), synthesized by
+> Archivist (final pass) across **thirteen feature cycles**: v1-core (S01–S08, plan HEAD `53c7c91`),
 > **v1-shell** (commits `770950f`–`72346a5` — schema v1.2, class combat actions, the validate/
 > directory split, `character-profile.ts`, `combat.sideDefeated`, docs/CI honesty, packaging,
 > coverage tooling — first reconciled into this record at the grid-combat pass; its synthesis was the loot-inventory
@@ -35,25 +36,32 @@
 > `combat/{types,combatants,fight,declare,execute,movement}.ts` plus trigger answering in
 > `combat/triggers.ts`, `snapshots.ts` split into `snapshots/{index,envelope,character,combat}.ts`,
 > and the `MAX_TABLE_DEPTH` cross-pin; events, snapshot JSON and every export name unchanged, proven
-> by the raw-sha256 characterization test), and **class-features** (S01–S05, feature commits
+> by the raw-sha256 characterization test), **class-features** (S01–S05, feature commits
 > `8d5828c`..`b8973ec` — contract v1.10, a pre-release in-place revision with `schemaVersion` 1:
 > a class feature `{level, ref}` moves from `content.classes.<id>.features` to
 > `progression.<id>.features`; a feat `ref` is **granted** (derived, never stored, no feat slot),
 > an action or spell `ref` is **unlocked** from that class level; refs resolve at load
 > (`checkClassFeatures`); all 18 bundled feature rows resolve; the `features.ts` leaf and the
 > `classFeatures` host query; plus the DB, Designer and Architect re-entries that closed F-FP2/F-P5,
-> F-R6, F-D8 and the `database.md` seed-data drift).
+> F-R6, F-D8 and the `database.md` seed-data drift), and **browser-determinism** (S01 +
+> OWNER-M05-CI-ORDER, feature commits `1d929a7`..`fb2bf0e` — no `src/` change and no contract event:
+> one shared determinism oracle with Node-pinned digests for the 9 characterization legs and the
+> 3 generated bundled packs, a Vitest browser-mode leg in Chromium/Firefox/WebKit, the whole suite
+> under Electron's runtime, two new CI jobs, the build-before-typecheck CI order, and a README ↔
+> `ci.yml` honesty pin; see M05).
 > Every cycle's mid-run delta fragments were collapsed into one module-ordered description.
-> Verified by the class-features final pass on a fresh run at `c915610` (`src`/`tests` equal to
-> `5c53524`): `pnpm build` 0 · `pnpm typecheck` 0 · `pnpm lint` 0 · `pnpm format:check` 0 ·
-> `check:security` 0 · `check:isolation` 0 (24 dist files) · `pnpm test` **970/970 across 54 files**
-> (`program/` is Prettier-ignored).
+> Verified by the browser-determinism final pass on a fresh run at `da32716` (`src`/`tests`/configs
+> equal to `6566236`): `pnpm build` 0 · `pnpm typecheck` 0 · `pnpm lint` 0 · `pnpm format:check` 0 ·
+> `check:security` 0 · `check:isolation` 0 · `pnpm test` **974/974 across 56 files** ·
+> `pnpm test:browser` 6 files, 74/74 in each of Chromium, Firefox and WebKit · `pnpm build && pnpm
+> test:electron` 974/974 across 56 files (Electron 44.7.0) (`program/` is Prettier-ignored). GitHub
+> Actions has not yet run this cycle's CI changes (B-BD-1, carried below).
 > Verified-by-source and verified-by-execution are distinguished below.
 >
 > *(Process history — crashes, recoveries, dispatch failures, owner-correction mechanics — lives
 > in each cycle's Final Report and ARCHIVIST-LOG.md, not here.)*
 
-<!-- Realized-state summary (Archivist synthesis, class-features final pass) -->
+<!-- Realized-state summary (Archivist synthesis, browser-determinism final pass) -->
 
 ## Module map (as realized)
 
@@ -195,7 +203,7 @@ a fully-downed side ends the fight — `phase: 'combat-over'`, one `combat:ended
 `{winner, defeated}`, downed combatants skip turns and receive no trigger offers, a terminal
 snapshot restores as `combat-over`); **validate/ split** (2319-line `validate.ts` → per-pass
 directory; zero API change); **honest docs/CI** (browser matrix leg documented as a v1.1
-follow-up, DOCS-CI-01..03, DOCS-TSC-01); **packaging hygiene** (MIT LICENSE, ESLint 10 flat
+follow-up, DOCS-CI-01..03, DOCS-TSC-01 — that follow-up was retired by browser-determinism; see M05); **packaging hygiene** (MIT LICENSE, ESLint 10 flat
 config — lint needs Node ≥ 20.19, CI lint on Node 22 — Prettier enforcement repo-wide);
 **coverage tooling** (`pnpm test --coverage`; the dead `newCtx` helper removed with the split).
 
@@ -1203,7 +1211,7 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   and equipment sections on all three packs and produces zero cards; CAP-G6/CAP-E6 evidence,
   plus a CA-EG3 content-pairing assertion).
 
-### M05 — Packaging, CI, proofs, docs (v1-core S08, 02752a9/8f67611/9afa86c/32c7ade/d5bacba; v1-shell packaging/docs/CI/coverage; loot S03; grid S05; equipment-consumables S06; grid-movement S04; spells-in-combat S02/S03; action-targeting S02/S03; feat-progression S02; builder-rulings S02; class-features S03/S04)
+### M05 — Packaging, CI, proofs, docs (v1-core S08, 02752a9/8f67611/9afa86c/32c7ade/d5bacba; v1-shell packaging/docs/CI/coverage; loot S03; grid S05; equipment-consumables S06; grid-movement S04; spells-in-combat S02/S03; action-targeting S02/S03; feat-progression S02; builder-rulings S02; class-features S03/S04; browser-determinism S01 + OWNER-M05-CI-ORDER)
 
 - Build: `tsup.config.ts` — four per-entry builds (index/schema/runtime/compiler), dual ESM/CJS +
   rolled dts, target es2020; `package.json` exports map covers `.` / `./runtime` / `./schema` /
@@ -1229,15 +1237,53 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   `docs-run.test.ts` (NFR-DX made mechanical: executes the
   README's fenced ```ts blocks verbatim AND typechecks them under strict tsc; asserts the
   README's own output lines and the block-count pin; since spells-in-combat S03 ck5 it also
-  guards that the README names `settleSpellCasts` and `learnFeat`). `rules-are-data.test.ts`
+  guards that the README names `settleSpellCasts` and `learnFeat`; since browser-determinism S01 ck4
+  (`66af2e8`, CA-B3) its CI honesty pin runs both ways: the README must name `pnpm test:browser` and
+  `pnpm test:electron` and must no longer call the browser leg a v1.1 follow-up, and `ci.yml` must carry
+  the browser matrix and the `- run:` lines for `vitest.browser.config.ts` and `pnpm test:electron`,
+  anchored to `- run:` because the header comment names the same strings (S01's R1). It checks those
+  strings, not the README's prose claims; see the browser-determinism residuals). `rules-are-data.test.ts`
   proof 3 casts a spell in combat and proof 2 gains a reactive-feat leg (a learned-vs-never-learned
   baseline from pack data only, zero engine diffs).
-- `.github/workflows/ci.yml` — matrix Node 18/20/22 × typecheck/lint/test + determinism suites;
-  package job (build + isolation + security + proofs); themes job (coverage floor); lint + format
-  checks on every push. The browser-mode determinism leg is documented as a v1.1 follow-up (honest
-  CI, DOCS-CI-01..03). **Closed (grid-movement S04 ck3, `c23d563`):** the `test`
-  job now runs `pnpm build` between typecheck and `pnpm test` (`ci.yml:45`), so the dist-importing
-  journeys (`loot-journey`, `equipment-journey`) run on a fresh build in every matrix leg.
+- **Cross-runtime determinism** (browser-determinism S01 ck1–ck3, `1d929a7`/`da7bc47`/`48bd4b9`;
+  FR-1, FR-17, NFR-Determinism):
+  - `tests/proofs/determinism-oracle.ts` (CA-B1) is a non-test module that no test glob collects. It
+    holds the 9 characterization legs (`LEG_RUNS`), `recordingRaw`, `contentHashOfRaw`,
+    `CHARACTERIZATION_DIGESTS`, `PACK_THEMES`, `packRaw` and `PACK_DIGESTS` (raw sha256 +
+    `contentHash` for dark-fantasy, zombie-urban and wyldwood at seed 42, default knobs). It imports
+    no `node:*` module and does not touch `process`. All 12 64-hex digest literals live there and none
+    elsewhere. Consumers: `combat-characterization.test.ts`, `pack-identity.test.ts` (3 tests) and
+    `tests/browser/determinism.test.ts` (13 tests; hashes through WebCrypto).
+  - **Browser leg (CAP-B2):** `vitest.browser.config.ts` runs `tests/browser/**` plus 5 pure suites
+    (`tests/core/{rng,dice,tables}`, `tests/schema/version`, `tests/compiler/themes`) through
+    `@vitest/browser@2.1.8` + `playwright@1.62.1`, headless, `screenshotFailures: false`, one engine
+    per run (`--browser.name=chromium|firefox|webkit`). `pnpm test:browser` runs all three in sequence:
+    6 files, 74 tests per engine. It runs `src/` transformed by Vite, not the shipped `dist/`. The
+    Vitest browser server binds port 63315, so only one browser-mode invocation may run at a time.
+    `vitest.config.ts` excludes `tests/browser/**`, because Node 18 has no global WebCrypto.
+  - **Electron leg (CAP-B3):** `pnpm test:electron` runs `node node_modules/electron/install.js`
+    (the binary download is opt-in; no `onlyBuiltDependencies`), then the whole suite with
+    `ELECTRON_RUN_AS_NODE=1` under `electron@44.7.0`'s Node 24.21.0 / V8 15.2. `runtime-identity.test.ts`
+    (CA-B2) fails when `RULESWRIGHT_EXPECT_RUNTIME=electron` is set outside Electron. Run `pnpm build`
+    first, because the `dist/` journeys run here too.
+  - devDependencies (exact) gained `@vitest/browser`, `playwright`, `electron` and
+    `@types/node@24.19.2` (DD-B13: the `node` type source is in-repo; before it, `tsc` resolved
+    `/Users/the.phoenix/node_modules/@types/node@25.5.0` above the repo root, hazard H13). Runtime
+    `dependencies` stay empty.
+- `.github/workflows/ci.yml` — six jobs:
+  - `test`: matrix Node 18/20/22, install → `pnpm build` → `pnpm typecheck` → `pnpm test`
+    (`ci.yml:49-54`). Grid-movement S04 ck3 (`c23d563`) put the build before the tests, so the `dist/`
+    journeys run on a fresh build. OWNER-M05-CI-ORDER (`fb2bf0e`) moved it before typecheck too,
+    because those journeys fail TS2307 on a fresh checkout without `dist/` (B-BD-2, 34 `error TS`
+    reproduced locally with `dist/` moved aside).
+  - `lint`: Node 22, lint + format:check.
+  - `package`: build + isolation + security + `tests/proofs/`.
+  - `themes`: the coverage floor.
+  - `browser` (`ci.yml:113-132`): Node 22, matrix chromium/firefox/webkit,
+    `playwright install --with-deps`, then the browser config.
+  - `electron` (`ci.yml:134-150`): Node 22, build, then `pnpm test:electron`.
+  - The header comment names exactly the three determinism runtimes and the renderer residual. None of
+    this cycle's CI changes has run on GitHub Actions yet (B-BD-1).
 - The first narrow **grid journey** (grid-combat S05, `tests/proofs/grid-journey.test.ts`,
   11 tests): generate (dark-fantasy, seed 42) → `new Runtime` (stage-8 load gate) → host
   positions → adjacency reject (serialize-identical no-change) → restore-close distance (the v1
@@ -1372,18 +1418,22 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   (`0c56866`) added the C2 case to `tests/core/tables.test.ts`. No README, docs-run or count pin
   changed. class-features S03 re-keyed the 7 bundled-theme digests (legs 2, 3a, 3b, 4, 6, 7, 8) at
   ck1 and ck2 under CA-C5 — 9/9 normalized leg dumps (`contentHash` masked) `cmp`-equal before and
-  after each — and legs 1/5 (`emberMarchesPack`) did not move; the file is unchanged since `c0a23b1`.
-- Full gates at class-features close (wave close at `b8973ec`): V1–V7 0; `pnpm test` **970/970 across
-  54 files** (N₀ 938 → 970: S03 +13, S04 +19). Re-run fresh by the class-features final pass at
-  `c915610`: build, typecheck, lint, format:check, security and isolation (24 dist files) 0; 970/970
-  (54 files); `pnpm exec vitest run tests/proofs` 99/99 across 13 files.
-  (combat-decomposition close was 938/938 across 52 files, proofs 92/92 across 12; builder-rulings close was 923/923 across 50 files, proofs 83 across 11; feat-progression close was
+  after each — and legs 1/5 (`emberMarchesPack`) did not move. browser-determinism S01 ck1 (`1d929a7`)
+  moved the leg helpers, the 9 legs and all 18 digest values verbatim into
+  `tests/proofs/determinism-oracle.ts` (no re-key: every removed value reappears as an added line), and
+  the test now reads `CHARACTERIZATION_DIGESTS`. Every title and non-digest assertion was kept.
+- Full gates at browser-determinism close (`6566236`): V1–V7 0; `pnpm test` **974/974 across 56
+  files** (N₀ 970 → 974: +3 `pack-identity` via `it.each(PACK_THEMES)`, +1 `runtime-identity`); V8
+  `pnpm test:browser` 6 files, 74/74 per engine; V9 `pnpm build && pnpm test:electron` 974/974 across 56
+  files; V10 `ci.yml` parses. The browser-determinism final pass re-ran V1–V9 fresh at `da32716` with the
+  same results.
+  (class-features close was 970/970 across 54 files, proofs 99/99 across 13 files; combat-decomposition close was 938/938 across 52 files, proofs 92/92 across 12; builder-rulings close was 923/923 across 50 files, proofs 83 across 11; feat-progression close was
   911/911 across 49 files, proofs 74/74 across 10; action-targeting close was
   878/878 across 48 files, proofs 66/66 across 9; spells-in-combat close was
   829/829 across 44 files, proofs 53/53 across 8; grid-movement close 741/741 across 40 files,
   proofs 47/47 across 7; equipment-consumables close 661/661 across 37, proofs 38/38.)
 
-### OWNER corrections (v1-core: OWNER-01-LINT c5fbb94, OWNER-04-TSCONFIG 77b4108, OWNER-08-BARREL 9afa86c + 32c7ade; loot: FORMAT-RECONCILE 8b802b7; grid: OWNER-CP-POSITIONS 2f3b1d3; equipment-consumables: format residual 8668c53; spells-in-combat: OWNER-M02-HALF 623a687)
+### OWNER corrections (v1-core: OWNER-01-LINT c5fbb94, OWNER-04-TSCONFIG 77b4108, OWNER-08-BARREL 9afa86c + 32c7ade; loot: FORMAT-RECONCILE 8b802b7; grid: OWNER-CP-POSITIONS 2f3b1d3; equipment-consumables: format residual 8668c53; spells-in-combat: OWNER-M02-HALF 623a687; browser-determinism: OWNER-M05-CI-ORDER fb2bf0e)
 
 - OWNER-04-TSCONFIG: theme JSON module types via real-file resolution (`resolveJsonModule`);
   `themes.d.ts` deleted; `tests/compiler/fresh-load.d.ts` retained (types the vite `?fresh-load`
@@ -1407,6 +1457,11 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   in `effect.test.ts`, +2 combat casts in `spells.test.ts` with a negative control. Ran
   concurrently with S03 on a disjoint lease and verified in a temporary worktree because S03's
   uncommitted edits turned the shared tree red.
+- OWNER-M05-CI-ORDER (browser-determinism, `fb2bf0e`, `ci.yml` only, +2/−1): the `test` job ran
+  `pnpm typecheck` before `pnpm build`, so on a fresh checkout the `dist/`-importing journeys failed
+  TS2307. The defect predates this feature and never showed locally, because a local `dist/` always
+  exists. S01 reported it (B-BD-2), and the owner correction swapped the two steps. It is proven only
+  locally, with `dist/` moved aside; the Actions confirmation is part of B-BD-1.
 
 ## Recorded drift & intra-module notes (for the next cycle)
 
@@ -1578,7 +1633,9 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
     "inventory" though that logic lives in `inventory.ts`; and the CI-gates bullet (l.220) says "both
     FR-21 packs" where there are three sample themes.
   - **Behaviour pin (DD-D8).** `tests/proofs/combat-characterization.test.ts` pins raw sha256
-    digests of nine scripted legs' whole event + snapshot stream. A feature that intentionally
+    digests of nine scripted legs' whole event + snapshot stream. Since browser-determinism the values
+    live in `tests/proofs/determinism-oracle.ts`, which also pins `PACK_DIGESTS` for the three generated
+    packs. A bundled-theme or compiler-output change re-keys those under the same rule (DD-B5). A feature that intentionally
     changes combat events (type, order, payload, `why`, `at`) or snapshot JSON lists it in its pin
     audit with a re-key owner (PROGRAM-CONFIG pin-lease convention). A red digest with no planned
     behaviour change is a regression, never a re-key.
@@ -1593,12 +1650,42 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
     feature that touches `tests/runtime`.
   - **Docs prose unpinned.** CAP-C7 rests on text review; docs-run pins only that the README names
     `progression.<id>.features` and `classFeatures`.
-- **v1.1 follow-ups carried across cycles:** browser-mode Vitest config (CI's browser leg);
-  byte-level snapshot conformance; `pnpm approve-builds` advisory for esbuild/tsup; an
+- **browser-determinism residuals (carried, owners named in its Final Report):**
+  - **B-BD-1 — GitHub Actions execution: OPEN, non-blocking.** Owner: the human pushes `main`
+    (agents never push); the next Orchestrator run or Archivist then records the result. Every command
+    in the new `browser` (×3) and `electron` jobs, and in the reordered `test` job, passed locally. None
+    has run on Actions. At this pass `main` has not been pushed:
+    `git rev-list --count origin/main..6566236` = 204, and 202 at VERIFY-01's `5c62f8d`. The last
+    visible Actions run (`dadf461`, 2026-09-27) ended `failure` and predates this feature, so older CI
+    drift may surface as well.
+    - **To clear:** `test` green on Node 18/20/22 (typecheck included), `browser` green for
+      chromium/firefox/webkit, and `electron` green on `ubuntu-latest`.
+    - **If a Linux step fails** (`playwright install --with-deps`, or Electron's shared libraries in
+      `ELECTRON_RUN_AS_NODE` mode), that is a mechanical CI owner correction, not a product question
+      (H10).
+  - **Electron renderer (DD-B3): disclosed residual.** No test runs inside an Electron renderer
+    process; the Chromium leg covers its engine family. Owner: a future feature, if a host reports a
+    renderer-only discrepancy.
+  - **The browser leg runs `src/` through Vite, not `dist/`** (ARCH-PRE F-B6). Node and Electron
+    exercise `dist/` through the journeys, and the README and `ci.yml` header disclose it.
+  - **README overstates what docs-run checks** (VERIFY-01). `README.md:588-590` says `docs-run`
+    checks "that this paragraph and `ci.yml` agree". The README direction of the pin checks only the
+    two command strings and the absence of the old follow-up phrasing, not the paragraph's prose
+    claims. Owner: Planner, for the next feature touching `docs-run`/README: either extend CA-B3 to the
+    prose, or narrow the sentence.
+  - **Clean-checkout typecheck proof (record).** DD-B13's prescribed `tsc --preserveSymlinks` command is
+    wrong under pnpm: it cuts off `@vitest/runner` types and exits 2 whatever `@types/node` is. The
+    accepted clean-checkout proof is a frozen install, then `pnpm build`, then `pnpm typecheck` in a
+    node_modules-free copy outside `$HOME`, with 0 files resolved outside the copy. Reuse that form,
+    not the flag.
+- **v1.1 follow-ups carried across cycles:** byte-level snapshot conformance; `pnpm approve-builds` advisory for esbuild/tsup; an
   out-of-combat point-pool cast verb (would give wyldwood's charm armor teeth, DD-EG5); item
-  `tags` (would let the `use` restriction gate bite). **Closed by spells-in-combat:** per-target
+  `tags` (would let the `use` restriction gate bite). **Closed by browser-determinism:** the browser-mode
+  Vitest config and CI's browser leg (S01 ck2 `da7bc47`, ck4 `66af2e8`), together with the never-listed
+  Electron clause of NFR-Determinism (ck3 `48bd4b9`). **Closed by spells-in-combat:** per-target
   save modifiers (`varsFor`, DD-S19). **Closed by
-  grid-movement:** CI `pnpm build` before `pnpm test` (S04 ck3 `c23d563`, `ci.yml:45`); the
+  grid-movement:** CI `pnpm build` before `pnpm test` (S04 ck3 `c23d563`; now `ci.yml:50`, ahead of
+  typecheck too since `fb2bf0e`); the
   `displayRoll`/`rollText` duplicate (S03 ck5 `27c77f4`, the `display-roll.ts` leaf).
 
 <!-- Historical delta sections (pre-synthesis, kept in git history for provenance): the

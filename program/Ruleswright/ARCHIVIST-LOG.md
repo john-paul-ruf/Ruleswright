@@ -2253,3 +2253,218 @@ Inputs:
   scratch file in the repo; all scratch went to `/tmp/ruleswright-class-features/`.
 - **Role docs:** `PLANNER.md`, `CODER.md`, `UI-CODER.md` and `ORCHESTRATOR.md` are byte-identical to how
   this pass found them.
+
+## 2026-10-10 — final pass, cycle `browser-determinism` (feature commits `1d929a7` → `fb2bf0e`; last non-report commit `6566236`; report `da32716`)
+
+Inputs:
+- the Final Report (`da32716`);
+- STATE.md in full: the ARCH-PRE table, DD-B1..B13, H1–H13, and the three Handoff Notes (S01, OWNER-M05-CI-ORDER, VERIFY-01);
+- VERIFICATION.md (`8a80ec1`);
+- `arch/v1-core.md`, `PROGRAM-CONFIG.MD`, and the class-features entry of this log;
+- `git log`/`git diff` over `46bcf0c..6566236`;
+- the current `ci.yml`, `eslint.config.mjs`, `package.json`, `vitest.browser.config.ts`, the oracle and README l.575-590;
+- a fresh gate run at `da32716`.
+
+### Reconciled
+
+- **`arch/v1-core.md`: no delta fragments this cycle (no `src/` change), so there were no markers to collapse.** These sections were rewritten in place:
+  - **Header:** the realized state is now tree HEAD `6566236`, 13 cycles. A browser-determinism clause was added. The verified-by line now reflects this pass's fresh run.
+  - **l.197 (v1-shell history):** the browser-leg follow-up is marked retired by browser-determinism.
+  - **M05:**
+    - The heading credits browser-determinism.
+    - The docs-run bullet now records the bidirectional CA-B3 pin, its `- run:` anchoring (S01 R1) and its limit (command strings, not prose).
+    - A new **Cross-runtime determinism** bullet covers the oracle and its exports and consumers, the browser leg (config, engines, port 63315, `src/` via Vite), the Electron leg (opt-in binary, identity guard) and the devDependencies plus DD-B13.
+    - **Old l.1237 retired:** the `ci.yml` bullet is rewritten as six jobs, with `ci.yml` line citations, the `fb2bf0e` build-before-typecheck order and B-BD-1.
+    - The characterization paragraph records the verbatim move into the oracle at `1d929a7`.
+    - The gates paragraph now reports browser-determinism close: 974/974 across 56 files, V8 74 × 3, V9 974.
+  - **OWNER corrections:** OWNER-M05-CI-ORDER (`fb2bf0e`) added to the heading and as a bullet.
+  - **Recorded drift:**
+    - A new **browser-determinism residuals** block covers:
+      - B-BD-1, carried with its owner and clear condition;
+      - the DD-B3 renderer residual;
+      - the browser leg running `src/` via Vite;
+      - the README l.588-590 overstatement, owned by Planner;
+      - the A1 `--preserveSymlinks` record.
+    - The DD-D8 behaviour-pin bullet names the oracle and `PACK_DIGESTS`.
+    - **Old l.1596:** "browser-mode Vitest config (CI's browser leg)" moved from the v1.1 follow-ups to "Closed by browser-determinism", together with the Electron clause.
+  - **Contradiction resolved against git:** the record said the `test` job runs "`pnpm build` between typecheck and `pnpm test` (`ci.yml:45`)" and called that closed. Git shows the step at `ci.yml:50`, ahead of typecheck since `fb2bf0e`. The grid-movement closure was right about the tests and silent about the typecheck, which is exactly the B-BD-2 defect. Both places now cite `fb2bf0e`.
+- **`PROGRAM-CONFIG.MD`:**
+  - **Stack *Test* (l.24):** three legs (Node, browser mode, Electron), all local and CI.
+  - **Stack *Lint* (l.25):** pre-existing drift corrected to the realized fact. It is `js.configs.recommended` + typescript-eslint `configs.recommended` (`eslint.config.mjs:19-20`), non-type-aware, plus the `src/**` security bans. It was never "strict-type".
+  - **Stack *CI* (l.27):** the six jobs with their Node versions, and B-BD-1.
+  - **Verification Commands:**
+    - `pnpm test:browser`: port 63315, one browser-mode invocation at a time, plus the per-engine form.
+    - `pnpm build && pnpm test:electron`: build first; the first run downloads the binary.
+  - **Custom Rule 5 rewritten.** Determinism is proven on Node 18/20/22 (CI), Chromium/Firefox/WebKit (Vitest browser mode over `src/` via Vite) and Electron's runtime. The Actions run is present-unverified (B-BD-1), the renderer is a disclosed residual, and the v1.1 history is kept as a parenthetical.
+  - **Realized-state note and Module Registry blurb:** registry confirmed unchanged at `6566236`.
+  - **Two convention evidence notes sharpened by one clause each**; see below.
+- **Module Registry: no module, edge or rule id.** `git diff --name-status 46bcf0c..6566236 -- src` is empty (observed). The new oracle is a test-only non-test module under `tests/`, outside every M-lease, so I derived no edge.
+- **Final Report mechanical facts.** Each was reproduced with the command it cites:
+  - **Files:** `git diff --name-status 46bcf0c..6566236 -- . ':!program'` gives 12 paths, 5 A + 7 M. `--shortstat` gives **+1335/−400**. The groups 6 (4 A + 2 M) + 2 (1 A + 1 M) + 2 (2 M) + 1 + 1 sum to 12. **Reproduces.**
+  - **Checkpoints:** `git log --oneline 46bcf0c..6566236 --grep checkpoint` gives 5: `1d929a7`, `da7bc47`, `48bd4b9`, `66af2e8`, `fb2bf0e`. **Reproduces.**
+  - **Tests:** N₀ 970 → N 974. A fresh `pnpm build && pnpm test` at `da32716` gives 56 files, 974/974. The delta is +3 from `pack-identity.test.ts:15` `it.each(PACK_THEMES)` (3 themes) and +1 from `runtime-identity.test.ts:12`. The `it(` counts of `combat-characterization` (9) and `docs-run` (3) are equal at `46bcf0c` and `6566236`. **Reproduces.** I did not re-run N₀ at `46bcf0c`; it is the class-features close figure.
+  - **`src` diff:** empty. **Reproduces.**
+  - **Does not reproduce at the cited end SHA:** "`main` is 202 commits ahead of `origin/main`". `git rev-list --count origin/main..5c62f8d` = 202, the VERIFY-01 HEAD where it was measured. At `..6566236` it is 204, and at `..main` (`da32716`) 205. This is a moving-ref figure quoted without its anchor (c3c94358). It does not affect the conclusion that nothing was pushed: `origin/main` is still at its 2026-09-27 commit.
+  - **Spot-checked against the tree:** `ci.yml:33-56` (`test`), `:113-132` (`browser`), `:134-150` (`electron`); `eslint.config.mjs:20`; README l.588. All correct.
+- **Fresh gates at `da32716`:** build 0, typecheck 0, lint 0, format:check 0, check:isolation 0, check:security 0. `pnpm test` 56 files 974/974. `pnpm test:browser` 6 files 74/74 in each of HeadlessChrome/151.0.7922.34, Firefox/153.0 and Version/26.5 Safari. `pnpm build && pnpm test:electron` 56 files 974/974, `runtime={"node":"24.21.0","v8":"15.2.124.28-electron.0","electron":"44.7.0"}`. No `__screenshots__`, and nothing left on 63315.
+- **Capability Readiness / Contract Agreements vs VERIFICATION.md (FR-17).** VERIFY-01 has 12 verified and 1 present-unverified, the latter CAP-B4/B-BD-1, Actions execution. STATE.md reads CAP-B4 as "verified locally; Actions present-unverified" and CA-B1..B3 as proven, so the two agree, with no drift. I sampled the boundaries:
+  - **CA-B1:** all 12 64-hex literals sit in the oracle (12 here, 0 elsewhere, per the Final Report; the oracle exports were re-read).
+  - **CA-B2:** the identity line was reproduced fresh.
+  - **CA-B3:** the anchored `- run:` checks; the `ci.yml` lines were read.
+  - **Counterevidence:** the only item is VERIFY-01's README l.588 observation, which limits CA-B3's *prose* scope without contradicting its recorded meaning, which is the command strings. It is recorded as a residual with an owner, not as stale evidence.
+- **Deviation counts by rule (FR-19), whole cycle:**
+  - **R1: 1** (S01 ck4, `docs-run.test.ts`: the prescribed `toContain` anchored to `- run:` lines);
+  - **R2: 1** (S01 ck3, `pnpm-lock.yaml`: `pnpm dedupe` after the `@types/node` pin);
+  - **R3: 0. R4: 0.**
+  - OWNER-M05-CI-ORDER and VERIFY-01 report none.
+  - **Reading:** R1/R2 are in-lease, and there was no stop, so there is no D3/D4 signal. The R1 is a premise defect in the plan (the negative control could not bite), counted under 576a2816.
+- **Process metrics:**
+  - **Completion:** first dispatch 1/1. 1 unplanned owner correction (B-BD-2, a pre-existing CI defect: planning-time verification gap, not caused by this feature), integration rework 0.
+  - **Plan defects:** 6 caught before dispatch, 2 reached the worker (both handled in-lease).
+  - **Environment and blocks:** environment failures 0; one host await idle timeout, re-awaited; no session blocked.
+- **The VERIFICATION.md gitignore seam recurred for the 5th cycle**, and the promoted convention was applied (`8a80ec1`).
+
+### Crossed thresholds (Principle 4)
+
+- **Sharpened: factual-premise verification** (576a2816), now **11 cycles · 52 instances**.
+  - **New instances (7):**
+    - **Before dispatch (5):** F-B1, F-B2, F-B3, F-B5, F-B6.
+    - **Reached S01 (2):** the A1 command and the CA-B3 header-satisfiable control.
+  - **New sub-shape:** F-B1/F-B2 are a premise "verified" in a host environment whose module, type and bin resolution leaks outside the repo. A1 is the follow-on: the corrective clean-checkout probe was itself prescribed unrun.
+  - **Change:** one clause. Environment-dependent premises are probed in the environment the claim is about, meaning a frozen install in a node_modules-free copy outside `$HOME`. Prescribed proof commands are run once before they are prescribed.
+  - **Why this is not minting:** the parent rule crossed long ago, and this follows the precedent of the class-features negative-control clause.
+- **Sharpened: pin-lease ownership** (1cc46f93), now **8 cycles · 10 instances**.
+  - **What happened (F-B4):** the audit's grep set included `PROGRAM-CONFIG.MD` and `arch/**`, yet the DD-B12 retirement list omitted the Stack *CI* row (l.27) and `arch/v1-core.md:197`. l.27 never names the browser leg; it enumerates CI jobs and goes stale by omission.
+  - **Change:** one clause. Enumerations a feature extends are doc pins, and a retirement list carries every audit hit.
+- **Held, evidence notes updated:**
+  - idle timeout (cecd2115): **8 · 16**;
+  - VERIFICATION.md forced commit (c187bed6): **5 · 5**;
+  - Final Report facts derived (f68c42a3): **4 · 4**, held; every figure reproduced except one moving-ref count, which is counted under c3c94358;
+  - whole-repo fast gates (854ceecd): **4 · 4**, held.
+- **Not promoted:**
+  - **3092a46b (baseline-hazard omission): now 2 cycles · 3 instances.** The two new instances:
+    - **H13 omitted:** host `~/node_modules` leakage was missing from H1–H12 until ARCH-PRE.
+    - **H1 consequence unchecked:** H1 (`dist/` importers) was recorded, but not checked against the CI workflow, which typechecked before building. A persistent local `dist/` hid this until S01 (B-BD-2).
+    - **Answer to the envelope's question:** yes, "local gates run with build artifacts present that a fresh CI checkout lacks" is recurrence evidence. The `dist/`-importing journeys are the very hazard named in 3092a46b's first instance.
+    - **Why it stays below threshold:** both axes are below three. There are 2 cycles, and the new instances originated in 2 distinct returns (ARCH-PRE, S01). The owner-correction and VERIFY-01 returns only reproduced B-BD-2, so they are not counted as new instances.
+    - **Partial cover until it crosses:** the factual-premise clause added above partly covers it at program level ("rely on host state CI lacks (a persistent `dist/`)").
+  - **c3c94358: 2 · 2.**
+  - **47f092a4: new, 1 · 1.**
+  - Every other open row: no recurrence.
+- **Conventions minted:** none.
+
+### Proposed for the framework (Principle 3: no threshold)
+
+- **New: a doc sentence claims a test checks more than it enforces** (47f092a4f076107c, **1 cycle · 1 instance**).
+  - **What happened:** `README.md:588-590` says `docs-run` checks "that this paragraph and `ci.yml` agree". The README direction reads only two command strings and the absence of the old phrasing (VERIFY-01).
+  - **Related evidence (counted under 576a2816):** the CA-B3 `toContain` checks were satisfiable by a comment.
+  - **Recommendation:** PLANNER.md's doc-pin step, or CODER.md's docs discipline, should treat a sentence that describes what a test enforces as a claim about that test. Either the test enforces it or the sentence names exactly what is checked.
+- **Carried, count raised:**
+  - **576a2816, 11 · 52.** PLANNER.md should say that journey test-setup values, negative-control values, **host-resolved premises** and **prescribed proof commands** are premises to probe before dispatch. The Orchestrator amendment path (ORCHESTRATOR.md envelope amendments after a planning-completeness review) needs the same rule: A1 was an amendment.
+  - **1cc46f93, 8 · 10.** PLANNER.md's pin-audit step should name all pin kinds: count/shape, behaviour, doc (including `specs/` and `arch/`), content-delta, and **enumeration**.
+  - **3092a46b, 2 · 3.** PLANNER.md's Verification Baseline should carry known hazards forward from the inspected record. When a feature touches CI or dependencies, it should also add a clean-checkout probe: a frozen install in a copy outside `$HOME`, with `dist/` absent.
+  - **cecd2115, 8 · 16.** ORCHESTRATOR.md should say "re-await the same handle" in the await step.
+  - **c187bed6, 5 · 5.** `commit_pathspec` should gain a write-set-restricted `force`, or ORCHESTRATOR.md should state the forced add.
+  - **c3c94358, 2 · 2.** Final Report figures relative to a moving ref (`HEAD`, `main`, `origin/main`) should state the SHA they were measured at.
+- **Carried, no recurrence this cycle:**
+  - 318c816b: the report now titles the gate section `## Verification (gates)`. That is a report-level fix, and the template is unchanged;
+  - 3658f327, 6f6b491b, 82b4e0ab, f4621ac1, f68c42a3, 854ceecd, 8039d686, 760b67f1, c172cd30, 3983f8eb, 17f4803c, 1d910de1, b85c8f3e, 2674d8c2, 0880dd57;
+  - a3680390 and d2415cb4: no Author session this cycle.
+  - b32fc8d0, f57dbe4d and c1ed872b have now gone **ten** consecutive cycles without recurrence; a human may retire them.
+- **Adoption check, done before carrying the rows forward:**
+  - **History:** `program-agents/` is gitignored (`.gitignore:28`), so `git log` has no history for the role docs.
+  - **File times:** I checked the content and mtimes instead. All of `PLANNER.md`, `CODER.md`, `UI-CODER.md` and `ORCHESTRATOR.md` were last modified 2026-10-04 13:41, before the class-features pass (2026-10-05).
+  - **Conclusion:** nothing could have been adopted since that pass's check, and every open row keeps its prior adoption status.
+
+### Standing recommendations
+
+| id | pattern | cycles | in-cycle instances | first seen | status |
+|----|---------|-------:|-------------------:|------------|--------|
+| b32fc8d0c8c92d52 | Large single-session builds exhaust context on exhaustive checkpoint-0 read sweeps (empty-final crash; recovery = checkpoint-scoped reading) | 2 | 2 | v1-core | open (ten cycles without recurrence; retirable by a human) |
+| f57dbe4d010638fe | Subagent model fabricates tool inputs (invented paths, invented project state, fabricated git output) under long-recovery prompts | 2 | 8 | v1-core | open (ten cycles without recurrence; retirable by a human) |
+| b85c8f3e113a6764 | Public surface/barrel completeness gaps discovered at integration (lease gaps across wave-spanning modules) | 2 | 3 | v1-core | open |
+| c1ed872bea557b96 | run tool drops/misroutes argv; workers pass whole command lines as single argv entries | 2 | 3 | v1-core | open (ten cycles without recurrence; retirable by a human) |
+| 3658f327cc9cff2f | commit_pathspec-style single-command commits fail on deleted files | 2 | 2 | v1-core | open (recommendation reworded 2026-10-04: name `git rm`, never `git add -A`) |
+| 1cc46f93038f1d9a | Cross-suite pinning tests (docs-run block-count pin, registry-count pin) land without a named owner in the plan | 8 | 10 | loot-inventory | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-27; widened 2026-09-30 and 2026-10-01; sharpened 2026-10-04 builder-rulings and combat-decomposition; sharpened 2026-10-05 class-features: content-delta pins; sharpened 2026-10-10 browser-determinism: enumerations are doc pins, retirement lists carry every hit); framework wording open |
+| 576a281656f83b23 | Envelope factual premises (mock-vs-prompt anatomy, cross-suite counts) reach sessions unverified; mechanical premise verification at planning time is the fix | 11 | 52 | loot-inventory | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-27; widened 2026-10-04 builder-rulings: journey test-setup values are premises; sharpened 2026-10-05 class-features: negative-control values are premises; sharpened 2026-10-10 browser-determinism: environment-dependent premises are probed in a clean copy outside `$HOME`, and prescribed proof commands are run before prescribing); framework wording open |
+| 854ceecd39d4b0d3 | Whole-repo fast gates (typecheck/lint/format:check) go red at role-scoped receives; cleared by format-only owner corrections | 4 | 4 | v1-core | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-27; held in class-features) |
+| 17f4803c1b08da77 | Provider stream aborts / capacity failures kill subagents mid-session with zero commits; recovery resumes from the preserved tree | 3 | 5 | loot-inventory | open (promotion held: carried cycle attribution ambiguous) |
+| 6f6b491bdbe37bf0 | Bare npx misresolves in this runtime; the working gate forms are pnpm exec vitest run <path> and node_modules/.bin/vitest | 3 | 4 | loot-inventory | open (cycles axis crossed 2026-10-04; the program rule already lives in PROGRAM-CONFIG Verification Commands; framework text still says npx) |
+| 1d910de11732c6c4 | Final Archivist pass aborts on provider capacity leave the next cycle's pass a double synthesis (prior cycle's integrated fragments + record-debt) | 2 | 2 | loot-inventory | open |
+| c172cd30e8dfc756 | Session commit gates hard-code a plan-time base SHA that a later replan makes stale | 1 | 1 | equipment-consumables | open |
+| cecd211504587426 | Host await idle timeout (300 s) interrupts long subagent waits; re-awaiting the same handle reattaches with no work lost | 8 | 16 | equipment-consumables | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-30); framework wording open |
+| f68c42a3f6224eb1 | Final Report mechanical facts (test-file counts, realized module edges) transcribed from handoffs rather than derived from the tree | 4 | 4 | v1-core | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-30; sharpened 2026-10-04: a cited command must reproduce its figure; held in class-features); framework wording open |
+| a368039028d463d6 | Role documents say Spec/DB are never spawned, while plans dispatch orchestrated Author re-entry sessions on recorded human authorization | 8 | 10 | grid-combat | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-30); framework wording open |
+| 3983f8eb6d18a5f2 | Orchestrator STATE row matcher hits a CA-ID column inside the CAP table and writes contract-leg notes into the wrong rows | 1 | 2 | grid-movement | open |
+| f4621ac12fba3456 | Pin audits enumerate count/shape pins but miss behavior pins: tests asserting a value whose derivation a decision changes surface red at a quiet boundary, some outside every lease | 3 | 4 | grid-combat | open |
+| 760b67f17edbd346 | A feature opens a content class to a new execution path, and latent content hazards become reachable without a planning-time scan (damage(half) with no fail-branch damage, 12 spell sites) | 2 | 2 | spells-in-combat | open |
+| 82b4e0abbda105d6 | Concurrent sessions on disjoint leases share one working tree: a sibling's uncommitted edits turn another worker's gates red or inflate its whole-suite counts | 1 | 2 | spells-in-combat | open (narrowed: wave-close re-verify present at ORCHESTRATOR.md:374-391; the temporary-worktree half absent) |
+| c3c94358b35f8316 | Final Report cites `git diff <base>..HEAD` while its own commit then moves HEAD, so the cited command no longer reproduces the reported count | 2 | 2 | action-targeting | open (2026-10-10: "202 commits ahead of `origin/main`" reproduces only at `5c62f8d`; 204 at the cited end SHA `6566236`) |
+| c187bed6bb5132a7 | A new file the role documents order committed through commit_pathspec lives under a gitignored path (VERIFICATION.md under program/<slug>/prompts/), and commit_pathspec cannot force-add it | 5 | 5 | feat-progression | **promoted** (PROGRAM-CONFIG Conventions, 2026-10-04 combat-decomposition: Orchestrator force-adds with an explicit pathspec; surprise, not deviation); framework wording open |
+| 8039d6869169267c | Plan artifacts carry internal inconsistencies into sessions: refusal paths lettered differently in SESSION and STATE, and a prescribed validator snippet that double-cards a negative entry | 1 | 2 | feat-progression | open |
+| d2415cb4497e0049 | Author/DB re-entry handoffs report deviations without an R1-R4 rule, so per-rule deviation counts cannot include them | 2 | 3 | feat-progression | open |
+| 3092a46b564d1d36 | A Verification Baseline records 'Hazards: none' while the inspected record already holds known hazards (dist/-importing journeys pass a stale build; ESLint lints the .program/ scratch directory) | 2 | 3 | combat-decomposition | open (2026-10-10 recurrence: H13 host `~/node_modules` resolution was absent from H1–H12 until ARCH-PRE; the recorded H1 `dist/` hazard's clean-checkout consequence — CI typechecked before building — was hidden by a persistent local `dist/` until S01, B-BD-2) |
+| 2674d8c2f948ae0a | Plan-prescribed mechanical derivations are line-based greps that miss multi-line statements (value imports spread over several lines) | 1 | 1 | combat-decomposition | open |
+| 0880dd5734025fd4 | A prescribed negative control perturbs a file outside the session's lease (scratch edit of a non-owned file), a D4 gap found only at preflight | 1 | 1 | combat-decomposition | open |
+| 318c816b6920dd3d | A Final Report carries two `## Verification` sections (gates, then the FR-17 pass appended at the end), and the first cross-references the second as "below" | 1 | 1 | class-features | open |
+| 47f092a4f076107c | A doc sentence claims a test checks more than the test enforces (README says docs-run checks "that this paragraph and ci.yml agree"; the pin reads only command strings) | 1 | 1 | browser-determinism | open |
+
+
+- **IDs:** 27 are copied verbatim. 1 was minted this pass from the normative formula (`first seen` `browser-determinism`). The formula was cross-checked by recomputing `318c816b6920dd3d` from its own cells.
+- **Count changes:**
+  - 1cc46f93: 7/9 → 8/10.
+  - 576a2816: 10/45 → 11/52.
+  - cecd2115: 7/15 → 8/16.
+  - c187bed6: 4/4 → 5/5.
+  - c3c94358: 1/1 → 2/2.
+  - 3092a46b: 1/1 → 2/3.
+- **Blocked signal:** no session returned blocked, and the table is not empty.
+
+### Cleanup ledger (carried forward; maintained here, no separate CLEANUP-LEDGER.md yet)
+
+| id | candidate | evidence | confidence | blast radius | proposed check | cluster | status |
+|----|-----------|----------|------------|--------------|----------------|---------|--------|
+| C1 | `isLivePattern` (`src/runtime/conditions.ts`) has no non-test consumer | combat-decomposition DD-D9: kept as public API, pinned in `module-surface.test.ts` | — | — | — | duplicated-logic | **retired** (intentionally retained, 2026-10-04) |
+| C2 | `MAX_TABLE_DEPTH = 8` declared in core and schema | resolved by cross-pin, DD-D10 (`tests/core/tables.test.ts:226-228`) | high | — | — | duplicated-logic | **accepted** (closed by `0c56866`) |
+| C3 | `readPatch` exported from the compiler surface but consumed only by tests | unchanged (no compiler source change this cycle) | low | compiler surface | decide public-surface intent (FR-20 host-side composition) | compiler-surface | **tracking** |
+| C4 | `EventSeed`/`EventSink` exported from the runtime surface, no consumer | unchanged (`events.ts` untouched; `index.ts` changed only by the `features` re-export) | low | runtime surface | same surface-first decision | runtime-surface | **tracking** |
+| C5 | Final Report test-file count 28 vs 29 | corrected at v1-core close (`0290d47`) | high | report accuracy | — | report-accuracy | **retired** |
+| C6 | `parsePackEffects` had zero consumers | deleted at `010d730` | high | M03 internal | — | spell-asts | **accepted** (closed by `010d730`) |
+| C7 | `WYLDWOOD` exported from the compiler surface, consumed only via theme-loader/index | unchanged | low | compiler surface | same surface-first decision as C3/C4 | compiler-surface | **tracking** |
+| C8 | `equipment.ts` private `rollText` duplicated `displayRoll` | closed at `27c77f4` | high | M03 internal | — | duplicated-logic | **accepted** (closed by `27c77f4`) |
+| C9 | equipment-consumables Final Report *Architecture impact* omitted two value edges | corrected in the living record since 2026-09-28 | high | report accuracy only | — | report-accuracy | **retired** |
+| C10 | `Combat.use`'s restriction gate cannot block (`ItemDef` has no `tags`) | unchanged; combat untouched this cycle | low | M03 combat | retain as forward-compat unless item tags are rejected as a product direction | item-tags | **tracking** (intentional; resumption: item tags decision) |
+| C11 | Theme feat triggers never matched / feats never registered | closed at `d9a6d71`/`8d04c5e` | medium | — | — | inert-content | **accepted** |
+| C12 | `heal` was registry entry 13 but absent from `EFFECT_VOCABULARY` | closed at `4c1e1e6` | low | — | — | vocabulary-drift | **accepted** (closed by `4c1e1e6`) |
+| C13 | spells-in-combat Final Report *Files* breakdown mismatch | corrected by Orchestrator at `0b5787e` | high | report accuracy only | — | report-accuracy | **accepted** (closed by `0b5787e`) |
+| C14 | Stale comment `character-profile.test.ts:381` | closed at `4be2a57` (DD-R7) | high | one comment line | — | stale-docs | **accepted** (closed by `4be2a57`) |
+| C15 | Split-file helpers exported with no consumer outside their own file (`execute.ts` `flattenResolutions`, `boundActionOf`; `movement.ts` `pathQuery`, `threatenersLeft`, `endMove`, `setPendingMove`; `triggers.ts` `resolveReactiveAgainst`, `resolveFeat`) | unchanged: `src/runtime/combat` is untouched since `c0a23b1` (`git diff --name-status 46bcf0c..6566236 -- src` empty) | low | M03 internal (`export` keyword only) | `pnpm typecheck` + `pnpm lint` + module-surface + characterization green after dropping `export` | split-internal-exports | **tracking** (below threshold) |
+| C16 | `PackTheme` type exported from `tests/proofs/determinism-oracle.ts` with no consumer outside the oracle | `grep -rlw PackTheme tests src --include=*.ts` returns only the oracle; every other oracle export has a consumer outside it | low | one test-only `export` keyword | `pnpm typecheck` green after dropping `export` | test-oracle-surface | **tracking** (below threshold; may be kept as the oracle's public test vocabulary) |
+
+
+**Cleanup scout of this cycle's diff** (12 paths, all test, config, CI or docs):
+- **C16** (new, low, tracking): `PackTheme` is the only oracle export with no consumer outside the oracle.
+- **The other oracle exports all have consumers** outside the oracle (`grep -rlw`):
+  - `LEG_RUNS` and `LegId` are used by the browser test.
+  - `recordingRaw`, `contentHashOfRaw` and `CHARACTERIZATION_DIGESTS` are used by characterization and browser.
+  - `PACK_THEMES`, `packRaw` and `PACK_DIGESTS` are used by pack-identity and browser.
+  - The leg functions, `ofType`, `Recording` and `Digest` are used by `combat-characterization.test.ts`.
+- **No duplicate:** `combat-characterization.test.ts`'s private `digests()` helper was removed in the move.
+- **No dead config:** `vitest.config.ts` excludes `tests/browser/**`, and `vitest.browser.config.ts` lists six existing files.
+- **Advisory class:** "Ignored build scripts: msw" is the existing harmless `pnpm approve-builds` class, carried under the v1.1 follow-ups.
+
+**Cleanup brief status:** no campaign crosses a threshold, so there is no brief.
+
+### Verification of this pass
+
+- **Sources.** Every claim traces to:
+  - git at `46bcf0c`/`5c62f8d`/`6566236`/`da32716`: name-status, shortstat, `--grep checkpoint`, `rev-list --count`, `git show <rev>:<file>`;
+  - the current `ci.yml`, `eslint.config.mjs`, `package.json`, `vitest.browser.config.ts`, the oracle and README;
+  - STATE.md, VERIFICATION.md and the Final Report;
+  - this pass's fresh gate runs.
+- **No contradiction** with STATE.md, VERIFICATION.md or the Final Report. One Final Report figure is ref-relative (202 ahead) and is recorded above.
+- **PROGRAM-CONFIG diff scope:**
+  - **Changed:** the header realized-state note; Stack *Test*, *Lint* and *CI*; the Module Registry blurb; two Verification Commands rows added; Custom Rule 5; Conventions (evidence notes, one pin-lease sentence, one factual-premise sentence).
+  - **Unchanged:** the Verification Commands rows that already existed, Git Config, Session Defaults, the registry table, Architecture, Author Sources and Custom Rules 1–4 and 6.
+- **Not edited:** `specs/`, `mocks/`, STATE.md, FINAL-REPORT.md, `src/` and `tests/`. I wrote no scratch file in the repo; all scratch went to `/tmp/ruleswright-browser-determinism-archivist/`.
+- **Role docs:** `PLANNER.md`, `CODER.md`, `UI-CODER.md` and `ORCHESTRATOR.md` are byte-identical to how this pass found them (md5 before and after).
