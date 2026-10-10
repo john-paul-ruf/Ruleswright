@@ -8,14 +8,20 @@
 # the 18 leg. Typecheck/tests stay on 18/20/22 — the library's engines floor
 # (>=18) is untouched, and the whole suite still runs on all three Node lines.
 #
-# Determinism in v1: the WHOLE suite runs on all three Node lines below —
-# same-seed ⇒ identical results is the v1 determinism proof, and a scoped
-# rerun of the same tests would prove nothing pnpm test didn't already prove.
-# The browser-mode leg (Custom Rule 5, NFR-Determinism's browser/Electron
-# clause) is a TRACKED v1.1 follow-up: it needs a browser-mode Vitest config
-# this repo does not carry yet (D4: node env locally). When that config lands,
-# add the matrix run here — the README already points here for the browser
-# leg and names this follow-up, so the doc claim and CI stay one truth.
+# Determinism (FR-1, FR-17, NFR-Determinism) is proven on three runtimes:
+# - the WHOLE suite on Node 18/20/22 (job `test`) — same seed ⇒ identical
+#   results, including the shared oracle (tests/proofs/determinism-oracle.ts);
+# - the oracle's Node-pinned digests plus the pure suites in Chromium (V8),
+#   Firefox (SpiderMonkey) and WebKit (JavaScriptCore) via Vitest browser mode
+#   (job `browser`, vitest.browser.config.ts). This leg runs src/ transformed
+#   by Vite, not the shipped dist/ bundle; Node and Electron run the dist/
+#   journeys;
+# - the WHOLE suite under Electron's own Node/V8 (job `electron`,
+#   pnpm test:electron, ELECTRON_RUN_AS_NODE). Electron's renderer is
+#   Chromium, which the Chromium leg covers; no test runs inside an Electron
+#   renderer process.
+# The README names exactly these legs; tests/proofs/docs-run.test.ts checks
+# both directions, so the doc claim and CI stay one truth.
 name: CI
 
 on:
@@ -102,3 +108,42 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec vitest run tests/compiler/coverage-floor.test.ts
         name: both themes to the coverage floor — the FR-21 proof input
+
+  browser:
+    name: determinism · browser (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps ${{ matrix.browser }}
+      - run: pnpm exec vitest run --config vitest.browser.config.ts --browser.name=${{ matrix.browser }}
+        name: the Node-pinned oracle digests + pure suites reproduce in a real browser engine (FR-1, NFR-Determinism)
+
+  electron:
+    name: determinism · electron runtime (whole suite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+        # The dist/ journeys run under Electron too, so the suite needs a fresh build first.
+      - run: pnpm test:electron
+        name: the whole suite under Electron's own Node/V8 (ELECTRON_RUN_AS_NODE)

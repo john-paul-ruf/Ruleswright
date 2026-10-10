@@ -20,9 +20,10 @@
  * package exports to the same compiled source.
  *
  * The anatomy test additionally pins the README's CI claims against what
- * ci.yml actually does: the browser determinism leg is a tracked v1.1
- * follow-up, and the README must say so — never promise a CI run CI does
- * not perform.
+ * ci.yml actually does, in both directions (browser-determinism CA-B3): every
+ * determinism leg the README names (browser, Electron), ci.yml runs, and the
+ * old "v1.1 follow-up" wording is gone — never promise a CI run CI does not
+ * perform, never leave a CI leg undocumented.
  *
  * Expected outputs are asserted from the README's own output blocks:
  *   01 → a validated pack (manifest.id = dark-fantasy, 3 classes, 33 spells)
@@ -235,11 +236,20 @@ describe('README quickstart runs verbatim (NFR-DX)', () => {
     // Class features (class-features, v1.10): where they live and the host query are documented.
     expect(readme).toContain('progression.<id>.features');
     expect(readme).toContain('classFeatures');
-    // CI-claim honesty (NFR-DX): the README must never promise a CI run CI
-    // does not perform. The browser determinism leg is a tracked v1.1
-    // follow-up — ci.yml runs the Node matrix only, and says so.
-    expect(readme).toContain('browser leg');
-    expect(readme).toContain('v1.1 follow-up');
+    // CI-claim honesty (NFR-DX), both directions: every determinism leg the README names, ci.yml runs.
+    // The ci.yml checks anchor on `- run:` steps: its header comment names the same commands.
+    const ci = readFileSync(
+      fileURLToPath(new URL('../../.github/workflows/ci.yml', import.meta.url)),
+      'utf8',
+    );
+    expect(readme).toContain('pnpm test:browser');
+    expect(readme).toContain('pnpm test:electron');
+    expect(ci).toMatch(
+      /^\s*- run: pnpm exec vitest run --config vitest\.browser\.config\.ts --browser\.name=/m,
+    );
+    expect(ci).toMatch(/browser:\s*\[chromium, firefox, webkit\]/);
+    expect(ci).toMatch(/^\s*- run: pnpm test:electron$/m);
+    expect(readme).not.toMatch(/browser[^.]*v1\.1 follow-up/);
     expect(readme).not.toContain('browser matrix runs in CI');
   });
 

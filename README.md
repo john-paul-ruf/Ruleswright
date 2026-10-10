@@ -9,8 +9,8 @@ specifics, the engine interprets them.
 
 - Zero runtime dependencies. Engine performs no I/O — hosts own storage, pacing, and UI.
 - Determinism to the byte: same theme + seed + knobs ⇒ byte-identical packs; same seed +
-  same call sequence ⇒ identical rolls. Verified on the Node 18/20/22 CI matrix; the
-  browser leg of the matrix is a tracked v1.1 follow-up (browser-mode Vitest config).
+  same call sequence ⇒ identical rolls. Verified in CI on the Node 18/20/22 matrix, in
+  Chromium, Firefox and WebKit (Vitest browser mode), and under Electron's runtime.
 - Three surfaces: `ruleswright/runtime` (dice, characters, combat, snapshots, events),
   `ruleswright/schema` (the pack format, validator, version contract), and
   `ruleswright/compiler` (theme → pack generation, knobs, stage pipeline).
@@ -316,8 +316,8 @@ and dark-fantasy packs (seed 42).
 - The engine performed **no I/O** anywhere above — `serialize()` hands you JSON;
   your app owns storage (FR-14).
 - Same theme + seed + knobs ⇒ byte-identical pack; same seed + same call sequence
-  ⇒ identical rolls on Node, browsers, Electron (FR-1, FR-17; the Node matrix is
-  verified in CI, the browser leg is a tracked v1.1 follow-up).
+  ⇒ identical rolls on Node, browsers, Electron (FR-1, FR-17; verified in CI on the
+  Node 18/20/22 matrix, in Chromium, Firefox and WebKit, and under Electron's runtime).
 
 ## Spells and feats in combat
 
@@ -561,6 +561,8 @@ pnpm format           # Prettier --write over the whole repo (.prettierrc)
 pnpm format:check     # Prettier --check; CI enforces it
 pnpm test             # Vitest (node environment)
 pnpm test --coverage  # Vitest + v8 coverage (summary at the end of the run)
+pnpm test:browser     # determinism oracle + pure suites in Chromium, Firefox, WebKit (first run: pnpm exec playwright install chromium firefox webkit)
+pnpm test:electron    # the whole suite under Electron's runtime (run pnpm build first)
 pnpm build            # tsup — dual ESM/CJS + dts, per-entry
 pnpm check:isolation  # the runtime-only bundle contains no compiler strings (FR-22)
 pnpm check:security   # no eval/new Function/Math.random/Date.now in src/ + dist/
@@ -574,6 +576,15 @@ resumed fight rolls the same future as an uninterrupted one.
 CI (`.github/workflows/ci.yml`) runs the Node matrix (18/20/22 — the whole suite,
 so same-seed ⇒ identical rolls is proven on all three lines), the FR-12 proof trio
 (rules-are-data: zero engine diffs), the FR-21 coverage floor for both sample
-themes, the bundle-isolation + security-sweep gates, and the lint + Prettier format checks on every push (lint runs on Node 22 — ESLint 10's floor is above the Node 18 matrix leg). The browser
-determinism leg is the tracked v1.1 follow-up (needs a browser-mode Vitest config),
-documented here so the README never promises a CI run CI does not perform.
+themes, the bundle-isolation + security-sweep gates, and the lint + Prettier format checks on every push (lint runs on Node 22 — ESLint 10's floor is above the Node 18 matrix leg).
+
+Two more jobs carry the cross-runtime determinism proof. The `browser` job runs the
+shared oracle (`tests/proofs/determinism-oracle.ts`: Node-pinned digests of nine combat
+legs and three generated packs) plus the pure core/schema/theme suites in Chromium,
+Firefox and WebKit (`vitest.browser.config.ts`); it runs `src/` transformed by Vite,
+not the shipped `dist/` bundle, which the Node and Electron legs exercise through the
+`dist/` journeys. The `electron` job runs the whole suite under Electron's own Node/V8
+runtime (`pnpm test:electron`); Electron's renderer engine is Chromium, covered by the
+Chromium leg, and no test runs inside an Electron renderer process. `docs-run` checks
+that this paragraph and `ci.yml` agree, so the README never promises a CI run CI does
+not perform.
