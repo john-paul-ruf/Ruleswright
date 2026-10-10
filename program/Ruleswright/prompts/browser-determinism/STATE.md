@@ -74,6 +74,8 @@ All auto-decided under Step 2 (no product behaviour, no destructive work).
 - **DD-B10 — Bidirectional honesty pin.** `docs-run` reads `ci.yml` as well as the README (CA-B3), replacing the one-way "README must say v1.1 follow-up" pin.
 - **DD-B11 — CI shape:** a `browser` job (matrix chromium/firefox/webkit, Node 22, `playwright install --with-deps <b>`) and an `electron` job (Node 22, `pnpm build`, `pnpm test:electron`). The existing jobs are unchanged.
 - **DD-B12 — PROGRAM-CONFIG and the arch record are not leased.** Final Archivist owns the Stack *Test* row (l.24), Custom Rule 5 (l.165), the Verification Commands rows and `arch/v1-core.md:1237, 1596`. `specs/architecture.md:32,35,48,220,240` already describes browser-mode determinism (Chromium/Firefox/WebKit), so no Architect re-entry is needed.
+- **DD-B12a (Orchestrator, 2026-10-10, ARCH-PRE F-B4) — retirement list widened.** The final Archivist also owns `PROGRAM-CONFIG.MD:27` (Stack *CI* row: Node matrix only) and `arch/v1-core.md:197` ("browser matrix leg documented as a v1.1 …"). Unrelated pre-existing drift, also final Archivist: `PROGRAM-CONFIG.MD:25` says "typescript-eslint strict-type", but `eslint.config.mjs:20` uses `configs.recommended`.
+- **DD-B13 (Orchestrator auto-decision, 2026-10-10, ARCH-PRE F-B1) — make V1's Node type source explicit and in-repo.** Observed: the repo has no `node_modules/@types`, and `tsc --traceResolution` resolves the `node` type reference to `/Users/the.phoenix/node_modules/@types/node@25.5.0`, a home-dir package (verified by Orchestrator). A clean checkout (CI) is therefore expected to fail `pnpm typecheck` today (ARCH-PRE probe: 134 `error TS` in a copy outside `$HOME`). `electron@44.7.0` depends on `@types/node ^24.9.0`, so ck3 changes V1's type source implicitly. **Decision:** at ck3, after `pnpm add electron`, S01 pins `@types/node` explicitly: `pnpm add -D --save-exact @types/node@<the 24.x version the lockfile resolved for electron>`. This yields one copy, exact, and leaves runtime `dependencies` empty. The ck3 commit gains a closing assertion: a CI-like typecheck exits 0, run from a repo copy outside `$HOME` (`/tmp/ruleswright-browser-determinism/ci`) with `--preserveSymlinks`. Rationale: the narrowest change inside the lease (`package.json`, `pnpm-lock.yaml`). It is mechanical, reversible and not product design. Rollback: remove the devDependency.
 
 ## Verification Baseline
 
@@ -123,6 +125,7 @@ Observed by Planner at `46bcf0c`, 2026-10-09 ~21:20, Node v24.20.0, pnpm 10.15.0
 - **H10 Linux CI legs unverified locally:** `playwright install --with-deps webkit|firefox` on `ubuntu-latest` and the Electron 44 binary's shared libraries in `ELECTRON_RUN_AS_NODE` mode cannot be exercised on this macOS host. They are debt until the first Actions run (B-BD-1).
 - **H11 network:** ck2/ck3 `pnpm add` and the first `test:electron` need the npm registry and GitHub releases. The registry was reachable at plan time (`pnpm view` succeeded).
 - **H12 Node 18 has no global WebCrypto:** handled by DD-B8. Never let `tests/browser/**` into the node config.
+- **H13 host `~/node_modules` leakage (ARCH-PRE F-B1/F-B2):** TypeScript and bin resolution walk up past the repo into `/Users/the.phoenix/node_modules` (`@types/node@25.5.0`, `electron ^41` and its `.bin/electron`). Local V1 "0" is not evidence of a clean-checkout typecheck. Closed for V1 by DD-B13 at ck3. Electron mis-resolution is caught by ck3's `"electron":"44.7.0"` identity condition. The ck0 recheck records the `node` type resolution, and ck3 re-records it.
 
 **Pin audit** (PROGRAM-CONFIG pin-lease convention). Grep set: `tests/`, `README.md`, `src/`, `.github`, `scripts`, `vitest.config.ts`, `program/Ruleswright/{specs,mocks,arch}`, `PROGRAM-CONFIG.MD`. Patterns: `browser`, `Electron`, `v1.1 follow-up`, `determinis`, `characterization`, `package.json`/`devDependencies`/`scripts`, test-file enumeration of `tests/proofs`.
 
@@ -164,12 +167,33 @@ Observed by Planner at `46bcf0c`, 2026-10-09 ~21:20, Node v24.20.0, pnpm 10.15.0
 
 No database, serialized product contract, IPC or pack schema boundary applies: `src/` and `src/schema/contracts/**` are unchanged.
 
+## Planning Completeness Review
+
+ARCH-PRE (Archivist, handle h-ctRQ, 2026-10-10). Reviewed plan revision `7dcc22e` (plan files on disk); source revision `7dcc22e`, with `src`/`tests`/configs identical to `46bcf0c`.
+
+| # | Dimension | Verdict | Evidence (abridged) | Disposition |
+|---|---|---|---|---|
+| D1 | requirement coverage | pass | FR-1/FR-17 → CAP-B1; NFR-Determinism (`requirements.md:245`) → CAP-B2 + CAP-B3; NFR-DX → CAP-B4; the DD-B3 residual is disclosed | — |
+| D2 | fact origins | **fail** | the ck3 typecheck premise and the `electron` bin resolve to `~/node_modules` (F-B1, F-B2) | closed for dispatch by DD-B13 and amendments A1/A2; proof at ck3 |
+| D3 | ownership | **fail** | V1's type source had no owner; B-BD-1 omitted the existing `test` typecheck; the DD-B12 list was incomplete (F-B4) | DD-B13 (S01 ck3), B-BD-1 widened, DD-B12a |
+| D4 | lease coverage | pass | all writes are in Owns; no `tsconfig`/eslint/`.gitignore` edit is needed; the scanners cover `src`/`dist` only | — |
+| D5 | declared vs real dependencies | pass | ck2/ck3 consume ck1's oracle; the `@vitest/browser` peer `vitest 2.1.8` matches | — |
+| D6 | early integration | pass | ck2 runs real `src/` in 3 engines against Node goldens; the oracle has no `node:`/`process` reach | — |
+| D7 | runtime wiring | pass | the oracle has 3 consumers; the scripts and config are consumed by CI and the docs-run pin | — |
+
+The D2/D3 failures affect S01 ck3 only, not ck1/ck2; no replan is needed. **Envelope amendments to S01 (lease rev 1):**
+- A1 (F-B1/DD-B13): ck0 and ck3 record the `node` type resolution; ck3 pins `@types/node` exactly and passes a typecheck outside `$HOME` with `--preserveSymlinks`.
+- A2 (F-B2): a host `electron ^41` bin exists in `~/node_modules/.bin`; the handoff quotes the resolved version.
+- A3 (F-B3): the ck4 negative control edits the leased `ci.yml` **in place** (backed up to `/tmp/ruleswright-browser-determinism/`, reverted, `cmp`-confirmed), because the pin reads the repo path.
+- A4 (F-B6): the README/handoff wording discloses that the browser leg runs `src/` through Vite, not `dist/`; Node/Electron run the `dist/` journeys.
+- F-B5: corrected citations (digest literals l.357-450; `packContentHash` `version.ts:45-47`; FNV l.61-69; the honesty pin l.241-243).
+
 ## Current Blockers
 
 | ID | Affects | Next action | Owner | Evidence to clear |
 |---|---|---|---|---|
-| B-BD-1 | CAP-B4 (Actions execution only); does **not** block S01 or VERIFY-01 | After S01 lands, the human pushes (agents never push). The next Orchestrator run or the final Archivist reads the Actions result for jobs `browser (chromium/firefox/webkit)` and `electron` | human (push) → Archivist (record) | all four new jobs green on GitHub Actions. If WebKit/Firefox `--with-deps` or Electron shared libraries fail on `ubuntu-latest`, that is a mechanical CI owner-correction (H10), not a product question |
-| — | Planning completeness | Optional scoped Archivist planning-completeness pass before S01 (one session, no Author files, all premises probed). Orchestrator's call | Orchestrator | ARCH-PRE result or recorded skip |
+| B-BD-1 | CAP-B4 (Actions execution only); does **not** block S01 or VERIFY-01 | After S01 lands, the human pushes (agents never push). The next Orchestrator run or the final Archivist reads the Actions result for jobs `browser (chromium/firefox/webkit)` and `electron` | human (push) → Archivist (record) | all four new jobs green on GitHub Actions, **and** the existing `test` job's `pnpm typecheck` (`ci.yml:44`) green on 18/20/22, because before DD-B13 that typecheck depended on a host-only `@types/node` (H13). If WebKit/Firefox `--with-deps` or Electron shared libraries fail on `ubuntu-latest`, that is a mechanical CI owner-correction (H10), not a product question |
+| — | Planning completeness | **Done:** ARCH-PRE 2026-10-10 (see *Planning Completeness Review*). D2/D3 failures reach ck3 only and are closed by DD-B13 plus envelope amendments A1–A4 | Orchestrator | cleared at dispatch; ck3 closing assertion (DD-B13) |
 
 ## Handoff Notes
 
