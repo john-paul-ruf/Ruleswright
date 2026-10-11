@@ -14,7 +14,7 @@
 | # | Session | Modules | Owns | Status | Checkpoint | Completed | Notes |
 |---|---|---|---|---|---|---|---|
 | S01 | DB re-entry: contract v1.11 — combatant hp has no lower bound | — (DB) | `program/Ruleswright/specs/database.md`, `src/schema/contracts/snapshots.schema.json` | done | 2/2 (`e815e74`, `bde9781`) | 2026-10-11 | Author session; no CA-K2 delta; Orchestrator V1–V3 0 at receive |
-| S02 | Contract conformance proof, old-location refusal, honest docs | tests, M05 | `tests/proofs/contract-conformance.test.ts`, `tests/runtime/features.test.ts`, `tests/proofs/docs-run.test.ts`, `package.json`, `pnpm-lock.yaml`, `README.md` | pending | — | — | depends on S01 (CA-K2) |
+| S02 | Contract conformance proof, old-location refusal, honest docs | tests, M05 | `tests/proofs/contract-conformance.test.ts`, `tests/runtime/features.test.ts`, `tests/proofs/docs-run.test.ts`, `package.json`, `pnpm-lock.yaml`, `README.md` | done | 3/3 (`8e8c032`, `ae5b595`, `bd4f753`) | 2026-10-11 | amendments A1–A5 applied; R1 in-lease (docs-run inline comment); Orchestrator V1–V7, V9 0 at receive (57 files / 1017) |
 
 ## Wave Plan
 
@@ -135,10 +135,10 @@ Plan-time observations at `bb61f91`, in a clean `git archive` copy at `/tmp/rw-c
 
 | ID | Approved behavior / entry point | Required facts + producer owners | CA IDs / prerequisites | Integration owner / checkpoint | Status | Proof / checked sources | Open gaps + correction owners |
 |----|----|----|----|----|----|----|----|
-| CAP-K1 | FR-14/FR-23/FR-2: published contracts admit everything the library writes (3 serializers) and ships (generated + fixture packs); override docs per §Override | writers: `snapshots/{character,combat}.ts` (committed); packs: `generateCampaign`, fixture builders (committed); contracts (DB; v1.11 by S01) | CA-K1, CA-K2; S01 done | S02 ck1 | planned | P1, P3, P5 at `bb61f91` | — |
-| CAP-K2 | contract states hp semantics: no lower bound, ≤ 0 down | DB text + schema (S01) | CA-K2 | S01 ck1-2 (contract); proof S02 ck1 | contract landed (S01 `e815e74` schema l.192-195, `bde9781` database.md l.3, l.699-705, row 12 l.822); Ajv proof planned S02 ck1 | P3 (edit form); Orchestrator recheck at `bde9781`: combatant `hp` = `{type: integer, description}`, no `minimum`; `maxHp` keeps `minimum: 0` | proof: S02 ck1 |
-| CAP-K3 | FR-2: the runtime refuses the pre-v1.10 location at load | `Runtime` constructor → `validatePack` (committed) | — | S02 ck2 | planned | P4 | — |
-| CAP-K4 | NFR-DX: the README states exactly what is proven and what docs-run checks | README (S02), docs-run (S02), `ci.yml` (unchanged) | CA-K3 | S02 ck3 | planned | `ci.yml:54,94`; `coverage-floor.test.ts:34,49` | — |
+| CAP-K1 | FR-14/FR-23/FR-2: published contracts admit everything the library writes (3 serializers) and ships (generated + fixture packs); override docs per §Override | writers: `snapshots/{character,combat}.ts` (committed); packs: `generateCampaign`, fixture builders (committed); contracts (DB; v1.11 by S01) | CA-K1, CA-K2; S01 done | S02 ck1 | **verified** (S02 ck1 `8e8c032`) | Orchestrator at `bd4f753`: `pnpm exec vitest run tests/proofs/contract-conformance.test.ts` 42/42 (3 generated + 7 fixture packs, 14 oracle + 6 per-theme envelopes, 2 override docs, 5 negative controls asserting instancePath+keyword); V5 57/1017; V9 Electron 57/1017; worker V11 clean copy 0 | CI execution via `ci.yml:54,94` awaits B-BD-1 (human push) |
+| CAP-K2 | contract states hp semantics: no lower bound, ≤ 0 down | DB text + schema (S01) | CA-K2 | S01 ck1-2 (contract); proof S02 ck1 | **verified** — contract S01 `e815e74`/`bde9781`; Ajv proof S02 ck1 `8e8c032` (leg-3b[0] wolf hp -7 valid; in-memory `minimum: 0` copy rejects at `/combatants/1/hp` minimum; `1.5` rejects at `/combatants/0/hp` type) | P3 (edit form); Orchestrator recheck at `bde9781`: combatant `hp` = `{type: integer, description}`, no `minimum`; `maxHp` keeps `minimum: 0` | — |
+| CAP-K3 | FR-2: the runtime refuses the pre-v1.10 location at load | `Runtime` constructor → `validatePack` (committed) | — | S02 ck2 | **verified** (S02 ck2 `ae5b595`) | `tests/runtime/features.test.ts` 6/6 at `bd4f753`; card list exactly `[[E-SCHEMA-02, content.classes.warden.features]]` | — |
+| CAP-K4 | NFR-DX: the README states exactly what is proven and what docs-run checks | README (S02), docs-run (S02), `ci.yml` (unchanged) | CA-K3 | S02 ck3 | **verified** locally (S02 ck3 `bd4f753`) | README l.151-152, 579, 581-586 (A1 wording), 595-599; `docs-run.test.ts` 3/3 pins README names the file, file exists, `ci.yml` `- run: pnpm test` and `- run: pnpm exec vitest run tests/proofs/`; negative controls in memory for ci regexes (A2), `.github` untouched | H-R1 residual (`ci.yml:23-24,111`, coverage-floor titles; owner Planner, next feature touching ci.yml/tests/compiler) |
 
 The first narrow journey is S02 ck1. It runs the real public writers (runtime barrel) and the compiler, takes their JSON text, and checks it with an independent validator against the committed contract files. That is the actual host boundary: a host stores the JSON text. There is no other transport in a headless library.
 
@@ -146,9 +146,9 @@ The first narrow journey is S02 ck1. It runs the real public writers (runtime ba
 
 | ID | Required meaning / authority | Producer → boundary → consumer | Mapping / constraints | Correction + proof owners / checkpoints | Agreement | Producer | Proof / evidence / checked sources |
 |----|----|----|----|----|----|----|----|
-| CA-K1 | every published contract admits every writer/shipped artifact | compiler, fixtures, runtime writers → JSON text → Ajv(contract) | SESSION-02 *Contract Agreements* table: 3 generated + 7 fixture packs; 14 oracle envelopes + 6 per-theme; 2 override docs; JSON round-trip first; non-strict draft 2020 | producer + proof S02 ck1 | agreed | ready (committed writers) | planned (P1/P3 observed) |
-| CA-K2 | combatant `hp`: integer, **no lower bound**; damage unfloored; hp ≤ 0 = down; written/restored as-is; `maxHp` keeps `minimum: 0` | engine `applyMutation` → `serializeCombat` → `snapshots.schema.json` | schema l.192 loses `minimum: 0`, gains a description; `database.md` v1.11 block + row 12 | correction S01 ck1-2 (DB); proof S02 ck1 (`some(hp<0)` valid; in-memory `minimum: 0` copy rejects; `1.5` rejects) | agreed (DD-K1); no wording delta (S01 handoff) | **ready** — S01 ck1 `e815e74` (schema), ck2 `bde9781` (database.md); Orchestrator recheck at `bde9781` passed (no `minimum` on combatant `hp`; pack/override schemas unchanged) | planned (S02 ck1) |
-| CA-K3 | README CI/docs-run claims are enforced | README ↔ docs-run ↔ `ci.yml` | README names `tests/proofs/contract-conformance.test.ts`; the file exists; `ci.yml` has `- run: pnpm test` and `- run: pnpm exec vitest run tests/proofs/`; the existing browser/Electron pins kept | S02 ck3 | agreed | planned | planned |
+| CA-K1 | every published contract admits every writer/shipped artifact | compiler, fixtures, runtime writers → JSON text → Ajv(contract) | SESSION-02 *Contract Agreements* table: 3 generated + 7 fixture packs; 14 oracle envelopes + 6 per-theme; 2 override docs; JSON round-trip first; non-strict draft 2020 | producer + proof S02 ck1 | agreed | ready (committed writers) | **proven** S02 ck1 `8e8c032` (all subjects valid, count 14, kinds character/party/combat) |
+| CA-K2 | combatant `hp`: integer, **no lower bound**; damage unfloored; hp ≤ 0 = down; written/restored as-is; `maxHp` keeps `minimum: 0` | engine `applyMutation` → `serializeCombat` → `snapshots.schema.json` | schema l.192 loses `minimum: 0`, gains a description; `database.md` v1.11 block + row 12 | correction S01 ck1-2 (DB); proof S02 ck1 (`some(hp<0)` valid; in-memory `minimum: 0` copy rejects; `1.5` rejects) | agreed (DD-K1); no wording delta (S01 handoff) | **ready** — S01 ck1 `e815e74` (schema), ck2 `bde9781` (database.md); Orchestrator recheck at `bde9781` passed (no `minimum` on combatant `hp`; pack/override schemas unchanged) | **proven** S02 ck1 `8e8c032` |
+| CA-K3 | README CI/docs-run claims are enforced | README ↔ docs-run ↔ `ci.yml` | README names `tests/proofs/contract-conformance.test.ts`; the file exists; `ci.yml` has `- run: pnpm test` and `- run: pnpm exec vitest run tests/proofs/`; the existing browser/Electron pins kept | S02 ck3 | agreed | **landed** S02 ck3 `bd4f753` | **proven** S02 ck3 `bd4f753` (docs-run 3/3; README A1 sentence) |
 
 ## Current Blockers
 
@@ -273,3 +273,94 @@ Contract v1.11 is landed: combat snapshots now accept a combatant `hp` with no l
 - **filesTouched:**
   - `src/schema/contracts/snapshots.schema.json`
   - `program/Ruleswright/specs/database.md`
+
+### SESSION-02 — received 2026-10-11 (handle h-t0-R; Orchestrator: 3 checkpoint commits in lease, V1–V7 0, V5 57/1017, V9 57/1017, scoped 3 files 51/51)
+
+All three checkpoints of SESSION-02 are committed and every required gate passed. The full suite is now 57 files and 1017 tests (974 + 43), and nothing in `src/` or `.github/` changed.
+
+- **Checkpoint 1 (`8e8c032`):** a new test checks 42 named subjects with an independent validator (Ajv 8.20.0) against the three JSON Schema files. The subjects are 10 packs, 20 snapshot envelopes and 2 override documents. Every one is valid.
+  - The determinism oracle yields exactly 14 envelopes.
+  - The negative-hp envelope is `leg-3b[0]` (wolf at hp -7). It is accepted by the current schema and rejected by an in-memory copy with the old `minimum: 0` limit.
+- **Checkpoint 2 (`ae5b595`):** a test confirms that loading a pack with the old class-features location throws `PackLoadError` with exactly one error card, for that path.
+- **Checkpoint 3 (`bd4f753`):** three README edits, plus new checks in `docs-run` that keep the README's conformance claim honest.
+  - Sentence about negative hp: line 151–152.
+  - "all three sample themes": line 579.
+  - Conformance sentence (the amendment A1 wording): lines 581–586.
+  - Narrowed `docs-run` sentence: lines 595–599.
+
+Every negative control was checked to fail on its specific rule, not just to fail. The two `ci.yml` checks were tested in memory, so `.github` was never edited.
+
+One deviation from the prompt: besides the header comment I was asked to narrow, I also narrowed the matching "both directions" inline comment in `docs-run.test.ts`. It sits inside my lease and makes the same overclaim.
+
+## Handoff
+
+- **session:** SESSION-02 (contract-conformance)
+- **status:** done
+- **checkpoint:** 3 (ck1 `8e8c032`, ck2 `ae5b595`, ck3 `bd4f753`); lease revision 1
+- **notes:** S02 done 3/3 (`8e8c032`, `ae5b595`, `bd4f753`). CAP-K1 proven, as producer and integrator. CA-K1: 3 generated + 7 fixture packs, 14 oracle envelopes covering character/party/combat, 6 per-theme envelopes and 2 override documents are all valid under Ajv 8.20.0 (`ajv/dist/2020`, `strict: false`, `allErrors: true`) against the committed `src/schema/contracts/*.schema.json`. CA-K2 proven: the negative-hp subject is `leg-3b[0]`, combatants `[[hexer,29],[wolf,-7],[shade,9]]`. It is valid under v1.11. The in-memory `minimum: 0` copy rejects it at `/combatants/1/hp` `minimum`, and `hp: 1.5` rejects at `/combatants/0/hp` `type`. CAP-K3 proven: `new Runtime` gives `[['E-SCHEMA-02','content.classes.warden.features']]`. CAP-K4 / CA-K3 proven: the README states the claim and docs-run pins it. README line numbers after the edit: hp sentence l.151-152; "all three sample themes" l.579; conformance sentence (A1 wording) l.581-586; narrowed docs-run sentence l.595-599.
+- **delivered:**
+  - `ajv@8.20.0`, exact pin, devDependency only. No `dependencies` block was added. `ajv@6.15.0` is kept in the lockfile.
+  - `tests/proofs/contract-conformance.test.ts`, 42 tests:
+    - pack: 3 generated + 7 fixture packs;
+    - snapshots: a count/kinds check, 14 oracle envelopes, a 6-count check and 6 per-theme envelopes (A4: `serializeCharacter(rt, state)`, `serializeParty(rt, [state])`);
+    - CA-K2: valid, the regression control, and 1.5 rejected;
+    - 2 override documents;
+    - 5 negative controls. Each asserts its `instancePath` + `keyword` (A5): `''` additionalProperties for `savedAt`; `/rng/a` maximum; pack root `''` additionalProperties; `/overrides/0/patch` minProperties; `/overrides/0` required.
+    - The header comment lists only the named subjects (A1).
+  - The `features.test.ts` old-location refusal case.
+  - README: the hp sentence, "all three sample themes", the A1 conformance sentence, and the narrowed docs-run sentence.
+  - `docs-run.test.ts`: four new assertions, the `existsSync` import, and the header comment narrowed (A3).
+- **verification:**
+  - Each checkpoint:
+    - V1 `pnpm typecheck` 0, V2 `pnpm lint` 0, V3 `pnpm format:check` 0.
+    - ck1: `pnpm exec vitest run tests/proofs/contract-conformance.test.ts` gave 1 file / 42 passed.
+    - ck2: `pnpm exec vitest run tests/runtime/features.test.ts` gave 1 file / 6 passed.
+    - ck3: `pnpm exec vitest run tests/proofs/docs-run.test.ts` gave 1 file / 3 passed.
+  - V11 transcript (`/tmp/rw-contract-conformance`, copy made with `git ls-files -co` + tar; no `node_modules` or `dist` in the copy):
+    - copy 0
+    - `pnpm install --frozen-lockfile` 0
+    - `pnpm build` 0
+    - `pnpm typecheck` 0
+    - `pnpm exec vitest run tests/proofs/contract-conformance.test.ts` 0, 42/42
+  - ck3:
+    - V4 `pnpm build` 0
+    - V5 `pnpm test` 0: "Test Files 57 passed (57) / Tests 1017 passed (1017)" (974 + 42 + 1)
+    - V6 `pnpm check:isolation` 0
+    - V7 `pnpm check:security` 0
+    - V9 `pnpm build && pnpm test:electron` 0: "Test Files 57 passed (57) / Tests 1017 passed (1017)"
+    - V8 `pnpm test:browser` 0: 6 files / 74 tests ×3 engines. Port 63315 was free before the run and released after it.
+    - Determinism oracle digests are unchanged; the oracle suites pass inside V5 and V9 (H5).
+  - Negative controls:
+    - **In-test mutation:** wrong expected path `/rng/b` and wrong keyword `type` for the missing target made exactly those 2 tests fail; the file was restored afterwards and gives 42/42.
+    - **README, in place:** renamed the mention, docs-run failed on `toContain('tests/proofs/contract-conformance.test.ts')`. Restored it; the shasum matches the pre-control state.
+    - **`ci.yml` regexes, in memory:** each matches once in `ci`, and neither matches with its `- run:` line removed.
+    - **`existsSync`:** the wrong filename gives false.
+  - `git diff --quiet 70164df -- src .github` is clean. Every `git show --name-only HEAD` listed lease paths only.
+- **surprises:**
+  - ck1's first typecheck failed with TS2677 on the envelope filter's type guard, because the template-literal key type was inferred narrowly. I fixed it before committing by annotating the map's return tuple as `readonly [string, unknown]`.
+  - The README names the conformance file exactly once, so the single in-place rename is enough to fail docs-run.
+- **deviations:**
+  - **rule:** R1
+    **checkpoint:** 3
+    **paths:** `tests/proofs/docs-run.test.ts`
+    **reason:** Besides the A3 header comment, I narrowed the inline comment "CI-claim honesty (NFR-DX), both directions" to "the README names these legs and files, and ci.yml runs them". It carried the same overclaim, and the file is in-lease.
+- **followUp:**
+  - For the final Archivist (DD-K6/DD-K6a):
+    - PROGRAM-CONFIG Stack *Test* row: add the conformance proof (`ajv@8.20.0`, dev-only).
+    - Stack *Runtime deps*: change "no zod/ajv" to say *runtime*.
+    - Custom Rule 1: add the v1.11 event.
+    - Custom Rule 5: narrow "in both directions" to match the README l.595-599 wording.
+    - *Author Sources*: v1.11.
+    - `arch/v1-core.md`: retire "byte-level snapshot conformance" from the v1.1 follow-ups. Schema conformance is now proven; byte-level round-trip stays as recorded. Also retire the class-features old-location hardening and the README docs-run overstatement from the residuals.
+  - H-R1 is still carried: `ci.yml:23-24,111` and `coverage-floor.test.ts:509,582` say "both".
+  - B-BD-1 is still carried: the CI execution of the new file through `ci.yml:54,94` is unverified until the first push.
+- **needsOwnerCorrection:** —
+- **needsDesignSource:** —
+- **blockedReason:** —
+- **filesTouched:**
+  - `tests/proofs/contract-conformance.test.ts`
+  - `package.json`
+  - `pnpm-lock.yaml`
+  - `tests/runtime/features.test.ts`
+  - `README.md`
+  - `tests/proofs/docs-run.test.ts`
