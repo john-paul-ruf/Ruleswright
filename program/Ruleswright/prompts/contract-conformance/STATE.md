@@ -129,6 +129,7 @@ Plan-time observations at `bb61f91`, in a clean `git archive` copy at `/tmp/rw-c
 - **H8:** the browser-mode port 63315 allows one run at a time.
 - **H9:** `src/schema/contracts/**` is DB-owned. S02 may not perturb it even temporarily; its negative control is in memory.
 - **H10:** S01 is an Author session. Orchestrator runs V1–V3 whole-repo at its receive (convention).
+- **H11:** `eslint .` collects `.ts`/`.js` scratch under `.program/` (`eslint.config.mjs:17` ignores `program/` only). Scratch goes to `/tmp` (ARCH-PRE F-K6).
 
 ## Capability Readiness
 
@@ -153,7 +154,7 @@ The first narrow journey is S02 ck1. It runs the real public writers (runtime ba
 
 - **None for this feature.** No human decision is pending (DD-K1 is on record).
 - **B-BD-1** (carried, non-blocking): GitHub Actions execution awaits the human push. Owner: the human, then the next Orchestrator/Archivist run.
-- An Archivist planning-completeness pass before S01 is recommended (the convention used by the last five cycles). It is not blocking.
+- ARCH-PRE planning-completeness ran at `51839fe` (see *Planning Completeness Review — ARCH-PRE*): D3/D4 fail, both closed before dispatch (DD-K6a, H-R1; S02 amendments A1–A5). Nothing blocks S01. S02 waits on S01 (CA-K2) only.
 
 ## Preflight — D1–D7 (advisory, Planner self-check; Archivist scores)
 
@@ -164,6 +165,42 @@ The first narrow journey is S02 ck1. It runs the real public writers (runtime ba
 - **D5 declared vs real dependencies:** S02 → S01 is real. CA-K2's proof needs the committed v1.11 schema, and P3 showed the pre-v1.11 schema fails it.
 - **D6 early integration:** S02 ck1 is the journey: public writers → JSON text → independent validator → committed contract. It is a test-only feature, so there is no UI or IPC transport.
 - **D7 runtime wiring:** no new interface. The only new code is a test, which CI collects through two existing run steps (pinned by CA-K3).
+
+## Planning Completeness Review — ARCH-PRE (Orchestrator-recorded, 2026-10-11)
+
+- **Reviewed plan revision:** `51839fe` (STATE, MASTER, SESSION-01, SESSION-02). **Source revision:** `51839fe` (= `bb61f91` for `src`, `tests`, `README.md`, `package.json`, `pnpm-lock.yaml`, `.github`, `program/Ruleswright/specs`).
+- **Reviewer:** Archivist, planning-completeness mode, read-only; clean-copy probe in `/tmp/ruleswright-contract-conformance-pre/` (V11 form + `pnpm add -D -E ajv@8.20.0` + S01's exact ck1 `hp` text).
+
+| # | Dimension | Verdict | Evidence (summary) | Waves reached |
+|---|---|---|---|---|
+| D1 | requirement coverage | pass | CAP-K1..K4 each routed once; every inherited row dispositioned | — |
+| D2 | fact origins | pass | all cited symbols exist at cited lines; probe: 14 envelopes, leg-7[0] array, leg-3b only `hp:-7` | — |
+| D3 | ownership | **fail** | DD-K6 omitted PROGRAM-CONFIG Custom Rule 5 ("both directions") and Stack *Runtime deps* "no zod/ajv"; `ci.yml:23-24,111`, `coverage-floor.test.ts:509,582` unowned (F-K3) | none (final-Archivist list only) — **closed** by DD-K6a + H-R1 below |
+| D4 | lease coverage | **fail (S02 ck3)** | ck3 step 4 in-place negative controls for the `ci.yml` regexes would edit unleased `ci.yml` (F-K2) | W2/S02 — **closed** by envelope amendment A2 |
+| D5 | declared vs real dependencies | pass | committed schema rejects leg-3b on `hp >= 0`; after S01 text valid | — |
+| D6 | early integration | pass | public writers + compiler → JSON text → Ajv vs committed contracts | — |
+| D7 | runtime wiring | n/a | no new production interface; test collected by `vitest.config.ts`, `ci.yml:54,94` (regexes match exactly) | — |
+
+**Findings and dispositions:**
+
+| Finding | Class | Disposition |
+|---|---|---|
+| F-K1 README conformance sentence overclaims ("every … pack", "every snapshot", "published"); schemas are not in the npm `files` list (`package.json:40-43`) | blocking S02 ck3 | **S02 envelope amendment A1** (prescribed sentence replaced; ck1 header comment held to the same rule) |
+| F-K2 in-place `ci.yml` negative controls outside lease | blocking S02 ck3 (D4) | **S02 envelope amendment A2** (controls in memory; `git diff --quiet -- .github` clean throughout) |
+| F-K3 enumeration/doc pins missing from DD-K6 | informational (D3) | **DD-K6a** + **S02 amendment A3** (docs-run header comment l.22-26) + residual **H-R1** (owned) |
+| F-K4 `serializeCharacter(runtime, state)` / `serializeParty(runtime, members)`; character constructor unnamed | informational | **S02 envelope amendment A4** (CA-K1 mapping corrected) |
+| F-K5 negative controls assert only failure, not the failing rule | informational | **S02 envelope amendment A5** (assert `instancePath` + `keyword`) |
+| F-K6 `eslint .` collects `.program/` scratch (`eslint.config.mjs:17`) | informational | **H11** added below |
+
+- **DD-K6a (amends DD-K6; final Archivist also owns):** PROGRAM-CONFIG Custom Rule 5's sentence that `docs-run` checks README ↔ `ci.yml` "in both directions" (narrow to what S02 ck3 states), and the Stack *Runtime deps* row "no zod/ajv" (say *runtime*; Ajv 8.20.0 is a dev-only test dependency, consistent with `requirements.md:249`, `architecture.md:44`).
+- **H-R1 (owned residual, carried):** `ci.yml:23-24` (header comment "checks both directions"), `ci.yml:111` (step name "both themes to the coverage floor"), `tests/compiler/coverage-floor.test.ts:509,582` (titles "both theme(s)"). Unleased in this feature. Owner: Planner, the next feature touching `ci.yml` / `tests/compiler`.
+- **H11 (hazard):** `eslint.config.mjs:17` ignores `program/` but not `.program/`; `pnpm lint` collects `.ts`/`.js` scratch under `.program/`. All scratch goes to `/tmp`. Observed at run start: Planner's `.program/tmp/conformance-probe/` made V2 red; Orchestrator moved it (preserved) to `/tmp/rw-contract-conformance-planner-probe/`. A config fix belongs to a future lease owning `eslint.config.mjs`.
+- **S02 envelope amendments (binding; inside S02's lease; rendered into its envelope at dispatch):**
+  - **A1 (F-K1):** README ck3 step 2 sentence becomes: "`tests/proofs/contract-conformance.test.ts` checks the three bundled themes' generated packs (seed 42), the seven fixture packs, the snapshot envelopes from the determinism oracle's nine combat legs plus a level-1 character and party per theme, and two override documents against the JSON Schema contracts in `src/schema/contracts/` (repository files, not shipped in the npm package), with an independent validator (Ajv, a dev dependency only); it runs in the Node matrix and in the package job." Equivalent wording is acceptable if every quantifier matches a subject list in the test. The ck1 header comment states no broader claim.
+  - **A2 (F-K2):** ck3 negative controls: in place only for the README mention (rename, see fail, restore, `git diff` clean); the two `ci.yml` regexes are controlled in memory (apply each regex to `ci` with its line removed, expect no match); `existsSync` against a wrong filename. Never edit `.github/**`; `git diff --quiet -- .github` stays clean throughout.
+  - **A3 (F-K3):** ck3 also narrows `docs-run.test.ts`'s header comment (l.22-26, "in both directions") to what the `it` actually enforces.
+  - **A4 (F-K4):** CA-K1 per-theme subjects: build the runtime over the generated pack as the oracle does, then `rt.createCharacter({ name, race: Object.keys(rt.pack.content.races ?? {})[0]!, classes: [{ id: <first class id>, level: 1 }] }).state` (pattern of `determinism-oracle.ts:135-137`); snapshots `serializeCharacter(rt, state)` and `serializeParty(rt, [state])` (`snapshots/character.ts:104,114`).
+  - **A5 (F-K5):** each negative control (and the CA-K2 regression control and `hp: 1.5`) also asserts the failing rule: `validate.errors?.some(e => e.instancePath === '<path>' && e.keyword === '<keyword>')` (probe after v1.11: `/rng/a` `maximum`; `/combatants/0/hp` `type`; root `additionalProperties` for `savedAt`; `/combatants/1/hp` `minimum` for the regression copy; analogous for the pack `extra`, override `patch: {}` `minProperties`, missing `target` `required`).
 
 ## Handoff Notes
 
