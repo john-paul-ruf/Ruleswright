@@ -13,7 +13,7 @@
 
 | # | Session | Modules | Owns | Status | Checkpoint | Completed | Notes |
 |---|---|---|---|---|---|---|---|
-| S01 | DB re-entry: contract v1.11 — combatant hp has no lower bound | — (DB) | `program/Ruleswright/specs/database.md`, `src/schema/contracts/snapshots.schema.json` | pending | — | — | Author session; authorization quoted in envelope |
+| S01 | DB re-entry: contract v1.11 — combatant hp has no lower bound | — (DB) | `program/Ruleswright/specs/database.md`, `src/schema/contracts/snapshots.schema.json` | done | 2/2 (`e815e74`, `bde9781`) | 2026-10-11 | Author session; no CA-K2 delta; Orchestrator V1–V3 0 at receive |
 | S02 | Contract conformance proof, old-location refusal, honest docs | tests, M05 | `tests/proofs/contract-conformance.test.ts`, `tests/runtime/features.test.ts`, `tests/proofs/docs-run.test.ts`, `package.json`, `pnpm-lock.yaml`, `README.md` | pending | — | — | depends on S01 (CA-K2) |
 
 ## Wave Plan
@@ -136,7 +136,7 @@ Plan-time observations at `bb61f91`, in a clean `git archive` copy at `/tmp/rw-c
 | ID | Approved behavior / entry point | Required facts + producer owners | CA IDs / prerequisites | Integration owner / checkpoint | Status | Proof / checked sources | Open gaps + correction owners |
 |----|----|----|----|----|----|----|----|
 | CAP-K1 | FR-14/FR-23/FR-2: published contracts admit everything the library writes (3 serializers) and ships (generated + fixture packs); override docs per §Override | writers: `snapshots/{character,combat}.ts` (committed); packs: `generateCampaign`, fixture builders (committed); contracts (DB; v1.11 by S01) | CA-K1, CA-K2; S01 done | S02 ck1 | planned | P1, P3, P5 at `bb61f91` | — |
-| CAP-K2 | contract states hp semantics: no lower bound, ≤ 0 down | DB text + schema (S01) | CA-K2 | S01 ck1-2 (contract); proof S02 ck1 | planned | P3 (edit form) | — |
+| CAP-K2 | contract states hp semantics: no lower bound, ≤ 0 down | DB text + schema (S01) | CA-K2 | S01 ck1-2 (contract); proof S02 ck1 | contract landed (S01 `e815e74` schema l.192-195, `bde9781` database.md l.3, l.699-705, row 12 l.822); Ajv proof planned S02 ck1 | P3 (edit form); Orchestrator recheck at `bde9781`: combatant `hp` = `{type: integer, description}`, no `minimum`; `maxHp` keeps `minimum: 0` | proof: S02 ck1 |
 | CAP-K3 | FR-2: the runtime refuses the pre-v1.10 location at load | `Runtime` constructor → `validatePack` (committed) | — | S02 ck2 | planned | P4 | — |
 | CAP-K4 | NFR-DX: the README states exactly what is proven and what docs-run checks | README (S02), docs-run (S02), `ci.yml` (unchanged) | CA-K3 | S02 ck3 | planned | `ci.yml:54,94`; `coverage-floor.test.ts:34,49` | — |
 
@@ -147,7 +147,7 @@ The first narrow journey is S02 ck1. It runs the real public writers (runtime ba
 | ID | Required meaning / authority | Producer → boundary → consumer | Mapping / constraints | Correction + proof owners / checkpoints | Agreement | Producer | Proof / evidence / checked sources |
 |----|----|----|----|----|----|----|----|
 | CA-K1 | every published contract admits every writer/shipped artifact | compiler, fixtures, runtime writers → JSON text → Ajv(contract) | SESSION-02 *Contract Agreements* table: 3 generated + 7 fixture packs; 14 oracle envelopes + 6 per-theme; 2 override docs; JSON round-trip first; non-strict draft 2020 | producer + proof S02 ck1 | agreed | ready (committed writers) | planned (P1/P3 observed) |
-| CA-K2 | combatant `hp`: integer, **no lower bound**; damage unfloored; hp ≤ 0 = down; written/restored as-is; `maxHp` keeps `minimum: 0` | engine `applyMutation` → `serializeCombat` → `snapshots.schema.json` | schema l.192 loses `minimum: 0`, gains a description; `database.md` v1.11 block + row 12 | correction S01 ck1-2 (DB); proof S02 ck1 (`some(hp<0)` valid; in-memory `minimum: 0` copy rejects; `1.5` rejects) | agreed (DD-K1) | planned (S01) — **provisional against S01 ck1**; Orchestrator rechecks the committed `hp` entry before dispatching S02 | planned |
+| CA-K2 | combatant `hp`: integer, **no lower bound**; damage unfloored; hp ≤ 0 = down; written/restored as-is; `maxHp` keeps `minimum: 0` | engine `applyMutation` → `serializeCombat` → `snapshots.schema.json` | schema l.192 loses `minimum: 0`, gains a description; `database.md` v1.11 block + row 12 | correction S01 ck1-2 (DB); proof S02 ck1 (`some(hp<0)` valid; in-memory `minimum: 0` copy rejects; `1.5` rejects) | agreed (DD-K1); no wording delta (S01 handoff) | **ready** — S01 ck1 `e815e74` (schema), ck2 `bde9781` (database.md); Orchestrator recheck at `bde9781` passed (no `minimum` on combatant `hp`; pack/override schemas unchanged) | planned (S02 ck1) |
 | CA-K3 | README CI/docs-run claims are enforced | README ↔ docs-run ↔ `ci.yml` | README names `tests/proofs/contract-conformance.test.ts`; the file exists; `ci.yml` has `- run: pnpm test` and `- run: pnpm exec vitest run tests/proofs/`; the existing browser/Electron pins kept | S02 ck3 | agreed | planned | planned |
 
 ## Current Blockers
@@ -205,3 +205,71 @@ The first narrow journey is S02 ck1. It runs the real public writers (runtime ba
 ## Handoff Notes
 
 <!-- Orchestrator appends each session's notes / followUp here, verbatim. -->
+
+### SESSION-01 — received 2026-10-11 (handle h-H6RH; Orchestrator: 2 checkpoint commits in lease, V1–V3 0, CA-K2 recheck passed)
+
+Contract v1.11 is landed: combat snapshots now accept a combatant `hp` with no lower bound, and `database.md` documents it. Both checkpoints are committed. The build passes, and tests are unchanged at 56 files and 974/974.
+
+## Handoff
+
+- **session:** SESSION-01 (contract-conformance), Author re-entry, DB role, schema-change class, lease revision 1
+- **status:** complete
+- **checkpoint:** 2 of 2
+  - ck1 `e815e74` — combatant hp has no lower bound (v1.11)
+  - ck2 `bde9781` — database.md v1.11 text and Version Registry row 12
+- **notes:**
+  - Authorization quoted from the record: the human answered "**a yes**" (DD-K1, option A).
+  - Contract v1.11 is a pre-release in-place revision. `schemaVersion` and `snapshotVersion` stay 1. It only loosens a constraint, so it needs no rule id and no compatibility caveat.
+  - Checkpoint-0 recheck passed on every item:
+    - `git diff --quiet bb61f91` over the contracts and `database.md` was clean.
+    - `"hp"` sat at l.189 (`required`) and l.192.
+    - There was no row 12, and row 11 was at l.813.
+    - Line 3 started `> **Status:** v1.10, revised`.
+  - I read the code before writing the text. It matches CA-K2:
+    - `combatants.ts:13-15`: `isDowned` is `hp.current <= 0`.
+    - `combatants.ts:80-92`: damage is `current - amount` and is never floored. Heals never go above `maxHp` and never lower hp.
+    - `snapshots/combat.ts:131`: the writer emits `hp: combatant.hp.current`.
+    - `snapshots/combat.ts:212`: restore reads `frozenState.hp` as-is.
+    - `snapshots/combat.ts:547-552`: the end rule is `hp ≤ 0`.
+  - The "never blocks movement (§spatial)" claim is backed by existing `database.md` l.166 ("downed combatants (hp ≤ 0) never block").
+  - Exact `hp` JSON committed (after `prettier --write`, which made no further change):
+    ```json
+    "hp": {
+      "type": "integer",
+      "description": "v1.11 — current hit points, no lower bound. Damage is not floored: hp <= 0 means down (no turns, no trigger offers, never blocks movement; the end rule). Written as-is; restored as-is. The heal cap is maxHp."
+    },
+    ```
+    It sits at `snapshots.schema.json` l.192-195. `required: ["id", "hp"]`, `maxHp` `minimum: 0` and everything else are untouched.
+  - Line numbers in `database.md`:
+    - The Status line (l.3) now starts `> **Status:** v1.11, revised`.
+    - The new *v1.11 — combatant `hp`* block is l.699-705, followed by a blank l.706. "Note the deliberate asymmetry" moved to l.707.
+    - Version Registry row 11 moved to l.821. Row 12 is l.822.
+  - **CA-K2 wording delta: none.** CA-K2 and DD-K1 are transcribed exactly as STATE maps them.
+- **delivered:**
+  - The CAP-K2 contract text: the schema's `hp` constraint is loosened and documented.
+  - The CA-K2 producer side is landed and ready for Orchestrator's recheck before S02.
+- **verification:**
+  - The schema parses as JSON (exit 0).
+  - `pnpm exec prettier --check src/schema/contracts/snapshots.schema.json` passes.
+  - `git diff bb61f91 -- src/schema/contracts/` touches only the combatant `hp` entry. `pack.schema.json` and `override.schema.json` are byte-identical.
+  - `git diff --name-only bb61f91..HEAD -- src program/Ruleswright/specs` lists exactly the two Owns paths.
+  - Each `git show --name-only HEAD` listed only lease paths.
+  - `grep -c '^| 12 | 1 (v1.11)'` = 1.
+  - `pnpm build`: success.
+  - `pnpm test`: 56 files, 974/974 passed. Unchanged, so no finding.
+  - The tree is clean.
+- **surprises:** none.
+- **followUp:**
+  - For the final Archivist: PROGRAM-CONFIG Custom Rule 1 needs the v1.11 event added.
+  - For the final Archivist: *Author Sources → Data source* should name v1.11.
+  - For S02: the Ajv proof that v1.11 admits leg 3b (`$.combatants[1].hp = -7`) and the fights to the end on each bundled theme. S02 checkpoint 1 owns this as CA-K2 proof owner.
+- **deviations:**
+  - SESSION-01.md shows the new block with a leading `> `. I wrote it as a plain paragraph starting with a bold label, wrapped at about 90 columns, to match the nearby `**v1.4 fields**` paragraphs. The wording is unchanged.
+  - The envelope says scratch goes in `/tmp/ruleswright-contract-conformance-s01/`, but the write tool refuses paths outside the repo. I did the edits with inline `node -e` instead, so no scratch file was created anywhere.
+  - The ck1 commit used a pathspec over both Owns paths, as SESSION-01.md asks. Only the schema file had changes, so only it is in the commit.
+- **needsOwnerCorrection:** none
+- **needsDesignSource:** none
+- **blockedReason:** —
+- **filesTouched:**
+  - `src/schema/contracts/snapshots.schema.json`
+  - `program/Ruleswright/specs/database.md`
