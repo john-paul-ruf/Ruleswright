@@ -189,7 +189,10 @@
             "required": ["id", "hp"],
             "properties": {
               "id": { "type": "string" },
-              "hp": { "type": "integer", "minimum": 0 },
+              "hp": {
+                "type": "integer",
+                "description": "v1.11 — current hit points, no lower bound. Damage is not floored: hp <= 0 means down (no turns, no trigger offers, never blocks movement; the end rule). Written as-is; restored as-is. The heal cap is maxHp."
+              },
               "slotsUsed": {
                 "type": "object",
                 "additionalProperties": { "type": "integer", "minimum": 0 },
