@@ -144,4 +144,95 @@ First-dispatch completion: 2/2 sessions accepted without redispatch. Unplanned c
 | VERIFY-01 surprises | commit refused (gitignored), V8 not run, V11 not rerun | **closed** — Orchestrator committed `9c8cdc3`; V8/V11 worker-reported in S02 |
 
 ### Archivist's Note
-{pending — appended verbatim after the final Archivist pass}
+(final Archivist h-8omi / AWtkt; synthesis commit b47a611)
+
+Final pass for contract-conformance is committed at `b47a611`. That commit holds only my three owned files, and the tree is clean. Every DD-K6 and DD-K6a item is done. All the Final Report's mechanical figures reproduce. Two conventions crossed the three-cycle bar and were promoted this pass.
+
+- **role:** archivist
+- **registryUpdated:** true. Checked, and no change. `git diff --name-status bb61f91..66d4efe -- src` lists only the DB-owned `snapshots.schema.json`. No `src/**/*.ts` file changed, so there is no new module, edge or rule id.
+- **reconciled:**
+  - `program/Ruleswright/arch/v1-core.md`:
+    - **Header:** now at `66d4efe`, fourteen cycles. Gate results from this pass's own run are kept separate from figures copied from the Final Report.
+    - **M01:** a new paragraph for the v1.11 contract change.
+    - **M05:** new bullets for the Ajv conformance proof and the old-location refusal test. Also updated: the docs-run bullet (CA-K3), the README edits, and the gates line (57 files / 1017 tests).
+    - **Retired:**
+      - the class-features "old location at `new Runtime`" hardening item (closed by `ae5b595`);
+      - the README docs-run overstatement (closed by `bd4f753`);
+      - "byte-level snapshot conformance" from the v1.1 follow-ups. Schema conformance of named subjects is proven. Byte-exact round-trip stays as recorded (`tests/snapshots/character.test.ts` l.81, l.360, l.434).
+    - **New contract-conformance residuals block:** H-R1, the README "nine combat legs" note, H11, and the byte-level round-trip record.
+    - **B-BD-1:** stays carried. The `test` and `package` jobs now also run the new file; 217 unpushed commits at `9c8cdc3`.
+  - `program/Ruleswright/PROGRAM-CONFIG.MD`:
+    - **Stack *Test*:** adds the conformance proof (`ajv@8.20.0`, dev-only, draft 2020-12, `strict: false`).
+    - **Stack *Runtime deps*:** now says no zod/ajv **at runtime**, citing `requirements.md:249` and `architecture.md:44`.
+    - **Custom Rule 1:** adds the v1.11 event (Version Registry row 12).
+    - **Custom Rule 5:** narrowed to exactly the strings `docs-run` checks, matching README l.595-599 and `docs-run.test.ts:241-261`.
+    - **Author Sources → Data source:** normative through v1.11.
+    - **Header note and registry blurb:** updated to `66d4efe`.
+  - `program/Ruleswright/ARCHIVIST-LOG.md`: one dated entry appended.
+- **Figures checked:**
+  - 8 paths (1 A + 7 M), +316/−14 excluding `program/Ruleswright/prompts`. The group totals add up.
+  - `--grep checkpoint` = 5.
+  - `rev-list --count origin/main..9c8cdc3` = 217.
+  - Fresh run at `66d4efe`: build, typecheck, lint, format:check, isolation and security all exit 0; `pnpm test` is 57 files / 1017 tests.
+  - Not rerun by me: the browser and Electron legs. They are cited from the Final Report and labelled that way.
+- **Deviation counts by rule (FR-19):**
+  - R1: 2 — S02 ck3, and S01 ck2. S01 gave its entry no rule number, so I classified it.
+  - R2: 0, R3: 0, R4: 0.
+  - VERIFICATION.md and the Capability Readiness / Contract Agreements tables agree; no drift.
+- **conventionsAdded:**
+  - **The Verification Baseline carries known hazards forward** (`3092a46b564d1d36`). Crossed on program cycles: 3 cycles · 4 instances. This cycle's instance is ARCH-PRE F-K6 / H11: the `.program/` lint hazard from the row's first instance was missing again, and it turned V2 red at run start.
+  - **Author re-entry deviations carry a rule number** (`d2415cb4497e0049`). Crossed on program cycles: 3 cycles · 4 instances. This cycle's instance is S01, which reported its deviations as prose with no rule.
+  - Evidence notes updated on seven existing conventions. No clause added: the pin-lease rule (F-K3) and the factual-premise rule (F-K4, F-K5) already cover this cycle's findings.
+- **proposedForFramework:**
+  - **New `f229f492b7a1e737` (1 cycle · 1):** worker scratch has no safe location. Envelopes say `/tmp`, but the write tool only writes inside the repo, and `eslint .` lints the in-repo scratch directory `.program/`. Name one sanctioned scratch location, or let the write tool accept a declared scratch root.
+  - **`47f092a4f076107c` (2 · 3):** a doc sentence claims more than its test checks. This cycle: F-K1, and S02's R1. Each quantifier in such a sentence should match a subject list the test asserts.
+  - **`0880dd5734025fd4` (2 · 2):** a prescribed negative control edits a file outside the lease (F-K2). Each control should name the file it touches and be checked against `Owns`, or run in memory.
+  - **Counts raised, wording unchanged:**
+    - `3092a46b`: 3 · 4
+    - `d2415cb4`: 3 · 4
+    - `576a2816`: 12 · 54
+    - `1cc46f93`: 9 · 11
+    - `cecd2115`: 9 · 17
+    - `a3680390`: 9 · 11
+    - `c187bed6`: 6 · 6
+  - **First-dispatch 2/2:** fits all three rows above. Every ARCH-PRE finding was closed by an in-lease amendment before dispatch, so none caused a redispatch.
+  - **Adoption check:** none of these has been adopted. The role docs are gitignored, so there is no git history to check. All four were last modified 2026-10-04 13:41, before the prior pass. Their md5 sums are identical before and after this pass.
+- **logEntry:** dated entry appended to ARCHIVIST-LOG.md (2026-10-11, contract-conformance).
+
+#### cleanupBriefs
+
+None. No cleanup group crosses a threshold. New candidate C17 is `tracking`: `eslint.config.mjs:17` ignores `program/` but not `.program/`. It is medium confidence and owned by a future lease on that file. C16 was re-checked and is unchanged.
+
+#### standingRecommendations
+
+| id | pattern | cycles | in-cycle instances | first seen | status |
+|---|---|--:|--:|---|---|
+| b32fc8d0c8c92d52 | Large single-session builds exhaust context on exhaustive checkpoint-0 read sweeps (empty-final crash; recovery = checkpoint-scoped reading) | 2 | 2 | v1-core | open (11 cycles without recurrence; a human may retire it) |
+| f57dbe4d010638fe | Subagent model fabricates tool inputs (invented paths, invented project state, fabricated git output) under long-recovery prompts | 2 | 8 | v1-core | open (11 cycles without recurrence; a human may retire it) |
+| b85c8f3e113a6764 | Public surface/barrel completeness gaps discovered at integration (lease gaps across wave-spanning modules) | 2 | 3 | v1-core | open |
+| c1ed872bea557b96 | run tool drops/misroutes argv; workers pass whole command lines as single argv entries | 2 | 3 | v1-core | open (11 cycles without recurrence; a human may retire it) |
+| 3658f327cc9cff2f | commit_pathspec-style single-command commits fail on deleted files | 2 | 2 | v1-core | open |
+| 1cc46f93038f1d9a | Cross-suite pinning tests (docs-run block-count pin, registry-count pin) land without a named owner in the plan | 9 | 11 | loot-inventory | promoted; framework wording open |
+| 576a281656f83b23 | Envelope factual premises (mock-vs-prompt anatomy, cross-suite counts) reach sessions unverified; mechanical premise verification at planning time is the fix | 12 | 54 | loot-inventory | promoted; framework wording open |
+| 854ceecd39d4b0d3 | Whole-repo fast gates (typecheck/lint/format:check) go red at role-scoped receives; cleared by format-only owner corrections | 4 | 4 | v1-core | promoted |
+| 17f4803c1b08da77 | Provider stream aborts / capacity failures kill subagents mid-session with zero commits; recovery resumes from the preserved tree | 3 | 5 | loot-inventory | open (promotion held: carried cycle attribution ambiguous) |
+| 6f6b491bdbe37bf0 | Bare npx misresolves in this runtime; the working gate forms are pnpm exec vitest run <path> and node_modules/.bin/vitest | 3 | 4 | loot-inventory | open |
+| 1d910de11732c6c4 | Final Archivist pass aborts on provider capacity leave the next cycle's pass a double synthesis (prior cycle's integrated fragments + record-debt) | 2 | 2 | loot-inventory | open |
+| c172cd30e8dfc756 | Session commit gates hard-code a plan-time base SHA that a later replan makes stale | 1 | 1 | equipment-consumables | open |
+| cecd211504587426 | Host await idle timeout (300 s) interrupts long subagent waits; re-awaiting the same handle reattaches with no work lost | 9 | 17 | equipment-consumables | promoted; framework wording open |
+| f68c42a3f6224eb1 | Final Report mechanical facts (test-file counts, realized module edges) transcribed from handoffs rather than derived from the tree | 4 | 4 | v1-core | promoted; framework wording open |
+| a368039028d463d6 | Role documents say Spec/DB are never spawned, while plans dispatch orchestrated Author re-entry sessions on recorded human authorization | 9 | 11 | grid-combat | promoted; framework wording open |
+| 3983f8eb6d18a5f2 | Orchestrator STATE row matcher hits a CA-ID column inside the CAP table and writes contract-leg notes into the wrong rows | 1 | 2 | grid-movement | open |
+| f4621ac12fba3456 | Pin audits enumerate count/shape pins but miss behavior pins: tests asserting a value whose derivation a decision changes surface red at a quiet boundary, some outside every lease | 3 | 4 | grid-combat | open |
+| 760b67f17edbd346 | A feature opens a content class to a new execution path, and latent content hazards become reachable without a planning-time scan (damage(half) with no fail-branch damage, 12 spell sites) | 2 | 2 | spells-in-combat | open |
+| 82b4e0abbda105d6 | Concurrent sessions on disjoint leases share one working tree: a sibling's uncommitted edits turn another worker's gates red or inflate its whole-suite counts | 1 | 2 | spells-in-combat | open |
+| c3c94358b35f8316 | Final Report cites `git diff <base>..HEAD` while its own commit then moves HEAD, so the cited command no longer reproduces the reported count | 2 | 2 | action-targeting | open (this cycle's report anchored its moving-ref figure; done in practice, not yet in the template) |
+| c187bed6bb5132a7 | A new file the role documents order committed through commit_pathspec lives under a gitignored path (VERIFICATION.md under program/<slug>/prompts/), and commit_pathspec cannot force-add it | 6 | 6 | feat-progression | promoted; framework wording open |
+| 8039d6869169267c | Plan artifacts carry internal inconsistencies into sessions: refusal paths lettered differently in SESSION and STATE, and a prescribed validator snippet that double-cards a negative entry | 1 | 2 | feat-progression | open |
+| d2415cb4497e0049 | Author/DB re-entry handoffs report deviations without an R1-R4 rule, so per-rule deviation counts cannot include them | 3 | 4 | feat-progression | **promoted 2026-10-11**; framework wording open |
+| 3092a46b564d1d36 | A Verification Baseline records 'Hazards: none' while the inspected record already holds known hazards (dist/-importing journeys pass a stale build; ESLint lints the .program/ scratch directory) | 3 | 4 | combat-decomposition | **promoted 2026-10-11**; framework wording open |
+| 2674d8c2f948ae0a | Plan-prescribed mechanical derivations are line-based greps that miss multi-line statements (value imports spread over several lines) | 1 | 1 | combat-decomposition | open |
+| 0880dd5734025fd4 | A prescribed negative control perturbs a file outside the session's lease (scratch edit of a non-owned file), a D4 gap found only at preflight | 2 | 2 | combat-decomposition | open |
+| 318c816b6920dd3d | A Final Report carries two `## Verification` sections (gates, then the FR-17 pass appended at the end), and the first cross-references the second as "below" | 1 | 1 | class-features | open |
+| 47f092a4f076107c | A doc sentence claims a test checks more than the test enforces (README says docs-run checks "that this paragraph and ci.yml agree"; the pin reads only command strings) | 2 | 3 | browser-determinism | open |
+| f229f492b7a1e737 | Envelopes direct worker scratch to /tmp while the worker write tool refuses paths outside the repo, and the in-repo scratch directory (.program/) is collected by eslint . | 1 | 1 | contract-conformance | open (new) |
