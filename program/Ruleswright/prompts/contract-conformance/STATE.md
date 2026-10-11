@@ -153,7 +153,9 @@ The first narrow journey is S02 ck1. It runs the real public writers (runtime ba
 ## Current Blockers
 
 - **None for this feature.** No human decision is pending (DD-K1 is on record).
-- **B-BD-1** (carried, non-blocking): GitHub Actions execution awaits the human push. Owner: the human, then the next Orchestrator/Archivist run.
+- **B-BD-1** (carried, non-blocking): GitHub Actions execution awaits the human push. Owner: the human, then the next Orchestrator/Archivist run. VERIFY-01 (`9c8cdc3`) row "CAP-K1/K4 CI leg" is present-unverified on this account.
+- **H-R1** (owned residual, carried): `ci.yml:23-24,111`, `coverage-floor.test.ts:509,582` "both" wording. Owner: Planner, next feature touching `ci.yml`/`tests/compiler`.
+- **VERIFY-01 note (informational, carried):** README l.581-589 calls the oracle's nine legs "combat legs"; `leg-8` is a character leg (pre-existing name, l.589). Owner: Planner, next feature touching README determinism/CI prose.
 - ARCH-PRE planning-completeness ran at `51839fe` (see *Planning Completeness Review — ARCH-PRE*): D3/D4 fail, both closed before dispatch (DD-K6a, H-R1; S02 amendments A1–A5). Nothing blocks S01. S02 waits on S01 (CA-K2) only.
 
 ## Preflight — D1–D7 (advisory, Planner self-check; Archivist scores)
@@ -364,3 +366,54 @@ One deviation from the prompt: besides the header comment I was asked to narrow,
   - `tests/runtime/features.test.ts`
   - `README.md`
   - `tests/proofs/docs-run.test.ts`
+
+### VERIFY-01 — received 2026-10-11 (handle h-XEny; 20 verified, 1 present-unverified, 0 failed, 0 blocked; VERIFICATION.md committed unchanged by Orchestrator at `9c8cdc3`, sha256 35310b48… matched)
+
+Verification found no failures: 20 of the 21 rows are `verified`, and only the CI row is `present-unverified`. VERIFICATION.md is written but **not committed**. `commit_pathspec` refused it because `program/Ruleswright/prompts/` is gitignored (`.gitignore:29`), which is the hazard the prompt warned about. You need to commit it unchanged with `git add -f` and that exact path.
+
+- **Tests I ran:**
+  - the three relevant test files: 51 of 51 pass;
+  - after `pnpm build`, the whole suite: 57 files, 1017 of 1017 pass;
+  - the same 1017 under Electron 44.7.0: all pass;
+  - typecheck, lint, format, isolation and security checks: all exit 0.
+- **The tests can fail:** six scratch mutations and in-memory checks each made the targeted test fail. The three edited files were restored and `cmp`-confirmed. Nothing in `src/schema/contracts/**` or `.github/**` was touched, and the tree is clean apart from VERIFICATION.md.
+- **CI row:** I could not observe any GitHub Actions run on this host, so the run of the new test file through `ci.yml:54,94` is unproven (B-BD-1).
+- **README wording:** "nine combat legs" reuses the README's existing name for the determinism oracle, but `leg-8` is a character leg. The test does take all nine legs, so I did not count this as an overclaim.
+
+## Handoff
+
+- **session:** VERIFY-01 (contract-conformance)
+- **status:** done
+- **checkpoint:** 1 (single artifact; commit refused by gitignore, see notes)
+- **notes:** VERIFICATION.md written at HEAD `07ba8c8`, **not committed**: `commit_pathspec` returned `GIT_FAILED` on `git add`, and `git check-ignore` shows `.gitignore:29:/program/Ruleswright/prompts/` (hazard H1). Orchestrator should commit it unchanged with `git add -f -- program/Ruleswright/prompts/contract-conformance/VERIFICATION.md` and an explicit pathspec commit. Verdict counts: verified 20, present-unverified 1, failed 0, blocked 0. Verified rows: CAP-K1, CAP-K2, CAP-K3, CAP-K4 (local), CA-K1, CA-K2, CA-K3, DD-K1, A1–A5, FR-14, FR-23, FR-2, NFR-DX, database.md v1.11 vs schema l.192-195, ajv dependency, determinism digests. Present-unverified: the CI leg through `ci.yml:54,94` (B-BD-1).
+- **delivered:** a 21-row six-column table, a run log (R1–R7) and a negative-control log (N1–N6).
+- **verification:**
+  - R1 `pnpm exec vitest run` on the three relevant test files: 3 files / 51 tests (42 + 6 + 3), exit 0.
+  - R2 verbose run of the conformance file: 42/42, every title read.
+  - R3 `pnpm build && pnpm test`: 57 files / 1017 tests passed.
+  - R4 typecheck, lint, format:check, check:isolation, check:security: all 0.
+  - R5 `pnpm build && pnpm test:electron` (Electron 44.7.0): 57 files / 1017 tests passed.
+  - R6 characterization + pack-identity: 2 files / 12 tests passed.
+  - R7 `tests/snapshots`: 3 files / 63 tests passed.
+  - N1 removing the regression `minimum` and N2 a wrong keyword for `rng.a`: 2 failed / 40 passed.
+  - N3 a positive override doc changed to `patch: {}`: 1 failed.
+  - N4 `featuresX` in place of `features`: 1 failed.
+  - N5 README mention renamed: docs-run 1 failed.
+  - N6 in-memory ci regexes: `true true false false`.
+  - After the controls, all three files were restored, `cmp` was identical, and `git status` was clean.
+  - `git diff bb61f91..HEAD -- src` lists only `snapshots.schema.json`; `.github` and the digest files show no diff.
+- **surprises:**
+  - The commit was refused because the path is gitignored (expected, H1).
+  - "nine combat legs" in the README A1 sentence reuses the existing name for the oracle (README l.589), but `leg-8` is a character leg. The test does take all 9 legs, so this is not an overclaim. Recorded in the A1 row.
+  - The browser leg (V8) was not run; it does not collect the new file.
+  - I did not re-run V11 (the clean-copy frozen install); I relied on S02's report.
+- **deviations:** —
+- **followUp:**
+  - B-BD-1: CI execution of `tests/proofs/contract-conformance.test.ts` through `ci.yml:54` (test matrix) and `:94` (package job) stays unproven until the human pushes. Then the next Orchestrator/Archivist run checks it.
+  - Final Archivist items DD-K6/DD-K6a and residual H-R1 stay as recorded in STATE.
+  - Scratch backups remain in `/tmp/ruleswright-contract-conformance-verify/`, outside the repo.
+- **needsOwnerCorrection:** —
+- **needsDesignSource:** —
+- **blockedReason:** —
+- **filesTouched:**
+  - `program/Ruleswright/prompts/contract-conformance/VERIFICATION.md` (written, uncommitted: gitignored)
