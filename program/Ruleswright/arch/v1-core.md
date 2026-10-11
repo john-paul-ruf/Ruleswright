@@ -1,8 +1,9 @@
 # Ruleswright — Architecture Record (v1-core)
 
-> **Realized state as of tree HEAD `6566236`** (browser-determinism close, 2026-10-10; last source
-> commit still `64a3231` — `git diff --name-status 46bcf0c..6566236 -- src` is empty), synthesized by
-> Archivist (final pass) across **thirteen feature cycles**: v1-core (S01–S08, plan HEAD `53c7c91`),
+> **Realized state as of tree HEAD `66d4efe`** (contract-conformance close, 2026-10-11; last `src/**/*.ts`
+> commit still `64a3231` — `git diff --name-status bb61f91..66d4efe -- src` lists only the DB-owned
+> `src/schema/contracts/snapshots.schema.json`), synthesized by
+> Archivist (final pass) across **fourteen feature cycles**: v1-core (S01–S08, plan HEAD `53c7c91`),
 > **v1-shell** (commits `770950f`–`72346a5` — schema v1.2, class combat actions, the validate/
 > directory split, `character-profile.ts`, `combat.sideDefeated`, docs/CI honesty, packaging,
 > coverage tooling — first reconciled into this record at the grid-combat pass; its synthesis was the loot-inventory
@@ -48,20 +49,25 @@
 > one shared determinism oracle with Node-pinned digests for the 9 characterization legs and the
 > 3 generated bundled packs, a Vitest browser-mode leg in Chromium/Firefox/WebKit, the whole suite
 > under Electron's runtime, two new CI jobs, the build-before-typecheck CI order, and a README ↔
-> `ci.yml` honesty pin; see M05).
+> `ci.yml` honesty pin; see M05), and **contract-conformance** (S01 DB re-entry + S02, feature commits
+> `e815e74`..`bd4f753` — contract v1.11, loosening only: the combat-snapshot combatant `hp` has no
+> lower bound, matching an engine that never floored damage; an independent Ajv proof that the three
+> contracts admit named library outputs; the `new Runtime` old-location refusal test; and the README's
+> narrowed docs-run sentence; see M01 and M05).
 > Every cycle's mid-run delta fragments were collapsed into one module-ordered description.
-> Verified by the browser-determinism final pass on a fresh run at `da32716` (`src`/`tests`/configs
-> equal to `6566236`): `pnpm build` 0 · `pnpm typecheck` 0 · `pnpm lint` 0 · `pnpm format:check` 0 ·
-> `check:security` 0 · `check:isolation` 0 · `pnpm test` **974/974 across 56 files** ·
-> `pnpm test:browser` 6 files, 74/74 in each of Chromium, Firefox and WebKit · `pnpm build && pnpm
-> test:electron` 974/974 across 56 files (Electron 44.7.0) (`program/` is Prettier-ignored). GitHub
-> Actions has not yet run this cycle's CI changes (B-BD-1, carried below).
+> Verified by the contract-conformance final pass on a fresh run at `66d4efe`: `pnpm build` 0 ·
+> `pnpm typecheck` 0 · `pnpm lint` 0 · `pnpm format:check` 0 · `check:security` 0 · `check:isolation` 0 ·
+> `pnpm test` **1017/1017 across 57 files** (`program/` is Prettier-ignored). Not rerun here, cited from
+> the Final Report: `pnpm build && pnpm test:electron` 1017/1017 across 57 files (Orchestrator at
+> `bd4f753`, Electron 44.7.0) and `pnpm test:browser` 6 files, 74/74 in each of Chromium, Firefox and
+> WebKit (worker-reported at S02 ck3; the browser config does not collect the new file). GitHub Actions
+> has not yet run the browser-determinism CI changes or the new file (B-BD-1, carried below).
 > Verified-by-source and verified-by-execution are distinguished below.
 >
 > *(Process history — crashes, recoveries, dispatch failures, owner-correction mechanics — lives
 > in each cycle's Final Report and ARCHIVIST-LOG.md, not here.)*
 
-<!-- Realized-state summary (Archivist synthesis, browser-determinism final pass) -->
+<!-- Realized-state summary (Archivist synthesis, contract-conformance final pass) -->
 
 ## Module map (as realized)
 
@@ -580,6 +586,18 @@ after `checkProgressionPairing`, raises `E-REF-01` at `progression.<c>.features[
 unresolved ref (did-you-mean over feats ∪ actions ∪ spells) and for the two DD-C4 redundancies; it
 skips malformed entries, whose structural card already exists, so a non-kebab ref gets
 `E-SCHEMA-01` only. M01 gained no import.
+
+contract-conformance S01 (DB Author re-entry, `e815e74`/`bde9781`, the human's "a yes", DD-K1): contract
+**v1.11**, loosening only. In `snapshots.schema.json` (l.192-195) the combat-snapshot combatant `hp` is
+`{type: integer, description}` with no `minimum` (it was `minimum: 0`). `required [id, hp]` and `maxHp`'s
+`minimum: 0` are unchanged, and `pack.schema.json`/`override.schema.json` are byte-identical.
+`database.md` gains the *v1.11 — combatant `hp`* block (l.699-705), the Status line (l.3) and Version
+Registry row 12 (l.822). `schemaVersion`/`snapshotVersion` stay 1; no rule id; no caveat (no previously
+valid document becomes invalid). The contract now states what the engine always did: damage is not
+floored (`combat/combatants.ts:80-92`), a combatant at `hp <= 0` is down (`:13-15`), the writer emits
+`hp: combatant.hp.current` (`snapshots/combat.ts:131`) and restore reads it as-is (`:212`). No
+`src/**/*.ts` file changed (`git diff --name-status bb61f91..66d4efe -- src`). The independent Ajv proof
+of the three contracts is in M05.
 
 ### M02 — Repo spine + core mechanics (v1-core S02, 35aa73f/0f8a1ab/55918ef)
 
@@ -1211,7 +1229,7 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   and equipment sections on all three packs and produces zero cards; CAP-G6/CAP-E6 evidence,
   plus a CA-EG3 content-pairing assertion).
 
-### M05 — Packaging, CI, proofs, docs (v1-core S08, 02752a9/8f67611/9afa86c/32c7ade/d5bacba; v1-shell packaging/docs/CI/coverage; loot S03; grid S05; equipment-consumables S06; grid-movement S04; spells-in-combat S02/S03; action-targeting S02/S03; feat-progression S02; builder-rulings S02; class-features S03/S04; browser-determinism S01 + OWNER-M05-CI-ORDER)
+### M05 — Packaging, CI, proofs, docs (v1-core S08, 02752a9/8f67611/9afa86c/32c7ade/d5bacba; v1-shell packaging/docs/CI/coverage; loot S03; grid S05; equipment-consumables S06; grid-movement S04; spells-in-combat S02/S03; action-targeting S02/S03; feat-progression S02; builder-rulings S02; class-features S03/S04; browser-determinism S01 + OWNER-M05-CI-ORDER; contract-conformance S02)
 
 - Build: `tsup.config.ts` — four per-entry builds (index/schema/runtime/compiler), dual ESM/CJS +
   rolled dts, target es2020; `package.json` exports map covers `.` / `./runtime` / `./schema` /
@@ -1234,15 +1252,19 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   (spells-in-combat S02/S03, below), `self-target-journey.test.ts` (action-targeting S02, below),
   `feat-slots-journey.test.ts` (feat-progression S02, below), `rulings-journey.test.ts`
   (builder-rulings S02, below), `class-features-journey.test.ts` (class-features S04, below),
-  `docs-run.test.ts` (NFR-DX made mechanical: executes the
+  `contract-conformance.test.ts` (contract-conformance S02 ck1 `8e8c032`, below), `docs-run.test.ts` (NFR-DX made mechanical: executes the
   README's fenced ```ts blocks verbatim AND typechecks them under strict tsc; asserts the
   README's own output lines and the block-count pin; since spells-in-combat S03 ck5 it also
   guards that the README names `settleSpellCasts` and `learnFeat`; since browser-determinism S01 ck4
-  (`66af2e8`, CA-B3) its CI honesty pin runs both ways: the README must name `pnpm test:browser` and
+  (`66af2e8`, CA-B3) its CI honesty pin reads both files: the README must name `pnpm test:browser` and
   `pnpm test:electron` and must no longer call the browser leg a v1.1 follow-up, and `ci.yml` must carry
   the browser matrix and the `- run:` lines for `vitest.browser.config.ts` and `pnpm test:electron`,
-  anchored to `- run:` because the header comment names the same strings (S01's R1). It checks those
-  strings, not the README's prose claims; see the browser-determinism residuals). `rules-are-data.test.ts`
+  anchored to `- run:` because the header comment names the same strings (S01's R1); since
+  contract-conformance S02 ck3 (`bd4f753`, CA-K3) it also checks that the README names
+  `tests/proofs/contract-conformance.test.ts`, that the file exists, and that `ci.yml` carries
+  `- run: pnpm test` and `- run: pnpm exec vitest run tests/proofs/` (`docs-run.test.ts:241-261`). It
+  checks those strings, not the README's prose claims, and README l.595-599 now says exactly that; its
+  header and inline comments no longer claim "both directions" (S02 amendment A3 and its R1). `rules-are-data.test.ts`
   proof 3 casts a spell in combat and proof 2 gains a reactive-feat leg (a learned-vs-never-learned
   baseline from pack data only, zero engine diffs).
 - **Cross-runtime determinism** (browser-determinism S01 ck1–ck3, `1d929a7`/`da7bc47`/`48bd4b9`;
@@ -1270,6 +1292,27 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
     `@types/node@24.19.2` (DD-B13: the `node` type source is in-repo; before it, `tsc` resolved
     `/Users/the.phoenix/node_modules/@types/node@25.5.0` above the repo root, hazard H13). Runtime
     `dependencies` stay empty.
+- **Contract conformance** (contract-conformance S02 ck1 `8e8c032`; CAP-K1/K2, CA-K1/K2; FR-14, FR-23,
+  FR-2): `tests/proofs/contract-conformance.test.ts` (42 tests) reads the three committed contract files
+  with `node:fs` and checks named subjects with `ajv@8.20.0` (`ajv/dist/2020`, `allErrors: true`,
+  `strict: false` because strict mode rejects the contracts' style — union `type`, `required` inside an
+  `if/then` — not their validity; DD-K2), each after a JSON round-trip:
+  - against `pack.schema.json`: the 3 generated bundled packs (seed 42) and the 7 fixture packs;
+  - against `snapshots.schema.json`: the oracle's 14 envelopes (`LEG_RUNS`; kinds character, party,
+    combat) plus a level-1 character and party per theme;
+  - against `override.schema.json`: 2 override documents.
+
+  `leg-3b[0]` carries the negative-hp subject (the wolf at hp −7). An in-memory `minimum: 0` copy of
+  the contract rejects it at `/combatants/1/hp` `minimum`, and `hp: 1.5` is rejected at
+  `/combatants/0/hp` `type`. Five negative controls each assert `instancePath` + `keyword`. The file's
+  re-key rule: a failure is a contract ↔ engine disagreement for a DB re-entry or an engine fix, never a
+  looser test. `vitest.config.ts` collects it, so it runs under Node, Electron and CI `test`
+  (`ci.yml:54`) and `package` (`ci.yml:94`), not in browser mode. The contracts are repository files,
+  not in the npm `files` list. `ajv` is an exact devDependency (`package.json:63`); runtime
+  `dependencies` stay absent, and `ajv@6.15.0` remains ESLint's transitive dependency.
+- **Old-location refusal** (contract-conformance S02 ck2 `ae5b595`, CAP-K3): `tests/runtime/features.test.ts:87`
+  proves that `new Runtime` on a pack carrying `content.classes.warden.features` throws `PackLoadError`
+  with exactly `[[E-SCHEMA-02, content.classes.warden.features]]`.
 - `.github/workflows/ci.yml` — six jobs:
   - `test`: matrix Node 18/20/22, install → `pnpm build` → `pnpm typecheck` → `pnpm test`
     (`ci.yml:49-54`). Grid-movement S04 ck3 (`c23d563`) put the build before the tests, so the `dist/`
@@ -1413,6 +1456,10 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   *Reactive feats* bullet ("held or granted") — still 4 ```ts blocks (the pin counts the whole
   README, F-C9); docs-run's anatomy check now also asserts `progression.<id>.features` and
   `classFeatures`.
+  contract-conformance S02 ck3 (`bd4f753`) added prose only: the negative-hp sentence (`README.md:151-152`),
+  "all three sample themes" for the coverage floor (`:579`, was "both"), the conformance sentence
+  naming exactly the test's subjects (`:581-586`, amendment A1) and the narrowed docs-run sentence
+  (`:595-599`) — still 4 ```ts blocks; docs-run 3/3.
 - combat-decomposition S01 ck1 (`17f8f18`) added `tests/proofs/combat-characterization.test.ts`
   (9 legs, the behaviour pin above) and `tests/runtime/combat/module-surface.test.ts` (5); S03 ck2
   (`0c56866`) added the C2 case to `tests/core/tables.test.ts`. No README, docs-run or count pin
@@ -1422,12 +1469,12 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
   moved the leg helpers, the 9 legs and all 18 digest values verbatim into
   `tests/proofs/determinism-oracle.ts` (no re-key: every removed value reappears as an added line), and
   the test now reads `CHARACTERIZATION_DIGESTS`. Every title and non-digest assertion was kept.
-- Full gates at browser-determinism close (`6566236`): V1–V7 0; `pnpm test` **974/974 across 56
-  files** (N₀ 970 → 974: +3 `pack-identity` via `it.each(PACK_THEMES)`, +1 `runtime-identity`); V8
-  `pnpm test:browser` 6 files, 74/74 per engine; V9 `pnpm build && pnpm test:electron` 974/974 across 56
-  files; V10 `ci.yml` parses. The browser-determinism final pass re-ran V1–V9 fresh at `da32716` with the
-  same results.
-  (class-features close was 970/970 across 54 files, proofs 99/99 across 13 files; combat-decomposition close was 938/938 across 52 files, proofs 92/92 across 12; builder-rulings close was 923/923 across 50 files, proofs 83 across 11; feat-progression close was
+- Full gates at contract-conformance close (Orchestrator at `bd4f753`): V1–V7 0; `pnpm test`
+  **1017/1017 across 57 files** (974 → 1017: +42 `contract-conformance`, +1 `features` refusal); V9
+  `pnpm build && pnpm test:electron` 1017/1017 across 57 files; V8 `pnpm test:browser` 6 files, 74/74 per
+  engine (worker-reported; the browser set is unchanged). The contract-conformance final pass re-ran
+  V1–V7 fresh at `66d4efe` with the same results.
+  (browser-determinism close was 974/974 across 56 files, V8 74/74 per engine; class-features close was 970/970 across 54 files, proofs 99/99 across 13 files; combat-decomposition close was 938/938 across 52 files, proofs 92/92 across 12; builder-rulings close was 923/923 across 50 files, proofs 83 across 11; feat-progression close was
   911/911 across 49 files, proofs 74/74 across 10; action-targeting close was
   878/878 across 48 files, proofs 66/66 across 9; spells-in-combat close was
   829/829 across 44 files, proofs 53/53 across 8; grid-movement close 741/741 across 40 files,
@@ -1645,9 +1692,8 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
 - **class-features residuals (carried, owners named in its Final Report):**
   - **No refund on grant (v1, documented, DD-C2).** A feat learned before its class grants it stays
     held and keeps its slot.
-  - **Old-location refusal at `new Runtime` (optional hardening).** It is proven by VERIFY-01 probe
-    P1 and the shared `validatePack`, not by a dedicated repo test. Owner: Planner, for the next
-    feature that touches `tests/runtime`.
+  - **Old-location refusal at `new Runtime`: CLOSED by contract-conformance S02 ck2** (`ae5b595`,
+    CAP-K3). `tests/runtime/features.test.ts:87` is now the dedicated repo test (see M05).
   - **Docs prose unpinned.** CAP-C7 rests on text review; docs-run pins only that the README names
     `progression.<id>.features` and `classFeatures`.
 - **browser-determinism residuals (carried, owners named in its Final Report):**
@@ -1657,9 +1703,13 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
     has run on Actions. At this pass `main` has not been pushed:
     `git rev-list --count origin/main..6566236` = 204, and 202 at VERIFY-01's `5c62f8d`. The last
     visible Actions run (`dadf461`, 2026-09-27) ended `failure` and predates this feature, so older CI
-    drift may surface as well.
-    - **To clear:** `test` green on Node 18/20/22 (typecheck included), `browser` green for
-      chromium/firefox/webkit, and `electron` green on `ubuntu-latest`.
+    drift may surface as well. Since contract-conformance the same `test` (`ci.yml:54`) and `package`
+    (`ci.yml:94`) jobs also collect `tests/proofs/contract-conformance.test.ts` (VERIFY-01 `9c8cdc3`: the
+    one present-unverified row). Still unpushed: `git rev-list --count origin/main..9c8cdc3` = 217, the
+    Final Report's anchored figure, reproduced at this pass.
+    - **To clear:** `test` green on Node 18/20/22 (typecheck and the conformance file included),
+      `package` green (`tests/proofs/`), `browser` green for chromium/firefox/webkit, and `electron`
+      green on `ubuntu-latest`.
     - **If a Linux step fails** (`playwright install --with-deps`, or Electron's shared libraries in
       `ELECTRON_RUN_AS_NODE` mode), that is a mechanical CI owner correction, not a product question
       (H10).
@@ -1668,19 +1718,42 @@ Module `src/compiler/` — imports only `../schema` + `../core` (no runtime impo
     renderer-only discrepancy.
   - **The browser leg runs `src/` through Vite, not `dist/`** (ARCH-PRE F-B6). Node and Electron
     exercise `dist/` through the journeys, and the README and `ci.yml` header disclose it.
-  - **README overstates what docs-run checks** (VERIFY-01). `README.md:588-590` says `docs-run`
-    checks "that this paragraph and `ci.yml` agree". The README direction of the pin checks only the
-    two command strings and the absence of the old follow-up phrasing, not the paragraph's prose
-    claims. Owner: Planner, for the next feature touching `docs-run`/README: either extend CA-B3 to the
-    prose, or narrow the sentence.
+  - **README overstated what docs-run checks: CLOSED by contract-conformance S02 ck3** (`bd4f753`,
+    CA-K3). The sentence was narrowed rather than the pin widened: README l.595-599 now lists exactly the
+    strings `docs-run` checks and ends "it does not check the rest of this prose", and docs-run's header
+    and inline comments dropped "both directions". The same claim survives outside that lease in
+    `ci.yml:23-24` (H-R1, below).
   - **Clean-checkout typecheck proof (record).** DD-B13's prescribed `tsc --preserveSymlinks` command is
     wrong under pnpm: it cuts off `@vitest/runner` types and exits 2 whatever `@types/node` is. The
     accepted clean-checkout proof is a frozen install, then `pnpm build`, then `pnpm typecheck` in a
     node_modules-free copy outside `$HOME`, with 0 files resolved outside the copy. Reuse that form,
     not the flag.
-- **v1.1 follow-ups carried across cycles:** byte-level snapshot conformance; `pnpm approve-builds` advisory for esbuild/tsup; an
+- **contract-conformance residuals (carried, owners named in its Final Report):**
+  - **H-R1 — "both" wording outside this feature's leases (owned residual).** `ci.yml:23-24`'s header
+    comment says docs-run "checks both directions"; `ci.yml:111`'s step name says "both themes to the
+    coverage floor"; the `tests/compiler/coverage-floor.test.ts:509,582` titles say "both theme(s)".
+    There are three sample themes, and docs-run checks named strings only. Owner: Planner, for the next
+    feature touching `ci.yml` / `tests/compiler`.
+  - **README "nine combat legs"** (VERIFY-01 note). The conformance sentence (README l.582-583) and the
+    browser paragraph (l.589-590) call the oracle's nine legs "combat legs"; `leg-8` is a character leg.
+    Not an overclaim: the test takes all nine legs. Owner: Planner, for the next feature touching README
+    determinism/CI prose.
+  - **H11 — `eslint .` lints `.program/` scratch.** `eslint.config.mjs:17` ignores `program/` but not
+    `.program/`, so `.ts`/`.js` scratch there turns `pnpm lint` red; Planner's plan-time probe did so at
+    this cycle's run start (moved to `/tmp`, no human ask). Owner: a future lease owning
+    `eslint.config.mjs`; until then the PROGRAM-CONFIG baseline-hazard convention keeps scratch out of
+    the repo.
+  - **Byte-level round-trip (record).** Schema conformance does not claim byte-exact round-trip. That
+    stays as recorded: proven where the contract requires presence preservation, in
+    `tests/snapshots/character.test.ts` (round-trip losslessness l.81; byte-exact cases l.360, l.434).
+- **v1.1 follow-ups carried across cycles:** `pnpm approve-builds` advisory for esbuild/tsup; an
   out-of-combat point-pool cast verb (would give wyldwood's charm armor teeth, DD-EG5); item
-  `tags` (would let the `use` restriction gate bite). **Closed by browser-determinism:** the browser-mode
+  `tags` (would let the `use` restriction gate bite). **Closed by contract-conformance:** byte-level snapshot
+  conformance, as schema conformance: an independent validator checks named subjects (the generated and
+  fixture packs, the oracle's snapshot envelopes plus a per-theme character and party, two override
+  documents) against the committed contracts (S02 ck1 `8e8c032`, CA-K1/CA-K2; v1.11 fixed the one
+  disagreement it found). Byte-exact round-trip stays as recorded in the contract-conformance residuals.
+  **Closed by browser-determinism:** the browser-mode
   Vitest config and CI's browser leg (S01 ck2 `da7bc47`, ck4 `66af2e8`), together with the never-listed
   Electron clause of NFR-Determinism (ck3 `48bd4b9`). **Closed by spells-in-combat:** per-target
   save modifiers (`varsFor`, DD-S19). **Closed by

@@ -2468,3 +2468,206 @@ Inputs:
   - **Unchanged:** the Verification Commands rows that already existed, Git Config, Session Defaults, the registry table, Architecture, Author Sources and Custom Rules 1–4 and 6.
 - **Not edited:** `specs/`, `mocks/`, STATE.md, FINAL-REPORT.md, `src/` and `tests/`. I wrote no scratch file in the repo; all scratch went to `/tmp/ruleswright-browser-determinism-archivist/`.
 - **Role docs:** `PLANNER.md`, `CODER.md`, `UI-CODER.md` and `ORCHESTRATOR.md` are byte-identical to how this pass found them (md5 before and after).
+
+## 2026-10-11 — final pass, cycle `contract-conformance` (feature commits `e815e74` → `bd4f753`; VERIFICATION.md `9c8cdc3`; report `66d4efe`)
+
+Inputs:
+- the Final Report (`66d4efe`);
+- STATE.md in full: DD-K1..K6, DD-K6a, H1–H11, H-R1, the ARCH-PRE table (F-K1..F-K6, amendments A1–A5), the Capability Readiness and Contract Agreements tables, and the three Handoff Notes (S01, S02, VERIFY-01);
+- VERIFICATION.md (`9c8cdc3`; 20 verified, 1 present-unverified, 0 failed, 0 blocked);
+- `arch/v1-core.md`, `PROGRAM-CONFIG.MD`, and the browser-determinism and class-features entries of this log;
+- `git log`/`git diff` over `bb61f91..66d4efe`;
+- the current `snapshots.schema.json` l.186-200, `database.md` l.3/699-705/820-822, `contract-conformance.test.ts` header, `docs-run.test.ts:238-262`, `features.test.ts:87-100`, `ci.yml:20-24` and its `- run:` lines, `coverage-floor.test.ts:509,582`, `eslint.config.mjs:17`, `package.json:63`, README l.145-155 and l.570-599, `requirements.md:249`, `architecture.md:44`, `combatants.ts:12-16,80-92`, `snapshots/combat.ts:131,212`;
+- a fresh gate run at `66d4efe`.
+
+### Reconciled
+
+- **`arch/v1-core.md`** (no delta fragments this cycle, so no markers to collapse; rewritten in place):
+  - **Header:** realized state at tree HEAD `66d4efe`, fourteen cycles, a contract-conformance clause, and a verified-by line split into this pass's fresh run and the figures cited from the Final Report.
+  - **M01:** a new contract-conformance S01 paragraph: v1.11, schema l.192-195, `database.md` l.3/699-705/822, and the engine lines the contract now matches.
+  - **M05:**
+    - The heading credits contract-conformance S02.
+    - The proof list names `contract-conformance.test.ts`.
+    - The docs-run bullet records the CA-K3 pins (`docs-run.test.ts:241-261`) and the narrowed comments. "runs both ways" became "reads both files", so the record no longer repeats the retired claim.
+    - New **Contract conformance** and **Old-location refusal** bullets.
+    - The README history gains the S02 ck3 prose edits.
+    - The gates paragraph reports 1017/1017 across 57 files.
+  - **Residuals:**
+    - **Retired (DD-K6):** the class-features old-location hardening (CLOSED, `ae5b595`), the browser-determinism README docs-run overstatement (CLOSED, `bd4f753`) and "byte-level snapshot conformance" from the v1.1 follow-ups. The last moves to **Closed by contract-conformance** as schema conformance of named subjects; byte-exact round-trip stays as recorded (`tests/snapshots/character.test.ts` l.81, l.360, l.434).
+    - **B-BD-1:** updated. The `test`/`package` jobs now also collect the conformance file. The anchored figure 217 at `9c8cdc3` reproduces. The clear condition adds `package`.
+    - **New contract-conformance residuals block:** H-R1 (`ci.yml:23-24,111`, `coverage-floor.test.ts:509,582`; owner Planner); README "nine combat legs" (l.582-583, l.589-590; owner Planner); H11 (`eslint.config.mjs:17`; owner a future lease on that file); and the byte-level round-trip record.
+- **`PROGRAM-CONFIG.MD`** (DD-K6 + DD-K6a, each checked against the tree at `66d4efe`):
+  - **Stack *Test*:** adds the conformance proof (subjects, `ajv@8.20.0` dev-only, `ajv/dist/2020`, draft 2020-12, `strict: false`, `allErrors: true`). It is a Node-leg file, so it also runs under Electron and in CI `test`/`package`, but not in browser mode.
+  - **Stack *Runtime deps*:** "no zod/ajv" now says **at runtime**, with `requirements.md:249` and `architecture.md:44` cited. Ajv 8.20.0 is dev-only, and `ajv@6.15.0` is ESLint's transitive dependency.
+  - **Custom Rule 1:** adds the v1.11 event (loosening only, no rule id, no caveat, Version Registry row 12) and the rule that a conformance failure goes to a DB re-entry or an engine fix, never a looser test (the test file's own re-key rule).
+  - **Custom Rule 5:**
+    - The "both directions (CA-B3)" sentence is narrowed to the strings `docs-run` checks, matching README l.595-599 and `docs-run.test.ts:241-261` (CA-B3, CA-K3).
+    - **Beyond the list:** "9 combat-characterization legs" became "9 characterization legs (`LEG_RUNS`; `leg-8` is a character leg)", so this file does not repeat the VERIFY-01 naming note.
+  - **Author Sources → Data source:** normative through v1.11 (Version Registry row 12).
+  - **Header note and Module Registry blurb:** registry confirmed at `66d4efe`.
+  - **Conventions:** two minted, seven evidence notes updated (below).
+- **Module Registry: no change.** `git diff --name-status bb61f91..66d4efe -- src` gives `M src/schema/contracts/snapshots.schema.json` only. That file is DB-owned and outside every M-lease. No `src/**/*.ts` changed, so no import statement changed and no edge needs re-deriving. The new test value-imports `src/compiler` and `src/runtime/index` from `tests/`, which is not a module.
+- **Final Report mechanical facts** (each reproduced with the command it cites):
+  - **Files:** `git diff --name-status bb61f91..9c8cdc3 -- . ':(exclude)program/Ruleswright/prompts'` gives 8 paths, 1 A + 7 M. `--numstat` (also at `..66d4efe`) gives +316/−14. Groups: DB 14/2 + tests 259/8 + packaging 30/0 + docs 13/4. **Reproduces.**
+  - **Checkpoints:** `git log --oneline bb61f91..9c8cdc3 --grep checkpoint` = 5 (`e815e74`, `bde9781`, `8e8c032`, `ae5b595`, `bd4f753`). **Reproduces.**
+  - **V5:** a fresh `pnpm build && pnpm test` at `66d4efe` gives `Test Files 57 passed (57)` / `Tests 1017 passed (1017)`. The delta 974 → 1017 is +42 conformance and +1 refusal. **Reproduces.**
+  - **Moving ref:** `git rev-list --count origin/main..9c8cdc3` = 217. The report stated its anchor, so it **reproduces**. c3c94358's fix was applied, though it is not yet a rule.
+  - **`src` diff:** `snapshots.schema.json` only. **Reproduces.**
+- **Fresh gates at `66d4efe`:** build 0, typecheck 0, lint 0, format:check 0, check:isolation 0 (24 dist files), check:security 0, `pnpm test` 57/1017. I did not rerun V8 (browser) or V9 (Electron). They are cited from the report and labelled so in the arch header.
+- **Capability Readiness / Contract Agreements vs VERIFICATION.md (FR-17): no drift.**
+  - VERIFY-01's single present-unverified row is the CAP-K1/K4 CI leg (B-BD-1). STATE reads CAP-K1 and CAP-K4 as verified locally with CI via B-BD-1, and CA-K1..K3 as proven. The two agree.
+  - **Boundaries sampled:**
+    - CA-K2: the schema l.192-195 shows no `minimum`, and `maxHp` keeps it. The engine lines match.
+    - CA-K3: docs-run l.254-258 holds the four new assertions.
+    - CA-K1: the test header lists exactly the subjects, and the fresh run includes 42/42.
+  - **Counterevidence:** none against a verified claim. The "nine combat legs" naming is an owned residual, not stale evidence.
+- **Deviation counts by rule (FR-19), whole cycle:**
+  - **R1: 2.**
+    - S02 ck3, `docs-run.test.ts` inline comment narrowed beyond A3.
+    - S01 ck2, `database.md` block written as a plain paragraph instead of the prompt's `> ` quote. S01 gave this entry no rule number; I classified it.
+  - **R2: 0. R3: 0. R4: 0.**
+  - **Not counted:** S01's two other entries (repo-confined write tool → inline `node -e`; ck1 pathspec over both Owns paths) change no file and no prescribed outcome, so they are not deviations.
+  - **Reading:** no stop, so no D3/D4 signal from workers. The D3/D4 fails were caught at ARCH-PRE and closed before dispatch.
+- **Process metrics:** first dispatch 2/2. Unplanned corrections 0, integration rework 0, mid-run product decisions 0. Plan defects: 6 caught before dispatch (F-K1..F-K6) and 1 reached a worker harmlessly (S01's `/tmp` scratch instruction against a repo-confined write tool). Environment: one await idle timeout and one run-start lint red caused by host scratch.
+- The VERIFICATION.md gitignore seam recurred for the 6th cycle, and the convention was applied (`9c8cdc3`).
+
+### Crossed thresholds (Principle 4)
+
+- **Minted: the Verification Baseline carries known hazards forward** (3092a46b564d1d36). **Axis crossed: program cycles, 3** (combat-decomposition, browser-determinism, contract-conformance) · 4 instances.
+  - **New instance:** ARCH-PRE F-K6. The `.program/` lint hazard, named verbatim in this row's first instance, was again missing from H1–H10. It also bit: Planner's plan-time probe in `.program/tmp/conformance-probe/` turned V2 red at run start (Orchestrator moved it to `/tmp`; H11).
+  - **What the rule does:** it tells the plan to read the prior STATE hazards, the `arch/` residuals and the Conventions before writing *Hazards*. It names this repo's three standing hazards and adds the clean-checkout probe for CI and dependency features.
+- **Minted: Author re-entry deviations carry a rule number** (d2415cb4497e0049). **Axis crossed: program cycles, 3** (feat-progression, class-features, contract-conformance) · 4 instances.
+  - **New instance:** S01 (DB) reported three deviations as prose with no R-number.
+  - **What the rule does:** Author envelopes ask for R1–R4, or "not a deviation", and Orchestrator classifies anything unclassified at receive. The role-doc handoff shape stays a framework recommendation.
+- **Held, evidence notes updated:**
+  - pin-lease (1cc46f93): **9 · 11**, F-K3. No clause added: the doc-pin and enumeration clauses already cover Rule 5's "both directions" and *Runtime deps* "no zod/ajv". The miss was in the grep terms.
+  - factual-premise (576a2816): **12 · 54**, F-K4 and F-K5.
+  - whole-repo fast gates (854ceecd): 4 · 4, held. No receive went red, and the run-start red is counted under 3092a46b.
+  - Author authorization (a3680390): **9 · 11**. S01 quoted "a yes".
+  - Final Report facts derived (f68c42a3): 4 · 4, held. Every figure reproduced.
+  - idle timeout (cecd2115): **9 · 17**.
+  - VERIFICATION.md forced commit (c187bed6): **6 · 6**.
+- **Not promoted:**
+  - **47f092a4f076107c (a doc sentence claims more than a test enforces): 2 cycles · 3 instances.**
+    - **New this cycle:** F-K1 (ARCH-PRE: the Planner-prescribed README sentence said "every … pack", "every snapshot" and "published" for a test with named subjects and unshipped schemas) and S02 ck3's R1 (the docs-run inline comment still said "both directions").
+    - **Same claim elsewhere:** F-K3's other listings (Rule 5, `ci.yml:23-24`, docs-run header) are counted under 1cc46f93, not twice.
+    - **Why it stays below threshold:** 2 cycles, and 2 distinct returns this cycle (ARCH-PRE, S02).
+    - **Partial cover:** amendment A1's rule ("every quantifier matches a subject list in the test") is the working program-level fix, and README l.595-599 now models it.
+  - **0880dd5734025fd4 (negative control outside the lease): 2 · 2.** F-K2: S02 ck3's prescribed in-place `ci.yml` controls; amendment A2 moved them in memory.
+  - **First-dispatch 2/2** is consistent with all three rows above: each defect was caught at ARCH-PRE and closed by an in-lease envelope amendment before dispatch, so none produced a redispatch.
+- **Conventions minted:** two (above). None retired.
+
+### Proposed for the framework (Principle 3: no threshold)
+
+- **New: worker scratch has no safe location** (f229f492b7a1e737, **1 cycle · 1 instance**).
+  - **What happened:** S01's envelope directed scratch to `/tmp/ruleswright-contract-conformance-s01/`, but the worker write tool refuses paths outside the repo. The in-repo gitignored scratch directory, `.program/`, is collected by `eslint .` (H11). S01 worked around it with inline `node -e`. This pass's envelope gave the same `/tmp` direction, and I made every edit through inline commands for the same reason.
+  - **Recommendation:** ORCHESTRATOR.md / CODER.md should name one sanctioned scratch location that the write tool accepts and that no gate collects, or the write tool should accept a declared scratch root outside the repo.
+- **Carried, count raised:**
+  - **3092a46b, 3 · 4** (now promoted at program level). PLANNER.md's Verification Baseline step should say: carry forward the hazards in the inspected record, and add a clean-checkout probe when CI or dependencies change.
+  - **d2415cb4, 3 · 4** (now promoted at program level). The AUTHOR/DB/ARCHITECT/DESIGNER handoffs should use CODER.md's `deviations` shape with R1–R4.
+  - **47f092a4, 2 · 3.** PLANNER.md's doc-pin step, or CODER.md's docs discipline, should treat a sentence that describes what a test proves or checks as a claim about that test: each quantifier must match a subject list the test asserts. A1's wording is a ready template.
+  - **0880dd57, 2 · 2.** PLANNER.md should require each prescribed negative control to name the file it perturbs and to check that file against the session's `Owns`, or to run in memory.
+  - **576a2816, 12 · 54**; **1cc46f93, 9 · 11**; **cecd2115, 9 · 17**; **a3680390, 9 · 11**; **c187bed6, 6 · 6**. Wording unchanged from the prior entry.
+- **Carried, no recurrence this cycle:**
+  - c3c94358: the report anchored its moving-ref figure, which applies the recommendation without a template change.
+  - 318c816b: one `## Verification` section this cycle, with gates under `## Gates`.
+  - 3658f327, 6f6b491b, 82b4e0ab, f4621ac1, f68c42a3, 854ceecd, 8039d686, 760b67f1, c172cd30, 3983f8eb, 17f4803c, 1d910de1, b85c8f3e, 2674d8c2.
+  - b32fc8d0, f57dbe4d and c1ed872b have now gone **eleven** consecutive cycles without recurrence; a human may retire them.
+- **Adoption check, done before carrying the rows forward:**
+  - **History:** `program-agents/` is gitignored (`.gitignore:28`, `git check-ignore -v`), so `git log` has no history for the role docs.
+  - **File times:** `stat` shows `PLANNER.md`, `CODER.md`, `UI-CODER.md`, `ORCHESTRATOR.md` (and `ARCHIVIST.md`) last modified 2026-10-04 13:41:46, before the prior pass's adoption check on 2026-10-10.
+  - **Conclusion:** nothing can have been adopted since, so every open row keeps its status.
+  - **Byte identity:** md5 before and after this pass: PLANNER `06a56c8d…`, CODER `c7106351…`, UI-CODER `2256237f…`, ORCHESTRATOR `f3b6b83a…`, unchanged. That is a claim about this pass only.
+
+### Standing recommendations
+
+| id | pattern | cycles | in-cycle instances | first seen | status |
+|----|---------|-------:|-------------------:|------------|--------|
+| b32fc8d0c8c92d52 | Large single-session builds exhaust context on exhaustive checkpoint-0 read sweeps (empty-final crash; recovery = checkpoint-scoped reading) | 2 | 2 | v1-core | open (eleven cycles without recurrence; retirable by a human) |
+| f57dbe4d010638fe | Subagent model fabricates tool inputs (invented paths, invented project state, fabricated git output) under long-recovery prompts | 2 | 8 | v1-core | open (eleven cycles without recurrence; retirable by a human) |
+| b85c8f3e113a6764 | Public surface/barrel completeness gaps discovered at integration (lease gaps across wave-spanning modules) | 2 | 3 | v1-core | open |
+| c1ed872bea557b96 | run tool drops/misroutes argv; workers pass whole command lines as single argv entries | 2 | 3 | v1-core | open (eleven cycles without recurrence; retirable by a human) |
+| 3658f327cc9cff2f | commit_pathspec-style single-command commits fail on deleted files | 2 | 2 | v1-core | open (recommendation reworded 2026-10-04: name `git rm`, never `git add -A`) |
+| 1cc46f93038f1d9a | Cross-suite pinning tests (docs-run block-count pin, registry-count pin) land without a named owner in the plan | 9 | 11 | loot-inventory | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-27; widened 2026-09-30 and 2026-10-01; sharpened 2026-10-04 builder-rulings and combat-decomposition; sharpened 2026-10-05 class-features: content-delta pins; sharpened 2026-10-10 browser-determinism: enumerations are doc pins, retirement lists carry every hit; held 2026-10-11 contract-conformance, F-K3); framework wording open |
+| 576a281656f83b23 | Envelope factual premises (mock-vs-prompt anatomy, cross-suite counts) reach sessions unverified; mechanical premise verification at planning time is the fix | 12 | 54 | loot-inventory | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-27; widened 2026-10-04 builder-rulings: journey test-setup values are premises; sharpened 2026-10-05 class-features: negative-control values are premises; sharpened 2026-10-10 browser-determinism: environment-dependent premises are probed in a clean copy outside `$HOME`, and prescribed proof commands are run before prescribing; held 2026-10-11 contract-conformance, F-K4/F-K5); framework wording open |
+| 854ceecd39d4b0d3 | Whole-repo fast gates (typecheck/lint/format:check) go red at role-scoped receives; cleared by format-only owner corrections | 4 | 4 | v1-core | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-27; held in class-features, browser-determinism, contract-conformance) |
+| 17f4803c1b08da77 | Provider stream aborts / capacity failures kill subagents mid-session with zero commits; recovery resumes from the preserved tree | 3 | 5 | loot-inventory | open (promotion held: carried cycle attribution ambiguous) |
+| 6f6b491bdbe37bf0 | Bare npx misresolves in this runtime; the working gate forms are pnpm exec vitest run <path> and node_modules/.bin/vitest | 3 | 4 | loot-inventory | open (cycles axis crossed 2026-10-04; the program rule already lives in PROGRAM-CONFIG Verification Commands; framework text still says npx) |
+| 1d910de11732c6c4 | Final Archivist pass aborts on provider capacity leave the next cycle's pass a double synthesis (prior cycle's integrated fragments + record-debt) | 2 | 2 | loot-inventory | open |
+| c172cd30e8dfc756 | Session commit gates hard-code a plan-time base SHA that a later replan makes stale | 1 | 1 | equipment-consumables | open |
+| cecd211504587426 | Host await idle timeout (300 s) interrupts long subagent waits; re-awaiting the same handle reattaches with no work lost | 9 | 17 | equipment-consumables | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-30); framework wording open |
+| f68c42a3f6224eb1 | Final Report mechanical facts (test-file counts, realized module edges) transcribed from handoffs rather than derived from the tree | 4 | 4 | v1-core | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-30; sharpened 2026-10-04: a cited command must reproduce its figure; held in class-features, browser-determinism, contract-conformance); framework wording open |
+| a368039028d463d6 | Role documents say Spec/DB are never spawned, while plans dispatch orchestrated Author re-entry sessions on recorded human authorization | 9 | 11 | grid-combat | **promoted** (PROGRAM-CONFIG Conventions, 2026-09-30); framework wording open |
+| 3983f8eb6d18a5f2 | Orchestrator STATE row matcher hits a CA-ID column inside the CAP table and writes contract-leg notes into the wrong rows | 1 | 2 | grid-movement | open |
+| f4621ac12fba3456 | Pin audits enumerate count/shape pins but miss behavior pins: tests asserting a value whose derivation a decision changes surface red at a quiet boundary, some outside every lease | 3 | 4 | grid-combat | open |
+| 760b67f17edbd346 | A feature opens a content class to a new execution path, and latent content hazards become reachable without a planning-time scan (damage(half) with no fail-branch damage, 12 spell sites) | 2 | 2 | spells-in-combat | open |
+| 82b4e0abbda105d6 | Concurrent sessions on disjoint leases share one working tree: a sibling's uncommitted edits turn another worker's gates red or inflate its whole-suite counts | 1 | 2 | spells-in-combat | open (narrowed: wave-close re-verify present at ORCHESTRATOR.md:374-391; the temporary-worktree half absent) |
+| c3c94358b35f8316 | Final Report cites `git diff <base>..HEAD` while its own commit then moves HEAD, so the cited command no longer reproduces the reported count | 2 | 2 | action-targeting | open (2026-10-11: the contract-conformance report anchored its moving-ref figure, 217 at `9c8cdc3`, and it reproduces; applied by practice, not by template) |
+| c187bed6bb5132a7 | A new file the role documents order committed through commit_pathspec lives under a gitignored path (VERIFICATION.md under program/<slug>/prompts/), and commit_pathspec cannot force-add it | 6 | 6 | feat-progression | **promoted** (PROGRAM-CONFIG Conventions, 2026-10-04 combat-decomposition: Orchestrator force-adds with an explicit pathspec; surprise, not deviation); framework wording open |
+| 8039d6869169267c | Plan artifacts carry internal inconsistencies into sessions: refusal paths lettered differently in SESSION and STATE, and a prescribed validator snippet that double-cards a negative entry | 1 | 2 | feat-progression | open |
+| d2415cb4497e0049 | Author/DB re-entry handoffs report deviations without an R1-R4 rule, so per-rule deviation counts cannot include them | 3 | 4 | feat-progression | **promoted** (PROGRAM-CONFIG Conventions, 2026-10-11 contract-conformance: Author envelopes ask for R1–R4, Orchestrator classifies at receive); framework wording open |
+| 3092a46b564d1d36 | A Verification Baseline records 'Hazards: none' while the inspected record already holds known hazards (dist/-importing journeys pass a stale build; ESLint lints the .program/ scratch directory) | 3 | 4 | combat-decomposition | **promoted** (PROGRAM-CONFIG Conventions, 2026-10-11 contract-conformance: the baseline carries known hazards forward; F-K6, H11 — the `.program/` lint hazard named in the first instance recurred and turned V2 red at run start); framework wording open |
+| 2674d8c2f948ae0a | Plan-prescribed mechanical derivations are line-based greps that miss multi-line statements (value imports spread over several lines) | 1 | 1 | combat-decomposition | open |
+| 0880dd5734025fd4 | A prescribed negative control perturbs a file outside the session's lease (scratch edit of a non-owned file), a D4 gap found only at preflight | 2 | 2 | combat-decomposition | open (2026-10-11 recurrence: F-K2, in-place `ci.yml` controls; amendment A2 moved them in memory) |
+| 318c816b6920dd3d | A Final Report carries two `## Verification` sections (gates, then the FR-17 pass appended at the end), and the first cross-references the second as "below" | 1 | 1 | class-features | open |
+| 47f092a4f076107c | A doc sentence claims a test checks more than the test enforces (README says docs-run checks "that this paragraph and ci.yml agree"; the pin reads only command strings) | 2 | 3 | browser-determinism | open (2026-10-11 recurrence: F-K1, the prescribed README conformance sentence over-quantified; S02 ck3 R1, a docs-run inline comment still said "both directions") |
+| f229f492b7a1e737 | Envelopes direct worker scratch to /tmp while the worker write tool refuses paths outside the repo, and the in-repo scratch directory (.program/) is collected by eslint . | 1 | 1 | contract-conformance | open |
+
+- **IDs:** 28 are copied verbatim. 1 was minted this pass from the normative formula (`first seen` `contract-conformance`). The formula was cross-checked by recomputing `47f092a4f076107c` from its own cells.
+- **Count changes:**
+  - 1cc46f93: 8/10 → 9/11.
+  - 576a2816: 11/52 → 12/54.
+  - cecd2115: 8/16 → 9/17.
+  - a3680390: 8/10 → 9/11.
+  - c187bed6: 5/5 → 6/6.
+  - d2415cb4: 2/3 → 3/4 (promoted).
+  - 3092a46b: 2/3 → 3/4 (promoted).
+  - 0880dd57: 1/1 → 2/2.
+  - 47f092a4: 1/1 → 2/3.
+- **Blocked signal:** no session returned blocked, and the table is not empty.
+
+### Cleanup ledger (carried forward; maintained here, no separate CLEANUP-LEDGER.md yet)
+
+| id | candidate | evidence | confidence | blast radius | proposed check | cluster | status |
+|----|-----------|----------|------------|--------------|----------------|---------|--------|
+| C1 | `isLivePattern` (`src/runtime/conditions.ts`) has no non-test consumer | combat-decomposition DD-D9: kept as public API, pinned in `module-surface.test.ts` | — | — | — | duplicated-logic | **retired** (intentionally retained, 2026-10-04) |
+| C2 | `MAX_TABLE_DEPTH = 8` declared in core and schema | resolved by cross-pin, DD-D10 (`tests/core/tables.test.ts:226-228`) | high | — | — | duplicated-logic | **accepted** (closed by `0c56866`) |
+| C3 | `readPatch` exported from the compiler surface but consumed only by tests | unchanged (no `src/**/*.ts` change this cycle) | low | compiler surface | decide public-surface intent (FR-20 host-side composition) | compiler-surface | **tracking** |
+| C4 | `EventSeed`/`EventSink` exported from the runtime surface, no consumer | unchanged | low | runtime surface | same surface-first decision | runtime-surface | **tracking** |
+| C5 | Final Report test-file count 28 vs 29 | corrected at v1-core close (`0290d47`) | high | report accuracy | — | report-accuracy | **retired** |
+| C6 | `parsePackEffects` had zero consumers | deleted at `010d730` | high | M03 internal | — | spell-asts | **accepted** (closed by `010d730`) |
+| C7 | `WYLDWOOD` exported from the compiler surface, consumed only via theme-loader/index | unchanged | low | compiler surface | same surface-first decision as C3/C4 | compiler-surface | **tracking** |
+| C8 | `equipment.ts` private `rollText` duplicated `displayRoll` | closed at `27c77f4` | high | M03 internal | — | duplicated-logic | **accepted** (closed by `27c77f4`) |
+| C9 | equipment-consumables Final Report *Architecture impact* omitted two value edges | corrected in the living record since 2026-09-28 | high | report accuracy only | — | report-accuracy | **retired** |
+| C10 | `Combat.use`'s restriction gate cannot block (`ItemDef` has no `tags`) | unchanged | low | M03 combat | retain as forward-compat unless item tags are rejected as a product direction | item-tags | **tracking** (intentional; resumption: item tags decision) |
+| C11 | Theme feat triggers never matched / feats never registered | closed at `d9a6d71`/`8d04c5e` | medium | — | — | inert-content | **accepted** |
+| C12 | `heal` was registry entry 13 but absent from `EFFECT_VOCABULARY` | closed at `4c1e1e6` | low | — | — | vocabulary-drift | **accepted** (closed by `4c1e1e6`) |
+| C13 | spells-in-combat Final Report *Files* breakdown mismatch | corrected by Orchestrator at `0b5787e` | high | report accuracy only | — | report-accuracy | **accepted** (closed by `0b5787e`) |
+| C14 | Stale comment `character-profile.test.ts:381` | closed at `4be2a57` (DD-R7) | high | one comment line | — | stale-docs | **accepted** (closed by `4be2a57`) |
+| C15 | Split-file helpers exported with no consumer outside their own file (`execute.ts` `flattenResolutions`, `boundActionOf`; `movement.ts` `pathQuery`, `threatenersLeft`, `endMove`, `setPendingMove`; `triggers.ts` `resolveReactiveAgainst`, `resolveFeat`) | unchanged: `git diff --name-status bb61f91..66d4efe -- src` touches no `.ts` | low | M03 internal (`export` keyword only) | `pnpm typecheck` + `pnpm lint` + module-surface + characterization green after dropping `export` | split-internal-exports | **tracking** (below threshold) |
+| C16 | `PackTheme` type exported from `tests/proofs/determinism-oracle.ts` with no consumer outside the oracle | re-checked 2026-10-11: `grep -rlw PackTheme tests src --include=*.ts` still returns only the oracle; the new conformance test imports `PACK_THEMES` and `LegId`, not `PackTheme` | low | one test-only `export` keyword | `pnpm typecheck` green after dropping `export` | test-oracle-surface | **tracking** (below threshold; may be kept as the oracle's public test vocabulary) |
+| C17 | `eslint.config.mjs:17` ignores `program/` but not the gitignored scratch directory `.program/` | H11 / ARCH-PRE F-K6; observed red V2 at this cycle's run start from `.program/tmp/conformance-probe/` | medium | lint config only (one ignore entry) | `pnpm lint` 0 with a `.ts` file placed under `.program/tmp/`; `pnpm lint` still lints `src/` and `tests/` | tooling-config | **tracking** (owner: a future lease owning `eslint.config.mjs`; also a standing hazard in PROGRAM-CONFIG) |
+
+**Cleanup scout of this cycle's diff** (8 paths: one contract, one spec, three tests, two packaging, README):
+- `contract-conformance.test.ts` exports nothing (`grep -c '^export'` = 0).
+- Every symbol it imports is used, and `ajv` (`package.json:63`) has exactly that consumer, as intended.
+- `docs-run.test.ts`'s new `existsSync` import is used (l.256).
+- **Duplication:** `ajv@6.15.0` (ESLint's) and `ajv@8.20.0` (ours) coexist in the lockfile. That is two major versions for different consumers, not a duplicate.
+- **New:** C17 (medium, tracking). C16 re-checked, unchanged.
+
+**Cleanup brief status:** no campaign crosses a threshold, so there is no brief.
+
+### Verification of this pass
+
+- **Sources.** Every claim traces to:
+  - git at `bb61f91`/`9c8cdc3`/`66d4efe`: name-status, numstat, `--grep checkpoint`, `rev-list --count`;
+  - the files read at `66d4efe` listed under Inputs;
+  - STATE.md, VERIFICATION.md and the Final Report;
+  - this pass's fresh gate runs.
+- **No contradiction** with STATE.md, VERIFICATION.md or the Final Report. The arch header separates fresh from cited gate figures.
+- **Re-read after writing:** PROGRAM-CONFIG Rule 5 and the arch M05 docs-run bullet both describe docs-run as checking named strings, matching README l.595-599. Neither now says "both directions"; the only remaining mentions are quotations of the residual H-R1 text.
+- **PROGRAM-CONFIG diff scope:**
+  - **Changed:** the header note; Stack *Test* and *Runtime deps*; the Module Registry blurb; Custom Rules 1 and 5; Author Sources *Data source*; Conventions (two minted, seven evidence notes).
+  - **Unchanged:** Verification Commands, Git Config, Session Defaults, the registry table, Architecture and Custom Rules 2–4 and 6.
+- **Not edited:** specs, mocks, STATE.md, FINAL-REPORT.md, VERIFICATION.md, `src/`, `tests/`, README and `.github/`. No scratch file was written anywhere: every edit used inline `node -e` exact-match replacement (each anchor asserted to occur exactly once).
+- **Role docs:** byte-identical to how this pass found them (md5 above).
