@@ -19,11 +19,13 @@
  * the real source entries — a consumer's `ruleswright/*` resolves through the
  * package exports to the same compiled source.
  *
- * The anatomy test additionally pins the README's CI claims against what
- * ci.yml actually does, in both directions (browser-determinism CA-B3): every
- * determinism leg the README names (browser, Electron), ci.yml runs, and the
- * old "v1.1 follow-up" wording is gone — never promise a CI run CI does not
- * perform, never leave a CI leg undocumented.
+ * The anatomy test additionally pins named README CI claims against ci.yml
+ * (browser-determinism CA-B3, contract-conformance CA-K3): the README names
+ * `pnpm test:browser`, `pnpm test:electron` and the conformance test file;
+ * ci.yml has the browser matrix, the Electron job, `pnpm test` and
+ * `tests/proofs/` as `- run:` steps; the conformance file exists; and the old
+ * browser "v1.1 follow-up" wording is gone. It checks those strings only, not
+ * the rest of the README's CI prose.
  *
  * Expected outputs are asserted from the README's own output blocks:
  *   01 → a validated pack (manifest.id = dark-fantasy, 3 classes, 33 spells)
@@ -36,7 +38,7 @@
  *        inventory is the stack the README quotes — observed on this run
  */
 import { describe, expect, it, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { generateCampaign, loadTheme } from '../../src/compiler';
@@ -236,7 +238,7 @@ describe('README quickstart runs verbatim (NFR-DX)', () => {
     // Class features (class-features, v1.10): where they live and the host query are documented.
     expect(readme).toContain('progression.<id>.features');
     expect(readme).toContain('classFeatures');
-    // CI-claim honesty (NFR-DX), both directions: every determinism leg the README names, ci.yml runs.
+    // CI-claim honesty (NFR-DX): the README names these legs and files, and ci.yml runs them.
     // The ci.yml checks anchor on `- run:` steps: its header comment names the same commands.
     const ci = readFileSync(
       fileURLToPath(new URL('../../.github/workflows/ci.yml', import.meta.url)),
@@ -249,6 +251,11 @@ describe('README quickstart runs verbatim (NFR-DX)', () => {
     );
     expect(ci).toMatch(/browser:\s*\[chromium, firefox, webkit\]/);
     expect(ci).toMatch(/^\s*- run: pnpm test:electron$/m);
+    // Contract conformance (CA-K3): the README names the proof, it exists, and both CI jobs that collect it run.
+    expect(readme).toContain('tests/proofs/contract-conformance.test.ts');
+    expect(existsSync(fileURLToPath(new URL('./contract-conformance.test.ts', import.meta.url)))).toBe(true);
+    expect(ci).toMatch(/^\s*- run: pnpm test$/m);
+    expect(ci).toMatch(/^\s*- run: pnpm exec vitest run tests\/proofs\/$/m);
     expect(readme).not.toMatch(/browser[^.]*v1\.1 follow-up/);
     expect(readme).not.toContain('browser matrix runs in CI');
   });

@@ -148,7 +148,8 @@ deterministic per seed, like everything else (FR-1).
   combatant on one side is at hp ≤ 0, `fight.state.phase` becomes `combat-over`, one `combat:ended`
   event names `{ winner, defeated }`, and `step()` returns `{ kind: "combat-over" }` from then on.
   Downed combatants (hp ≤ 0) skip their turns and are offered no triggers. A combat snapshot
-  taken at the end restores as `combat-over`.
+  taken at the end restores as `combat-over`. Damage is not floored: a downed combatant's hp
+  can be negative, and the combat snapshot stores it as-is (snapshot contract v1.11).
 - v1 limits: active conditions are not carried into the fight; a multiclass character
   on the attack-table convention uses the row of its highest-level table class, at
   that class's level, re-keyed to the character's total level.
@@ -575,8 +576,14 @@ resumed fight rolls the same future as an uninterrupted one.
 
 CI (`.github/workflows/ci.yml`) runs the Node matrix (18/20/22 — the whole suite,
 so same-seed ⇒ identical rolls is proven on all three lines), the FR-12 proof trio
-(rules-are-data: zero engine diffs), the FR-21 coverage floor for both sample
+(rules-are-data: zero engine diffs), the FR-21 coverage floor for all three sample
 themes, the bundle-isolation + security-sweep gates, and the lint + Prettier format checks on every push (lint runs on Node 22 — ESLint 10's floor is above the Node 18 matrix leg).
+`tests/proofs/contract-conformance.test.ts` checks the three bundled themes' generated packs
+(seed 42), the seven fixture packs, the snapshot envelopes from the determinism oracle's nine
+combat legs plus a level-1 character and party per theme, and two override documents against
+the JSON Schema contracts in `src/schema/contracts/` (repository files, not shipped in the npm
+package), with an independent validator (Ajv, a dev dependency only); it runs in the Node matrix
+and in the package job.
 
 Two more jobs carry the cross-runtime determinism proof. The `browser` job runs the
 shared oracle (`tests/proofs/determinism-oracle.ts`: Node-pinned digests of nine combat
@@ -586,5 +593,7 @@ not the shipped `dist/` bundle, which the Node and Electron legs exercise throug
 `dist/` journeys. The `electron` job runs the whole suite under Electron's own Node/V8
 runtime (`pnpm test:electron`); Electron's renderer engine is Chromium, covered by the
 Chromium leg, and no test runs inside an Electron renderer process. `docs-run` checks
-that this paragraph and `ci.yml` agree, so the README never promises a CI run CI does
-not perform.
+that the README names `pnpm test:browser`, `pnpm test:electron` and the conformance test file,
+that `ci.yml` runs the browser matrix, the Electron job, `pnpm test` and `tests/proofs/` as `run`
+steps, that the conformance test file exists, and that the retired browser follow-up wording is
+gone; it does not check the rest of this prose.
