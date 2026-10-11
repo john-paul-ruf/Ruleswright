@@ -1,0 +1,63 @@
+# VERIFICATION — Ruleswright / contract-conformance (VERIFY-01, pass 1)
+
+- **Verifier:** Coder, Feature Verification Envelope (FR-17), read-only except this file.
+- **Revision verified:** HEAD `07ba8c8` (plan base `bb61f91`; S01 `e815e74`, `bde9781`; S02 `8e8c032`, `ae5b595`, `bd4f753`). The tree was clean at the start and is clean at the end, apart from this file.
+- **Date:** 2026-10-11. Host: darwin, Electron 44.7.0, `ajv` 8.20.0 resolved in `node_modules`.
+
+## Runs executed by this verifier
+
+| # | Command | Selected | Result |
+|---|---|---|---|
+| R1 | `pnpm exec vitest run tests/proofs/contract-conformance.test.ts tests/runtime/features.test.ts tests/proofs/docs-run.test.ts` | 3 files / 51 tests (42 + 6 + 3) | exit 0, 51/51 |
+| R2 | `pnpm exec vitest run tests/proofs/contract-conformance.test.ts --reporter=verbose` | 1 file / 42 tests: 10 pack, 1 count+kinds, 14 oracle, 1 count, 6 per-theme, 3 CA-K2, 2 override, 5 negative | exit 0, 42/42; every test title read |
+| R3 | `pnpm build && pnpm test` (V4, V5) | 57 files / 1017 tests (whole Node suite, as intended) | build 0; 57/57 files, 1017/1017 |
+| R4 | `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm check:isolation`, `pnpm check:security` (V1–V3, V6, V7) | repo | all exit 0 |
+| R5 | `pnpm build && pnpm test:electron` (V9) | 57 files / 1017 tests under Electron 44.7.0 | exit 0, 1017/1017 |
+| R6 | `pnpm exec vitest run tests/proofs/combat-characterization.test.ts tests/proofs/pack-identity.test.ts` | 2 files / 12 tests (9 + 3) | exit 0, 12/12 |
+| R7 | `pnpm exec vitest run tests/snapshots` | 3 files / 63 tests | exit 0, 63/63 |
+
+**Negative controls run by this verifier.** Each was a scratch edit of a tracked file in `tests/` or `README.md`, with a backup in `/tmp/ruleswright-contract-conformance-verify/`. Each file was then restored and confirmed with `cmp`. No control touched `src/schema/contracts/**` or `.github/**`.
+
+| # | Scratch mutation | Expected | Observed |
+|---|---|---|---|
+| N1 | `contract-conformance.test.ts`: the regression copy no longer sets `minimum = 0` (sets a description instead) | regression control fails | FAIL on "regression control …"; 2 failed / 40 passed (42), together with N2 |
+| N2 | the same file: the `rng.a` control expects keyword `type` instead of `maximum` | that control fails (it checks the keyword, not just the failure) | FAIL on "rng.a = 2^32 is rejected" |
+| N3 | the same file: the "threat patch" override document becomes `patch: {}` | the positive override test fails | FAIL on "threat patch"; 1 failed / 41 passed (42) |
+| N4 | `features.test.ts`: the mutation key becomes `featuresX` | the exact `[rule, jsonPath]` assertion fails (the error is still E-SCHEMA-02, at a different path) | FAIL "new Runtime refuses …"; 1 failed / 5 passed (6) |
+| N5 | `README.md`: the mention is renamed to `contract-conformance.spec.ts` | docs-run fails on `toContain` | FAIL "expected-output blocks …"; 1 failed / 2 passed (3) |
+| N6 | in memory only: the two `ci.yml` regexes from `docs-run.test.ts:257-258` are applied to `ci.yml`, then to `ci.yml` with l.54 removed, then with l.94 removed | true, true, false, false | `true true false false` |
+
+After restoring: `cmp` was identical for all three files, and `git status --short` was empty.
+
+## Verification table
+
+| ID | Exists | Substantive | Wired | Behavior proof | Verdict |
+|---|---|---|---|---|---|
+| CAP-K1 | `tests/proofs/contract-conformance.test.ts:127-194` | Ajv 8.20.0 (`ajv/dist/2020`, `allErrors`, `strict: false`) compiles the three committed contract files, read from disk (l.44-47). It validates JSON-round-tripped output of the real producers: `generateCampaign` ×3 themes (seed 42), 7 fixture builders, every envelope from all 9 `LEG_RUNS` (count pinned at 14, kinds pinned to {character, party, combat}), `serializeCharacter`/`serializeParty` per theme (pinned at 6), and 2 override docs. Not a mock: the writers come from the runtime barrel. | Imports `src/compiler` and `src/runtime/index` (the public barrels). Collected by `vitest.config.ts` (`tests/**/*.test.ts`), so R3 and R5 run it. | R2: 42/42, exit 0. R3: 1017/1017. R5: Electron 1017/1017. N1–N3 show the test can fail. | verified |
+| CAP-K2 | `src/schema/contracts/snapshots.schema.json:192-195`; `program/Ruleswright/specs/database.md:699-705` | Combatant `hp` = `{type: integer, description}`, with no `minimum`. `required: ["id","hp"]` and `maxHp` `minimum: 0` are unchanged. `pack`/`override` schemas are byte-identical to `bb61f91`. The text matches the engine: `snapshots/combat.ts:131` writes `hp: combatant.hp.current`, and `:212` restores it as-is. | The contract file is what the CAP-K1 proof compiles. The CA-K2 tests at l.158-188 use the leg-3b[0] subject (a negative-hp combatant). | R2: the 3 CA-K2 tests pass. N1: removing the regression bound makes the control fail. | verified |
+| CAP-K3 | `tests/runtime/features.test.ts:87-102` | Puts `features` at `content.classes.warden.features` on `cloneRuntimePack()`. Asserts that `new Runtime` throws `PackLoadError`, and that the card list is exactly `[["E-SCHEMA-02","content.classes.warden.features"]]`. | The real `Runtime` constructor, imported from `src/runtime` (`validatePack` at load). | R1: 6/6. N4: a different path fails the exact-equality assertion. | verified |
+| CAP-K4 | `README.md:151-152, 579, 581-586, 595-599`; `tests/proofs/docs-run.test.ts:255-258` | The README sentences are accurate (see A1 and NFR-DX). docs-run pins: the README names the file; the file exists; `ci.yml` has `- run: pnpm test` (l.54) and `- run: pnpm exec vitest run tests/proofs/` (l.94). | docs-run is in the whole suite (R3, R5) and in the `package` job's `tests/proofs/` run. | R1: docs-run 3/3. N5 and N6 show each pin can fail. | verified (local) |
+| CAP-K1/K4 CI leg (B-BD-1) | `.github/workflows/ci.yml:54` (`test` job, Node 18/20/22), `:94` (`package` job) | Both steps collect the new file: the whole suite, and `tests/proofs/`. | GitHub Actions. No Actions run is observable on this host, and there is no evidence of a run after `bd4f753`. | none (Actions) | present-unverified |
+| CA-K1 | as CAP-K1 | Mapping as agreed: 3 generated + 7 fixture packs; 14 oracle + 6 per-theme envelopes; 2 override docs; JSON round-trip first (`json()` l.48); non-strict draft 2020. The A4 constructor form is at l.97-106. | as CAP-K1 | R2: 42/42 (all 32 positive subjects pass by name) | verified |
+| CA-K2 | test l.112-188; schema l.192-195 | The subject is `leg-3b[0]`, found dynamically (`some(hp<0)`) and asserted defined. It validates under v1.11. The regression copy is built in memory (`structuredClone` of the parsed contract, `minimum = 0`) and rejects at `/combatants/${index}/hp` `minimum`. `hp: 1.5` rejects at `/combatants/0/hp` `type`. `src/schema/contracts/**` is not modified by the test: it only does `readFileSync`, and the file is clean. | real `serializeCombat` output via the oracle's `poolLeg` | R2: 3/3. N1 fails the control. | verified |
+| CA-K3 | `docs-run.test.ts:255-258` | README ↔ file ↔ `ci.yml` pins, as agreed. The existing browser and Electron pins (l.249-253) are kept. | in the whole suite | R1: 3/3. N5, N6. | verified |
+| DD-K1 (contract admits negative hp; engine unchanged) | schema l.192-195; `git diff bb61f91..HEAD -- src` lists only `snapshots.schema.json` | Option A is applied on the contract side only. No `src/**/*.ts` or theme JSON (`src/compiler/themes/*.json`) changed since `bb61f91`. | — | R2 (CA-K2 tests); R6: characterization 9/9, pack-identity 3/3. The digest files are unchanged since `bb61f91`. | verified |
+| A1 (README sentence ≤ the test's subject lists; header comment no broader) | `README.md:581-586`; test l.1-22 | Every quantifier matches a list in the test: "three bundled themes' generated packs (seed 42)" = `PACK_THEMES` ×`seed: 42`; "seven fixture packs" = `FIXTURE_PACKS` (7); "the determinism oracle's nine combat legs" = all 9 `LEG_RUNS` keys; "a level-1 character and party per theme" = `THEME_ENVELOPES`; "two override documents" = `OVERRIDE_DOCS` (2). "Not shipped in the npm package" matches `package.json` `files: [dist, README.md, LICENSE]`. "Node matrix and package job" = `ci.yml` `test`/`package`. The header comment lists the same subjects. Note: "nine combat legs" reuses the README's existing name for the oracle (l.589), although `leg-8` is a character leg; the test does take all nine. | — | R2 (count tests l.138, l.149 pin 14 and 6); docs-run 3/3 | verified |
+| A2 (`ci.yml` controls in memory; `.github` untouched) | `docs-run.test.ts:257-258` | `git diff --name-only bb61f91..HEAD -- .github` is empty. My N6 repeated the in-memory control. | — | N6: `true true false false` | verified |
+| A3 (docs-run header narrowed) | `docs-run.test.ts:22-28`, inline l.241 | The header now lists exactly the strings checked and says "It checks those strings only". The inline "both directions" is also gone (S02 R1). | — | review of the diff; docs-run 3/3 | verified |
+| A4 (per-theme constructor) | test l.97-106 | `rt.createCharacter({name, race: first race, classes: [{id: first class, level: 1}]}).state`, then `serializeCharacter(rt, state)` and `serializeParty(rt, [state])` | public runtime barrel | R2: 6 per-theme tests plus the count test | verified |
+| A5 (each control asserts `instancePath` + `keyword`) | test l.59-61 (`failedOn`), l.177, 186, 202, 209, 215, 220, 225 | All 7 rejections (regression copy, 1.5, savedAt, rng.a, pack extra, empty patch, missing target) assert `validate(...) === false` **and** `failedOn(path, keyword)`: `/combatants/1/hp` minimum, `/combatants/0/hp` type, `''` additionalProperties ×2, `/rng/a` maximum, `/overrides/0/patch` minProperties, `/overrides/0` required. | — | R2. N2: a wrong keyword fails the test. | verified |
+| FR-14 (snapshots plain JSON that round-trip; published snapshot contract) | test l.48, 145-156; `tests/snapshots/*.test.ts` | Every envelope from the three serializers is stringified, parsed and then validated against the published contract, with all 20 valid. Round-trip and resume equality are proven by the existing snapshot suites (not re-claimed by this feature). | runtime serializers via the barrel | R2: 42/42. R7: 63/63. | verified |
+| FR-23 (packs/overrides against the published schemas) | test l.127-135, 190-194, 212-227 | Generated and fixture packs are valid against `pack.schema.json`. The `database.md` §Override example and a threat patch are valid against `override.schema.json`. Pack and override violations are rejected on the named rule. | compiler + fixtures | R2 | verified |
+| FR-2 (runtime refuses an invalid pack at load) | `features.test.ts:87-102` | Covered by the old-location refusal (CAP-K3): no partial load, because the constructor throws. The error names the JSON path and the rule. | `new Runtime` | R1: 6/6, N4 | verified |
+| NFR-DX (README claims true and executed) | `README.md:151-152, 579, 581-586, 595-599` | l.151-152: negative hp stored as-is, which matches CA-K2 and `combat.ts:131`. l.579 "all three sample themes" matches `PACK_THEMES` (3). l.581-586: see A1. l.595-599 lists exactly what docs-run checks (browser and Electron commands, conformance file, ci run steps, file exists, retired wording) and disclaims the rest. | docs-run in the whole suite | R1, R3, R5; N5 | verified |
+| database.md v1.11 vs schema l.192-195 | `database.md:3` (Status starts `v1.11, revised`), `:699-705` (v1.11 block), `:822` (Version Registry row 12) | The text says: integer, no lower bound, not floored, ≤ 0 down, written and restored as-is, heal cap `maxHp` (≥ 0). The schema description says the same. Row 12: "snapshots.schema.json revised", loosening only. | the contract is what the proof compiles | R2 (CA-K2) | verified |
+| Dependency must-have (`ajv` 8.20.0 dev-only; no runtime deps; lock keeps ajv@6.15.0) | `package.json` devDependencies `"ajv": "8.20.0"`; `pnpm-lock.yaml:830,833` | `dependencies` is undefined. Exact pin. The lockfile has both `ajv@6.15.0` and `ajv@8.20.0`. The installed version is 8.20.0. | test import `ajv/dist/2020` | R3 passes with this install. The frozen clean-copy install (V11) was not re-run by me; S02 reported it as 0. | verified |
+| Determinism digests unchanged | `tests/proofs/determinism-oracle.ts`, `combat-characterization.test.ts`, `pack-identity.test.ts` | No diff since `bb61f91` to the digest files, `src/**/*.ts` or the themes | in the whole suite | R6: 12/12; R3; R5 | verified |
+
+## Verdict counts
+
+- verified: 20
+- present-unverified: 1 (the CI leg through `ci.yml:54,94`; B-BD-1 is carried and owned by the human push, then the next Orchestrator/Archivist run)
+- failed: 0
+- blocked: 0
