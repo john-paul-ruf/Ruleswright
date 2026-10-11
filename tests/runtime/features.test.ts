@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { generateCampaign, loadTheme } from '../../src/compiler';
-import { Runtime, spawnMonster } from '../../src/runtime';
+import { PackLoadError, Runtime, spawnMonster } from '../../src/runtime';
 import { classFeatures, grantedFeats, unlockedActions, unlockedSpells } from '../../src/runtime/features';
 import { cloneRuntimePack } from './fixtures/pack';
 
@@ -82,5 +82,22 @@ describe('classFeatures (DD-C7)', () => {
     const profile = spawnMonster(rt, 'barrow-wight', 'wight');
     expect(profile.actions).toEqual(['strike']);
     expect(profile.feats).toBeUndefined();
+  });
+
+  it('new Runtime refuses the pre-v1.10 content.classes.<id>.features location (E-SCHEMA-02)', () => {
+    const pack = cloneRuntimePack();
+    (pack.content.classes!['warden'] as unknown as Record<string, unknown>)['features'] = [
+      { level: 1, ref: 'feature-warden-oath' },
+    ];
+    let caught: unknown;
+    try {
+      new Runtime(pack);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(PackLoadError);
+    expect((caught as PackLoadError).errors.map((card) => [card.rule, card.jsonPath])).toEqual([
+      ['E-SCHEMA-02', 'content.classes.warden.features'],
+    ]);
   });
 });
