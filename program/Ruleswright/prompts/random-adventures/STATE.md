@@ -214,4 +214,17 @@ D7: New interfaces have named production consumers: EncounterSetup→session and
 
 Granularity: four sessions, 19 checkpoints. The splits are hard artifact dependencies (encounter setup/facade, portable graph, adventure aggregate) and each completes a usable capability. Related fixes and tests stay with their owner; no verification-only, bookkeeping-only or per-layer session. All waves serialize because the capabilities consume predecessor artifacts and share composition/proof paths. No session/agent turn or token ceiling is prescribed.
 
+## Orchestration Startup — 2026-10-16
+
+User instruction: “start”. This authorizes orchestration execution; AR-01–06 product/schema/design amendments are awaiting the concrete approval requested in this conversation. No Author receipt has landed and no implementation worker has been dispatched.
+
+- Run selected: random-adventures, latest plan commit `fc75b71a333e00d31155ab6952c71da70908b9f0`; implementation source remains plan base `c8e526047b8186d35710965d5f210f858ab232a3`.
+- Binding: Native, discovered in the full tool registry: `mcp__demiurge__spawn_subagent` / `mcp__demiurge__await_subagent_result`. Concurrency cap 3; no active handles or leases.
+- All four session front matters read. Exact path intersections agree with the four serial waves; no claimed concurrent pair needs correction. Shared README, docs proof and other composition paths preclude concurrent execution.
+- Gate wrapper/discovery inspection agrees with the recorded baseline: build before dist proofs/typecheck; Node glob excludes browser tests; browser glob includes future adventure tests; browser:63315 and build:dist are exclusive resources. No new executable proof result is claimed at this boundary.
+- B-RA-AUTHOR remains blocking S01 and all downstream sessions. Human asked to approve the concrete AR-01–06 packet and deliberate Author re-entry, including compatibility and reward/rest/solo meaning. Alternatives rejected: auto-spawning protected Author roles or treating draft contracts as ready. Existing request to plan all three remains settled.
+- B-RA-REVIEW remains pending: scoped Archivist D1–D7 review follows committed Author receipts and prompt/CA reconciliation, before affected Coder dispatch. No review score or readiness claim is fabricated.
+- B-RA-DX remains scoped to documentation checkpoints; B-BD-1 remains carried CI evidence debt with the human publication owner.
+- Next action: receive human disposition, route the approved protected revisions through deliberate Author re-entry, reconcile exact receipts, then complete preflight/review and dispatch S01. This is a paused run, not completion; no FINAL-REPORT or end_run has been issued.
+
 ## Handoff Notes
