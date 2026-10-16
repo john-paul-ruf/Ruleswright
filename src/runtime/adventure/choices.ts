@@ -27,6 +27,12 @@ export function commandShape(value: unknown): value is AdventureCommand {
     (value['expectedRevision'] as number) < 0
   )
     return false;
+  if (value['type'] === 'encounter')
+    return (
+      exact(value, [...common, 'encounterId', 'command']) &&
+      typeof value['encounterId'] === 'string' &&
+      isRecord(value['command'])
+    );
   if (value['type'] === 'abandon') return exact(value, common);
   return (
     value['type'] === 'choose' &&

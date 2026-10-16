@@ -67,3 +67,55 @@ describe('CAP-03 guarded noncombat adventure', () => {
     expect(choose(a).ok).toBe(false);
   });
 });
+
+import { combatFixture, dispatch, encounterCommand, finishEncounter } from './fixtures';
+it('composes real encounter revisions and projects spend without publishing rejected nested actions', () => {
+  const { pack, definition, options } = combatFixture(),
+    a = createAdventure(pack, definition, options);
+  expect(choose(a).ok).toBe(true);
+  const before = a.serialize(),
+    command = encounterCommand(a);
+  expect(before.revision).not.toBe(before.activeEncounter!.revision);
+  for (const patch of [
+    { expectedRevision: 99 },
+    { sessionId: 'foreign' },
+    { type: 'next' },
+    { type: 'pass', actor: { kind: 'enemy', enemyId: 'wrong' } },
+  ]) {
+    const result = a.dispatch({ ...command, command: { ...command.command, ...patch } } as AdventureCommand);
+    expect(result.ok).toBe(false);
+    expect(result.events).toEqual([]);
+    expect(a.serialize()).toEqual(before);
+  }
+  expect(a.dispatch({ ...command, encounterId: 'foreign' }).ok).toBe(false);
+  expect(choose(a).ok).toBe(false);
+  expect(() => finishEncounter(a, 0)).toThrow(/step limit/);
+  finishEncounter(a);
+  expect(a.view().phase).toBe('exploration');
+  expect(a.serialize().encounterReceipts[0]!.receipt.result).toBe('victory');
+  expect(a.serialize().activeEncounter).toBeNull();
+  expect(a.serialize().encounterEventCursor).toBe(0);
+  expect(a.serialize().journal.filter((e) => e.event.type === 'combat:start')).toHaveLength(1);
+});
+it('defeat and active abandonment settle actual members and never stage success rewards', () => {
+  const f = combatFixture(true),
+    a = createAdventure(f.pack, f.definition, f.options);
+  choose(a);
+  const before = a.view().members;
+  expect(dispatch(a, { type: 'abandon' }).ok).toBe(true);
+  expect(a.view().phase).toBe('abandoned');
+  expect(a.serialize().rewards).toEqual([]);
+  expect(a.serialize().members.map((m) => m.character)).toEqual(before.map((m) => m.character));
+  const options = {
+    ...f.options,
+    members: f.options.members.map((m) => ({
+      ...m,
+      character: { ...m.character, state: { ...m.character.state, hp: { current: -3, temp: 2 } } },
+    })),
+  };
+  const b = createAdventure(f.pack, f.definition, options);
+  expect(choose(b).ok).toBe(true);
+  expect(b.view().phase).toBe('defeated');
+  expect(b.serialize().rewards).toEqual([]);
+  expect(b.serialize().members[0]!.character.state.hp).toEqual({ current: -3, temp: 2 });
+});

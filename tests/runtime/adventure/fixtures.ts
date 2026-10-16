@@ -66,3 +66,88 @@ export function dispatch(adventure: Adventure, body: Body) {
 export function choose(adventure: Adventure, choiceId = 'continue') {
   return dispatch(adventure, { type: 'choose', nodeId: adventure.view().nodeId, choiceId });
 }
+
+export function combatFixture(reward = false) {
+  const f = adventureFixture();
+  f.pack.actions['strike']!.effect = 'damage(100)';
+  const identity = { ...f.definition.pack, contentHash: packContentHash(f.pack) };
+  const options = {
+    ...f.options,
+    members: f.options.members.map((m) => ({ ...m, character: { ...m.character, pack: identity } })),
+  };
+  const definition = rehash({
+    ...f.definition,
+    pack: identity,
+    nodes: f.definition.nodes.map((n) =>
+      n.id === 'clearing'
+        ? {
+            ...n,
+            kind: 'encounter' as const,
+            encounter: f.encounterOptions.setup,
+            rewardIds: reward ? ['cache'] : [],
+          }
+        : n,
+    ),
+    rewards: reward
+      ? [
+          {
+            id: 'cache',
+            xpPerMember: 25,
+            eligible: 'party',
+            loot: { tableId: 'district-scavenge', recipient: 'host-choice' },
+          },
+        ]
+      : [],
+  });
+  return { ...f, definition, options };
+}
+export function encounterCommand(adventure: Adventure): Extract<AdventureCommand, { type: 'encounter' }> {
+  const saved = adventure.serialize(),
+    nested = saved.activeEncounter!,
+    view = adventure.view(),
+    combat = view.combat!;
+  const base = { sessionId: nested.sessionId, expectedRevision: nested.revision };
+  const offer = combat.pendingOffers[0];
+  const actor = (id: string) =>
+    id.startsWith('m:')
+      ? { kind: 'member' as const, memberId: id.slice(2) }
+      : { kind: 'enemy' as const, enemyId: id };
+  const active = combat.state.combatants[combat.state.active]!;
+  const target = Object.values(combat.state.combatants).find(
+    (c) => c.side !== active.side && c.hp.current > 0,
+  );
+  const command = offer
+    ? {
+        ...base,
+        type: 'respond' as const,
+        actor: actor(offer.actorId),
+        triggerId: offer.triggerId,
+        choice: 'decline' as const,
+      }
+    : !nested.encounter.control.turnStarted || combat.state.phase === 'resolved'
+      ? { ...base, type: 'advance' as const }
+      : active.side === 'enemies'
+        ? { ...base, type: 'pass' as const, actor: actor(active.id) }
+        : {
+            ...base,
+            type: 'declare' as const,
+            actor: actor(active.id),
+            actionId: active.actions[0]!,
+            options: { targetId: target!.id },
+          };
+  return {
+    type: 'encounter',
+    adventureId: saved.adventureId,
+    expectedRevision: saved.revision,
+    encounterId: nested.encounter.encounterId,
+    command,
+  };
+}
+export function finishEncounter(adventure: Adventure, limit = 1000) {
+  for (let i = 0; i < limit; i++) {
+    if (adventure.view().phase !== 'encounter') return;
+    const result = adventure.dispatch(encounterCommand(adventure));
+    if (!result.ok) throw new Error(JSON.stringify(result.errors));
+  }
+  throw new Error('Adventure encounter exceeded host step limit');
+}

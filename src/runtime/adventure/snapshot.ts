@@ -8,6 +8,10 @@ import { restoreCharacter } from '../snapshots/character';
 import { isRecord, packIdentity } from '../snapshots/envelope';
 import { detached, same } from '../play/snapshot';
 import { exact } from './choices';
+import { restoreEncounterSession } from '../play/session';
+import { streamKey } from '../play/encounter';
+import { rollLoot } from '../inventory';
+import { normalizeLoot } from './rewards';
 import type { AdventureSnapshot } from './types';
 
 export function requireSaved(
@@ -260,20 +264,166 @@ export function readAdventureSnapshot(
     visited.push(nodeId);
   }
   requireSaved(nodeId === saved.nodeId && same(visited, saved.visitedNodeIds), 'visitedNodeIds');
-  requireSaved(same(saved.resolvedNodeIds, visited) && saved.restedNodeIds.length === 0, 'resolvedNodeIds');
-  requireSaved(
-    saved.activeEncounter === null &&
-      saved.encounterEventCursor === 0 &&
-      saved.encounterReceipts.length === 0 &&
-      saved.rewards.length === 0,
-    'activeEncounter',
-    'Encounter and reward transitions are not available yet.',
+  const nodes = new Map(definition.nodes.map((n) => [n.id, n]));
+  const current = nodes.get(saved.nodeId)!;
+  const expectedResolved = visited.filter(
+    (id) =>
+      nodes.get(id)!.kind !== 'encounter' ||
+      saved.encounterReceipts.some((r) => r.nodeId === id && r.receipt.result === 'victory'),
   );
   requireSaved(
-    saved.phase === 'abandoned' ||
-      saved.phase === (nodeId === definition.successNodeId ? 'completed' : 'exploration'),
-    'phase',
+    same(saved.resolvedNodeIds, expectedResolved) && saved.restedNodeIds.length === 0,
+    'resolvedNodeIds',
   );
+  const generation = new Rng(streamKey('adventure-generation', saved.adventureId, saved.seed));
+  let nestedSeed: number | undefined;
+  for (const id of visited) if (nodes.get(id)!.kind === 'encounter') nestedSeed = generation.int(4294967296);
+  requireSaved(same(saved.rng.generation, generation.getState()), 'rng.generation');
+  if (saved.activeEncounter !== null) {
+    const nested = restoreEncounterSession(pack, saved.activeEncounter).serialize();
+    requireSaved(
+      saved.phase === 'encounter' &&
+        current.kind === 'encounter' &&
+        !saved.resolvedNodeIds.includes(current.id) &&
+        nested.phase === 'active' &&
+        nested.encounterIndex === 0 &&
+        nested.sessionId === JSON.stringify([saved.adventureId, current.id]) &&
+        nested.seed === String(nestedSeed) &&
+        same(nested.encounter.setup, current.encounter) &&
+        same(nested.members, saved.members),
+      'activeEncounter',
+    );
+    requireSaved(saved.encounterEventCursor === nested.sequence, 'encounterEventCursor');
+  } else requireSaved(saved.phase !== 'encounter' && saved.encounterEventCursor === 0, 'activeEncounter');
+  const receiptNodes = new Set<string>();
+  for (const [i, row] of saved.encounterReceipts.entries()) {
+    const sessionId = JSON.stringify([saved.adventureId, row.nodeId]),
+      encounterId = JSON.stringify([sessionId, 0]);
+    requireSaved(
+      exact(row, ['nodeId', 'receipt']) &&
+        visited.includes(row.nodeId) &&
+        nodes.get(row.nodeId)?.kind === 'encounter' &&
+        !receiptNodes.has(row.nodeId),
+      `encounterReceipts[${i}]`,
+    );
+    receiptNodes.add(row.nodeId);
+    const r = row.receipt;
+    requireSaved(
+      exact(r, [
+        'receiptId',
+        'sessionId',
+        'encounterId',
+        'encounterIndex',
+        'revision',
+        'result',
+        'memberIds',
+        'sourceHash',
+        'beforeMembersHash',
+        'afterMembersHash',
+      ]) &&
+        r.sessionId === sessionId &&
+        r.encounterId === encounterId &&
+        r.receiptId === JSON.stringify([sessionId, encounterId, 'settlement']) &&
+        r.encounterIndex === 0 &&
+        same(
+          r.memberIds,
+          saved.members.map((m) => m.memberId),
+        ),
+      `encounterReceipts[${i}].receipt`,
+    );
+    counter(r.revision, 'encounterReceipts.revision');
+    requireSaved(
+      ['victory', 'defeat', 'abandoned'].includes(r.result) &&
+        [r.sourceHash, r.beforeMembersHash, r.afterMembersHash].every(
+          (h) => typeof h === 'string' && /^[0-9a-f]{8}$/.test(h),
+        ),
+      'encounterReceipts',
+    );
+    requireSaved(
+      r.result === 'victory' ||
+        (row.nodeId === saved.nodeId && saved.phase === (r.result === 'defeat' ? 'defeated' : 'abandoned')),
+      'encounterReceipts.result',
+    );
+  }
+  requireSaved(
+    visited
+      .filter((id) => nodes.get(id)!.kind === 'encounter')
+      .every((id) => (id === saved.nodeId && saved.activeEncounter !== null) || receiptNodes.has(id)),
+    'encounterReceipts',
+  );
+  const expectedRewards = expectedResolved.flatMap((id) =>
+    nodes.get(id)!.rewardIds.map((rewardId) => [id, rewardId]),
+  );
+  requireSaved(saved.rewards.length === expectedRewards.length, 'rewards');
+  let rewardWords = new Rng(streamKey('adventure-rewards', saved.adventureId, saved.seed)).getState();
+  const runtime = new Runtime(pack);
+  for (const [i, r] of saved.rewards.entries()) {
+    const path = `rewards[${i}]`,
+      pair = expectedRewards[i]!;
+    requireSaved(
+      exact(r, [
+        'claimId',
+        'adventureId',
+        'nodeId',
+        'rewardId',
+        'eligibleMemberIds',
+        'xpPerMember',
+        'stagedRevision',
+        'roll',
+        'status',
+      ]) && r.status === 'pending',
+      path,
+    );
+    const authored = definition.rewards.find((reward) => reward.id === r.rewardId);
+    requireSaved(
+      !!authored &&
+        r.nodeId === pair[0] &&
+        r.rewardId === pair[1] &&
+        r.adventureId === saved.adventureId &&
+        r.claimId === JSON.stringify([saved.adventureId, r.nodeId, r.rewardId]) &&
+        r.xpPerMember === authored.xpPerMember &&
+        same(
+          r.eligibleMemberIds,
+          saved.members.map((m) => m.memberId),
+        ),
+      path,
+    );
+    counter(r.stagedRevision, `${path}.stagedRevision`);
+    requireSaved(r.stagedRevision <= saved.revision, path);
+    if (authored.loot === null) requireSaved(r.roll === null, `${path}.roll`);
+    else {
+      requireSaved(
+        exact(r.roll, ['tableId', 'value', 'rngBefore', 'rngAfter', 'result']) &&
+          r.roll.tableId === authored.loot.tableId &&
+          same(r.roll.rngBefore, rewardWords),
+        `${path}.roll`,
+      );
+      const rng = new Rng(rewardWords),
+        outcome = rollLoot(runtime, authored.loot.tableId, rng);
+      requireSaved(
+        outcome.ok &&
+          same(outcome.value, r.roll.value) &&
+          same(r.roll.result, normalizeLoot(pack, r.roll.value)) &&
+          same(r.roll.rngAfter, rng.getState()),
+        `${path}.roll`,
+      );
+      rewardWords = rng.getState();
+    }
+  }
+  requireSaved(same(saved.rng.rewards, rewardWords), 'rng.rewards');
+  const pending = saved.rewards.some((r) => r.nodeId === saved.nodeId && r.status === 'pending');
+  if (saved.phase !== 'abandoned' && saved.phase !== 'defeated' && saved.phase !== 'encounter')
+    requireSaved(
+      saved.resolvedNodeIds.includes(saved.nodeId) &&
+        saved.phase ===
+          (pending ? 'reward-pending' : current.kind === 'success' ? 'completed' : 'exploration'),
+      'phase',
+    );
+  if (saved.phase === 'defeated')
+    requireSaved(
+      saved.encounterReceipts.some((r) => r.nodeId === saved.nodeId && r.receipt.result === 'defeat'),
+      'phase',
+    );
   requireSaved(saved.sequence === saved.journal.length && saved.narrationAck <= saved.sequence, 'sequence');
   let eventRevision = 0;
   for (const [i, entry] of saved.journal.entries()) {

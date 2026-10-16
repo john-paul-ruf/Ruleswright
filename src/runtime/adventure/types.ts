@@ -9,7 +9,7 @@ import type {
   PlaySessionSnapshot,
   PlaySettlementReceipt,
 } from '../../schema/play-session';
-import type { EncounterSessionView } from '../play/session';
+import type { EncounterCommand, EncounterSessionView } from '../play/session';
 
 export type RewardRoll = {
   readonly tableId: string;
@@ -90,6 +90,11 @@ export type AdventureCommand = {
 } & (
   | { readonly type: 'choose'; readonly nodeId: string; readonly choiceId: string }
   | { readonly type: 'abandon' }
+  | {
+      readonly type: 'encounter';
+      readonly encounterId: string;
+      readonly command: Exclude<EncounterCommand, { readonly type: 'next' }>;
+    }
 );
 export type AdventureView = {
   readonly adventureId: string;

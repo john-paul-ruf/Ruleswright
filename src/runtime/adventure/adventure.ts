@@ -13,52 +13,125 @@ import { streamKey } from '../play/encounter';
 import { detached } from '../play/snapshot';
 import { choices, commandShape, currentNode, exact, refuse } from './choices';
 import { jsonValue, readMembers, readAdventureSnapshot } from './snapshot';
-import type { Adventure, AdventureSnapshot, AdventureView } from './types';
+import { createEncounterSession, restoreEncounterSession, type EncounterSession } from '../play/session';
+import type { PlayJournalEntry } from '../../schema/play-session';
+import { stageRewards } from './rewards';
+import type { Adventure, AdventureSnapshot, AdventureView, AdventureCommand } from './types';
 
-function enter(definition: AdventureDefinition, saved: AdventureSnapshot): AdventureSnapshot {
-  const node = currentNode(definition, saved);
-  if (node.kind === 'encounter' || node.rewardIds.length)
-    refuse('nodeId', 'This transition is not available yet.');
-  const sequence = saved.sequence + 1;
-  if (!Number.isSafeInteger(sequence)) refuse('sequence', 'Journal sequence exhausted.');
+function append(
+  saved: AdventureSnapshot,
+  entries: readonly Pick<PlayJournalEntry, 'event' | 'subjects'>[],
+): AdventureSnapshot {
+  const journal = [...saved.journal];
+  for (const entry of entries) {
+    const sequence = journal.length + 1;
+    if (!Number.isSafeInteger(sequence)) refuse('sequence', 'Journal sequence exhausted.');
+    journal.push({ ...entry, sequence, revision: saved.revision });
+  }
+  return { ...saved, journal, sequence: journal.length };
+}
+function copyEncounter(saved: AdventureSnapshot, session: EncounterSession): AdventureSnapshot {
+  const nested = session.serialize();
   return {
-    ...saved,
-    resolvedNodeIds: [...saved.resolvedNodeIds, node.id],
-    phase: node.kind === 'success' ? 'completed' : 'exploration',
-    sequence,
-    journal: [
-      ...saved.journal,
-      {
-        sequence,
-        revision: saved.revision,
-        event: {
-          type: 'node:entered',
-          at: { round: 0, turn: 0 },
-          payload: { nodeId: node.id },
-          why: { rule: `nodes.${node.id}`, rolls: [] },
-        },
-        subjects: [],
-      },
-    ],
+    ...append(saved, nested.journal.slice(saved.encounterEventCursor)),
+    activeEncounter: nested,
+    encounterEventCursor: nested.sequence,
   };
+}
+function settle(
+  pack: Pack,
+  definition: AdventureDefinition,
+  saved: AdventureSnapshot,
+  session: EncounterSession,
+): AdventureSnapshot {
+  if (session.view().phase === 'terminal') {
+    const result = session.dispatch({
+      type: 'finalize',
+      sessionId: session.view().sessionId,
+      expectedRevision: session.view().revision,
+    });
+    if (!result.ok) throw new RuntimeRuleError(result.errors);
+  }
+  let next = copyEncounter(saved, session);
+  const nested = session.serialize();
+  if (nested.phase !== 'settled') return next;
+  const receipt = nested.settlements[0]!;
+  next = {
+    ...next,
+    members: nested.members,
+    activeEncounter: null,
+    encounterEventCursor: 0,
+    encounterReceipts: [...next.encounterReceipts, { nodeId: saved.nodeId, receipt }],
+  };
+  if (receipt.result !== 'victory')
+    return { ...next, phase: receipt.result === 'defeat' ? 'defeated' : 'abandoned' };
+  return stageRewards(pack, definition, { ...next, resolvedNodeIds: [...next.resolvedNodeIds, next.nodeId] });
+}
+function enter(pack: Pack, definition: AdventureDefinition, saved: AdventureSnapshot): AdventureSnapshot {
+  const node = currentNode(definition, saved);
+  const next = append(saved, [
+    {
+      event: {
+        type: 'node:entered',
+        at: { round: 0, turn: 0 },
+        payload: { nodeId: node.id },
+        why: { rule: `nodes.${node.id}`, rolls: [] },
+      },
+      subjects: [],
+    },
+  ]);
+  if (node.kind !== 'encounter')
+    return stageRewards(pack, definition, { ...next, resolvedNodeIds: [...next.resolvedNodeIds, node.id] });
+  const generation = new Rng(next.rng.generation);
+  const session = createEncounterSession(pack, {
+    sessionId: JSON.stringify([next.adventureId, node.id]),
+    seed: generation.int(4294967296),
+    members: next.members,
+    setup: node.encounter!,
+  });
+  return settle(
+    pack,
+    definition,
+    { ...next, phase: 'encounter', rng: { ...next.rng, generation: generation.getState() } },
+    session,
+  );
 }
 function facade(pack: Pack, definition: AdventureDefinition, initial: AdventureSnapshot): Adventure {
   let saved = initial;
-  const view = (): AdventureView =>
-    detached({
+  const view = (): AdventureView => {
+    const encounter = saved.activeEncounter
+      ? restoreEncounterSession(pack, saved.activeEncounter).view()
+      : null;
+    const availableCommands: AdventureCommand['type'][] = [];
+    if (['exploration', 'encounter', 'reward-pending'].includes(saved.phase))
+      availableCommands.push('abandon');
+    if (saved.phase === 'exploration') availableCommands.unshift('choose');
+    if (saved.phase === 'encounter') availableCommands.push('encounter');
+    return detached({
       adventureId: saved.adventureId,
       revision: saved.revision,
       phase: saved.phase,
       nodeId: saved.nodeId,
       objective: definition.objective,
-      members: saved.members.map((member) => ({ ...member, combatantId: `m:${member.memberId}` })),
-      combat: null,
+      members:
+        encounter?.members ??
+        saved.members.map((member) => ({ ...member, combatantId: `m:${member.memberId}` })),
+      combat: encounter?.combat ?? null,
       choices: choices(definition, saved),
-      pendingRewards: [],
-      availableCommands: saved.phase === 'exploration' ? ['choose', 'abandon'] : [],
+      pendingRewards: saved.rewards
+        .filter((r) => r.status === 'pending')
+        .map(({ claimId, nodeId, rewardId, eligibleMemberIds, roll }) => ({
+          claimId,
+          nodeId,
+          rewardId,
+          eligibleMemberIds,
+          roll,
+        })),
+      availableCommands,
       journalSequence: saved.sequence,
       narrationAck: saved.narrationAck,
     });
+  };
   return {
     view,
     serialize: () => detached(saved),
@@ -69,13 +142,15 @@ function facade(pack: Pack, definition: AdventureDefinition, initial: AdventureS
         if (input.adventureId !== saved.adventureId) refuse('adventureId', 'Foreign adventure.');
         if (input.expectedRevision !== saved.revision) refuse('expectedRevision', 'Stale revision.');
         if (!Number.isSafeInteger(saved.revision + 1)) refuse('revision', 'Revision exhausted.');
-        if (saved.phase !== 'exploration') refuse('phase', 'Command is unavailable at this boundary.');
+        if (['completed', 'defeated', 'abandoned'].includes(saved.phase))
+          refuse('phase', 'Adventure is terminal.');
         let next: AdventureSnapshot = { ...saved, revision: saved.revision + 1 };
         if (input.type === 'choose') {
+          if (saved.phase !== 'exploration') refuse('phase', 'Resolve this node and its rewards first.');
           if (input.nodeId !== saved.nodeId) refuse('nodeId', 'Foreign current node.');
           const choice = currentNode(definition, saved).choices.find((c) => c.id === input.choiceId);
           if (!choice) refuse('choiceId', 'Unknown choice.');
-          next = enter(definition, {
+          next = enter(pack, definition, {
             ...next,
             nodeId: choice.toNodeId,
             visitedNodeIds: [...saved.visitedNodeIds, choice.toNodeId],
@@ -89,7 +164,32 @@ function facade(pack: Pack, definition: AdventureDefinition, initial: AdventureS
               },
             ],
           });
-        } else next = { ...next, phase: 'abandoned' };
+        } else if (input.type === 'encounter') {
+          if (
+            !saved.activeEncounter ||
+            saved.phase !== 'encounter' ||
+            input.encounterId !== saved.activeEncounter.encounter.encounterId
+          )
+            refuse('encounterId', 'No matching active encounter.');
+          if ((input.command.type as string) === 'next')
+            refuse('command.type', 'Adventure nodes own separate encounters.');
+          const session = restoreEncounterSession(pack, saved.activeEncounter);
+          const result = session.dispatch(input.command);
+          if (!result.ok) throw new RuntimeRuleError(result.errors);
+          next = settle(pack, definition, next, session);
+        } else {
+          if (saved.activeEncounter) {
+            const session = restoreEncounterSession(pack, saved.activeEncounter);
+            const result = session.dispatch({
+              type: 'abandon',
+              sessionId: session.view().sessionId,
+              expectedRevision: session.view().revision,
+            });
+            if (!result.ok) throw new RuntimeRuleError(result.errors);
+            next = settle(pack, definition, next, session);
+          }
+          next = { ...next, phase: 'abandoned' };
+        }
         next = readAdventureSnapshot(pack, definition, next);
         const events = next.journal.slice(saved.sequence);
         saved = next;
@@ -175,7 +275,7 @@ export function createAdventure(
   return facade(
     owned.pack,
     owned.definition,
-    readAdventureSnapshot(owned.pack, owned.definition, enter(owned.definition, saved)),
+    readAdventureSnapshot(owned.pack, owned.definition, enter(owned.pack, owned.definition, saved)),
   );
 }
 export function restoreAdventure(pack: Pack, definition: AdventureDefinition, snapshot: unknown): Adventure {
