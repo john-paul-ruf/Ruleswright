@@ -176,7 +176,8 @@ move:ended     brynn · arrived @ (3,-1)
       <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>fight.declare(<span class="str">'stride'</span>, { to: { x: <span class="num">3</span>, y: <span class="num">-1</span> } })
 move:leaving-reach  brynn ← grave-shambles · at (0,0) next (1,-1)
   <span class="com">// offer grave-shambles.opportunist — the move pauses at (0,0)</span>
-  <span class="com">// brynn carries pendingMove { actionId: 'stride', to: (3,-1), remaining: 4 }</span>
+  <span class="com">// pendingMove: {actionId: 'stride', to: {x:3,y:-1}, remaining:4,
+  // offeredDepartures: [{from:{x:0,y:0},to:{x:1,y:-1},reactorId:'grave-shambles'}]}</span>
 
 fight.respond(<span class="str">'grave-shambles.opportunist'</span>, <span class="str">'take'</span>, <span class="str">'brynn'</span>)
 trigger:fired · attack:rolled · damage:applied
@@ -188,7 +189,7 @@ move:ended     brynn · arrived @ (3,-1)</code></pre>
       <li><span class="text-[#E8E2D6]">Offers are per call.</span> A call (<span class="font-data text-[13px]">declare</span>, <span class="font-data text-[13px]">respond</span>, <span class="font-data text-[13px]">use</span>) raises offers only for the events <em>that call</em> emitted — never a replay of the round. Each matching (reactor, event) pair is offered exactly once, and answering an offer never brings it back: one <span class="font-data text-[13px]">trigger:fired</span> per matching event, at most one <span class="font-data text-[13px]">trigger:declined</span> per offer.</li>
       <li><span class="text-[#E8E2D6]">Offers are not filtered by affordability.</span> A threatener whose reaction slot is already spent is still offered, and the move still pauses. The host answers: <span class="font-data text-[13px]">decline</span> → one <span class="font-data text-[13px]">trigger:declined</span>; <span class="font-data text-[13px]">take</span> → one <span class="font-data text-[13px]">declare:rejected</span> (<span class="font-data text-[13px]">slot-exhausted</span>, resource <span class="font-data text-[13px]">reaction</span>, <span class="font-data text-[13px]">E-ECON-01</span>), nothing spent and nothing else changed. Either answer clears the offer, and the move resumes once none remain.</li>
       <li><span class="text-[#E8E2D6]">Resume re-checks.</span> Mover downed → <span class="font-data text-[13px]">move:ended</span> reason <span class="font-data text-[13px]">downed</span>; a condition now restricts the action's tags → <span class="font-data text-[13px]">restricted</span>; otherwise re-plan from the current cell with the remaining budget, and no path → <span class="font-data text-[13px]">blocked</span>. <span class="font-data text-[13px]">fight.step()</span> while paused forfeits the move (<span class="font-data text-[13px]">forfeited</span>) before its usual effect.</li>
-      <li><span class="text-[#E8E2D6]">A paused move survives a snapshot.</span> <span class="font-data text-[13px]">pendingMove</span> rides in the combat snapshot; restore resumes in the <span class="font-data text-[13px]">resolved</span> phase (derived: some combatant carries <span class="font-data text-[13px]">pendingMove</span> or <span class="font-data text-[13px]">pendingTrigger</span>), so <span class="font-data text-[13px]">step()</span> forfeits exactly as it would have without the restart.</li>
+      <li><span class="text-[#E8E2D6]">A paused move survives a snapshot.</span> <span class="font-data text-[13px]">pendingMove</span> rides in the combat snapshot; restore uses <span class="font-data text-[13px]">combat-over</span> if saved HP defeats a side, otherwise the saved envelope phase. Only legacy omission derives <span class="font-data text-[13px]">resolved</span> from pendingMove, pendingTrigger or offers; otherwise awaiting-declare, so <span class="font-data text-[13px]">step()</span> forfeits exactly as it would have without the restart.</li>
       <li>To take an opportunity reaction when the reactor has several opponents, pass the mover as <span class="font-data text-[13px]">targetId</span> — <span class="font-data text-[13px]">respond</span> keeps its existing target resolution.</li>
     </ul>
     <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden mt-4">
@@ -199,6 +200,7 @@ move:ended     brynn · arrived @ (3,-1)</code></pre>
     </div>
   </section>
 
+  <section class="mb-12"><h2 class="font-display text-2xl mb-4">AR-05 · Exact departure suppression</h2><p>New writers always save pendingMove.offeredDepartures, including departures with offers still queued. Resume only after the queue is answered; suppress the complete from/to/reactorId tuple, check a changed edge or new threatener normally, and discard records at move end. The moving actor is the containing combatant; reactorId must name an opponent. Coordinates are integers and tuples unique.</p><p>Legacy missing offeredDepartures retains first-step suppression; it cannot promise the stronger correction. This is an approved contract awaiting S04 implementation, not a change to unrelated movement rules.</p></section>
   <!-- CALLOUTS -->
   <div class="space-y-3">
     <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">

@@ -62,7 +62,7 @@ char.knownSpells / char.slots / char.pools      <span class="com">// FR-8 · FR-
 char.applyTheme(id) / char.removeTheme(id)      <span class="com">// conditions (FR-7)</span>
 char.prepare(spellId, slotRef)                  <span class="com">// memorize — a pack action (FR-9)</span>
 char.learnFeat(featId)                          <span class="com">// feats are character state (FR-5)</span>
-char.serialize() / Character.deserialize(json)  <span class="com">// FR-14 · serializer 1 of 3</span></code></pre>
+serializeCharacter(rt, char.state) / restoreCharacter(rt, snapshot)  <span class="com">// FR-14 · serializer 1 of 3</span></code></pre>
     </div>
   </section>
 
@@ -76,7 +76,7 @@ fight.declare(id, { targetId?, at?, to? })      <span class="com">// an action o
 fight.respond(triggerId, choice)                <span class="com">// answer an offered trigger (FR-4, FR-13)</span>
 fight.on(fn) / fight.off(fn)                    <span class="com">// subscribe — never required (FR-13)</span>
 fight.events.sinceRound(n)                      <span class="com">// the provenance stream · move:leaving-reach · move:advanced · move:ended (FR-11) · spell:cast · trigger:fired (action | feat)</span>
-fight.serialize() / Combat.deserialize(snap, pack)  <span class="com">// FR-14 · serializer 3 of 3 · rng included</span>
+serializeCombat(fight, {pairsWith}) / deserializeCombat(rt, snap, restore)  <span class="com">// FR-14 · serializer 3 of 3 · rng included</span>
 settleSpellCasts(rt, char, fight, id?)          <span class="com">// after combat-over: spell spend → character (FR-8)</span></code></pre>
     </div>
   </section>
@@ -89,6 +89,20 @@ settleSpellCasts(rt, char, fight, id?)          <span class="com">// after comba
     </div>
   </section>
 
+  <section class="mb-10"><h2 class="font-display text-2xl mb-3">Approved additions — implementation pending</h2><pre><code>// ruleswright/compiler
+generateAdventure({pack, template, seed}) -&gt; AdventureDefinition
+loadAdventureTemplate(id) -&gt; AdventureTemplate
+// ruleswright/runtime
+createEncounterSession(pack, options) / restoreEncounterSession(pack, snapshot)
+createAdventure(pack, definition, options) / restoreAdventure(pack, definition, snapshot)
+// Both facades: view(), dispatch(command), serialize() -&gt; detached JSON
+advanceSolo(adventure, {maxSteps}) -&gt; {reason,stepsUsed,events,view}
+readNarration(adventure) -&gt; NarrationMessage[]  // pure; ack is a command
+Combat.pass() -&gt; StepOutcome                  // explicit, no slot refresh exploit
+// Existing event entries retained and surfaced:
+pool:settled  {combatantId,pool,amount}
+slot:settled  {combatantId,slotLevel,slotIndex,spellId}
+feat:learned  {featId}</code></pre><p>Three existing public subpaths remain. New schema DTOs live in schema; play facades in runtime; template generation in compiler. See <a href="random-encounters.html">encounters</a>, <a href="random-adventures.html">adventures</a>, <a href="solo-director.html">solo direction</a>, and <a href="snapshots.html">save anatomy</a>. Character HP and complete aggregate saves follow the DB receipt; pack/override fields stay unchanged.</p></section>
   <!-- ERRORS -->
   <section class="mb-4">
     <h2 class="font-display text-2xl mb-3">the error surface</h2>

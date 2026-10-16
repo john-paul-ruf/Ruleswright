@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Play one encounter. Keep the party. — Ruleswright DX contract</title><style>*{box-sizing:border-box}body{margin:0;background:#1A1714;color:#E8E2D6;font:16px/1.6 system-ui,sans-serif}header,footer{border-block:1px solid #3A322A;padding:16px 24px}main,nav{max-width:960px;margin:auto}main{padding:32px 24px 64px}nav{display:flex;flex-wrap:wrap;gap:16px}a{color:#D9843B}a:focus-visible,summary:focus-visible{outline:2px solid #D9843B;outline-offset:4px}h1,h2{font-family:Georgia,'Iowan Old Style',serif;font-weight:400;line-height:1.2}h1{font-size:40px;margin:24px 0}h2{font-size:28px;margin:32px 0 16px}p{max-width:78ch}pre,code,.label{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}pre{font-size:13px;line-height:1.65;padding:24px;background:#241F1A;border:1px solid #3A322A;border-radius:6px;overflow:auto;max-width:100%}.label{font-size:12px;color:#9A8F7E}.note{border-left:4px solid #6A93A8;background:#241F1A;padding:16px}.refusal{border-left-color:#C4523E}.ok{color:#7BA05B}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.card{border:1px solid #3A322A;border-radius:6px;padding:16px;background:#241F1A}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:12px;border-bottom:1px solid #3A322A;vertical-align:top;overflow-wrap:anywhere}summary{cursor:pointer;color:#D9843B} @media(max-width:640px){.grid{grid-template-columns:1fr}h1{font-size:28px}main{padding:24px 16px}pre{padding:16px}}</style></head><body>
+<header><nav aria-label="Design sources"><a href="api-map.html">API map</a><a href="random-encounters.html">Encounters</a><a href="random-adventures.html">Adventures</a><a href="solo-director.html">Solo director</a><a href="snapshots.html">Snapshots</a></nav></header>
+<main><p class="label">AUTHOR RE-ENTRY · AR-01–06 · FR-24 / FR-14</p><h1>Play one encounter. Keep the party.</h1><p class="note">Approved contract for implementation. New play APIs are not implemented by this Author change. Architect fixes signatures; DB schemas fix portable data. Examples below are the downstream runnable-doc target.</p><p>Supply a pack, stable member identities and an explicit setup. Inspect choices, send one command and save the entire returned aggregate between calls.</p><h2>01 · Create → inspect → command → reopen</h2><pre><code>import { createEncounterSession, restoreEncounterSession } from &#x27;ruleswright/runtime&#x27;;
+import type { Pack, EncounterSessionOptions } from &#x27;ruleswright/schema&#x27;;
+
+// Caller supplies valid character envelopes and explicit setup; no hidden storage.
+export function encounterExample(pack: Pack, options: EncounterSessionOptions) {
+  const session = createEncounterSession(pack, options);
+  const before = session.view();
+  const result = session.dispatch({
+    type: &#x27;advance&#x27;, sessionId: before.sessionId,
+    expectedRevision: before.revision
+  });
+  const bytes = JSON.stringify(session.serialize());
+  const reopened = restoreEncounterSession(pack, JSON.parse(bytes));
+  return { result, bytes, view: reopened.view(), reopened };
+}</code></pre><h2>02 · Inputs are explicit</h2><pre><code>// EncounterSessionOptions (anatomy; members contain complete character envelopes)
+{ sessionId, seed, members: [{ memberId, character }], setup: {
+    budget, seed, maxPartySize, maxEnemies,
+    layout: { kind: &#x27;spatial&#x27;, model: &#x27;grid&#x27;,
+      allies: [{ x: 0, y: 0 }], enemies: [/* capacity cells */], terrain: [] }
+} }
+// Theater-of-mind setup uses layout: { kind: &#x27;theater&#x27; }.
+// maxEnemies &lt;= 12; preflight proves the budget cannot exceed this cap.
+// No implicit scaling by party size. No guessed map.</code></pre><h2>03 · Manual decisions</h2><pre><code>// Each command also carries sessionId and expectedRevision.
+{ type: &#x27;declare&#x27;, actor: { kind: &#x27;member&#x27;, memberId: &#x27;brynn&#x27; },
+  actionId: &#x27;stride&#x27;, options: { to: { x: 2, y: 0 } } }
+{ type: &#x27;respond&#x27;, actor: { kind: &#x27;member&#x27;, memberId: &#x27;brynn&#x27; },
+  triggerId, choice: &#x27;decline&#x27; }
+{ type: &#x27;pass&#x27;, actor: { kind: &#x27;member&#x27;, memberId: &#x27;brynn&#x27; } }
+// Enemy actor: { kind: &#x27;enemy&#x27;, enemyId }; targetId always uses combatantId.
+// &#x27;advance&#x27; starts/advances a turn only once; it cannot refresh a started turn.
+// &#x27;finalize&#x27; commits a terminal encounter; &#x27;next&#x27; carries the next setup.
+// &#x27;abandon&#x27; records spent resources/injury without victory or rewards.</code></pre><div class="grid"><section class="card"><h2>View</h2><p><code>{sessionId, revision, phase, members, combat, availableCommands, result, settlement}</code>. Members include memberId, character and combatantId. Combat includes active actor, raw state and pending offers. Every value is detached.</p></section><section class="card"><h2>Dispatch result</h2><p><code>{ok:true, revision, events, view, receipt?}</code> or <code>{ok:false, revision, errors, events:[], view}</code>. A repeated finalize can return the existing receipt with unchanged revision and no events.</p></section></div><p class="note refusal">Refused · E-SNAP-01 · expectedRevision: the session has advanced. Display the located ErrorCards and refreshed view. State, entropy and committed journal remain unchanged; do not retry automatically with a new revision.</p><h2>04 · Settle before the next fight</h2><p>Finalize stages every member’s HP, remaining conditions, consumables, pools and bindings, then commits one receipt with the party. Next uses that settled party. Save the complete session, never a current party paired with an earlier fight. Older saves reopened independently form replay branches.</p></main><footer><nav><a href="index.html">Design index</a><span class="label">No UI shipped · host owns presentation and storage</span></nav></footer></body></html>

@@ -1,136 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Snapshots &amp; Persistence — Ruleswright Mock</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<style>
-  .font-display { font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif; }
-  .font-data { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-  .kw { color: #D9843B; }
-  .str { color: #7BA05B; }
-  .com { color: #9A8F7E; font-style: italic; }
-  .num { color: #6A93A8; }
-</style>
-</head>
-<body class="bg-[#1A1714] text-[#E8E2D6] min-h-screen">
-
-<header class="border-b border-[#3A322A]">
-  <div class="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-2">
-    <a href="index.html" class="font-data text-sm text-[#D9843B] hover:underline">← design index</a>
-    <div class="flex gap-2 flex-wrap">
-      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-14</span>
-      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-1</span>
-      <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#2C261F] border border-[#3A322A] text-[#9A8F7E]">FR-23</span>
-    </div>
-  </div>
-</header>
-
-<main class="max-w-4xl mx-auto px-6 py-10">
-
-  <h1 class="font-display text-4xl mb-3">Snapshots &amp; persistence</h1>
-  <p class="text-[#9A8F7E] mb-10 max-w-2xl">Lossless, plain-JSON snapshots the host stores wherever it likes. The engine performs <em>no I/O of any kind</em> — no filesystem, no DB, no localStorage, no autosave timers. <span class="font-data text-[#E8E2D6]">serialize()</span> returns a string; storage adapters are third-party territory (FR-14).</p>
-
-  <!-- THREE SERIALIZERS -->
-  <section class="mb-12">
-    <h2 class="font-display text-2xl mb-4">Three independent serializers</h2>
-    <div class="grid md:grid-cols-3 gap-4">
-      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
-        <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">character.serialize()</div>
-        <pre class="font-data text-[12px] leading-relaxed p-4 overflow-x-auto"><code>{
-  <span class="kw">"id"</span>: <span class="str">"brynn"</span>,
-  <span class="kw">"abilities"</span>: { <span class="com">/* … */</span> },
-  <span class="kw">"classes"</span>: [ { <span class="kw">"id"</span>: <span class="str">"warden"</span>,
-    <span class="kw">"level"</span>: <span class="num">3</span>, <span class="kw">"xp"</span>: <span class="num">2400</span> },
-    { <span class="kw">"id"</span>: <span class="str">"hexer"</span>, <span class="kw">"level"</span>: <span class="num">2</span> } ],
-  <span class="kw">"pools"</span>: { <span class="str">"stamina"</span>: { <span class="com">/* … */</span> } },
-  <span class="kw">"slots"</span>: { <span class="com">/* bindings */</span> },
-  <span class="kw">"conditions"</span>: [<span class="str">"sapped"</span>],
-  <span class="kw">"inventory"</span>: [ <span class="com">/* … */</span> ]
-}</code></pre>
-      </div>
-      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
-        <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">party.serialize()</div>
-        <pre class="font-data text-[12px] leading-relaxed p-4 overflow-x-auto"><code>{
-  <span class="kw">"id"</span>: <span class="str">"party-1"</span>,
-  <span class="kw">"members"</span>: [<span class="str">"brynn"</span>, <span class="str">"sela"</span>],
-  <span class="kw">"shared"</span>: { <span class="kw">"rations"</span>: <span class="num">4</span> }
-}
-<span class="com">// membership + shared state;</span>
-<span class="com">// characters serialize separately</span></code></pre>
-      </div>
-      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
-        <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">combat.serialize()</div>
-        <pre class="font-data text-[12px] leading-relaxed p-4 overflow-x-auto"><code>{
-  <span class="kw">"pairsWith"</span>: <span class="str">"party-1"</span>,
-  <span class="kw">"round"</span>: <span class="num">2</span>, <span class="kw">"turn"</span>: <span class="num">3</span>,
-  <span class="kw">"order"</span>: [<span class="str">"wight"</span>,<span class="str">"brynn"</span>],
-  <span class="kw">"combatants"</span>: { <span class="com">/* transients */</span> },
-  <span class="kw">"rng"</span>: { <span class="kw">"state"</span>: <span class="str">"0x9f3a…"</span> },
-  <span class="kw">"pack"</span>: { <span class="kw">"id"</span>: <span class="str">"dark-fantasy"</span>,
-    <span class="kw">"schemaVersion"</span>: <span class="num">1</span>,
-    <span class="kw">"contentHash"</span>: <span class="str">"e41c…"</span> }
-}</code></pre>
-      </div>
-    </div>
-    <p class="text-sm text-[#9A8F7E] mt-3">A combat snapshot names the party snapshot it pairs with — the pairing is stated in the docs (FR-14), and the pack identity rides inside every snapshot.</p>
-  </section>
-
-  <!-- RESUME TEST -->
-  <section class="mb-12">
-    <h2 class="font-display text-2xl mb-4">Resume means the next roll matches</h2>
-    <div class="rounded-md border border-[#3A322A] bg-[#1E1A16] overflow-hidden">
-      <div class="px-4 py-2 border-b border-[#3A322A] font-data text-xs text-[#9A8F7E]">output — the FR-14 test, stated plainly</div>
-      <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>uninterrupted:  d20[7] · claw hits · 6 slashing
-serialized at round 2, turn 3, mid-turn
-resumed:        d20[7] · claw hits · 6 slashing   <span class="str">✓ identical</span></code></pre>
-    </div>
-    <p class="text-sm text-[#9A8F7E] mt-3">RNG state is part of the payload (FR-1) — that is the whole trick, and it is testable, not aspirational.</p>
-  </section>
-
-  <!-- REFUSAL -->
-  <section class="mb-12">
-    <h2 class="font-display text-2xl mb-4">Load refuses loudly on mismatch</h2>
-    <div class="space-y-3">
-      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
-        <div class="border-l-4 border-[#6A93A8] p-4">
-          <div class="flex flex-wrap items-center gap-2 mb-2">
-            <span class="font-data text-[11px] px-2 py-0.5 rounded-sm bg-[#6A93A8] text-[#1A1714] font-bold">REFUSED</span>
-            <span class="font-data text-[12px] text-[#6A93A8]">snapshot.load</span>
-            <span class="font-data text-[12px] text-[#9A8F7E] ml-auto">rule: E-SNAP-01</span>
-          </div>
-          <p class="text-sm">Pack hash <span class="font-data text-[13px] text-[#D9843B]">e41c…</span> expected, <span class="font-data text-[13px] text-[#D9843B]">9a02…</span> loaded — refusing rather than producing mangled characters.</p>
-        </div>
-      </div>
-      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
-        <span class="text-[#D9843B] shrink-0">▲</span>
-        <p class="text-sm">No v1 migration, by contract: a schema or content version bump renders old snapshots <span class="text-[#E8E2D6]">stale</span>, and the API says so plainly — the error names the versioning discipline (FR-23) rather than guessing.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- BOUNDARY -->
-  <section class="mb-4">
-    <h2 class="font-display text-2xl mb-4">The boundary is the point</h2>
-    <div class="grid md:grid-cols-2 gap-4">
-      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4">
-        <p class="text-sm"><span class="text-[#7BA05B]">✓</span> <span class="text-[#E8E2D6]">The engine:</span> computes, validates, serializes. Pure functions over pure data.</p>
-      </div>
-      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4">
-        <p class="text-sm"><span class="text-[#9A8F7E]">—</span> <span class="text-[#E8E2D6]">The host:</span> files, databases, localStorage, autosave, cloud sync, undo stacks — all third-party territory, all shapes supported because the payload is plain JSON.</p>
-      </div>
-    </div>
-  </section>
-
-</main>
-
-<footer class="border-t border-[#3A322A] mt-12">
-  <div class="max-w-4xl mx-auto px-6 py-4 flex justify-between flex-wrap gap-2">
-    <a href="bestiary-encounters.html" class="font-data text-[11px] text-[#9A8F7E] hover:underline">← bestiary &amp; encounters</a>
-    <a href="generation-pipeline.html" class="font-data text-[11px] text-[#D9843B] hover:underline">next: generation pipeline →</a>
-  </div>
-</footer>
-
-</body>
-</html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Save a whole history. Resume the same decisions. — Ruleswright DX contract</title><style>*{box-sizing:border-box}body{margin:0;background:#1A1714;color:#E8E2D6;font:16px/1.6 system-ui,sans-serif}header,footer{border-block:1px solid #3A322A;padding:16px 24px}main,nav{max-width:960px;margin:auto}main{padding:32px 24px 64px}nav{display:flex;flex-wrap:wrap;gap:16px}a{color:#D9843B}a:focus-visible,summary:focus-visible{outline:2px solid #D9843B;outline-offset:4px}h1,h2{font-family:Georgia,'Iowan Old Style',serif;font-weight:400;line-height:1.2}h1{font-size:40px;margin:24px 0}h2{font-size:28px;margin:32px 0 16px}p{max-width:78ch}pre,code,.label{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}pre{font-size:13px;line-height:1.65;padding:24px;background:#241F1A;border:1px solid #3A322A;border-radius:6px;overflow:auto;max-width:100%}.label{font-size:12px;color:#9A8F7E}.note{border-left:4px solid #6A93A8;background:#241F1A;padding:16px}.refusal{border-left-color:#C4523E}.ok{color:#7BA05B}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.card{border:1px solid #3A322A;border-radius:6px;padding:16px;background:#241F1A}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:12px;border-bottom:1px solid #3A322A;vertical-align:top;overflow-wrap:anywhere}summary{cursor:pointer;color:#D9843B} @media(max-width:640px){.grid{grid-template-columns:1fr}h1{font-size:28px}main{padding:24px 16px}pre{padding:16px}}</style></head><body>
+<header><nav aria-label="Design sources"><a href="api-map.html">API map</a><a href="random-encounters.html">Encounters</a><a href="random-adventures.html">Adventures</a><a href="solo-director.html">Solo director</a><a href="snapshots.html">Snapshots</a></nav></header>
+<main><p class="label">AUTHOR RE-ENTRY · AR-01–06 · FR-14 / FR-24 / FR-27</p><h1>Save a whole history. Resume the same decisions.</h1><p class="note">Approved contract for implementation. New play APIs are not implemented by this Author change. Architect fixes signatures; DB schemas fix portable data. Examples below are the downstream runnable-doc target.</p><p>All serializers return detached plain JSON objects. The host calls JSON.stringify and owns storage. No filesystem, database, localStorage or autosave runs in the engine.</p><h2>Existing independent serializers</h2><pre><code>serializeCharacter(runtime, character.state); // {kind:&#x27;character&#x27;,snapshotVersion:1,pack,state}
+serializeParty(runtime, memberStates);        // {kind:&#x27;party&#x27;,snapshotVersion:1,pack,members}
+serializeCombat(fight, { pairsWith: &#x27;party-save-1&#x27; });
+deserializeCombat(runtime, combatSnapshot, { allies, enemies, positions, terrain });
+// The host re-states original profiles/balances and CURRENT positions/terrain.
+// Party members are character states, not ids. Character ids remint on restore.</code></pre><h2>Exact combat envelope anatomy</h2><pre><code>{ kind: &#x27;combat&#x27;, snapshotVersion: 1, pack: {id, schemaVersion, contentHash},
+  pairsWith, round, turn, order: [combatantId], rng: {a,b,c,d},
+  combatants: [{id, hp, maxHp, slotsUsed, conditions: [{id,remaining}],
+    position, itemsUsed, poolsSpent, slotsCast, pendingMove}],
+  phase, offeredCount, offers: [{actorId,source,id,on}] }
+// combatants is an ARRAY. hp is a signed integer. Optional keys omitted, not null.
+// slotsUsed = REMAINING per-turn ledger; itemsUsed/poolsSpent/slotsCast = spend.
+// pendingMove = {actionId,to:{x,y},remaining,offeredDepartures:[{from,to,reactorId}]}
+// rng words: integers 0..4294967295. Legacy optional fields remain accepted.</code></pre><h2>Character injury is durable</h2><pre><code>// Added inside character.state (also each party member state):
+hp: { current: -2, temp: 3 }
+// New writers emit exact signed current HP, including above-derived-max values.
+// Legacy absence reconstructs from the existing HP formula and temp = 0.
+// Old readers may ignore hp; they cannot preserve the new injury guarantee.
+// Conditions keep {id,remaining}; initial combat input maps to {conditionId,duration}.</code></pre><h2>New aggregate boundary</h2><table><thead><tr><th>Save</th><th>Includes / restore inputs</th></tr></thead><tbody><tr><td>play-session</td><td>Stable members + raw combat envelope + original profiles/balances/bindings + current positions/terrain + streams + control + settlement receipts. Restore(pack, snapshot).</td></tr><tr><td>adventure</td><td>Definition identity + progress/choices + party + active encounter + rewards/receipts + streams + journal + director + narration acknowledgement. Restore(pack, definition, snapshot).</td></tr></tbody></table><p class="note">During combat the member envelopes remain the encounter-entry baseline. Fight HP, remaining conditions and spend are authoritative until settlement; detached views project them. Commit all party changes and the receipt together. Never pair a current party with an old fight.</p><h2>Refuse before construction</h2><p class="note refusal">Wrong pack/hash/version, duplicate ids, inconsistent sides/order, invalid HP/RNG, insufficient original balances, foreign encounter/receipt or impossible progress phase yields located ErrorCards. No member is half-restored and no ids, entropy or committed journal advances.</p><h2>Compatibility boundary</h2><p>Existing snapshotVersion 1 remains. Optional HP and offeredDepartures are additive; old inputs remain readable. New aggregate kinds are separately versioned documents, never passed to the three legacy serializers. Exactly-once receipts apply within one aggregate history; reopening an earlier save is a replay branch. Low-level settlement retains its existing live-object-only idempotence.</p></main><footer><nav><a href="index.html">Design index</a><span class="label">No UI shipped · host owns presentation and storage</span></nav></footer></body></html>

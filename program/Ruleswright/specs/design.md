@@ -1,8 +1,8 @@
 # Design Spec — Ruleswright
 
-> **Status:** v2, draft for builder approval — Designer, phase `design`.
+> **Status:** v3, scoped AR-06 amendment approved by “start” / “i authorize it” (2026-10-16); contracts awaiting implementation.
 > v1 covered five surfaces; the builder asked for **exhaustive**: every
-> functional requirement now has at least one designed surface (18 mocks, one
+> functional requirement now has at least one designed surface (21 surfaces, one
 > hub). Read with `specs/idea.md` and `specs/requirements.md` (approved).
 > FR references throughout; the coverage ledger is at the bottom.
 
@@ -82,7 +82,7 @@ rules, not a toy.
 | Lifecycle strip | Numbered step cards joined by arrows (turn loop, slot loop, stage chain) | — |
 | Data table | Pack progression / recipe / policy tables in mono | — |
 
-## Screen Inventory (18 surfaces + hub)
+## Screen Inventory (21 surfaces + hub)
 
 | # | Screen | Mock file | Purpose | FR |
 |---|---|---|---|---|
@@ -97,13 +97,16 @@ rules, not a toy.
 | 09 | Combat loop | `mocks/combat-loop.html` | Stepwise lifecycle; event stream with provenance; snapshots | FR-4, FR-10, FR-13, FR-14 |
 | 10 | Spatial layer | `mocks/spatial.html` | Opt-in positions/adjacency/reach; theater-of-mind pays nothing | FR-11, FR-4, FR-7 |
 | 11 | Triggered actions | `mocks/triggers.html` | Reactions as data on the event substrate; FR-12 proof 2 | FR-4, FR-12, FR-13 |
-| 12 | Snapshots & persistence | `mocks/snapshots.html` | Three serializers; resume test; loud refusal; no-I/O boundary | FR-14, FR-1, FR-23 |
+| 12 | Snapshots & persistence | `mocks/snapshots.html` | Legacy serializers + whole aggregates; exact HP; resume/refusal; no-I/O boundary | FR-14, FR-1, FR-23 |
 | 13 | Validation errors | `mocks/validation-errors.html` | Error-card gallery: ref, dup, formula, spatial, snapshot mismatch | FR-2, FR-5, FR-14 |
 | 14 | Bestiary & encounters | `mocks/bestiary-encounters.html` | Same-machinery statblocks; one table engine; deterministic assembly | FR-15, FR-16 |
 | 15 | Generation pipeline | `mocks/generation-pipeline.html` | Named stages; two sample themes; determinism contract | FR-17, FR-15, FR-21 |
 | 16 | Theme knobs & composition | `mocks/theme-knobs.html` | Knob declarations → host-neutral form; base + patches | FR-17, FR-18, FR-20 |
 | 17 | Packaging & surfaces | `mocks/packaging.html` | Runtime/schema/compiler; runtime-only CI proof; DX; versioning | FR-22, FR-23, NFR-Dep. |
 | 18 | API map | `mocks/api-map.html` | Whole public library on one page — coverage, not signatures | all FRs |
+| 19 | Random encounters | `mocks/random-encounters.html` | Manual commands, atomic settlement, complete session restart | FR-24, FR-14 |
+| 20 | Random adventures | `mocks/random-adventures.html` | Sidecar generation, choices, authored rewards/rest, whole saves | FR-25–27 |
+| 21 | Solo director | `mocks/solo-director.html` | Bounded enemy control, player yields, factual narration/ack | FR-28–29 |
 | — | Design index / hub | `mocks/index.html` | Grouped links, flows, design-language strip | — |
 
 ## User Flows
@@ -143,3 +146,17 @@ adds nothing for a headless product.
 - No game UI, no character-sheet screens, no VTT surfaces — hosts own those.
 - No framework code, no build tooling — Tailwind CDN, plain HTML, vanilla JS
   only (all states are visual; buttons are non-functional by contract).
+## AR-06 receipt — approved headless play DX
+
+New sources inherit the existing palette/type/spacing/radii and use inline CSS for offline viewing at 390px and 1280px widths. These are documentation contracts, not game screens. New example signatures are the Architect/DB implementation target; no example claims the runtime already exports them. Host-supplied pack/template/member inputs are explicit function arguments. All sample field anatomy is labeled when incomplete.
+
+Flow 6: random-encounters → snapshots: supply stable members/setup, inspect view, manually dispatch, finalize, save/reopen, next. Flow 7: random-adventures: generate definition, inspect available choices, choose route, command real combat, claim stored reward with selected recipient, rest/prepare explicitly, save/reopen. Flow 8: solo-director: advance maxSteps, yield to player, read factual messages, acknowledge presented sequence, save. Pure views/narration do not draw RNG.
+
+| Component | Description | States |
+|---|---|---|
+| Command result | ok + revision + detached view + committed event suffix, optional receipt; refusal carries ErrorCards and no events | accepted, refused, idempotent receipt |
+| Choice/reward row | stable node/choice/reward/claim/member subjects; eligibility from definition and saved state | available, unavailable with reason, pending, claimed |
+| Solo yield | bounded steps and explicit return reason | player, choice, terminal, budget, stalled |
+| Narration row | message id + journal sequence + template id + complete source event + text | unread, acknowledged, factual fallback |
+
+Coverage: FR-24 → 19/12/09/18; FR-25–27 → 20/12/18; FR-28 → 21/10/09; FR-29 → 21/18. Existing index.html is outside this re-entry write set; the inventory and api-map link the three additions, while its historical 18-surface hub remains unchanged. Snapshot anatomy now uses actual array combatants, uint32 words, optional fields and original restore inputs. spatial.html retires the unconditional derived-phase claim; api-map includes pool:settled, slot:settled and feat:learned.

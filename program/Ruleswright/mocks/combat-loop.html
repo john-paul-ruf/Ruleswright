@@ -111,39 +111,12 @@
     <p class="text-sm text-[#9A8F7E] mt-3">Hosts may subscribe; the engine never requires one. No subscriber — the game still runs (FR-13).</p>
   </section>
 
-  <!-- SNAPSHOTS -->
-  <section class="mb-4">
-    <h2 class="font-display text-2xl mb-4">Snapshots — freeze mid-swing</h2>
-    <div class="grid md:grid-cols-2 gap-4">
-      <div class="rounded-md border border-[#3A322A] bg-[#241F1A] overflow-hidden">
-        <div class="px-4 py-2 border-b border-[#3A322A] bg-[#2C261F] font-data text-xs text-[#9A8F7E]">combat snapshot — state + rng + pack identity</div>
-        <pre class="font-data text-[13px] leading-relaxed p-4 overflow-x-auto"><code>{
-  <span class="kw">"party"</span>: { <span class="kw">"pairsWith"</span>: <span class="str">"party-1"</span> },
-  <span class="kw">"round"</span>: <span class="num">2</span>, <span class="kw">"turn"</span>: <span class="num">3</span>,
-  <span class="kw">"order"</span>: [<span class="str">"wight"</span>,<span class="str">"brynn"</span>],
-  <span class="kw">"rng"</span>: { <span class="kw">"state"</span>: <span class="str">"0x9f3a…"</span> },
-  <span class="kw">"pack"</span>: { <span class="kw">"id"</span>: <span class="str">"dark-fantasy"</span>,
-            <span class="kw">"schemaVersion"</span>: <span class="num">1</span>,
-            <span class="kw">"contentHash"</span>: <span class="str">"e41c…"</span> }
-}</code></pre>
-      </div>
-      <div class="space-y-3">
-        <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
-          <span class="text-[#7BA05B] shrink-0">✓</span>
-          <p class="text-sm">Resume a snapshot and the next roll equals the uninterrupted fight's next roll — testable, not aspirational (FR-14).</p>
-        </div>
-        <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
-          <span class="text-[#C4523E] shrink-0">✕</span>
-          <p class="text-sm">Pack hash mismatch on load ⇒ <span class="text-[#E8E2D6]">loud refusal</span>, never mangled characters. No v1 migration — the API says plainly that the snapshot is stale.</p>
-        </div>
-        <div class="rounded-md border border-[#3A322A] bg-[#241F1A] p-4 flex gap-3">
-          <span class="text-[#6A93A8] shrink-0">◈</span>
-          <p class="text-sm">The engine performs no I/O. Three independent serializers — character, party, combat; a combat snapshot names its party pairing in the docs.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
+  <section class="mb-4"><h2 class="font-display text-2xl mb-4">Approved play boundary — AR-02 / AR-06</h2><p>New optional initial conditions live on each StartCombatRequest entry, beside profile and balances, as {conditionId,duration}; profileFromCharacter copies them when nonempty. Validate before initiative. Durations remain rounds.</p><p>The planned Combat.pass(): StepOutcome advances a turn once and refuses with pending offers or terminal combat. Repeated step() at awaiting-declare is not a pass; the aggregate stores turnStarted to prevent replenishing twice.</p><pre><code>const frozen = serializeCombat(fight, { pairsWith: &#x27;party-save-1&#x27; });
+// frozen: {kind:&#x27;combat&#x27;,snapshotVersion:1,pack,pairsWith,round,turn,
+//   order,rng:{a,b,c,d},combatants:[{id,hp,slotsUsed,conditions,...}],
+//   phase,offeredCount,offers?}
+const resumed = deserializeCombat(runtime, frozen,
+  { allies, enemies, positions: savedCurrentPositions, terrain: savedTerrain });</code></pre><p>Current positions win on restore. Original balances are retained before spend. For atomic injury/resource settlement and save/reopen use the <a href="random-encounters.html">encounter aggregate</a>; the old loose party/combat pair remains host-managed. See <a href="snapshots.html">exact save anatomy and compatibility</a>.</p><p>Aggregate refusals expose ErrorCards without committed state/RNG/journal changes. Low-level Combat keeps its existing rejection events.</p></section>
 </main>
 
 <footer class="border-t border-[#3A322A] mt-12">

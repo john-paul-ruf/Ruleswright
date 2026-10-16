@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Enemy turns. Player decisions. Factual narration. — Ruleswright DX contract</title><style>*{box-sizing:border-box}body{margin:0;background:#1A1714;color:#E8E2D6;font:16px/1.6 system-ui,sans-serif}header,footer{border-block:1px solid #3A322A;padding:16px 24px}main,nav{max-width:960px;margin:auto}main{padding:32px 24px 64px}nav{display:flex;flex-wrap:wrap;gap:16px}a{color:#D9843B}a:focus-visible,summary:focus-visible{outline:2px solid #D9843B;outline-offset:4px}h1,h2{font-family:Georgia,'Iowan Old Style',serif;font-weight:400;line-height:1.2}h1{font-size:40px;margin:24px 0}h2{font-size:28px;margin:32px 0 16px}p{max-width:78ch}pre,code,.label{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}pre{font-size:13px;line-height:1.65;padding:24px;background:#241F1A;border:1px solid #3A322A;border-radius:6px;overflow:auto;max-width:100%}.label{font-size:12px;color:#9A8F7E}.note{border-left:4px solid #6A93A8;background:#241F1A;padding:16px}.refusal{border-left-color:#C4523E}.ok{color:#7BA05B}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.card{border:1px solid #3A322A;border-radius:6px;padding:16px;background:#241F1A}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:12px;border-bottom:1px solid #3A322A;vertical-align:top;overflow-wrap:anywhere}summary{cursor:pointer;color:#D9843B} @media(max-width:640px){.grid{grid-template-columns:1fr}h1{font-size:28px}main{padding:24px 16px}pre{padding:16px}}</style></head><body>
+<header><nav aria-label="Design sources"><a href="api-map.html">API map</a><a href="random-encounters.html">Encounters</a><a href="random-adventures.html">Adventures</a><a href="solo-director.html">Solo director</a><a href="snapshots.html">Snapshots</a></nav></header>
+<main><p class="label">AUTHOR RE-ENTRY · AR-01–06 · FR-28–29</p><h1>Enemy turns. Player decisions. Factual narration.</h1><p class="note">Approved contract for implementation. New play APIs are not implemented by this Author change. Architect fixes signatures; DB schemas fix portable data. Examples below are the downstream runnable-doc target.</p><p>An optional deterministic director uses authored priorities and the same legal command path as manual play. No network, model credentials or ambient time.</p><h2>01 · Advance a bounded slice</h2><pre><code>import { advanceSolo, readNarration } from &#x27;ruleswright/runtime&#x27;;
+import type { Adventure } from &#x27;ruleswright/runtime&#x27;;
+
+export function soloSlice(adventure: Adventure) {
+  const result = advanceSolo(adventure, { maxSteps: 32 });
+  const messages = readNarration(adventure);
+  // Host renders facts/text and returns control according to result.reason.
+  return { result, messages, snapshot: adventure.serialize() };
+}
+// SoloResult: { reason, stepsUsed, events, view }
+// awaiting-player | awaiting-choice | completed | defeated | abandoned |
+// budget-exhausted | stalled
+// Each actual transition consumes one step; no-progress is never victory.</code></pre><h2>02 · Yield without taking the player’s choice</h2><div class="grid"><section class="card"><h2>Director</h2><p>Handles legal enemy actions, movement and reactions. Stable policy priorities and tie order; optional tie entropy uses its own saved stream. Passes when unable to act.</p></section><section class="card"><h2>Player</h2><p>Owns character turns, reactions, routes, reward recipients and preparation. Pending player offers survive save/reopen. A smaller step budget changes pacing, not the chosen actions.</p></section></div><h2>03 · Read → render → acknowledge</h2><pre><code>const messages = readNarration(adventure); // pure, no RNG or cursor change
+// Message: { messageId, sequence, templateId, event, text }
+// event keeps {type, at, actor?, target?, payload, why:{rule,rolls}}.
+// why.rolls are the existing display strings, not invented numeric roll fields.
+const throughSequence = messages[messages.length - 1]?.sequence;
+if (throughSequence !== undefined) {
+  const v = adventure.view();
+  adventure.dispatch({ type: &#x27;ack-narration&#x27;, adventureId: v.adventureId,
+    expectedRevision: v.revision, throughSequence });
+}
+// Acknowledge only after the host has presented messages.
+// Save after acknowledgement; reopened reads start after the saved cursor.</code></pre><p class="note">Negative damage amounts render as healing. Missing templates retain the source event as a factual fallback. Names resolve from stable saved bindings; a prose fragment cannot grant loot, finish a fight or alter a rule.</p><details><summary>Paused movement and restart</summary><p>New pendingMove records each offered {from,to,reactorId} tuple. Resume waits for the offer queue, suppresses that exact departure, and checks a different edge or threatener. Legacy saves without the records retain legacy first-step suppression. No hidden private-only correction.</p></details><p class="note refusal">Acknowledgement beyond the journal or behind the saved cursor refuses. Budget exhaustion and stalemate yield explicitly. Pure reads never acknowledge messages.</p></main><footer><nav><a href="index.html">Design index</a><span class="label">No UI shipped · host owns presentation and storage</span></nav></footer></body></html>

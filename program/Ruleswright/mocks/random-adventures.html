@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>A finite adventure, driven by your host. — Ruleswright DX contract</title><style>*{box-sizing:border-box}body{margin:0;background:#1A1714;color:#E8E2D6;font:16px/1.6 system-ui,sans-serif}header,footer{border-block:1px solid #3A322A;padding:16px 24px}main,nav{max-width:960px;margin:auto}main{padding:32px 24px 64px}nav{display:flex;flex-wrap:wrap;gap:16px}a{color:#D9843B}a:focus-visible,summary:focus-visible{outline:2px solid #D9843B;outline-offset:4px}h1,h2{font-family:Georgia,'Iowan Old Style',serif;font-weight:400;line-height:1.2}h1{font-size:40px;margin:24px 0}h2{font-size:28px;margin:32px 0 16px}p{max-width:78ch}pre,code,.label{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}pre{font-size:13px;line-height:1.65;padding:24px;background:#241F1A;border:1px solid #3A322A;border-radius:6px;overflow:auto;max-width:100%}.label{font-size:12px;color:#9A8F7E}.note{border-left:4px solid #6A93A8;background:#241F1A;padding:16px}.refusal{border-left-color:#C4523E}.ok{color:#7BA05B}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.card{border:1px solid #3A322A;border-radius:6px;padding:16px;background:#241F1A}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:12px;border-bottom:1px solid #3A322A;vertical-align:top;overflow-wrap:anywhere}summary{cursor:pointer;color:#D9843B} @media(max-width:640px){.grid{grid-template-columns:1fr}h1{font-size:28px}main{padding:24px 16px}pre{padding:16px}}</style></head><body>
+<header><nav aria-label="Design sources"><a href="api-map.html">API map</a><a href="random-encounters.html">Encounters</a><a href="random-adventures.html">Adventures</a><a href="solo-director.html">Solo director</a><a href="snapshots.html">Snapshots</a></nav></header>
+<main><p class="label">AUTHOR RE-ENTRY · AR-01–06 · FR-25–27</p><h1>A finite adventure, driven by your host.</h1><p class="note">Approved contract for implementation. New play APIs are not implemented by this Author change. Architect fixes signatures; DB schemas fix portable data. Examples below are the downstream runnable-doc target.</p><p>The compiler creates a pack-bound document. The runtime consumes that document without importing the compiler. Routes, objective, encounters and rewards are explicit authored data.</p><h2>01 · Generate → open → choose</h2><pre><code>import { generateAdventure } from &#x27;ruleswright/compiler&#x27;;
+import { createAdventure, restoreAdventure } from &#x27;ruleswright/runtime&#x27;;
+import type { Pack, AdventureTemplate, AdventureStartOptions } from &#x27;ruleswright/schema&#x27;;
+
+export function adventureExample(pack: Pack, template: AdventureTemplate,
+  options: AdventureStartOptions) {
+  const definition = generateAdventure({ pack, template, seed: 42 });
+  const adventure = createAdventure(pack, definition, options);
+  const before = adventure.view();
+  // Host presents before.choices and obtains an explicit player selection.
+  const choose = (choiceId: string) =&gt; adventure.dispatch({
+    type: &#x27;choose&#x27;, adventureId: adventure.view().adventureId,
+    expectedRevision: adventure.view().revision,
+    nodeId: adventure.view().nodeId, choiceId
+  });
+  const bytes = JSON.stringify(adventure.serialize());
+  const reopened = restoreAdventure(pack, definition, JSON.parse(bytes));
+  return { definition, before, choose, reopened };
+}</code></pre><h2>02 · A decision is data</h2><pre><code>// AdventureView adds these to detached party/combat data:
+{ adventureId, revision, phase, nodeId, objective,
+  choices: [{ choiceId, text, toNodeId, available, reason }],
+  pendingRewards: [{ claimId, nodeId, rewardId, eligibleMemberIds, roll }],
+  availableCommands, journalSequence, narrationAck }
+// Choice.reason is null when available; otherwise a located ErrorCard.
+// Saved phases: exploration | encounter | reward-pending |
+//               completed | defeated | abandoned.
+// resolvedNodeIds, reward status and receipts keep claimed distinct from pending.</code></pre><h2>03 · Claim what the definition awards</h2><pre><code>// The host selects an eligible recipient. No caller-supplied XP or loot amount.
+const v = adventure.view();
+const result = adventure.dispatch({
+  type: &#x27;claim-reward&#x27;, adventureId: v.adventureId,
+  expectedRevision: v.revision, nodeId: selected.nodeId,
+  rewardId: selected.rewardId, claimId: selected.claimId,
+  recipientMemberId: playerSelectedMemberId
+});
+// &#x27;selected&#x27; comes from v.pendingRewards, chosen by the player.
+// For rewards without loot, omit recipientMemberId.
+// With loot, choose a recipient even when its stored roll is flavor/no-item.</code></pre><div class="grid"><section class="card"><h2>Earned, pending, claimed</h2><p>A successful encounter resolves the node, stages its roll once, then exposes a claim. XP is explicitly per eligible member; class splitting stays with awardXp. Claim updates XP, inventory and receipt together. No reroll on retry.</p></section><section class="card"><h2>Rest means rest</h2><p>Node policy controls rest and preparation. Rest refills pools and clears bindings; it does not heal HP or resurrect. Preparing, equipping and consuming items are explicit commands. Travel does not tick round conditions.</p></section></div><p class="note refusal">Unavailable is not completed. Defeat and abandon cannot grant success rewards. A wrong node, choice, recipient, definition hash or revision refuses before any mutation.</p><h2>04 · Resume from one document</h2><p>Host persists pack + immutable definition + one adventure snapshot. The snapshot includes the active encounter, party, reward records, separate streams and journal/cursors. Save all of it atomically. There is no database, timer or cloud transport in the engine.</p></main><footer><nav><a href="index.html">Design index</a><span class="label">No UI shipped · host owns presentation and storage</span></nav></footer></body></html>
