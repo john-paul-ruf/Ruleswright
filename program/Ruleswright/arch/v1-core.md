@@ -1818,3 +1818,14 @@ The isolation gate now rejects both generateCampaign and generateAdventure in bo
 runtime formats, requires runtime declarations, and supports an explicit absolute
 --fixture-dir for bounded subprocess self-tests. No new module ID, rule ID, dependency,
 manifest, build configuration, or runtime-only bundle content was introduced.
+
+<!-- random-adventures SESSION-03 -->
+
+## M03 adventure facade delta — SESSION-03
+
+- `src/runtime/adventure/` adds `createAdventure(pack, definition, options)` and `restoreAdventure(pack, definition, snapshot)`, exported through the runtime entry with `Adventure`, `AdventureCommand`, `AdventureCommandResult`, `AdventureView`, `AdventureSnapshot`, `RewardRoll`, `RewardState`, and `RewardReceipt` types.
+- The facade owns detached aggregate state and private staged runtimes. Commands guard outer and nested revisions independently. Encounter entry consumes one generation-stream seed, composes the real encounter session, copies its journal once, automatically settles terminal fights, and stages authored reward rolls in the same transaction. Nested `next` is refused.
+- Reward claims invoke real positive `awardXp` and `grantItem`. The adapter preserves exact HP/temp, indexed prepared bindings and existing resources while retaining real progression; incompatible capacity rejects the complete staged transaction. Rest, preparation, equipment and item commands use existing writers. Receipt retries at the current revision are inert.
+- Save validation checks definition/pack identity, graph trail and phase, stable party, nested pairing, receipt authority and hash continuity, deterministic saved reward rolls, stream words, event-time subjects and copied nested journal prefix. Aggregate `encounter:settled`, `reward:claimed`, and `members:updated` journal events bind committed member transitions to their durable receipts/hashes. Receipt member IDs remain opaque host IDs, distinct from combatant references.
+- Four domain-separated streams, director policy/counters/hash, and narrationAck persist under the approved version-1 envelope. SESSION-04 owns director decisions and acknowledgement dispatch; neither is advertised by the manual facade.
+- Production runtime imports no compiler. Built ESM/CJS journeys exercise generated adventures; the shared adventure oracle separately runs source through Vite browsers. JSON is the test host's persistence adapter; no transport/provider doubles or storage service were introduced.
