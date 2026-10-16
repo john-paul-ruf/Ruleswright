@@ -21,13 +21,14 @@
  * re-entry) or is an engine bug. It is never fixed by loosening this test.
  */
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import Ajv2020 from 'ajv/dist/2020';
 import type { ValidateFunction } from 'ajv';
 import { describe, expect, it } from 'vitest';
 import { generateCampaign, loadTheme } from '../../src/compiler';
 import { Runtime, serializeCharacter, serializeParty } from '../../src/runtime/index';
-import { LEG_RUNS, PACK_THEMES, type LegId } from './determinism-oracle';
+import { LEG_RUNS, PACK_THEMES, recordingRaw, contentHashOfRaw, type LegId } from './determinism-oracle';
 import {
   emberMarchesAscendingPack,
   emberMarchesHexPack,
@@ -224,4 +225,42 @@ describe('negative controls: the validator bites, on the expected rule', () => {
     expect(overrideContract.validate({ overrides: [{ patch: { threat: 9 } }] })).toBe(false);
     expect(failedOn(overrideContract.validate, '/overrides/0', 'required')).toBe(true);
   });
+});
+
+describe('CA-01 character HP conformance', () => {
+  it.each([-4, 0, 3, 99])('the actual character and party writers preserve hp=%s', (current) => {
+    const rt = new Runtime(cloneRuntimePack());
+    const hero = rt.createCharacter({ name: 'Hero', race: 'ashkin', classes: ['warden'] });
+    hero.state.hp = { current, temp: 2 };
+    const character = json(serializeCharacter(rt, hero.state));
+    expect(character.state.hp).toEqual({ current, temp: 2 });
+    expect(snapshotContract.validate(character), snapshotContract.errorsText()).toBe(true);
+    expect(
+      snapshotContract.validate(json(serializeParty(rt, [hero.state]))),
+      snapshotContract.errorsText(),
+    ).toBe(true);
+    const bad = json(character);
+    (bad.state.hp as { temp: number }).temp = -1;
+    expect(snapshotContract.validate(bad)).toBe(false);
+    expect(failedOn(snapshotContract.validate, '/state/hp/temp', 'minimum')).toBe(true);
+  });
+});
+
+it('CA-01 oracle delta is exactly four added HP envelopes, with every old byte retained', () => {
+  const recording = json(LEG_RUNS['leg-8']());
+  let count = 0;
+  for (const value of recording.snapshots) {
+    const envelope = value as { state?: Record<string, unknown>; members?: Record<string, unknown>[] };
+    for (const state of envelope.state ? [envelope.state] : envelope.members!) {
+      expect(state['hp']).toEqual({ current: 29, temp: 0 });
+      delete state['hp'];
+      count += 1;
+    }
+  }
+  expect(count).toBe(4);
+  const raw = recordingRaw(recording);
+  expect(contentHashOfRaw(raw)).toBe('7f898d06');
+  expect(createHash('sha256').update(raw).digest('hex')).toBe(
+    '23a287f174b5da23e962c6bacd9f0022cb1923280298941858be9390ba5e01a5',
+  );
 });

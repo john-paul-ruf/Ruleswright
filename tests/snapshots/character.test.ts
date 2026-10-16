@@ -46,6 +46,7 @@ describe('character snapshots (FR-14, CAP-7)', () => {
       'abilities',
       'classes',
       'conditions',
+      'hp',
       'inventory',
       'knownSpells',
       'name',
@@ -475,5 +476,48 @@ describe('feat-slot restore (v1.8, CAP-F4)', () => {
     const target = slottedRuntime();
     expect(cardsOf(() => restoreParty(target, party as never))).toEqual([['feat-slots-exceeded', 'feats']]);
     expect(target.nextCharacterId).toBe(1);
+  });
+});
+
+describe('CA-01 exact current and temporary HP', () => {
+  it.each([3, -2, 0, 99])('preserves current=%s and temp through JSON without clamping', (current) => {
+    const runtime = new Runtime(cloneRuntimePack());
+    const state = hexer(runtime);
+    state.hp = { current, temp: 4 };
+    const saved = serializeCharacter(runtime, state);
+    const restored = restoreCharacter(new Runtime(cloneRuntimePack()), JSON.parse(JSON.stringify(saved)));
+    expect(restored.state.hp).toEqual({ current, temp: 4 });
+    restored.state.hp.current = 123;
+    expect(saved.state.hp).toEqual({ current, temp: 4 });
+    expect(state.hp).toEqual({ current, temp: 4 });
+  });
+
+  it('legacy omission reconstructs the original formula value and zero temp', () => {
+    const runtime = new Runtime(cloneRuntimePack());
+    const state = hexer(runtime);
+    const baseline = { ...state.hp };
+    state.hp = { current: -7, temp: 3 };
+    const saved = JSON.parse(JSON.stringify(serializeCharacter(runtime, state)));
+    delete saved.state.hp;
+    expect(restoreCharacter(new Runtime(cloneRuntimePack()), saved).state.hp).toEqual(baseline);
+  });
+
+  it.each([
+    null,
+    {},
+    { current: 1 },
+    { current: 1.5, temp: 0 },
+    { current: 1, temp: -1 },
+    { current: Infinity, temp: 0 },
+    { current: 1, temp: NaN },
+    { current: 1, temp: 0, extra: 1 },
+  ])('rejects malformed HP %j before minting any party member or emitting events', (hp) => {
+    const source = new Runtime(cloneRuntimePack());
+    const saved = JSON.parse(JSON.stringify(serializeParty(source, [hexer(source), hexer(source)])));
+    saved.members[1].hp = hp;
+    const target = new Runtime(cloneRuntimePack());
+    expect(() => restoreParty(target, saved)).toThrow(/hp must contain/);
+    expect(target.nextCharacterId).toBe(1);
+    expect(target.events.sinceRound(0)).toEqual([]);
   });
 });

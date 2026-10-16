@@ -404,8 +404,9 @@ export const CHARACTERIZATION_DIGESTS: Readonly<Record<LegId, Digest>> = {
     contentHash: 'f8690e3f',
   },
   'leg-8': {
-    sha256: '23a287f174b5da23e962c6bacd9f0022cb1923280298941858be9390ba5e01a5',
-    contentHash: '7f898d06',
+    // AR-02: four character-state envelopes now include exact hp; conformance proves the byte delta.
+    sha256: '4ee4f8fbb9468935027c7a7170e664a9a10dec2b87c15d39d65dc7b2d59c8968',
+    contentHash: 'c6b83c30',
   },
 };
 

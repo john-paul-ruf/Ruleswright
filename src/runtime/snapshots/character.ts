@@ -15,7 +15,8 @@
  *                      only when the state carries it; restore refuses an
  *                      unknown feat id before applying anything
  *   - skills         ⇄ absent (envelope optional; v1 engine state has none)
- *   - saves / hp / level / xp / id ⇄ NOT envelope fields: reconstructed from
+ *   - hp             ⇄ exact current/temp (legacy omission reconstructs hp)
+ *   - saves / level / xp / id ⇄ NOT envelope fields: reconstructed from
  *     pack + classes through the engine's own progression invariants (best-of
  *     saves, the reserved hp formula at the derived level, Σ levels, Σ classXp,
  *     the target runtime's monotonic id serial — no ambient state).
@@ -67,6 +68,7 @@ export interface SnapshotEquippedEntry {
 
 /** snapshots.schema.json $defs/characterState — exactly these fields, no others. */
 export interface SnapshotCharacterState {
+  readonly hp?: { readonly current: number; readonly temp: number };
   readonly name: string;
   readonly race: string;
   readonly classes: readonly SnapshotClassEntry[];
@@ -101,7 +103,14 @@ export interface PartySnapshot {
 // ---------------------------------------------------------------- serialize
 
 /** FR-14 — the character envelope: state only + pack identity. */
-export function serializeCharacter(runtime: Runtime, state: CharacterState): CharacterSnapshot {
+export function serializeCharacter(
+  runtime: Runtime,
+  state: CharacterState,
+): CharacterSnapshot & {
+  readonly state: SnapshotCharacterState & {
+    readonly hp: { readonly current: number; readonly temp: number };
+  };
+} {
   return {
     kind: 'character',
     snapshotVersion: SNAPSHOT_VERSION,
@@ -121,7 +130,9 @@ export function serializeParty(runtime: Runtime, members: readonly CharacterStat
 }
 
 /** CharacterState → the envelope's characterState def (fresh plain-JSON copies throughout). */
-function serializeCharacterState(state: CharacterState): SnapshotCharacterState {
+function serializeCharacterState(state: CharacterState): SnapshotCharacterState & {
+  readonly hp: { readonly current: number; readonly temp: number };
+} {
   const slots: Record<string, (string | null)[]> = {};
   for (const [level, bindings] of Object.entries(state.slots)) slots[level] = [...bindings];
   return {
@@ -138,6 +149,7 @@ function serializeCharacterState(state: CharacterState): SnapshotCharacterState 
     slots,
     conditions: state.conditions.map((active) => ({ id: active.conditionId, remaining: active.duration })),
     inventory: state.inventory.map((entry) => ({ id: entry.id, qty: entry.qty })),
+    hp: { ...state.hp },
     ...(state.equipped !== undefined
       ? { equipped: state.equipped.map((entry) => ({ slot: entry.slot, itemId: entry.itemId })) }
       : {}),
@@ -184,6 +196,7 @@ export function restoreParty(runtime: Runtime, snapshot: PartySnapshot): Charact
  */
 function characterStateRefusals(runtime: Runtime, saved: SnapshotCharacterState, path: string): ErrorCard[] {
   return [
+    ...hpRefusals(runtime, saved, path),
     ...validateBuild(
       runtime,
       saved.race,
@@ -192,6 +205,27 @@ function characterStateRefusals(runtime: Runtime, saved: SnapshotCharacterState,
     ),
     ...equippedRefusals(runtime, saved, path),
     ...featRefusals(runtime, saved, path),
+  ];
+}
+
+function hpRefusals(runtime: Runtime, saved: SnapshotCharacterState, path: string): ErrorCard[] {
+  if (!Object.prototype.hasOwnProperty.call(saved, 'hp')) return [];
+  const hp: unknown = saved.hp;
+  if (
+    isRecord(hp) &&
+    Object.keys(hp).length === 2 &&
+    Number.isInteger(hp['current']) &&
+    Number.isInteger(hp['temp']) &&
+    (hp['temp'] as number) >= 0
+  )
+    return [];
+  return [
+    makeErrorCard(
+      'E-SNAP-01',
+      runtime.pack.manifest.id,
+      `${path}.hp`,
+      'hp must contain exactly integer current and nonnegative integer temp.',
+    ),
   ];
 }
 
@@ -297,6 +331,9 @@ function restoreCharacterState(runtime: Runtime, saved: SnapshotCharacterState):
       ? { equipped: saved.equipped.map((entry) => ({ slot: entry.slot, itemId: entry.itemId })) }
       : {}),
     ...(saved.feats !== undefined ? { feats: [...saved.feats] } : {}),
-    hp: { current: reserveValue(runtime, 'hp', abilities, built.level, new Rng(0)), temp: 0 },
+    hp:
+      saved.hp === undefined
+        ? { current: reserveValue(runtime, 'hp', abilities, built.level, new Rng(0)), temp: 0 }
+        : { ...saved.hp },
   };
 }
