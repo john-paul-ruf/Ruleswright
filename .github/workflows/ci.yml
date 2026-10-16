@@ -21,7 +21,7 @@
 #   Chromium, which the Chromium leg covers; no test runs inside an Electron
 #   renderer process.
 # The README names exactly these legs; tests/proofs/docs-run.test.ts checks
-# both directions, so the doc claim and CI stay one truth.
+# named README strings and actual run steps, not all prose or remote job results.
 name: CI
 
 on:
@@ -108,7 +108,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec vitest run tests/compiler/coverage-floor.test.ts
-        name: both themes to the coverage floor — the FR-21 proof input
+        name: all three themes to the coverage floor — the FR-21 proof input
 
   browser:
     name: determinism · browser (${{ matrix.browser }})

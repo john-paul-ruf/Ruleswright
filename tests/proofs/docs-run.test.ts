@@ -16,12 +16,14 @@ const EXAMPLES = [
   'encounter/play',
   'adventure/generate',
   'adventure/play',
+  'adventure/solo',
 ] as const;
 function extractExamples(markdown: string): {
   quickstart: string;
   encounter: string;
   adventure: string;
   play: string;
+  solo: string;
 } {
   const blocks = [...markdown.matchAll(/<!-- example: ([a-z/-]+) -->\s*```ts\n([\s\S]*?)```/g)];
   if (blocks.length !== [...markdown.matchAll(/```ts\n/g)].length)
@@ -41,6 +43,7 @@ function extractExamples(markdown: string): {
     encounter: examples.get('encounter/play')!,
     adventure: examples.get('adventure/generate')!,
     play: examples.get('adventure/play')!,
+    solo: examples.get('adventure/solo')!,
   };
 }
 const examples = extractExamples(readme);
@@ -258,6 +261,7 @@ describe('README quickstart runs verbatim (NFR-DX)', () => {
       ...typecheckQuickstart(examples.encounter),
       ...typecheckQuickstart(examples.adventure),
       ...typecheckQuickstart(examples.play),
+      ...typecheckQuickstart(examples.solo),
     ];
     expect(
       problems,
@@ -375,4 +379,44 @@ describe('manual adventure example and runner negative controls', () => {
     ).logs;
     expect(() => expect(changed).toEqual([['completed', 2, 2]])).toThrow();
   }, 10000);
+});
+
+describe('solo host example and behavioral controls', () => {
+  it('executes real enemy control, explicit player choices/claims, literal narration and saved ack', () => {
+    const { bindings, logs } = runExample(examples.solo, ['adventure', 'saved']);
+    expect(logs[logs.length - 1]).toEqual(['completed', 2, 0]);
+    const saved = JSON.parse(bindings['saved'] as string) as import('../../src/runtime').AdventureSnapshot;
+    expect(saved.director.decisions).toBeGreaterThan(0);
+    expect(saved.narrationAck).toBe(saved.sequence);
+    expect(logs.length).toBe(saved.sequence + 1);
+    expect(saved.rewards.every((r) => r.status === 'claimed')).toBe(true);
+    expect((bindings['adventure'] as import('../../src/runtime').Adventure).serialize()).toEqual(saved);
+    expect(readme).toContain('completed 2 0');
+  }, 10000);
+  it('rejects missing/duplicate solo examples, invalid imports and no-work scripts', () => {
+    expect(() =>
+      extractExamples(readme.replace(/<!-- example: adventure\/solo -->\s*```ts\n[\s\S]*?```/, '')),
+    ).toThrow(/Missing example/);
+    expect(() =>
+      extractExamples(readme + '\n<!-- example: adventure/solo -->\n```ts\nconst x = 1;\n```'),
+    ).toThrow(/duplicate/);
+    expect(() => runExample(examples.solo.replace('ruleswright/runtime', 'ruleswright/missing'))).toThrow(
+      /Unsupported/,
+    );
+    expect(() => runExample(examples.solo.replace('steps < 1000', 'steps < 0'))).toThrow(/host step limit/);
+    expect(() => runExample(examples.solo.replace('maxSteps: 32', 'maxSteps: 0'))).toThrow(
+      /positive safe integer/,
+    );
+    expect(() =>
+      runExample(examples.solo.replace('expectedRevision: current.revision', 'expectedRevision: -1')),
+    ).toThrow();
+  }, 10000);
+  it('the CI steps retain all host proofs, three engines and three-theme coverage', () => {
+    const ci = readFileSync(new URL('../../.github/workflows/ci.yml', import.meta.url), 'utf8');
+    expect(ci).toMatch(/^\s*- run: pnpm exec vitest run tests\/compiler\/coverage-floor\.test\.ts$/m);
+    expect(ci).toMatch(/node: \[18, 20, 22\]/);
+    expect(ci).toMatch(/browser: \[chromium, firefox, webkit\]/);
+    expect(ci).toMatch(/- run: pnpm build[\s\S]*?- run: pnpm typecheck[\s\S]*?- run: pnpm test/);
+    expect(ci).toMatch(/^\s*- run: pnpm exec vitest run tests\/proofs\/$/m);
+  });
 });

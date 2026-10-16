@@ -479,14 +479,185 @@ reward. Completion requires the explicit success node and all earned claims.
   not cryptographic authentication.
 - Pack generation, definition generation, authored encounter setup seeds and
   adventure play seed have separate roles. The adventure derives independent
-  generation, play, reward and reserved director streams from its id and seed;
-  saves retain every stream's words. Manual dispatch exposes no solo director or
-  narration-acknowledgement command.
+  generation, play, reward and director streams from its id and seed;
+  saves retain every stream's words. Manual dispatch and optional solo control share
+  the same aggregate; narration acknowledgement is always an explicit host command.
 
 `tests/proofs/adventure-journey.test.ts` exercises the built ESM/CJS exports.
 `tests/proofs/adventure-oracle.ts` compares continuous and repeated-JSON play,
 including two encounters, a branch, reactions, claims and a level-up; its pinned
 recordings run in Node and in the browser's Vite source harness.
+
+## Solo enemy control and offline narration
+
+`advanceSolo(adventure, { maxSteps })` executes legal enemy turns and reactions
+using the same guarded commands as a manual host. The authored policy chooses
+priorities, target order and lexical or seeded ties. It never claims a reward,
+answers a player offer or chooses a route or preparation for you.
+
+This independent example runs the generated adventure. The example host selects
+player attacks, declines player reactions, chooses the passage route and explicitly
+claims each reward. Replace those choices with player input. It prints messages as
+literal text, acknowledges them only after printing, and saves after each host action.
+
+<!-- example: adventure/solo -->
+
+```ts
+import { generateCampaign, loadTheme, loadAdventureTemplate, generateAdventure } from 'ruleswright/compiler';
+import {
+  Runtime,
+  awardXp,
+  serializeCharacter,
+  createAdventure,
+  restoreAdventure,
+  advanceSolo,
+  readNarration,
+  type AdventureCommand,
+  type EncounterActor,
+} from 'ruleswright/runtime';
+
+const pack = generateCampaign({ theme: loadTheme('dark-fantasy'), seed: 42 });
+const definition = generateAdventure({
+  pack,
+  template: loadAdventureTemplate('dark-fantasy', pack),
+  seed: 42,
+});
+const characters = new Runtime(pack);
+const members = [0, 1].map((i) => {
+  const hero = characters.createCharacter({ name: `Warden ${i + 1}`, race: 'ashkin', classes: ['warden'] });
+  awardXp(characters, hero.state, 975); // Start near a level threshold to show reward progression.
+  hero.state.hp = { current: 19 - i, temp: 3 + i };
+  hero.prepare('ward-sigil', 1);
+  return { memberId: `hero-${i + 1}`, character: serializeCharacter(characters, hero.state) };
+});
+let adventure = createAdventure(pack, definition, { adventureId: 'solo-example', seed: 2, members });
+const actorFor = (id: string): EncounterActor =>
+  id.startsWith('m:') ? { kind: 'member', memberId: id.slice(2) } : { kind: 'enemy', enemyId: id };
+
+for (let steps = 0; steps < 1000; steps++) {
+  const slice = advanceSolo(adventure, { maxSteps: 32 });
+  const messages = readNarration(adventure); // Pure; repeated reads return the same messages.
+  for (const message of messages) console.log(message.text); // Literal text, never HTML/code.
+  const throughSequence = messages[messages.length - 1]?.sequence;
+  if (throughSequence !== undefined) {
+    const current = adventure.view();
+    const ack = adventure.dispatch({
+      type: 'ack-narration',
+      adventureId: current.adventureId,
+      expectedRevision: current.revision,
+      throughSequence,
+    });
+    if (!ack.ok) throw new Error(JSON.stringify(ack.errors));
+  }
+  if (slice.reason === 'completed') break;
+  if (slice.reason === 'budget-exhausted') continue;
+  if (slice.reason !== 'awaiting-player' && slice.reason !== 'awaiting-choice')
+    throw new Error(`Solo yielded: ${slice.reason}`);
+  const view = adventure.view();
+  const base = { adventureId: view.adventureId, expectedRevision: view.revision };
+  let command: AdventureCommand;
+  if (view.phase === 'exploration') {
+    const choice =
+      view.choices.find((c) => c.available && c.toNodeId === 'passage') ??
+      view.choices.find((c) => c.available);
+    if (!choice) throw new Error('No available route');
+    command = { ...base, type: 'choose', nodeId: view.nodeId, choiceId: choice.choiceId };
+  } else if (view.phase === 'reward-pending') {
+    const reward = view.pendingRewards[0]!;
+    command = {
+      ...base,
+      type: 'claim-reward',
+      nodeId: reward.nodeId,
+      rewardId: reward.rewardId,
+      claimId: reward.claimId,
+      ...(reward.roll === null ? {} : { recipientMemberId: 'hero-2' }),
+    };
+  } else if (view.phase === 'encounter') {
+    const nested = adventure.serialize().activeEncounter!;
+    const combat = view.combat!;
+    const nestedBase = { sessionId: nested.sessionId, expectedRevision: nested.revision };
+    const offer = combat.pendingOffers[0];
+    const active = combat.state.combatants[combat.state.active]!;
+    let action: Extract<AdventureCommand, { type: 'encounter' }>['command'];
+    if (offer) {
+      action = {
+        ...nestedBase,
+        type: 'respond',
+        actor: actorFor(offer.actorId),
+        triggerId: offer.triggerId,
+        choice: 'decline',
+      };
+    } else if (!nested.encounter.control.turnStarted || combat.state.phase === 'resolved') {
+      action = { ...nestedBase, type: 'advance' };
+    } else if (active.side === 'enemies') {
+      throw new Error('Director must yield only player decisions');
+    } else {
+      const target = Object.values(combat.state.combatants).find(
+        (c) => c.side !== active.side && c.hp.current > 0,
+      )!;
+      action = {
+        ...nestedBase,
+        type: 'declare',
+        actor: actorFor(active.id),
+        actionId: active.actions[0]!,
+        options: { targetId: target.id },
+      };
+    }
+    command = { ...base, type: 'encounter', encounterId: nested.encounter.encounterId, command: action };
+  } else {
+    throw new Error(`Adventure ended: ${view.phase}`);
+  }
+  const result = adventure.dispatch(command);
+  if (!result.ok) throw new Error(JSON.stringify(result.errors));
+  // Host storage can persist this one document after any accepted command.
+  const checkpoint = JSON.stringify(adventure.serialize());
+  adventure = restoreAdventure(pack, definition, JSON.parse(checkpoint));
+}
+if (adventure.view().phase !== 'completed') throw new Error('Adventure exceeded the host step limit');
+const saved = JSON.stringify(adventure.serialize());
+adventure = restoreAdventure(pack, definition, JSON.parse(saved));
+console.log(
+  adventure.view().phase,
+  adventure.serialize().encounterReceipts.length,
+  readNarration(adventure).length,
+);
+```
+
+Expected output: factual narration lines, followed by:
+
+```text
+completed 2 0
+```
+
+`SoloResult` contains `{ reason, stepsUsed, events, view }`. Its reasons are
+`awaiting-player`, `awaiting-choice`, `completed`, `defeated`, `abandoned`,
+`budget-exhausted` and `stalled`. `maxSteps` must be a positive safe integer;
+policy also bounds candidate enumeration. Budget exhaustion is a yield, never
+victory. Resource spending and turn/offer changes are mechanical progress even
+when no HP is lost. The saved stall predicate is defensive restore handling;
+these commands do not establish a naturally reachable stalemate detector.
+Random-dependent action validity is refused in solo mode; manual play keeps its
+existing behavior. Enemy resources come only from their real profiles.
+
+`readNarration(adventure)` returns one `{ messageId, sequence, templateId, event,
+text }` per unacknowledged journal entry. IDs are JSON tuples of adventure id and
+sequence. The complete event retains `why.rule` and `why.rolls` display strings;
+names and node facts refer to the event's location, including departed encounters.
+Missing template data falls back to factual text (`templateId: null`), and negative
+damage renders as healing. Authored prose cannot award loot or change mechanics.
+Hosts must treat text as literal content when presenting it.
+
+Reads consume neither RNG nor messages. `ack-narration` requires the current outer
+revision and a `throughSequence` between the saved cursor and available journal.
+A new acknowledgement changes only revision and cursor, emitting no journal event;
+equal acknowledgement is inert after revision validation. It remains available in
+terminal phases. Save after acknowledging to avoid presenting those messages again
+on reopen. Splitting director budgets preserves decisions and message IDs.
+
+`tests/proofs/solo-adventure-journey.test.ts` exercises fresh ESM/CJS entries, real
+enemy commands, host reward claims, the next fight, narration and JSON reopen.
+The shared adventure oracle covers these decisions/messages in Node, Chromium,
+Firefox and WebKit; the full suite also runs under Electron's Node runtime.
 
 ## Grid combat
 
@@ -605,9 +776,12 @@ standing opponent and the next cell does not, the engine emits
 `{at, next}`). Opportunity attacks are pack data: each theme ships a reaction on
 `move:leaving-reach[target=self]` — `opportunist`, `cheap-shot`, `bramble-snap`
 — whose effect is the theme's own melee attack. An offer pauses the move: the
-mover carries `pendingMove {actionId, to, remaining}` until the host has
+mover carries `pendingMove {actionId, to, remaining, offeredDepartures}` until the host has
 answered every open offer, then the move re-plans from where it stands with the
-remaining budget:
+remaining budget. New saves retain each offered `{from,to,reactorId}` tuple: the
+same departure is not offered twice, while a different edge or threatener is checked
+again. Legacy saves without this field retain first-edge suppression; an explicit
+empty history checks every departure:
 
 ```text
 fight.declare('glide', { to: { x: -3, y: 0 } })
@@ -913,14 +1087,15 @@ CI (`.github/workflows/ci.yml`) is configured for the Node matrix (18/20/22 — 
 themes, the bundle-isolation + security-sweep gates, and the lint + Prettier format checks on every push (lint runs on Node 22 — ESLint 10's floor is above the Node 18 matrix leg).
 `tests/proofs/contract-conformance.test.ts` checks the three bundled themes' generated packs
 (seed 42), the seven fixture packs, the snapshot envelopes from the determinism oracle's nine
-combat legs plus a level-1 character and party per theme, and two override documents against
+characterization legs (eight combat and one character) plus a level-1 character and party per theme, and two override documents against
 the JSON Schema contracts in `src/schema/contracts/` (repository files, not shipped in the npm
 package), with an independent validator (Ajv, a dev dependency only); it runs in the Node matrix
 and in the package job.
 
 Two more jobs carry the cross-runtime determinism proof. The `browser` job runs the
-shared oracle (`tests/proofs/determinism-oracle.ts`: Node-pinned digests of nine combat
-legs and three generated packs) plus the pure core/schema/theme suites in Chromium,
+shared oracle (`tests/proofs/determinism-oracle.ts`: Node-pinned digests of nine characterization
+legs, including character leg-8, and three generated packs) and the adventure/solo oracle (`tests/proofs/adventure-oracle.ts`) plus the pure
+core/schema/theme suites in Chromium,
 Firefox and WebKit (`vitest.browser.config.ts`); it runs `src/` transformed by Vite,
 not the shipped `dist/` bundle, which the Node and Electron legs exercise through the
 `dist/` journeys. The `electron` job runs the whole suite under Electron's own Node/V8
