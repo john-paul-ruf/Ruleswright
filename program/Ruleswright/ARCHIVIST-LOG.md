@@ -2671,3 +2671,276 @@ Inputs:
   - **Unchanged:** Verification Commands, Git Config, Session Defaults, the registry table, Architecture and Custom Rules 2–4 and 6.
 - **Not edited:** specs, mocks, STATE.md, FINAL-REPORT.md, VERIFICATION.md, `src/`, `tests/`, README and `.github/`. No scratch file was written anywhere: every edit used inline `node -e` exact-match replacement (each anchor asserted to occur exactly once).
 - **Role docs:** byte-identical to how this pass found them (md5 above).
+
+
+---
+
+## 2026-10-16 — random-adventures final reconciliation
+
+### Inputs, scope and revisions
+
+Final report `program/Ruleswright/prompts/random-adventures/FINAL-REPORT.md`
+assembled at `b4089b3`; source `6d919f3`; current plan `6f097e2`, S04 lease 4;
+feature VERIFICATION `26510c4` (56 verified local rows). Read the complete feature
+STATE, program STATE, MASTER, SESSION-01–04, all of arch/, PROGRAM-CONFIG.MD and
+recent class-features/browser-determinism/contract-conformance log entries and
+their Final Report granularity/process/closure sections, plus the standing/cleanup
+ledgers. Read ARCHIVIST.md in full and the current
+PLANNER/CODER/UI-CODER/ORCHESTRATOR text relevant to adoption and rule boundaries.
+Inspected approved FR-24–29 / AR-01–06 contracts, source composition and the
+actual assertion bodies, not only test names/counts. Git has no source/test/script/
+README/package/CI changes from `6d919f3` to report HEAD `b4089b3`.
+
+No Coder ran concurrently; no subagent was spawned. No implementation, plan,
+STATE, Final Report, verification artifact, specification, mock or role document
+was edited. No source suite, documented hang, remote Actions query, push or
+publication was run. This pass verifies prose by inspection and diff checks;
+execution results are explicitly inherited from accepted receives/VERIFICATION.
+
+### Reconciliation and evidence
+
+- Replaced the accumulated architecture chronology/deltas with one current
+  module-ordered account. Consumed feature fragments `12171e5`, `dc9cc08`,
+  `e713c0c`, `9169f94`, `605daa1`; removed obsolete “S03/S04 still owns” claims.
+  Git preserves earlier descriptions and decisions. Corrected the old claim that
+  root or a published core subpath exports Rng: `src/index.ts` and package exports
+  show neither; injection and saved RNG remain the supported seams.
+- Re-derived every module edge using TypeScript AST import/export declarations:
+  93 non-test source files, M01 21 / M02 9 / M03 43 / M04 19 / M05 1; seven value
+  edges, unchanged module IDs and cross-module boundaries. Updated registry paths
+  for play/adventure/preview and M04 sidecar recipe JSON. A symbol grep was used
+  only for cleanup consumer claims, never as proof of module edges.
+- Closed stale residual prose against actual commits: exact HP `e62da2f`, initial
+  conditions/item duration `5cc27f4`, departure history `9cea9f6`, committed
+  malformed-featSlots compiler case `09e9766`, Designer phase/event copy
+  `5b88826`/`5b92b52`, Architect overview `d68f258`, and CI/coverage/README wording
+  `09e9766`/`6d919f3`. Kept legacy compatibility and the remaining owned residuals.
+- CA-01/02: exact signed HP/temp, conditions, explicit empty setup seeds, current
+  geometry and original resource baselines are written/read through the real
+  encounter facade. Sampled `play/session.ts`, `play/snapshot.ts`, settlement and
+  `tests/proofs/encounter-session-journey.test.ts`; stale/foreign/malformed commands
+  and failed staged operations do not publish state/events/entropy.
+- CA-03: `compiler/adventure.ts` + `adventure-templates.ts` consume schema/core,
+  bind the real pack, preserve empty seeds and construct detached finite outputs.
+  The built `adventure-journey.test.ts` actually enters a generated encounter,
+  settles it and reopens it, with/without rewards; this closes the generation →
+  play boundary rather than treating separate layer tests as integration.
+- CA-04: `adventure/rewards.ts` uses real awardXp/grantItem in a private staged
+  runtime. `rewards.test.ts:170` first proves successful actual first-member
+  XP/item writes, then later-member E-VANC-01 and byte-identical rollback/reopen.
+  `snapshots/adventure.test.ts:160` uses an opaque host ID resembling a combatant;
+  `7011064` also supplies separate actual terminal injury/item-spend evidence.
+  Low-level XP still has its original reset behavior; the adapter preserves
+  adventure HP/temp and indexed prepared slots as already approved.
+- CA-05: shared preview/real dispatch, bounded candidates, player yields,
+  saved director metadata, factual event-time narration and ack-only changes are
+  composed in production. Inspected director tests at 112/130/294 and narration
+  test at 167: zero-damage is not falsely stalled; restored defensive stall
+  handling remains; real turn-start resets below-limit nonzero metadata and
+  reopens; ack changes exactly revision/cursor, with no event and guarded retries.
+  Planner `6f097e2` disproved the imposed naturally unchanged-transition fixture.
+  No natural stalemate-detection claim is made or restored.
+- CAP-01–06 and current CA table verdicts agree with VERIFICATION's 56 verified
+  local rows. No new implementation counterexample was found in the inspected
+  boundaries. This is not a new global certification of every older requirement.
+  Node/Electron 1447/73 each, browsers 77/7 each, conformance 62, docs 17, isolation
+  self-tests 10 and clean-copy 467 local input paths are recorded results from
+  final source, not fresh runs here. Built ESM/CJS and source/Vite claims stay
+  distinct; remote Node18/20/22/Actions B-BD-1 stays with the human publication
+  owner and later Orchestrator receive. Older nested loot debt stays Planner/M04.
+- Initial planning D3/D5 empty-seed failure remains valid historical evidence at
+  plan `6ec316f` / source `fcec34d`. Author `42bad60`, plan `8826450` and review
+  receipt `207c9e0` closed it before implementation. This final pass does not
+  replace or rescore the archived seven-dimension table.
+
+### Owner seams and current-record drift
+
+These are documentation corrections, not new capability failures or human
+prompts. Their owners can act mechanically within their existing documentation
+roles; no implementation lease or product choice is requested.
+
+1. **Orchestrator — current summaries:** feature STATE:8 still says S04 c4/c5
+   pending; the dependency/current mapping prose retains future producer claims
+   (e.g. CA-01 “current behavior reconstructs hp”, CA-02 “provisional”, CA-05
+   narration/platform future). STATE Current Blockers:210 and MASTER:11 still
+   say Feature Verification/report are due. The final receives and `26510c4` /
+   `b4089b3` establish completion. Reconcile those *current* paragraphs or label
+   their plan-time scope explicitly, preserving verbatim historical handoffs and
+   initial planning scores. Acceptance tables themselves are correct. Closure:
+   current summaries all name completed local source/evidence and retain only
+   B-BD-1 / legacy loot obligations, with Archivist receipt handled by the caller.
+2. **Planner/config owner — restricted config sections:** the old header/Stack/
+   Author Sources retain `66d4efe`, three schemas/v1.11 and old browser/subject
+   descriptions. Updated module registry and Custom Rules give the current
+   source, six schemas/v1.12 and local evidence. Those other sections and
+   Verification Commands were deliberately not edited because this envelope
+   restricts Archivist's config authority. Reconcile them to the current record
+   without claiming remote CI or a renderer run. Closure: sibling summaries
+   agree with six schemas and the actual source/browser versus built proof scope.
+3. **Planner/M04 — cleanup:** three older absent nested loot targets are now
+   briefed C18–C20 in CLEANUP-LEDGER. Mechanical reference evidence is certain;
+   intended no-item content semantics need approved-source interpretation and,
+   only if unresolved, a product/Author decision in the cleanup plan. No cleanup
+   is implemented or permission inferred from this finding.
+
+### Process recurrence, deviations and convention decision
+
+Four planned sessions / 19 planned checkpoints plus S03's in-lease proof
+correction `7011064`; seven implementation dispatches; 3/4 first-dispatch
+completion. S04 returned blocked three times: attempt 1 before writes for closed
+aggregate validators/ack guards; attempt 2 after c3 for the exact old command-list
+assertion; attempt 3 for Orchestrator's disproved genuine-unchanged-state fixture.
+The first two are exact producer/consumer lease coverage (D3/D4 for subsequent
+planning); the third is factual proof-premise correction, not lease size.
+No context exhaustion, checkpoint re-slice or post-acceptance integration rework
+occurred. Separate earlier XP and empty-seed contract corrections were resolved
+before their implementation consumers. The Author approval was explicit and
+persisted; no repeated permission was needed.
+
+FR-19 counts count each classified handoff entry once, not every later receive
+that quotes it:
+
+| Rule | Effective count | Sessions / evidence |
+|---|---:|---|
+| R1 | 5 | S01 c5: optional-undefined JSON materialization (STATE:644); S02 c3: located duplicate cards and sparse arrays, two entries (740–741); S03 c4: opaque receipt IDs and separate terminal injury proof, two entries (803, `7011064`) |
+| R2 | 1 | S02 c3 compiler formatting (STATE:742) |
+| R3 | 2 | S04 attempts 1 and 2, stopped for exact missing lease paths (STATE:858,912). Neither wrote outside the lease; these are compliant stops, **zero lease violations**. |
+| R4 | 0 after disposition | Author initial raw handoff contains one R4 B-RA-XP discovery (STATE:334); revision 2 reclassifies it as not a deviation because FR-26/27 already prescribe continuity. Preserve raw count 1 and corrected effective 0, never erase the discovery or call it unauthorized work. |
+
+S04 attempt 3 has an empty deviations list; the invalid proof-premise stop is
+recorded as such, not invented R3/R4. Author seed correction has no additional
+classified deviation. VERIFY-01's ignored-path commit refusal is an archival
+surprise, not a lease violation or implementation deviation.
+
+**Promotion now, not deferred:** public-surface/consumer lease completeness
+`b85c8f3e113a6764` was 2 cycles / 3 instances and gains this cycle's two S04 lease
+returns: **3 cycles / 5 instances**, crossing the program-cycle axis. Sharpened
+the existing PROGRAM-CONFIG pin/consumer convention to name closed aggregate
+validators, exact command guards, snapshot consumers and command-list assertions,
+including the consumer sweep after a bounded amendment. No new review stage or
+mandatory execution gate. The framework substance is already present in Planner
+and is marked adopted below; recurrence is a compliance/coverage signal, not
+proof the wording is absent. The proof-premise convention already covers the
+third stop; it is not counted as a third lease gap. Existing threshold-crossed
+behavior-pin and pnpm invocation rows are marked program-promoted: their
+substance is already in the pin convention / Verification Commands respectively.
+No duplicate rule or unauthorized command-section edit is needed.
+
+Other evidence increments (old → new): cross-suite pins 9/11 → 10/12 (S04 exact
+command list); factual premises 12/54 → 13/56 (F-RA-01 empty seed and disproved
+stall fixture); fast receive gates 4/4 → 5/5 (Author snapshot format receive,
+STATE:283, corrected by the authorized Author); Author re-entry 9/11 → 10/12
+(one authorization episode, not one count per resume); ignored VERIFICATION
+6/6 → 7/7 (`26510c4`); internal plan consistency 1/2 → 2/3 (the already-authorized
+39th path missing from Files, corrected by `6f097e2`). Idle awaits recur in the
+report but are not enumerated: cycles 9 → 10 and instances **at least 18** (prior
+17 plus at least one this cycle), explicitly a lower bound, not an invented
+exact timeout count. All other counters remain unchanged. Ancient context/model/
+argv observations now have twelve subsequent cycles without recurrence; no
+retirement is inferred on the human's behalf.
+
+### Proposed for the framework and adoption audit
+
+First-observation recommendations have no promotion threshold:
+
+- **R3/R4 receive semantics (1 cycle / 1 comparison):** align
+  ORCHESTRATOR.md:343 with CODER.md:391–410 and UI-CODER's matching stop rules.
+  The former says an exact R3/R4 deviation entry “authorizes” an outside path;
+  the latter says these record stops, not permission, with narrow prior-tool/
+  issued-lease exceptions. Require the existing authorization/lease evidence,
+  not self-authorization by a handoff string. This cycle's two compliant stops
+  caused no violation; the finding is the role-text contradiction.
+- **Current-summary replacement (1 cycle / 1 final reconciliation):** update
+  owned current summaries in place after final receives; keep historical raw
+  handoffs unchanged. The stale STATE/MASTER paragraphs above make a completed
+  record require a reader to reconcile contradictory present-tense summaries.
+  This recommends use of the existing receive, not another mandatory stage.
+
+Checked current role content and `git log -- program-agents/{PLANNER,CODER,UI-CODER,ORCHESTRATOR}.md`
+before carry-forward. `program-agents/` is ignored (`.gitignore:28`), so there is
+**no git adoption commit to cite**. Current role hashes match those recorded by
+the prior pass; this does not establish that all recommendations are unadopted.
+The following substances are present now and the prior open classification is
+corrected, without asserting a new human edit occurred this cycle:
+
+| id | Adoption evidence |
+|---|---|
+| b85c8f3e113a6764 | PLANNER.md:404–422 already requires exact producer, consumer, fixture and discovery paths at the owning checkpoint |
+| 854ceecd39d4b0d3 | ORCHESTRATOR.md:347–350 already requires independently run whole-repo fast receive gates and owner correction |
+| 3092a46b564d1d36 | PLANNER.md:766–790 already requires inspected wrappers/records and retaining known hazards until relevant repair proof |
+| 318c816b6920dd3d | ORCHESTRATOR.md:945–960 has one consolidated Verification section; the current Final Report follows it |
+
+For remaining rows, partial adoption is not promoted to whole adoption:
+Planner's premise review does not prescribe the clean-copy/proof-command details;
+its general consumer trace does not explicitly enumerate every content/behavior
+pin; Native re-await is present but the idle-timeout-is-not-crash handling is not;
+wave-close verification exists but sibling worktree isolation does not. CODER
+still names npx at 186/623, ORCHESTRATOR at 380; ignored-path force-add handling
+and Author exceptions remain program conventions rather than role changes.
+Report mechanical derivation/immutable references, deleted-file staging, precise
+row matching, tool-input/argv discipline, provider/double-synthesis handling,
+negative-control lease paths, scratch-tool confinement, public prose assertion
+scope and multiline import derivation retain their specific unadopted substance.
+The full open backlog is the table below, including program-promoted items whose
+framework wording remains open. No recurrence count is increased merely because
+this pass reread an old observation.
+
+### Cleanup and verification of this documentation pass
+
+C1–C17 carried into the new dedicated CLEANUP-LEDGER with IDs intact. C4's
+no-consumer premise is false: EventStream uses EventSeed/EventSink. C7's constant
+has a real registry consumer and is intentional public API. Both retired as
+cleanup candidates. C3/C10/C15/C16/C17 remain tracking; previously completed
+candidates retain their historical closure evidence and are retired here.
+C18–C20 meet three-high-confidence threshold and emit one Planner brief, not
+implementation authority. Dynamic/public consumers and generated pack identity
+are explicit false-positive/blast-radius concerns. The scout also inspected new
+source import/barrel wiring and the explicit three-recipe registry; a bounded
+TODO/FIXME/deprecated/obsolete/unused search in the new play/adventure/generator/
+schema/preview files returned no hits. No package dependency changed. No UI route
+or feature-flag cleanup claim is inferred for this headless library.
+
+Re-read reconciled architecture/config/ledger for contradictions and checked
+exact path diffs. Config changes are confined to Module Registry, Conventions
+and Custom Rules: header, Program, Stack, Architecture, Verification Commands,
+Git Config, Session Defaults and Author Sources are byte-identical. Old log
+bytes are an unchanged prefix, with this single dated entry appended. Protected
+role SHA256s are unchanged from startup; their content/history adoption audit
+above is a separate claim. No tests apply to these prose-only edits and no
+recorded execution result is relabeled as this pass's execution.
+
+### Standing recommendations
+
+| id | pattern | cycles | in-cycle instances | first seen | status |
+|---|---|---:|---:|---|---|
+| b32fc8d0c8c92d52 | Large single-session builds exhaust context on exhaustive checkpoint-0 read sweeps (empty-final crash; recovery = checkpoint-scoped reading) | 2 | 2 | v1-core | open (twelve cycles without recurrence; retirable by a human) |
+| f57dbe4d010638fe | Subagent model fabricates tool inputs (invented paths, invented project state, fabricated git output) under long-recovery prompts | 2 | 8 | v1-core | open (twelve cycles without recurrence; retirable by a human) |
+| b85c8f3e113a6764 | Public surface/barrel completeness gaps discovered at integration (lease gaps across wave-spanning modules) | 3 | 5 | v1-core | adopted (confirmed in current role text; see adoption audit) |
+| c1ed872bea557b96 | run tool drops/misroutes argv; workers pass whole command lines as single argv entries | 2 | 3 | v1-core | open (twelve cycles without recurrence; retirable by a human) |
+| 3658f327cc9cff2f | commit_pathspec-style single-command commits fail on deleted files | 2 | 2 | v1-core | open (recommendation reworded 2026-10-04: name `git rm`, never `git add -A`) |
+| 1cc46f93038f1d9a | Cross-suite pinning tests (docs-run block-count pin, registry-count pin) land without a named owner in the plan | 10 | 12 | loot-inventory | promoted (program convention; framework wording open) |
+| 576a281656f83b23 | Envelope factual premises (mock-vs-prompt anatomy, cross-suite counts) reach sessions unverified; mechanical premise verification at planning time is the fix | 13 | 56 | loot-inventory | promoted (program convention; framework wording open) |
+| 854ceecd39d4b0d3 | Whole-repo fast gates (typecheck/lint/format:check) go red at role-scoped receives; cleared by format-only owner corrections | 5 | 5 | v1-core | adopted (confirmed in current role text; see adoption audit) |
+| 17f4803c1b08da77 | Provider stream aborts / capacity failures kill subagents mid-session with zero commits; recovery resumes from the preserved tree | 3 | 5 | loot-inventory | open (promotion held: carried cycle attribution ambiguous) |
+| 6f6b491bdbe37bf0 | Bare npx misresolves in this runtime; the working gate forms are pnpm exec vitest run <path> and node_modules/.bin/vitest | 3 | 4 | loot-inventory | promoted (existing pnpm gate rule; framework wording open) |
+| 1d910de11732c6c4 | Final Archivist pass aborts on provider capacity leave the next cycle's pass a double synthesis (prior cycle's integrated fragments + record-debt) | 2 | 2 | loot-inventory | open |
+| c172cd30e8dfc756 | Session commit gates hard-code a plan-time base SHA that a later replan makes stale | 1 | 1 | equipment-consumables | open |
+| cecd211504587426 | Host await idle timeout (300 s) interrupts long subagent waits; re-awaiting the same handle reattaches with no work lost | 10 | ≥18 | equipment-consumables | promoted (program convention; framework wording open) |
+| f68c42a3f6224eb1 | Final Report mechanical facts (test-file counts, realized module edges) transcribed from handoffs rather than derived from the tree | 4 | 4 | v1-core | promoted (program convention; framework wording open) |
+| a368039028d463d6 | Role documents say Spec/DB are never spawned, while plans dispatch orchestrated Author re-entry sessions on recorded human authorization | 10 | 12 | grid-combat | promoted (program convention; framework wording open) |
+| 3983f8eb6d18a5f2 | Orchestrator STATE row matcher hits a CA-ID column inside the CAP table and writes contract-leg notes into the wrong rows | 1 | 2 | grid-movement | open |
+| f4621ac12fba3456 | Pin audits enumerate count/shape pins but miss behavior pins: tests asserting a value whose derivation a decision changes surface red at a quiet boundary, some outside every lease | 3 | 4 | grid-combat | promoted (existing behavior-pin convention; framework wording open) |
+| 760b67f17edbd346 | A feature opens a content class to a new execution path, and latent content hazards become reachable without a planning-time scan (damage(half) with no fail-branch damage, 12 spell sites) | 2 | 2 | spells-in-combat | open |
+| 82b4e0abbda105d6 | Concurrent sessions on disjoint leases share one working tree: a sibling's uncommitted edits turn another worker's gates red or inflate its whole-suite counts | 1 | 2 | spells-in-combat | open (narrowed: wave-close re-verify present at ORCHESTRATOR.md:374-391; the temporary-worktree half absent) |
+| c3c94358b35f8316 | Final Report cites `git diff <base>..HEAD` while its own commit then moves HEAD, so the cited command no longer reproduces the reported count | 2 | 2 | action-targeting | open (2026-10-11: the contract-conformance report anchored its moving-ref figure, 217 at `9c8cdc3`, and it reproduces; applied by practice, not by template) |
+| c187bed6bb5132a7 | A new file the role documents order committed through commit_pathspec lives under a gitignored path (VERIFICATION.md under program/<slug>/prompts/), and commit_pathspec cannot force-add it | 7 | 7 | feat-progression | promoted (program convention; framework wording open) |
+| 8039d6869169267c | Plan artifacts carry internal inconsistencies into sessions: refusal paths lettered differently in SESSION and STATE, and a prescribed validator snippet that double-cards a negative entry | 2 | 3 | feat-progression | open |
+| d2415cb4497e0049 | Author/DB re-entry handoffs report deviations without an R1-R4 rule, so per-rule deviation counts cannot include them | 3 | 4 | feat-progression | promoted (program convention; framework wording open) |
+| 3092a46b564d1d36 | A Verification Baseline records 'Hazards: none' while the inspected record already holds known hazards (dist/-importing journeys pass a stale build; ESLint lints the .program/ scratch directory) | 3 | 4 | combat-decomposition | adopted (confirmed in current role text; see adoption audit) |
+| 2674d8c2f948ae0a | Plan-prescribed mechanical derivations are line-based greps that miss multi-line statements (value imports spread over several lines) | 1 | 1 | combat-decomposition | open |
+| 0880dd5734025fd4 | A prescribed negative control perturbs a file outside the session's lease (scratch edit of a non-owned file), a D4 gap found only at preflight | 2 | 2 | combat-decomposition | open (2026-10-11 recurrence: F-K2, in-place `ci.yml` controls; amendment A2 moved them in memory) |
+| 318c816b6920dd3d | A Final Report carries two `## Verification` sections (gates, then the FR-17 pass appended at the end), and the first cross-references the second as "below" | 1 | 1 | class-features | adopted (confirmed in current role text; see adoption audit) |
+| 47f092a4f076107c | A doc sentence claims a test checks more than the test enforces (README says docs-run checks "that this paragraph and ci.yml agree"; the pin reads only command strings) | 2 | 3 | browser-determinism | open (2026-10-11 recurrence: F-K1, the prescribed README conformance sentence over-quantified; S02 ck3 R1, a docs-run inline comment still said "both directions") |
+| f229f492b7a1e737 | Envelopes direct worker scratch to /tmp while the worker write tool refuses paths outside the repo, and the in-repo scratch directory (.program/) is collected by eslint . | 1 | 1 | contract-conformance | open |
+| def0175a6983489e | Reconcile Orchestrator receive authorization with Coder R3/R4 stop rules: a deviation entry alone cannot authorize an outside-lease write | 1 | 1 | random-adventures | open |
+| 61a33b57dba24d50 | Replace superseded current status prose after final receives while preserving historical handoffs and their original evidence | 1 | 1 | random-adventures | open |
