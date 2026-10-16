@@ -1,6 +1,7 @@
 import type { Pack } from '../../schema/pack';
 import type { AdventureDefinition } from '../../schema/adventure';
 import type { PlayMembers } from '../../schema/play-session';
+import { packContentHash } from '../../schema/version';
 import { Rng } from '../../core/rng';
 import { Runtime } from '../runtime';
 import { RuntimeRuleError, ruleCard } from '../errors';
@@ -272,7 +273,8 @@ export function readAdventureSnapshot(
       saved.encounterReceipts.some((r) => r.nodeId === id && r.receipt.result === 'victory'),
   );
   requireSaved(
-    same(saved.resolvedNodeIds, expectedResolved) && saved.restedNodeIds.length === 0,
+    same(saved.resolvedNodeIds, expectedResolved) &&
+      saved.restedNodeIds.every((id) => expectedResolved.includes(id) && nodes.get(id)!.rest === 'once'),
     'resolvedNodeIds',
   );
   const generation = new Rng(streamKey('adventure-generation', saved.adventureId, saved.seed));
@@ -361,17 +363,22 @@ export function readAdventureSnapshot(
     const path = `rewards[${i}]`,
       pair = expectedRewards[i]!;
     requireSaved(
-      exact(r, [
-        'claimId',
-        'adventureId',
-        'nodeId',
-        'rewardId',
-        'eligibleMemberIds',
-        'xpPerMember',
-        'stagedRevision',
-        'roll',
-        'status',
-      ]) && r.status === 'pending',
+      exact(
+        r,
+        [
+          'claimId',
+          'adventureId',
+          'nodeId',
+          'rewardId',
+          'eligibleMemberIds',
+          'xpPerMember',
+          'stagedRevision',
+          'roll',
+          'status',
+        ],
+        r.status === 'claimed' ? ['receipt'] : [],
+      ) &&
+        (r.status === 'pending' || r.status === 'claimed'),
       path,
     );
     const authored = definition.rewards.find((reward) => reward.id === r.rewardId);
@@ -388,6 +395,64 @@ export function readAdventureSnapshot(
         ),
       path,
     );
+    if (r.status === 'claimed') {
+      const receipt = r.receipt,
+        grant = r.roll?.result.kind === 'item' ? r.roll.result : null;
+      requireSaved(
+        exact(receipt, [
+          'receiptId',
+          'adventureId',
+          'definitionHash',
+          'claimId',
+          'nodeId',
+          'rewardId',
+          'revision',
+          'eligibleMemberIds',
+          'recipientMemberId',
+          'xpPerMember',
+          'grants',
+          'beforeMembersHash',
+          'afterMembersHash',
+        ]),
+        `${path}.receipt`,
+      );
+      counter(receipt.revision, `${path}.receipt.revision`);
+      requireSaved(
+        receipt.receiptId === JSON.stringify([saved.adventureId, r.claimId, 'reward']) &&
+          receipt.adventureId === saved.adventureId &&
+          receipt.definitionHash === definition.contentHash &&
+          receipt.claimId === r.claimId &&
+          receipt.nodeId === r.nodeId &&
+          receipt.rewardId === r.rewardId &&
+          receipt.xpPerMember === authored.xpPerMember &&
+          same(receipt.eligibleMemberIds, r.eligibleMemberIds) &&
+          receipt.revision > r.stagedRevision &&
+          receipt.revision <= saved.revision,
+        `${path}.receipt`,
+      );
+      requireSaved(
+        authored.loot === null
+          ? receipt.recipientMemberId === null
+          : typeof receipt.recipientMemberId === 'string' &&
+              r.eligibleMemberIds.includes(receipt.recipientMemberId),
+        `${path}.receipt.recipientMemberId`,
+      );
+      requireSaved(
+        same(
+          receipt.grants,
+          grant ? [{ memberId: receipt.recipientMemberId, itemId: grant.itemId, qty: grant.qty }] : [],
+        ) &&
+          [receipt.beforeMembersHash, receipt.afterMembersHash].every(
+            (h) => typeof h === 'string' && /^[0-9a-f]{8}$/.test(h),
+          ),
+        `${path}.receipt.grants`,
+      );
+      if (receipt.revision === saved.revision)
+        requireSaved(
+          receipt.afterMembersHash === packContentHash(saved.members),
+          `${path}.receipt.afterMembersHash`,
+        );
+    }
     counter(r.stagedRevision, `${path}.stagedRevision`);
     requireSaved(r.stagedRevision <= saved.revision, path);
     if (authored.loot === null) requireSaved(r.roll === null, `${path}.roll`);
@@ -411,6 +476,7 @@ export function readAdventureSnapshot(
     }
   }
   requireSaved(same(saved.rng.rewards, rewardWords), 'rng.rewards');
+  requireSaved(!saved.rewards.some((r) => r.status === 'pending' && r.nodeId !== saved.nodeId), 'rewards');
   const pending = saved.rewards.some((r) => r.nodeId === saved.nodeId && r.status === 'pending');
   if (saved.phase !== 'abandoned' && saved.phase !== 'defeated' && saved.phase !== 'encounter')
     requireSaved(

@@ -14,7 +14,7 @@ describe('CAP-03 guarded noncombat adventure', () => {
       lastMechanicalHash: null,
     });
     expect(Object.keys(a.serialize().rng)).toEqual(['generation', 'play', 'rewards', 'director']);
-    expect(a.view().availableCommands).toEqual(['choose', 'abandon']);
+    expect(a.view().availableCommands).toEqual(['choose', 'abandon', 'equip', 'unequip', 'use-item']);
     expect(choose(a).ok).toBe(true);
     const b = restoreAdventure(pack, definition, JSON.parse(JSON.stringify(a.serialize())));
     expect(choose(a)).toEqual(choose(b));
@@ -118,4 +118,52 @@ it('defeat and active abandonment settle actual members and never stage success 
   expect(b.view().phase).toBe('defeated');
   expect(b.serialize().rewards).toEqual([]);
   expect(b.serialize().members[0]!.character.state.hp).toEqual({ current: -3, temp: 2 });
+});
+
+import { rewardFixture, claim } from './fixtures';
+it('routes real prepare/equip/unequip/use and once-only rest without healing or time ticks', () => {
+  const f = rewardFixture(0),
+    a = createAdventure(f.pack, f.definition, f.options);
+  for (let i = 0; i < 3; i++) expect(claim(a, i, i === 2 ? undefined : 'hero-1').ok).toBe(true);
+  const before = a.serialize();
+  expect(dispatch(a, { type: 'rest', nodeId: 'start' }).ok).toBe(true);
+  const after = a.serialize();
+  expect(after.members.map((m) => m.character.state.hp)).toEqual(
+    before.members.map((m) => m.character.state.hp),
+  );
+  expect(after.members.map((m) => m.character.state.conditions)).toEqual(
+    before.members.map((m) => m.character.state.conditions),
+  );
+  expect(after.members[0]!.character.state.pools.stamina).toBe(32);
+  expect(after.members[0]!.character.state.slots).toEqual({ '1': [null, null], '2': [null, null] });
+  expect(dispatch(a, { type: 'rest', nodeId: 'start' }).ok).toBe(false);
+  expect(
+    dispatch(a, {
+      type: 'prepare',
+      nodeId: 'start',
+      memberId: 'hero-1',
+      spellId: 'grave-light',
+      slotIndex: 1,
+    }).ok,
+  ).toBe(true);
+  expect(dispatch(a, { type: 'unequip', nodeId: 'start', memberId: 'hero-1', slot: 'ring' }).ok).toBe(true);
+  expect(
+    dispatch(a, { type: 'equip', nodeId: 'start', memberId: 'hero-1', itemId: 'ward-ring', slot: 'ring' }).ok,
+  ).toBe(true);
+  expect(
+    dispatch(a, { type: 'use-item', nodeId: 'start', memberId: 'hero-1', itemId: 'mend-draught' }).ok,
+  ).toBe(true);
+  expect(a.serialize().members[0]!.character.state.hp.current).toBe(17);
+  expect(a.serialize().members[0]!.character.state.inventory.find((i) => i.id === 'mend-draught')!.qty).toBe(
+    1,
+  );
+  const stable = a.serialize();
+  expect(
+    dispatch(a, { type: 'prepare', nodeId: 'start', memberId: 'foreign', spellId: 'grave-light' }).ok,
+  ).toBe(false);
+  expect(a.serialize()).toEqual(stable);
+  expect(choose(a).ok).toBe(true);
+  expect(
+    dispatch(a, { type: 'prepare', nodeId: 'clearing', memberId: 'hero-1', spellId: 'grave-light' }).ok,
+  ).toBe(false);
 });

@@ -151,3 +151,68 @@ export function finishEncounter(adventure: Adventure, limit = 1000) {
   }
   throw new Error('Adventure encounter exceeded host step limit');
 }
+
+import { Runtime, serializeCharacter } from '../../../src/runtime';
+export function rewardFixture(xp = 1000, hp = 7, decreasing = false) {
+  const f = adventureFixture(),
+    pack = f.pack;
+  pack.progression['warden']!.slots = { '1': [2, 3, 3, 4], '2': [2, 3, 3, 4] };
+  pack.progression['hexer']!.slots = { '1': decreasing ? [2, 1, 1, 1] : [2, 3, 3, 4], '2': [2, 3, 3, 4] };
+  pack.content.spells!['high-light'] = {
+    ...pack.content.spells!['grave-light']!,
+    name: 'High Light',
+    magic: { level: 2, lists: ['hexer'] },
+  };
+  pack.tables['prize'] = { kind: 'weighted', entries: [{ weight: 1, value: { id: 'rope', qty: 2 } }] };
+  const rt = new Runtime(pack);
+  rt.createCharacter({ name: 'Unrelated', race: 'ashkin', classes: ['warden'] });
+  const members = ['warden', decreasing ? 'hexer' : 'warden'].map((id, i) => {
+    const c = rt.createCharacter({ name: 'Same name', race: 'ashkin', classes: [id] });
+    c.state.hp = { current: hp - i, temp: 3 + i };
+    c.prepare('grave-light', 1);
+    c.prepare('high-light', 1);
+    c.state.pools['stamina'] = 4 + i;
+    c.applyCondition('dazzed');
+    c.learnFeat('ironhide');
+    c.grant('ward-ring');
+    c.equip('ward-ring', 'ring');
+    c.grant('mend-draught', 2);
+    return { memberId: `hero-${i + 1}`, character: serializeCharacter(rt, c.state) };
+  });
+  const identity = members[0]!.character.pack;
+  const definition = rehash({
+    ...f.definition,
+    pack: identity,
+    nodes: f.definition.nodes.map((n) =>
+      n.id === 'start'
+        ? { ...n, rewardIds: ['cache', 'flavor', 'nothing'], rest: 'once', preparation: true }
+        : n,
+    ),
+    rewards: [
+      {
+        id: 'cache',
+        xpPerMember: xp,
+        eligible: 'party',
+        loot: { tableId: 'prize', recipient: 'host-choice' },
+      },
+      {
+        id: 'flavor',
+        xpPerMember: 0,
+        eligible: 'party',
+        loot: { tableId: 'wandering-dread', recipient: 'host-choice' },
+      },
+      { id: 'nothing', xpPerMember: 0, eligible: 'party', loot: null },
+    ],
+  });
+  return { pack, definition, options: { adventureId: 'reward-adventure', seed: 42, members }, runtime: rt };
+}
+export function claim(adventure: Adventure, index = 0, recipientMemberId?: string) {
+  const r = adventure.serialize().rewards[index]!;
+  return dispatch(adventure, {
+    type: 'claim-reward',
+    nodeId: r.nodeId,
+    rewardId: r.rewardId,
+    claimId: r.claimId,
+    ...(recipientMemberId === undefined ? {} : { recipientMemberId }),
+  });
+}

@@ -91,6 +91,30 @@ export type AdventureCommand = {
   | { readonly type: 'choose'; readonly nodeId: string; readonly choiceId: string }
   | { readonly type: 'abandon' }
   | {
+      readonly type: 'claim-reward';
+      readonly nodeId: string;
+      readonly rewardId: string;
+      readonly claimId: string;
+      readonly recipientMemberId?: string;
+    }
+  | { readonly type: 'rest'; readonly nodeId: string }
+  | {
+      readonly type: 'prepare';
+      readonly nodeId: string;
+      readonly memberId: string;
+      readonly spellId: string;
+      readonly slotIndex?: number;
+    }
+  | {
+      readonly type: 'equip';
+      readonly nodeId: string;
+      readonly memberId: string;
+      readonly itemId: string;
+      readonly slot: string;
+    }
+  | { readonly type: 'unequip'; readonly nodeId: string; readonly memberId: string; readonly slot: string }
+  | { readonly type: 'use-item'; readonly nodeId: string; readonly memberId: string; readonly itemId: string }
+  | {
       readonly type: 'encounter';
       readonly encounterId: string;
       readonly command: Exclude<EncounterCommand, { readonly type: 'next' }>;
