@@ -5,7 +5,7 @@ import { restoreCharacter } from '../snapshots/character';
 import { profileFromCharacter } from '../character-profile';
 import { assembleEncounter, spawnEncounter } from '../encounter';
 import { startCombat } from '../combat/combat';
-import { freezeFight } from './snapshot';
+import { detached, freezeFight } from './snapshot';
 
 export function streamKey(tag: string, ...parts: (string | number)[]): string {
   return JSON.stringify(['ruleswright', 1, tag, ...parts]);
@@ -61,7 +61,7 @@ export function beginEncounter(
     ),
   );
   const terrain = setup.layout.kind === 'theater' ? [] : setup.layout.terrain;
-  const start = { allies, enemies, positions, terrain };
+  const start = detached({ allies, enemies, positions, terrain });
   const fight = startCombat(runtime, {
     ...start,
     rng: new Rng(streamKey('combat', sessionId, index, String(setup.seed), play.int(4294967296))),

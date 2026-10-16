@@ -131,3 +131,150 @@ describe('CA-02 aggregate shape rejection', () => {
     }
   });
 });
+
+describe('CA-02 semantic restore predicates', () => {
+  const cases: [string, string, unknown][] = [
+    ['encounter.memberBindings', 'encounter.memberBindings.0.memberId', 'other'],
+    ['encounter.memberBindings', 'encounter.memberBindings.0.combatantId', 'm:other'],
+    ['encounter.start.allies', 'encounter.start.allies.0.profile.hp', 123],
+    ['encounter.start.allies', 'encounter.start.allies.0.balances.pools.stamina', 999],
+    ['encounter.start.allies', 'encounter.start.allies.0.balances.boundSlots.1', 2],
+    ['encounter.start.enemies', 'encounter.start.enemies.0.profile.hp', 999],
+    ['encounter.selection', 'encounter.selection.seedUsed', 'replacement'],
+    ['encounter.selection', 'encounter.selection.threat', 999],
+    ['encounter.selection.groups', 'encounter.selection.groups.0.id', 'missing'],
+    ['encounter.enemyInstances', 'encounter.enemyInstances.0.monsterId', 'missing'],
+    ['encounter.encounterId', 'encounter.combat.pairsWith', 'wrong'],
+    ['encounter.combat.order', 'encounter.combat.order', ['m:hero-1', 'm:hero-1']],
+    ['encounter.combat.combatants[0].maxHp', 'encounter.combat.combatants.0.maxHp', 999],
+    [
+      'encounter.combat.combatants[0].conditions',
+      'encounter.combat.combatants.0.conditions',
+      [{ id: 'unknown', remaining: 2 }],
+    ],
+    ['encounter.combat.combatants[0].slotsUsed', 'encounter.combat.combatants.0.slotsUsed.main', 99],
+    [
+      'encounter.combat.combatants[0].itemsUsed',
+      'encounter.combat.combatants.0.itemsUsed',
+      { 'mend-draught': 3 },
+    ],
+    ['encounter.combat.combatants[0].itemsUsed', 'encounter.combat.combatants.0.itemsUsed', { rope: 1 }],
+    [
+      'encounter.combat.combatants[0].poolsSpent',
+      'encounter.combat.combatants.0.poolsSpent',
+      { stamina: 999 },
+    ],
+    ['encounter.combat.combatants[0].poolsSpent', 'encounter.combat.combatants.0.poolsSpent', { unknown: 1 }],
+    [
+      'encounter.combat.combatants[0].slotsCast.1',
+      'encounter.combat.combatants.0.slotsCast',
+      { '1': [0, 0] },
+    ],
+    ['encounter.combat.combatants[0].slotsCast.1', 'encounter.combat.combatants.0.slotsCast', { '1': [7] }],
+    ['encounter.combat.phase', 'encounter.combat.phase', 'combat-over'],
+    ['phase', 'result', 'victory'],
+    ['encounter.control', 'encounter.control.turnStarted', true],
+    ['encounter.positions', 'encounter.positions', { 'm:hero-1': { x: 1, y: 2 } }],
+    ['journal[0].subjects', 'journal.0.subjects.0.name', 'Wrong name'],
+    ['journal[0].subjects', 'journal.0.subjects', []],
+    ['journal[0]', 'journal.0.sequence', 2],
+    ['journal[0]', 'journal.0.revision', 2],
+    ['sequence', 'sequence', 0],
+    ['settlements', 'encounterIndex', 1],
+  ];
+  it.each(cases)('refuses corruption at %s (%s)', async (expected, field, value) => {
+    const { settlementFixture } = await import('../runtime/play/fixtures');
+    const { createEncounterSession, restoreEncounterSession } = await import('../../src/runtime');
+    const { pack, options } = settlementFixture();
+    const session = createEncounterSession(pack, options);
+    const before = session.serialize(),
+      bad = JSON.parse(JSON.stringify(before)) as Record<string, unknown>;
+    const keys = field.split('.');
+    let parent = bad;
+    for (const key of keys.slice(0, -1)) parent = parent[key] as Record<string, unknown>;
+    parent[keys[keys.length - 1]!] = value;
+    try {
+      restoreEncounterSession(pack, bad);
+      throw new Error('accepted corrupt snapshot');
+    } catch (error) {
+      expect(error).toHaveProperty('errors');
+      const errors = (error as { errors: { jsonPath: string }[] }).errors;
+      // Pairing is rejected before a changed encounter index reaches receipt validation.
+      expect(
+        errors.some(
+          (e) =>
+            e.jsonPath === expected || (field === 'encounterIndex' && e.jsonPath === 'encounter.encounterId'),
+        ),
+        JSON.stringify(errors),
+      ).toBe(true);
+    }
+    expect(session.serialize()).toEqual(before);
+  });
+  it('preserves empty seeds after settled reopen/next and refuses changed receipts or entry party', async () => {
+    const { playFixture, finish, send } = await import('../runtime/play/fixtures');
+    const { createEncounterSession, restoreEncounterSession } = await import('../../src/runtime');
+    const { pack, options } = playFixture();
+    const session = createEncounterSession(pack, options);
+    finish(session);
+    send(session, { type: 'finalize' });
+    const settled = session.serialize();
+    for (const [key, value] of [
+      ['sourceHash', '00000000'],
+      ['beforeMembersHash', '00000000'],
+      ['afterMembersHash', '00000000'],
+      ['revision', settled.revision - 1],
+      ['result', 'abandoned'],
+    ] as const) {
+      const bad = JSON.parse(JSON.stringify(settled));
+      bad.settlements[0][key] = value;
+      expect(() => restoreEncounterSession(pack, bad)).toThrow();
+    }
+    const restored = restoreEncounterSession(pack, JSON.parse(JSON.stringify(settled)));
+    expect(send(restored, { type: 'next', setup: options.setup })).toEqual(
+      send(session, { type: 'next', setup: options.setup }),
+    );
+    const second = session.serialize();
+    expect(second.encounter.setup.seed).toBe('');
+    expect(second.encounter.selection.seedUsed).toBe('');
+    const reopened = restoreEncounterSession(pack, JSON.parse(JSON.stringify(second)));
+    expect(send(reopened, { type: 'advance' })).toEqual(send(session, { type: 'advance' }));
+    expect(reopened.serialize()).toEqual(session.serialize());
+    const bad = JSON.parse(JSON.stringify(second));
+    bad.members[0].character.state.hp.current++;
+    expect(() => restoreEncounterSession(pack, bad)).toThrow();
+  });
+});
+
+it('rejects duplicate original character identities and foreign nested pack identity', async () => {
+  const { playFixture } = await import('../runtime/play/fixtures');
+  const { createEncounterSession, restoreEncounterSession } = await import('../../src/runtime');
+  const { pack, options } = playFixture(undefined, 2);
+  const saved = createEncounterSession(pack, options).serialize();
+  const duplicate = JSON.parse(JSON.stringify(saved));
+  duplicate.encounter.memberBindings[1].characterId = duplicate.encounter.memberBindings[0].characterId;
+  expect(() => restoreEncounterSession(pack, duplicate)).toThrow(/unique/);
+  const foreign = JSON.parse(JSON.stringify(saved));
+  foreign.encounter.entryMembers[1].character.pack.contentHash = '00000000';
+  expect(() => restoreEncounterSession(pack, foreign)).toThrow(/different effective pack/);
+});
+
+it('rejects cyclic/non-JSON journal payloads and changed offer provenance before reconstruction', async () => {
+  const { settlementFixture, send } = await import('../runtime/play/fixtures');
+  const { createEncounterSession, restoreEncounterSession } = await import('../../src/runtime');
+  const { pack, options } = settlementFixture();
+  const session = createEncounterSession(pack, options);
+  send(session, { type: 'advance' });
+  send(session, { type: 'use', actor: { kind: 'member', memberId: 'hero-1' }, itemId: 'mend-draught' });
+  const original = session.serialize();
+  expect(original.encounter.combat.offers).toHaveLength(1);
+  const bad = JSON.parse(JSON.stringify(original));
+  bad.encounter.combat.offers[0].on = 'wrong:event';
+  expect(() => restoreEncounterSession(pack, bad)).toThrow(/provenance/);
+  const cyclic = JSON.parse(JSON.stringify(original));
+  cyclic.journal[0].event.payload.cycle = cyclic;
+  expect(() => restoreEncounterSession(pack, cyclic)).toThrow(/play-session field/);
+  const nonJson = JSON.parse(JSON.stringify(original));
+  nonJson.journal[0].event.payload.date = new Date();
+  expect(() => restoreEncounterSession(pack, nonJson)).toThrow(/play-session field/);
+  expect(session.serialize()).toEqual(original);
+});

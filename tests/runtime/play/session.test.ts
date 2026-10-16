@@ -269,3 +269,180 @@ describe('CA-02 atomic settlement', () => {
     },
   );
 });
+
+it('continues a settled victory with an empty seed, exact carried resources and historical event subjects', async () => {
+  const { settlementFixture, finish, declineOffers } = await import('./fixtures');
+  const { pack, options } = settlementFixture();
+  const session = createEncounterSession(pack, options);
+  send(session, { type: 'advance' });
+  expect(
+    send(session, { type: 'use', actor: { kind: 'member', memberId: 'hero-1' }, itemId: 'mend-draught' }).ok,
+  ).toBe(true);
+  declineOffers(session);
+  expect(
+    send(session, {
+      type: 'declare',
+      actor: { kind: 'member', memberId: 'hero-1' },
+      actionId: 'grave-light',
+      options: { targetId: 'e:0:1' },
+    }).ok,
+  ).toBe(true);
+  finish(session);
+  expect(send(session, { type: 'next', setup: options.setup }).ok).toBe(false);
+  expect(send(session, { type: 'finalize' }).ok).toBe(true);
+  const settled = session.serialize();
+  const reopened = restoreEncounterSession(pack, JSON.parse(JSON.stringify(settled)));
+  expect(send(session, { type: 'next', setup: options.setup })).toEqual(
+    send(reopened, { type: 'next', setup: options.setup }),
+  );
+  const second = session.serialize();
+  expect(second.encounterIndex).toBe(1);
+  expect(second.encounter.setup.seed).toBe('');
+  expect(second.encounter.selection.seedUsed).toBe('');
+  expect(second.members).toEqual(settled.members);
+  expect(second.encounter.entryMembers).toEqual(settled.members);
+  expect(second.encounter.start.allies[0]!.balances.bindings!['1']).toEqual([null]);
+  expect(second.encounter.start.allies[0]!.balances.boundSlots!['1']).toBe(0);
+  expect(second.encounter.start.allies[0]!.balances.items!['mend-draught']).toBe(1);
+  expect(second.journal.slice(0, settled.sequence)).toEqual(settled.journal);
+  expect(
+    second.journal.some((entry) => entry.subjects.some((s) => s.id === 'e:0:1' && s.name === 'Barrow Wight')),
+  ).toBe(true);
+  const restored = restoreEncounterSession(pack, JSON.parse(JSON.stringify(second)));
+  expect(send(session, { type: 'advance' })).toEqual(send(restored, { type: 'advance' }));
+  expect(session.serialize()).toEqual(restored.serialize());
+  expect(send(session, { type: 'next', setup: options.setup }).ok).toBe(false);
+});
+
+it.each(['defeat', 'abandoned'] as const)(
+  'cannot resume or start next after settled %s, live or reopened',
+  async (result) => {
+    const { pack, options } = playFixture();
+    const members =
+      result === 'defeat'
+        ? options.members.map((member) => ({
+            ...member,
+            character: {
+              ...member.character,
+              state: { ...member.character.state, hp: { current: 0, temp: 2 } },
+            },
+          }))
+        : options.members;
+    const session = createEncounterSession(pack, { ...options, members });
+    expect(send(session, { type: result === 'defeat' ? 'finalize' : 'abandon' }).ok).toBe(true);
+    for (const branch of [session, restoreEncounterSession(pack, session.serialize())]) {
+      const before = branch.serialize();
+      for (const body of [
+        { type: 'advance' as const },
+        { type: 'next' as const, setup: options.setup },
+        { type: 'pass' as const, actor: { kind: 'member' as const, memberId: 'hero-1' } },
+      ])
+        expect(send(branch, body).ok).toBe(false);
+      expect(branch.serialize()).toEqual(before);
+    }
+  },
+);
+
+it('preserves sparse binding indices, maps spatial spell centers and grants no implicit rewards', async () => {
+  const { Runtime, serializeCharacter } = await import('../../../src/runtime');
+  const { settlementFixture, finish } = await import('./fixtures');
+  const { pack, options } = settlementFixture();
+  pack.spatial = { model: 'grid', reach: { default: 1 }, shapes: ['single', 'burst'] };
+  pack.content.spells!['grave-light']!.effect = 'target(burst-2, applyCondition(dazzed, 3))';
+  pack.content.spells!['grave-light']!.targeting = { shape: 'burst', radius: 2, range: 3 };
+  const runtime = new Runtime(pack),
+    hero = runtime.createCharacter({ name: 'Sparse', race: 'ashkin', classes: [{ id: 'warden', level: 2 }] });
+  hero.prepare('grave-light', 1);
+  const setup = {
+    ...options.setup,
+    layout: {
+      kind: 'spatial' as const,
+      model: 'grid' as const,
+      allies: [{ x: 0, y: 0 }],
+      enemies: [{ x: 0, y: 1 }],
+      terrain: [],
+    },
+  };
+  const session = createEncounterSession(pack, {
+    ...options,
+    setup,
+    members: [{ memberId: 'hero-1', character: serializeCharacter(runtime, hero.state) }],
+  });
+  const entry = session.serialize().members;
+  expect(session.serialize().encounter.start.allies[0]!.balances).toMatchObject({
+    boundSlots: { '1': 1 },
+    bindings: { '1': [null, 'grave-light'] },
+  });
+  send(session, { type: 'advance' });
+  expect(
+    send(session, {
+      type: 'declare',
+      actor: { kind: 'member', memberId: 'hero-1' },
+      actionId: 'grave-light',
+      options: { at: { x: 0, y: 1 } },
+    }).ok,
+  ).toBe(true);
+  expect(session.serialize().encounter.combat.combatants[0]!.slotsCast).toEqual({ '1': [1] });
+  const restored = restoreEncounterSession(pack, session.serialize());
+  expect(restored.view()).toEqual(session.view());
+  finish(restored);
+  expect(send(restored, { type: 'finalize' }).ok).toBe(true);
+  expect(restored.serialize().members[0]!.character.state.slots['1']).toEqual([null, null]);
+  expect(restored.serialize().members[0]!.character.state.classes).toEqual(entry[0]!.character.state.classes);
+  expect(restored.serialize().members[0]!.character.state.inventory).toEqual(
+    entry[0]!.character.state.inventory,
+  );
+});
+
+it('rejects unknown command keys, stale revisions, foreign identities and an oversized next setup without mutation', async () => {
+  const { finish } = await import('./fixtures');
+  const { pack, options } = playFixture();
+  const session = createEncounterSession(pack, options);
+  const cases = [
+    { type: 'advance', sessionId: options.sessionId, expectedRevision: 1 },
+    { type: 'advance', sessionId: 'foreign', expectedRevision: 0 },
+    { type: 'declare', actor: { kind: 'member', memberId: 'hero-1', extra: true }, actionId: 'strike' },
+    {
+      type: 'declare',
+      actor: { kind: 'member', memberId: 'hero-1' },
+      actionId: 'strike',
+      options: { at: { x: 0, y: 0, extra: 1 } },
+    },
+    {
+      type: 'respond',
+      actor: { kind: 'member', memberId: 'hero-1' },
+      triggerId: 'missing',
+      choice: { toString: () => 'take' },
+    },
+  ];
+  for (const command of cases) {
+    const before = session.serialize();
+    expect(
+      session.dispatch({
+        sessionId: options.sessionId,
+        expectedRevision: before.revision,
+        ...command,
+      } as never).ok,
+    ).toBe(false);
+    expect(session.serialize()).toEqual(before);
+  }
+  finish(session);
+  send(session, { type: 'finalize' });
+  const before = session.serialize();
+  expect(send(session, { type: 'next', setup: { ...options.setup, budget: 4 } }).ok).toBe(false);
+  expect(session.serialize()).toEqual(before);
+});
+
+it('defeat takes precedence when both sides start down', () => {
+  const { pack } = playFixture();
+  pack.formulas['hp'] = { expr: '0' };
+  const { options } = playFixture(pack);
+  const members = options.members.map((member) => ({
+    ...member,
+    character: { ...member.character, state: { ...member.character.state, hp: { current: 0, temp: 0 } } },
+  }));
+  const session = createEncounterSession(pack, { ...options, members });
+  expect(session.view().result).toBe('defeat');
+  expect(send(session, { type: 'finalize' }).ok).toBe(true);
+  expect(restoreEncounterSession(pack, session.serialize()).view().result).toBe('defeat');
+});

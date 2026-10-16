@@ -198,7 +198,8 @@ export type PlayMemberBinding = {
 export type PlayRawCombatSnapshot = Omit<PlayCombatSnapshot, 'combatants'> & {
   readonly phase: NonNullable<PlayCombatSnapshot['phase']>;
   readonly offeredCount: number;
-  readonly combatants: readonly (PlayCombatSnapshot['combatants'][number] & {
+  readonly combatants: readonly (Omit<PlayCombatSnapshot['combatants'][number], 'position'> & {
+    readonly position?: PlayPosition;
     readonly maxHp: number;
     readonly slotsUsed: Readonly<Record<string, number>>;
     readonly conditions: readonly { readonly id: string; readonly remaining: number }[];
@@ -578,11 +579,21 @@ const rawCombat = object(
     offers: array(object({ actorId: nonempty, source: oneOf('action', 'feat'), id: nonempty, on: nonempty })),
   },
 );
-const jsonValue: Check = (v, p, e) => {
-  if (v === null || typeof v === 'boolean' || typeof v === 'string') return;
-  if (typeof v === 'number') return finite(v, p, e);
-  if (Array.isArray(v)) return array(jsonValue)(v, p, e);
-  record(jsonValue)(v, p, e);
+const jsonValue: Check = (value, path, errors) => {
+  const ancestors = new Set<object>();
+  const visit: Check = (v, p, e) => {
+    if (v === null || typeof v === 'boolean' || typeof v === 'string') return;
+    if (typeof v === 'number') return finite(v, p, e);
+    if (typeof v !== 'object' || ancestors.has(v)) {
+      e.push(p);
+      return;
+    }
+    ancestors.add(v);
+    if (Array.isArray(v)) array(visit)(v, p, e);
+    else record(visit)(v, p, e);
+    ancestors.delete(v);
+  };
+  visit(value, path, errors);
 };
 const clock = object({ round: integer(0), turn: integer(0) });
 const event = object(

@@ -9,7 +9,11 @@ import type {
   PlaySessionSnapshot,
   PlaySettlementReceipt,
 } from '../../schema/play-session';
-import { validateEncounterSessionOptions } from '../../schema/play-session';
+import {
+  validateEncounterSessionOptions,
+  validateEncounterSetup,
+  validatePlaySessionSnapshot,
+} from '../../schema/play-session';
 import { Runtime } from '../runtime';
 import { RuntimeRuleError, ruleCard } from '../errors';
 import type { RuntimeEvent } from '../events';
@@ -216,6 +220,7 @@ function facade(pack: Pack, initial: PlaySessionSnapshot): EncounterSession {
       if (saved.encounter.control.turnStarted && !fight.pendingTriggers.length)
         availableCommands.push('declare', 'use', 'pass');
     }
+    if (saved.phase === 'settled' && saved.result === 'victory') availableCommands.push('next');
     if (saved.phase === 'terminal' || saved.phase === 'settled') availableCommands.push('finalize');
     return detached({
       sessionId: saved.sessionId,
@@ -234,6 +239,10 @@ function facade(pack: Pack, initial: PlaySessionSnapshot): EncounterSession {
     dispatch(input) {
       try {
         if (!commandShape(input)) refuse('command', 'Malformed command or unexpected field.');
+        if (input.type === 'next') {
+          const errors = validateEncounterSetup(pack, input.setup);
+          if (errors.length) throw new RuntimeRuleError(errors);
+        }
         const command = detached(input);
         if (command.sessionId !== saved.sessionId) refuse('sessionId', 'Foreign session.');
         if (command.expectedRevision !== saved.revision) refuse('expectedRevision', 'Stale revision.');
@@ -267,6 +276,8 @@ function facade(pack: Pack, initial: PlaySessionSnapshot): EncounterSession {
             },
             staged.events,
           );
+          const errors = validatePlaySessionSnapshot(pack, next);
+          if (errors.length) throw new RuntimeRuleError(errors);
           const suffix = next.journal.slice(saved.sequence);
           saved = next;
           return {
@@ -277,8 +288,50 @@ function facade(pack: Pack, initial: PlaySessionSnapshot): EncounterSession {
             receipt: detached(staged.receipt),
           };
         }
+        if (command.type === 'next') {
+          if (saved.phase !== 'settled' || saved.result !== 'victory')
+            refuse('phase', 'Only a settled victory can start another encounter.');
+          if (!Number.isSafeInteger(saved.encounterIndex + 1))
+            refuse('encounterIndex', 'Encounter index exhausted.');
+          const errors = validateEncounterSessionOptions(pack, {
+            sessionId: saved.sessionId,
+            seed: saved.seed,
+            members: saved.members,
+            setup: command.setup,
+          });
+          if (errors.length) throw new RuntimeRuleError(errors);
+          const runtime = new Runtime(detached(pack)),
+            events: RuntimeEvent[] = [];
+          runtime.events.on((event) => events.push(event));
+          const created = beginEncounter(
+            runtime,
+            saved.sessionId,
+            saved.seed,
+            saved.encounterIndex + 1,
+            saved.members,
+            command.setup,
+            saved.rng.play,
+          );
+          const next = appendJournal(
+            pack,
+            {
+              ...saved,
+              revision: saved.revision + 1,
+              encounterIndex: saved.encounterIndex + 1,
+              encounter: created.encounter,
+              rng: created.rng,
+              phase: 'active',
+              result: null,
+            },
+            events,
+          );
+          const snapshotErrors = validatePlaySessionSnapshot(pack, next);
+          if (snapshotErrors.length) throw new RuntimeRuleError(snapshotErrors);
+          const suffix = next.journal.slice(saved.sequence);
+          saved = next;
+          return { ok: true, revision: saved.revision, events: detached(suffix), view: view() };
+        }
         if (saved.phase !== 'active') refuse('phase', 'Encounter is not active.');
-        if (command.type === 'next') refuse('type', 'Command is not yet available.');
         const { runtime, fight } = hydrateFight(pack, saved);
         let started = saved.encounter.control.turnStarted;
         if ('actor' in command) {
@@ -342,6 +395,8 @@ function facade(pack: Pack, initial: PlaySessionSnapshot): EncounterSession {
           },
           events,
         );
+        const errors = validatePlaySessionSnapshot(pack, next);
+        if (errors.length) throw new RuntimeRuleError(errors);
         const suffix = next.journal.slice(saved.sequence);
         saved = next;
         return { ok: true, revision: saved.revision, events: detached(suffix), view: view() };
@@ -387,7 +442,7 @@ export function createEncounterSession(pack: Pack, options: EncounterSessionOpti
     journal: [],
     settlements: [],
   };
-  return facade(owned, appendJournal(owned, saved, events));
+  return facade(owned, readSnapshot(owned, appendJournal(owned, saved, events)));
 }
 export function restoreEncounterSession(pack: Pack, snapshot: unknown): EncounterSession {
   const owned = detached(pack);

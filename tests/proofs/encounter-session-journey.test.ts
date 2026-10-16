@@ -2,7 +2,7 @@ import { createRequire } from 'node:module';
 import { describe, it, expect } from 'vitest';
 import * as api from '../../dist/runtime.js';
 import { generateCampaign, loadTheme } from '../../dist/compiler.js';
-import { playFixture, nextAction, send } from '../runtime/play/fixtures';
+import { playFixture, nextAction, send, finish } from '../runtime/play/fixtures';
 
 describe('CAP-01 fresh built public boundary', () => {
   it('real generated wounded/conditioned party, empty assembly seed and identical JSON continuation', () => {
@@ -46,6 +46,22 @@ describe('CAP-01 fresh built public boundary', () => {
       expect(send(running, next)).toEqual(send(uninterrupted, next));
       expect(running.serialize()).toEqual(uninterrupted.serialize());
     }
+    finish(running);
+    finish(uninterrupted);
+    expect(running.view().result).toBe('victory');
+    expect(send(running, { type: 'finalize' })).toEqual(send(uninterrupted, { type: 'finalize' }));
+    const settled = JSON.stringify(running.serialize());
+    running = api.restoreEncounterSession(pack, JSON.parse(settled));
+    const carried = running.serialize().members;
+    expect(send(running, { type: 'next', setup: fixture.options.setup })).toEqual(
+      send(uninterrupted, { type: 'next', setup: fixture.options.setup }),
+    );
+    expect(running.serialize().members).toEqual(carried);
+    expect(running.serialize().encounter.setup.seed).toBe('');
+    expect(running.serialize().encounter.selection.seedUsed).toBe('');
+    running = api.restoreEncounterSession(pack, JSON.parse(JSON.stringify(running.serialize())));
+    expect(send(running, { type: 'advance' })).toEqual(send(uninterrupted, { type: 'advance' }));
+    expect(running.serialize()).toEqual(uninterrupted.serialize());
   }, 10000);
   it('CJS exposes the same synchronous boundary and cannot accept a foreign command', () => {
     const cjs = createRequire(import.meta.url)('../../dist/runtime.cjs') as typeof api;

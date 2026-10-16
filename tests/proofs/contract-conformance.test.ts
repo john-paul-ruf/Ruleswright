@@ -44,7 +44,7 @@ import {
 } from '../runtime/fixtures/packs';
 import { cloneRuntimePack } from '../runtime/fixtures/pack';
 import { clonePack } from '../schema/fixtures';
-import { playFixture, send } from '../runtime/play/fixtures';
+import { playFixture, send, finish } from '../runtime/play/fixtures';
 
 type Contract = Record<string, unknown>;
 type Doc = Record<string, unknown>;
@@ -292,6 +292,30 @@ describe('CA-02 actual aggregate conformance and F-RA-01 empty seed', () => {
     expect(send(restored, { type: 'pass', actor: { kind: 'member', memberId: 'hero-1' } })).toEqual(
       send(session, { type: 'pass', actor: { kind: 'member', memberId: 'hero-1' } }),
     );
+  });
+  it('validates settled/reopened and second-encounter empty-seed continuations', () => {
+    const { pack, options } = playFixture();
+    const session = createEncounterSession(pack, options);
+    finish(session);
+    expect(send(session, { type: 'finalize' }).ok).toBe(true);
+    const settled = session.serialize(),
+      restored = restoreEncounterSession(pack, json(settled));
+    expect(send(session, { type: 'next', setup: options.setup })).toEqual(
+      send(restored, { type: 'next', setup: options.setup }),
+    );
+    const second = session.serialize(),
+      reopened = restoreEncounterSession(pack, json(second));
+    for (const value of [
+      settled,
+      restoreEncounterSession(pack, json(settled)).serialize(),
+      second,
+      reopened.serialize(),
+    ]) {
+      expect(value.encounter.setup.seed).toBe('');
+      expect(value.encounter.selection.seedUsed).toBe('');
+      expect(validate(json(value)), ajv.errorsText(validate.errors)).toBe(true);
+    }
+    expect(send(session, { type: 'advance' })).toEqual(send(reopened, { type: 'advance' }));
   });
   it('rejects nonstring seedUsed at the selection field', () => {
     const { pack, options } = playFixture();
