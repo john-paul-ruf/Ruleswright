@@ -1829,3 +1829,12 @@ manifest, build configuration, or runtime-only bundle content was introduced.
 - Save validation checks definition/pack identity, graph trail and phase, stable party, nested pairing, receipt authority and hash continuity, deterministic saved reward rolls, stream words, event-time subjects and copied nested journal prefix. Aggregate `encounter:settled`, `reward:claimed`, and `members:updated` journal events bind committed member transitions to their durable receipts/hashes. Receipt member IDs remain opaque host IDs, distinct from combatant references.
 - Four domain-separated streams, director policy/counters/hash, and narrationAck persist under the approved version-1 envelope. SESSION-04 owns director decisions and acknowledgement dispatch; neither is advertised by the manual facade.
 - Production runtime imports no compiler. Built ESM/CJS journeys exercise generated adventures; the shared adventure oracle separately runs source through Vite browsers. JSON is the test host's persistence adapter; no transport/provider doubles or storage service were introduced.
+
+<!-- random-adventures SESSION-04 -->
+
+## SESSION-04 delta through checkpoint 3
+
+- Runtime exports `advanceSolo(adventure, { maxSteps }): SoloResult`. It uses bounded, pure encounter candidates and the same guarded outer/nested dispatch as the host, yielding at player turns/offers, routes, rewards and preparation. Director decisions, mechanical progress hash and its separate tie-breaking RNG commit with the staged adventure transaction and survive JSON reopen.
+- Internal `combat/preview.ts` shares declaration/reaction/feat legality with production execution without spending resources or entropy. Manual random-dependent validity remains compatible; solo rejects it before automated play.
+- `PendingMove.offeredDepartures` persists exact `{ from, to, reactorId }` history through combat and aggregate snapshots. Absent legacy history retains first-edge suppression; an explicit empty array checks all departures. Resume suppresses only previously offered tuples, permitting a new edge or threatener.
+- Narration and acknowledgement remain checkpoint-4 work; no `readNarration` export or acknowledgement dispatch is delivered by this delta.
