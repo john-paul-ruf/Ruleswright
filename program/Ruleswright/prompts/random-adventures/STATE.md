@@ -201,7 +201,7 @@ CA-05 exact mapping: S04 **Committed AR-05 API, policy state and proof allocatio
 
 | ID          | Affected                          | Next action / owner                                                                                                      | Evidence to clear                                                                                                     |
 | ----------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
-| B-RA-REVIEW | S01 dispatch, then affected waves | Orchestrator requests scoped Archivist planning-completeness review of this committed replan at the first quiet boundary | Source-backed findings disposition; authoritative D1–D7 review belongs to Archivist                                   |
+| B-RA-REVIEW | W1–W4 | Review received: D1/D2/D4/D6/D7 pass, D3/D5 fail F-RA-01; bounded Author correction then Planner assertion reconciliation | Empty accepted seed must survive selection/schema/reopen; scoped D3/D5 recheck                                   |
 | B-BD-1      | CI acceptance only, carried       | Human publication/push owner; Orchestrator later records actual Actions and assigns mechanical repair if needed          | Relevant Node 18/20/22, package, browser and Electron runs at implemented revision; no agent publish/push to clear it |
 
 B-RA-AUTHOR is **closed**: approval and all eight Author commits through fcec34d received; exact mappings reconciled in replan v2. B-RA-DX is **closed as a source prerequisite** at 5b88826/5b92b52; each Coder still owns its docs/extractor proof. B-RA-XP and Author formatting are **closed at fcec34d**; preserving adapter and proof obligations remain S03 c3/c4, with dependent S04 blocked until those actual proofs are current. No unresolved Contract Agreement/product choice is known within this bounded comparison. Runtime producers/proofs remain planned; review is not runtime verification.
@@ -429,3 +429,54 @@ program/Ruleswright/prompts/random-adventures/EVIDENCE.md
 **followUp:** Orchestrator refreshes stale scratch summaries and requests scoped Archivist planning-completeness review before dispatch. D1–D7 remain advisory, unscored. B-BD-1 remains carried CI evidence debt; no push/publication performed.
 
 **status: done** — bounded replan committed; implementation has not begun.
+
+## Planning Completeness Receive — 2026-10-16
+
+ARCH-PRE Native h-Mfjr/A7b_5 ended normally, read-only, HEAD unchanged cecb10e and clean tree. Raw result preserved in .program/results/ARCH-PRE-RANDOM-ADVENTURES.result.md and appended to archivist-notes. No arch delta, commit, residual or lease violation. No fast gates rerun for read-only review; last replan receipt type/lint/format all green. Review is not runtime proof.
+
+Plan6ec316f, sourcefcec34d, runtimebasec8e5260: D1 pass, D2 pass, D3 fail, D4 pass, D5 fail, D6 pass, D7 pass, cited table below. F-RA-01 confirmed in play-session.schema.json: seed accepts empty string while selection.seedUsed minLength1 contradicts canonical String(setup.seed) and actual assembler. Affect CA02/03, CAP01/02, all waves transitively. Author/DB correction owns only seedUsed domain compatibility (remove nonempty restriction; preserve other identifiers); Planner adds specific S01 conformance/reopen and S02 generated-definition assertions. No new product meaning, no changed implementation lease needed. Until scoped recheck, B-RA-REVIEW blocks dispatch. All other review passes retained against their source references.
+
+## Archivist Note
+
+- **role:** archivist
+- **mode:** planning-completeness
+- **registryUpdated:** false
+- **reconciled:** []
+- **conventionsAdded:** []
+- **logEntry:** Read-only review returned below; no files edited or committed.
+
+**Reviewed revisions**
+
+- Plan revision 2: `6ec316fb7c349cac82e9ba4fb6ae6894e5745953`
+- STATE receipt: `cecb10e5eb640db6f35ad8ea2db2a33a10112773`
+- Author contracts: `fcec34d28f51f91c931e544d09d1a12f2423b0a9`
+- Runtime implementation: `c8e526047b8186d35710965d5f210f858ab232a3`
+
+Below, `P` means `program/Ruleswright/prompts/random-adventures/`.
+
+| # | Dimension | Verdict | Cited evidence |
+|---|-----------|---------|----------------|
+| D1 | requirement coverage | pass | `specs/requirements.md:244–291` maps FR-24–29 to CAP-01–06; `P/STATE.md` Scope Summary and Capability Readiness assign S01/S02/S03/S04. |
+| D2 | fact origins | pass | `P/SESSION-01.md:43`, S02 **Committed AR-03 map**, S03 **Committed AR-04 map**, S04 **Committed AR-05 API** name identity, policy, revision, stream, journal, receipt and restore producers. Implementations remain planned. |
+| D3 | ownership | fail | F-RA-01 has no assigned protected-contract correction checkpoint. `P/STATE.md` closes Author prerequisites, while S01 cannot amend `src/schema/contracts/play-session.schema.json`. |
+| D4 | lease coverage | pass | Read-only comparison found front matter, Files tables, manifest and STATE identical: **27/17/18/35 paths**, **6/3/5/5 checkpoints**. `P/MASTER.md` serializes every shared path. The F-RA-01 correction requires separate Author ownership, not widened Coder authority. |
+| D5 | declared vs real dependencies | fail | Accepted `encounterSetup.seed` can produce a selection rejected by its required serialized contract: `play-session.schema.json:24,139,482`; `src/runtime/encounter.ts:55,87`; `P/SESSION-01.md:51`. |
+| D6 | early integration | pass | `P/SESSION-01.md` c3 and Verification own fresh built ESM/CJS → real combat → detached JSON → fresh facade continuation before downstream fan-out. `package.json` exports identify the actual library transport. |
+| D7 | runtime wiring | pass | S01 c3/c4, S03 c2/c3 and S04 c3/c4 explicitly compose the new interfaces with production writers and consumers. S03 initializes required director/cursor state before S04 consumes it. This scores planned wiring, not implemented capability. |
+
+**Consolidated finding — F-RA-01: accepted empty setup seed cannot produce a conforming save**
+
+- **Affected:** CA-02/03, CAP-01/02 directly; CAP-03–06 through their encounter dependency.
+- **Conflict:** The seed definition accepts `""`. Database canonicalization requires `String(setup.seed)` unchanged as `selection.seedUsed` (`specs/database.md:1021–1027`), copied into `P/SESSION-01.md:51`. But `play-session.schema.json:482–484` requires `seedUsed.minLength: 1`.
+- **Observed:** Local Ajv accepted the empty seed and setup shape, then rejected selection at `/seedUsed` with `minLength`. A bounded real assembler probe using dark-fantasy, budget 2 and seed `""` produced two hill-spiders and `seedUsed:""`; that output failed the same constraint. Runtime/compiler artifact hashes matched EVIDENCE’s recorded c8e5260 artifacts.
+- **Owner/route:** Orchestrator routes a bounded **Author/DB contract correction**, followed by Planner reconciliation of S01’s seed mapping and CA-02/03. Align the serialized field with the already accepted string-seed domain; do not silently substitute a seed or leave consumers to rediscover this at c0.
+- **Closing assertion:** S01’s leased conformance and encounter-journey tests accept an empty setup seed, preserve its exact selection value, and prove JSON reopen produces identical continuation. S02 tests retain that setup through generated definitions.
+- **Affected waves:** W1’s setup/serialization contract and W2–W4 transitively. Unrelated work is unaffected. This is a contract-consistency correction, not a renewed scope or XP-policy question.
+
+**Verified dispositions and proof infrastructure**
+
+B-RA-XP is correctly closed: S03 c3/c4 owns real positive `awardXp`, preservation, incompatible-capacity/later-member refusal and reopen proofs. S01 c4 explicitly owns active abandonment without forging terminal combat. S03 c2 now owns atomic reward-roll staging. S02 conformance and S04 fixture/candidate/reaction leases are present. R-GM-3 has live/restored tuple-history assertions at S04 c2.
+
+Inspected wrappers distinguish fresh Node/Electron `dist` proofs from browser Vite-source proofs, reserve port 63315, discover the planned tests, and assign docs-run/isolation self-tests before their acceptance gates. The known oversized-RNG hang was not executed. B-BD-1 remains carried CI evidence debt, not a dispatch blocker.
+
+**Scope/limits:** Reviewed the supplied plan/history/receipts, relevant architecture and ledger records, approved specs/mocks, committed schema predicates, affected constructors/writers/readers and proof infrastructure. No full cleanup audit, browser/Electron/remote-CI run, or future implementation proof was performed. Dispatch remains Orchestrator-owned.
