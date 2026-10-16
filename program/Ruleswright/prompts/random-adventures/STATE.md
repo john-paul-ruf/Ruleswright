@@ -982,3 +982,23 @@ B-RA-S04-STALL source-backed disproval: Orchestrator's imposed genuine unchanged
 - **blockedReason:** The mandatory precondition demands reaching `stallLimit` through genuine no-progress automation from initial counters, but every supported accepted director transition changes the approved mechanical state. Inventing free actions, injecting counters, or exploiting hash collisions would not prove that requirement.
 - **followUp:** Resume c4/c5 after the bounded assertion correction. Narration, acknowledgement, documentation and final platform proofs remain outstanding. Prior checkpoint history is preserved; no active arch fragment was created. No owned process remains; port 63315 is free.
 - **filesTouched:** — (this dispatch)
+
+
+## REPLAN-RA-STALL Complete Receive — 2026-10-16
+
+Native h-oSHc/Pakxi ended complete, raw final saved .program/results/REPLAN-RA-STALL.result.md. Commit6f097e26a445eddb66897209f221caf8ac1d3a58 touches exactly SESSION04/STATE/MASTER/EVIDENCE, no source/test/config/spec changes; tree clean. Historical Handoff Notes suffix compared byte-for-byte to252fab7 and unchanged. No residual/arch. Director18 reported pass retained; no new source claim, no unnecessary platform rerun. Diff check0.
+
+Bounded review accepted: source/evidence traces all four director-selected command families, positive cost invariant, real spend/turn/queue counters, safe-integer checks and actual mechanical projection. Genuine unchanged-state fixture requirement is disproved and retired; finite hash collisions are not an acceptable stand-in. Existing conditional writer/defensive restored-stall guard remain intact. This is correction of Orchestrator's added proof premise, not authorized scope removal or product redefinition. Existing CAP05 local implementation/journey evidence retained; c4 explicitly proves restored nonzero counter resets through real advance decision and persists after reopen. c4/c5 narration/platform proofs remain required. No broader completeness pass: D1/D5/D6/D7 affected premise checked against fixed approved sources, no changed lease/dependency or new input. Scratch summaries regenerated; S04 eligible under unchanged lease4, no human question.
+
+### REPLAN-RA-STALL Handoff — verbatim
+
+## Handoff
+
+- **status:** complete — B-RA-S04-STALL disproved and removed from current instructions.
+- **commits:** `6f097e2`. Preserved c1 `e9c2da6`, c2 `9cea9f6`, c3 `178fe54`.
+- **filesTouched:** [SESSION-04.md](program/Ruleswright/prompts/random-adventures/SESSION-04.md), [STATE.md](program/Ruleswright/prompts/random-adventures/STATE.md), [MASTER.md](program/Ruleswright/prompts/random-adventures/MASTER.md), [EVIDENCE.md](program/Ruleswright/prompts/random-adventures/EVIDENCE.md).
+- **verification:** Director tests **18/18 passed**; diff checks clean. Exact 39-path lease, dependencies, five checkpoints and historical receive/handoff bytes preserved. Source unchanged; working tree clean.
+- **source citations:** `helpers.ts:379` validates positive costs; `combat.ts:368/417/461` spends resources, removes offers and advances turns; `fight.ts:74` increments offer count; `adventure/snapshot.ts:770` includes those facts in the hash. Complete trace recorded in EVIDENCE.
+- **notes:** Accepted director transitions change mechanical state. Bounded execution and defensive restored-stall yielding do not prove reachable production stalemate detection. CAP05’s local producer/journey evidence remains valid; platform proofs remain future. CAP06 remains unimplemented.
+- **surprises:** Existing tests lack an explicit nonzero-counter reset assertion. The Files table also omitted the already-authorized 39th path; its row is now present without widening ownership.
+- **followUp:** Orchestrator refreshes stale scratch summaries and resumes S04 c4/c5. C4 proves reset/reopen through a real director decision from clearly labeled restored metadata, then completes narration/ack/oracle work. C5 completes documentation and final local/browser/Electron/clean-copy proofs. No free actions, hash changes, Author re-entry or human decision required.
