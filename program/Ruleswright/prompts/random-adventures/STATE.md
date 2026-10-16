@@ -480,3 +480,44 @@ B-RA-XP is correctly closed: S03 c3/c4 owns real positive `awardXp`, preservatio
 Inspected wrappers distinguish fresh Node/Electron `dist` proofs from browser Vite-source proofs, reserve port 63315, discover the planned tests, and assign docs-run/isolation self-tests before their acceptance gates. The known oversized-RNG hang was not executed. B-BD-1 remains carried CI evidence debt, not a dispatch blocker.
 
 **Scope/limits:** Reviewed the supplied plan/history/receipts, relevant architecture and ledger records, approved specs/mocks, committed schema predicates, affected constructors/writers/readers and proof infrastructure. No full cleanup audit, browser/Electron/remote-CI run, or future implementation proof was performed. Dispatch remains Orchestrator-owned.
+
+## F-RA-01 Author Receive — 2026-10-16
+
+Accepted 42bad60, exactly src/schema/contracts/play-session.schema.json; only selection.seedUsed.minLength removed. Native h-Exeu/AnK3E ended normally, raw result saved .program/results/AUTHOR-RA-EMPTY-SEED.result.md. Clean tree, no residual/arch delta/lease violation. Independently type/lint/format/conformance42 all exit0; inspected and reran /tmp/ruleswright-author-r3-verify.cjs --committed exit0: six schemas compile locally, seven real-assembler seed cases including empty survive JSON, old schema rejects empty, six nonstring outputs rejected, identity constraints preserved, dist hashes match EVIDENCE. This closes the contract counterexample; full aggregate/reopen behavior remains future S01/S02 proof.
+
+F-RA-01 now awaits Planner's explicit assertion assignment and scoped D3/D5 recheck. Other D1/D2/D4/D6/D7 passes retain their source refs. No Coder dispatch before the scoped recheck. Author lease released, no pending receive.
+
+## Handoff
+
+```yaml
+session: AUTHOR-RANDOM-ADVENTURES
+leaseRevision: 3
+status: done
+finding: F-RA-01 contract corrected
+commit: 42bad6023e698bd430a7c50842a1882c5bd9f206
+filesTouched:
+  - src/schema/contracts/play-session.schema.json
+checkpoints:
+  - Removed only selection.seedUsed.minLength.
+  - String type and all other constraints unchanged.
+  - Explicit pathspecs used for both add and commit.
+verification:
+  - "pnpm format:check — exit 0"
+  - "pnpm exec vitest run tests/proofs/contract-conformance.test.ts --cache=false — exit 0; 42/42"
+  - "node /tmp/ruleswright-author-r3-verify.cjs --committed — exit 0"
+  - "git diff --check 522c6cb0de50679b7cba9858551e94274c8c8858..HEAD — exit 0"
+  - Six schemas compiled with local references.
+  - Seven real assembler seed cases passed, including empty string.
+  - Six non-string outputs rejected; identity constraints preserved.
+  - Exact single-file commit verified; worktree clean.
+notes:
+  - Previously valid documents remain valid; empty seed output now accepted.
+  - Canonical String(setup.seed) preserved; no runtime implementation.
+surprises: []
+followUp:
+  - Orchestrator routes assertion reconciliation to Planner.
+  - S01 owns empty-seed conformance and JSON reopen/continuation proofs.
+  - S02 owns empty-seed preservation through generated definitions.
+  - Scoped D3/D5 recheck remains before affected dispatch.
+deviations: []
+```
