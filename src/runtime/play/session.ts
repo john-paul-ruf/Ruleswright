@@ -1,0 +1,354 @@
+import type { Pack } from '../../schema/pack';
+import type { ErrorCard } from '../../schema/error-card';
+import type {
+  EncounterSessionOptions,
+  EncounterSetup,
+  PlayEventSubject,
+  PlayJournalEntry,
+  PlayMember,
+  PlaySessionSnapshot,
+  PlaySettlementReceipt,
+} from '../../schema/play-session';
+import { validateEncounterSessionOptions } from '../../schema/play-session';
+import { Runtime } from '../runtime';
+import { RuntimeRuleError, ruleCard } from '../errors';
+import type { RuntimeEvent } from '../events';
+import type { CombatState, DeclareOptions, PendingTrigger } from '../combat/types';
+import { packIdentity, isRecord } from '../snapshots/envelope';
+import { beginEncounter } from './encounter';
+import { detached, freezeFight, hydrateFight, projectMembers, readSnapshot } from './snapshot';
+
+export type EncounterActor =
+  | { readonly kind: 'member'; readonly memberId: string }
+  | { readonly kind: 'enemy'; readonly enemyId: string };
+type CommandBody =
+  | { readonly type: 'advance' | 'finalize' | 'abandon' }
+  | {
+      readonly type: 'declare';
+      readonly actor: EncounterActor;
+      readonly actionId: string;
+      readonly options?: DeclareOptions;
+    }
+  | {
+      readonly type: 'use';
+      readonly actor: EncounterActor;
+      readonly itemId: string;
+      readonly targetId?: string;
+    }
+  | {
+      readonly type: 'respond';
+      readonly actor: EncounterActor;
+      readonly triggerId: string;
+      readonly choice: 'take' | 'decline';
+      readonly targetId?: string;
+    }
+  | { readonly type: 'pass'; readonly actor: EncounterActor }
+  | { readonly type: 'next'; readonly setup: EncounterSetup };
+export type EncounterCommand = CommandBody & {
+  readonly sessionId: string;
+  readonly expectedRevision: number;
+};
+export interface EncounterSessionView {
+  readonly sessionId: string;
+  readonly revision: number;
+  readonly phase: PlaySessionSnapshot['phase'];
+  readonly members: readonly (PlayMember & { readonly combatantId: string })[];
+  readonly combat: { readonly state: CombatState; readonly pendingOffers: readonly PendingTrigger[] };
+  readonly availableCommands: readonly EncounterCommand['type'][];
+  readonly result: PlaySessionSnapshot['result'];
+  readonly settlement: PlaySettlementReceipt | null;
+}
+export type EncounterCommandResult =
+  | {
+      readonly ok: true;
+      readonly revision: number;
+      readonly events: readonly PlayJournalEntry[];
+      readonly view: EncounterSessionView;
+      readonly receipt?: PlaySettlementReceipt;
+    }
+  | {
+      readonly ok: false;
+      readonly revision: number;
+      readonly errors: readonly ErrorCard[];
+      readonly events: readonly [];
+      readonly view: EncounterSessionView;
+    };
+export interface EncounterSession {
+  view(): EncounterSessionView;
+  dispatch(command: EncounterCommand): EncounterCommandResult;
+  serialize(): PlaySessionSnapshot;
+}
+
+function refuse(path: string, message: string): never {
+  throw new RuntimeRuleError([ruleCard('E-REF-01', '(play-session)', path, message)]);
+}
+function exact(value: unknown, required: readonly string[], optional: readonly string[] = []) {
+  return (
+    isRecord(value) &&
+    required.every((key) => Object.hasOwnProperty.call(value, key)) &&
+    Object.keys(value).every((key) => required.includes(key) || optional.includes(key))
+  );
+}
+function commandShape(value: unknown): value is EncounterCommand {
+  if (!isRecord(value) || typeof value['type'] !== 'string') return false;
+  const common = ['type', 'sessionId', 'expectedRevision'];
+  const text = (key: string) => typeof value[key] === 'string' && value[key].length > 0;
+  const target = () => !('targetId' in value) || text('targetId');
+  const actor = value['actor'];
+  const validActor =
+    isRecord(actor) &&
+    (actor['kind'] === 'member'
+      ? exact(actor, ['kind', 'memberId']) &&
+        typeof actor['memberId'] === 'string' &&
+        actor['memberId'].length > 0
+      : actor['kind'] === 'enemy' &&
+        exact(actor, ['kind', 'enemyId']) &&
+        typeof actor['enemyId'] === 'string' &&
+        actor['enemyId'].length > 0);
+  if (
+    !text('sessionId') ||
+    !Number.isSafeInteger(value['expectedRevision']) ||
+    (value['expectedRevision'] as number) < 0
+  )
+    return false;
+  switch (value['type']) {
+    case 'advance':
+    case 'finalize':
+    case 'abandon':
+      return exact(value, common);
+    case 'next':
+      return exact(value, [...common, 'setup']);
+    case 'pass':
+      return validActor && exact(value, [...common, 'actor']);
+    case 'use':
+      return (
+        validActor && text('itemId') && target() && exact(value, [...common, 'actor', 'itemId'], ['targetId'])
+      );
+    case 'respond':
+      return (
+        validActor &&
+        text('triggerId') &&
+        target() &&
+        (value['choice'] === 'take' || value['choice'] === 'decline') &&
+        exact(value, [...common, 'actor', 'triggerId', 'choice'], ['targetId'])
+      );
+    case 'declare': {
+      if (!validActor || !text('actionId') || !exact(value, [...common, 'actor', 'actionId'], ['options']))
+        return false;
+      if (!('options' in value)) return true;
+      const options = value['options'];
+      return (
+        exact(options, [], ['targetId', 'at', 'to']) &&
+        Object.entries(options as Record<string, unknown>).every(([key, entry]) =>
+          key === 'targetId'
+            ? typeof entry === 'string' && entry.length > 0
+            : exact(entry, ['x', 'y']) &&
+              Number.isSafeInteger((entry as Record<string, unknown>)['x']) &&
+              Number.isSafeInteger((entry as Record<string, unknown>)['y']),
+        )
+      );
+    }
+    default:
+      return false;
+  }
+}
+
+function appendJournal(
+  pack: Pack,
+  saved: PlaySessionSnapshot,
+  events: readonly RuntimeEvent[],
+): PlaySessionSnapshot {
+  const names = new Map<string, PlayEventSubject>();
+  const remap = new Map<string, string>();
+  for (const member of saved.encounter.entryMembers)
+    names.set(`m:${member.memberId}`, {
+      id: `m:${member.memberId}`,
+      name: member.character.state.name,
+      memberId: member.memberId,
+    });
+  for (const binding of saved.encounter.memberBindings) remap.set(binding.characterId, binding.combatantId);
+  for (const enemy of saved.encounter.enemyInstances)
+    names.set(enemy.enemyId, { id: enemy.enemyId, name: pack.bestiary[enemy.monsterId]!.name });
+  const journal = [...saved.journal];
+  for (const original of events) {
+    const event = detached({
+      ...original,
+      ...(original.actor ? { actor: remap.get(original.actor) ?? original.actor } : {}),
+      ...(original.target ? { target: remap.get(original.target) ?? original.target } : {}),
+    }) as PlayJournalEntry['event'];
+    const references = new Set<string>();
+    const visit = (value: unknown): void => {
+      if (typeof value === 'string' && names.has(value)) references.add(value);
+      else if (Array.isArray(value)) value.forEach(visit);
+      else if (isRecord(value)) Object.values(value).forEach(visit);
+    };
+    visit(event);
+    const sequence = journal.length + 1;
+    if (!Number.isSafeInteger(sequence)) refuse('sequence', 'Journal sequence exhausted.');
+    journal.push({
+      sequence,
+      revision: saved.revision,
+      event,
+      subjects: [...references].map((id) => names.get(id)!),
+    });
+  }
+  return { ...saved, sequence: journal.length, journal };
+}
+
+function outcome(state: CombatState): 'victory' | 'defeat' | null {
+  const combatants = Object.values(state.combatants);
+  if (combatants.filter((c) => c.side === 'allies').every((c) => c.hp.current <= 0)) return 'defeat';
+  if (combatants.filter((c) => c.side === 'enemies').every((c) => c.hp.current <= 0)) return 'victory';
+  return null;
+}
+
+function facade(pack: Pack, initial: PlaySessionSnapshot): EncounterSession {
+  let saved = initial;
+  const view = (): EncounterSessionView => {
+    const { fight } = hydrateFight(pack, saved);
+    const availableCommands: EncounterCommand['type'][] = [];
+    if (saved.phase === 'active') {
+      if (fight.pendingTriggers.length) availableCommands.push('respond');
+      else if (!saved.encounter.control.turnStarted || fight.state.phase === 'resolved')
+        availableCommands.push('advance');
+      if (saved.encounter.control.turnStarted && !fight.pendingTriggers.length)
+        availableCommands.push('declare', 'use', 'pass');
+    }
+    return detached({
+      sessionId: saved.sessionId,
+      revision: saved.revision,
+      phase: saved.phase,
+      members: projectMembers(saved).map((member) => ({ ...member, combatantId: `m:${member.memberId}` })),
+      combat: { state: fight.serialize(), pendingOffers: fight.pendingTriggers },
+      availableCommands,
+      result: saved.result,
+      settlement: saved.settlements.find((r) => r.encounterId === saved.encounter.encounterId) ?? null,
+    });
+  };
+  return {
+    view,
+    serialize: () => detached(saved),
+    dispatch(input) {
+      try {
+        if (!commandShape(input)) refuse('command', 'Malformed command or unexpected field.');
+        const command = detached(input);
+        if (command.sessionId !== saved.sessionId) refuse('sessionId', 'Foreign session.');
+        if (command.expectedRevision !== saved.revision) refuse('expectedRevision', 'Stale revision.');
+        if (!Number.isSafeInteger(saved.revision + 1)) refuse('revision', 'Revision exhausted.');
+        if (saved.phase !== 'active') refuse('phase', 'Encounter is not active.');
+        if (command.type === 'finalize' || command.type === 'abandon' || command.type === 'next')
+          refuse('type', 'Command is not yet available.');
+        const { runtime, fight } = hydrateFight(pack, saved);
+        let started = saved.encounter.control.turnStarted;
+        if ('actor' in command) {
+          const id = command.actor.kind === 'member' ? `m:${command.actor.memberId}` : command.actor.enemyId;
+          const member = command.actor.kind === 'member';
+          if (!fight.state.combatants[id] || (fight.state.combatants[id]!.side === 'allies') !== member)
+            refuse('actor', 'Unknown actor.');
+          if (command.type === 'respond') {
+            if (
+              !fight.pendingTriggers.some(
+                (offer) => offer.triggerId === command.triggerId && offer.actorId === id,
+              )
+            )
+              refuse('actor', 'Actor does not own that offer.');
+          } else if (id !== fight.state.active || !started || fight.pendingTriggers.length)
+            refuse('actor', 'Actor cannot act at this boundary.');
+        }
+        const events: RuntimeEvent[] = [];
+        runtime.events.on((event) => events.push(event));
+        switch (command.type) {
+          case 'advance': {
+            if (fight.pendingTriggers.length || (started && fight.state.phase !== 'resolved'))
+              refuse('type', 'Turn already started or offers remain.');
+            const step = fight.step();
+            started = step.kind === 'turn-started';
+            break;
+          }
+          case 'pass':
+            fight.pass();
+            started = false;
+            break;
+          case 'declare':
+            fight.declare(command.actionId, command.options);
+            break;
+          case 'use':
+            fight.use(command.itemId, command.targetId === undefined ? {} : { target: command.targetId });
+            break;
+          case 'respond':
+            fight.respond(command.triggerId, command.choice, command.targetId);
+            break;
+        }
+        const rejected = events.find((event) => event.type === 'declare:rejected');
+        if (rejected)
+          throw new RuntimeRuleError([
+            ruleCard(
+              rejected.why.rule,
+              String(rejected.payload['resource'] ?? ''),
+              'command',
+              String(rejected.payload['message'] ?? 'Action refused.'),
+            ),
+          ]);
+        const result = outcome(fight.state);
+        const next = appendJournal(
+          pack,
+          {
+            ...saved,
+            revision: saved.revision + 1,
+            phase: result ? 'terminal' : 'active',
+            result,
+            encounter: { ...saved.encounter, ...freezeFight(fight, saved.encounter.encounterId, started) },
+          },
+          events,
+        );
+        const suffix = next.journal.slice(saved.sequence);
+        saved = next;
+        return { ok: true, revision: saved.revision, events: detached(suffix), view: view() };
+      } catch (error) {
+        if (!(error instanceof RuntimeRuleError)) throw error;
+        return {
+          ok: false,
+          revision: saved.revision,
+          errors: detached(error.errors),
+          events: [],
+          view: view(),
+        };
+      }
+    },
+  };
+}
+
+export function createEncounterSession(pack: Pack, options: EncounterSessionOptions): EncounterSession {
+  const errors = validateEncounterSessionOptions(pack, options);
+  if (errors.length) throw new RuntimeRuleError(errors);
+  const owned = detached(pack),
+    input = detached(options),
+    runtime = new Runtime(owned),
+    events: RuntimeEvent[] = [];
+  runtime.events.on((event) => events.push(event));
+  const created = beginEncounter(runtime, input.sessionId, String(input.seed), 0, input.members, input.setup);
+  const result = outcome(created.fight.state);
+  if (result) created.fight.state = { ...created.fight.state, phase: 'combat-over' };
+  const saved: PlaySessionSnapshot = {
+    kind: 'play-session',
+    snapshotVersion: 1,
+    pack: packIdentity(owned),
+    sessionId: input.sessionId,
+    revision: 0,
+    seed: String(input.seed),
+    members: input.members,
+    encounterIndex: 0,
+    encounter: { ...created.encounter, ...freezeFight(created.fight, created.encounter.encounterId, false) },
+    phase: result ? 'terminal' : 'active',
+    result,
+    rng: created.rng,
+    sequence: 0,
+    journal: [],
+    settlements: [],
+  };
+  return facade(owned, appendJournal(owned, saved, events));
+}
+export function restoreEncounterSession(pack: Pack, snapshot: unknown): EncounterSession {
+  const owned = detached(pack);
+  return facade(owned, readSnapshot(owned, snapshot));
+}

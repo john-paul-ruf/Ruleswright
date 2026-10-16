@@ -195,7 +195,7 @@ export type PlayMemberBinding = {
   readonly combatantId: string;
 };
 
-export type PlayRawCombatSnapshot = PlayCombatSnapshot & {
+export type PlayRawCombatSnapshot = Omit<PlayCombatSnapshot, 'combatants'> & {
   readonly phase: NonNullable<PlayCombatSnapshot['phase']>;
   readonly offeredCount: number;
   readonly combatants: readonly (PlayCombatSnapshot['combatants'][number] & {
@@ -498,5 +498,190 @@ export function validateEncounterSessionOptions(pack: Pack, value: unknown): Err
           );
       });
   });
+  return errors;
+}
+
+const rngWords = object({
+  a: integer(0, 4294967295),
+  b: integer(0, 4294967295),
+  c: integer(0, 4294967295),
+  d: integer(0, 4294967295),
+});
+const profile = object(
+  {
+    id: nonempty,
+    abilities: record(finite),
+    saves: record(finite),
+    level: integer(1),
+    hp: integer(),
+    ac: finite,
+    initiativeBonus: finite,
+    actions: array(nonempty),
+  },
+  {
+    maxHp: integer(0),
+    speed: finite,
+    attackTable: array(object({ level: integer(1), byDefense: record(finite) })),
+    attackBonus: finite,
+    spells: array(nonempty),
+    castBlockedBy: nonempty,
+    feats: array(nonempty),
+  },
+);
+const balances = object(
+  {},
+  {
+    pools: record(integer(0)),
+    boundSlots: record(integer(0)),
+    items: record(integer(0)),
+    bindings: record(array(nullableString)),
+  },
+);
+const startEntry = object(
+  { id: nonempty, profile, balances },
+  { conditions: array(object({ conditionId: nonempty, duration: integer(0) })) },
+);
+const rawCombat = object(
+  {
+    kind: oneOf('combat'),
+    snapshotVersion: oneOf(1),
+    pack: identity,
+    pairsWith: nonempty,
+    round: integer(1),
+    turn: integer(0),
+    order: array(nonempty, 1),
+    rng: rngWords,
+    phase: oneOf('awaiting-declare', 'resolved', 'awaiting-trigger-response', 'combat-over'),
+    offeredCount: integer(0),
+    combatants: array(
+      object(
+        {
+          id: nonempty,
+          hp: integer(),
+          maxHp: integer(0),
+          slotsUsed: record(integer(0)),
+          conditions: array(object({ id: nonempty, remaining: integer(0) })),
+        },
+        {
+          position,
+          pendingTrigger: nullableString,
+          itemsUsed: record(integer(0)),
+          poolsSpent: record(integer(0)),
+          slotsCast: record(array(integer(0))),
+          pendingMove: object({ actionId: nonempty, to: position, remaining: finite }),
+        },
+      ),
+      1,
+    ),
+  },
+  {
+    offers: array(object({ actorId: nonempty, source: oneOf('action', 'feat'), id: nonempty, on: nonempty })),
+  },
+);
+const jsonValue: Check = (v, p, e) => {
+  if (v === null || typeof v === 'boolean' || typeof v === 'string') return;
+  if (typeof v === 'number') return finite(v, p, e);
+  if (Array.isArray(v)) return array(jsonValue)(v, p, e);
+  record(jsonValue)(v, p, e);
+};
+const clock = object({ round: integer(0), turn: integer(0) });
+const event = object(
+  {
+    type: nonempty,
+    at: clock,
+    payload: record(jsonValue),
+    why: object({ rule: nonempty, rolls: array(text) }),
+  },
+  { actor: nonempty, target: nonempty },
+);
+const receipt = object({
+  receiptId: nonempty,
+  sessionId: nonempty,
+  encounterId: nonempty,
+  encounterIndex: integer(0),
+  revision: integer(0),
+  result: oneOf('victory', 'defeat', 'abandoned'),
+  memberIds: array(nonempty, 1),
+  sourceHash: nonempty,
+  beforeMembersHash: nonempty,
+  afterMembersHash: nonempty,
+});
+const snapshot = object({
+  kind: oneOf('play-session'),
+  snapshotVersion: oneOf(1),
+  pack: identity,
+  sessionId: nonempty,
+  revision: integer(0),
+  seed: text,
+  members: array(member, 1),
+  encounterIndex: integer(0),
+  encounter: object({
+    encounterId: nonempty,
+    setup,
+    selection: object({
+      groups: array(object({ id: nonempty, count: integer(1, 12) }), 1),
+      threat: finite,
+      budget: finite,
+      seedUsed: text,
+      heuristic: oneOf('threat-weighted-uniform'),
+    }),
+    entryMembers: array(member, 1),
+    memberBindings: array(object({ memberId: nonempty, characterId: nonempty, combatantId: nonempty }), 1),
+    enemyInstances: array(object({ enemyId: nonempty, monsterId: nonempty, instance: integer(1) }), 1, 12),
+    start: object({
+      allies: array(startEntry, 1),
+      enemies: array(startEntry, 1, 12),
+      positions: record(position),
+      terrain: array(terrain),
+    }),
+    combat: rawCombat,
+    positions: record(position),
+    terrain: array(terrain),
+    control: object({
+      round: integer(1),
+      turn: integer(0),
+      activeId: nonempty,
+      turnStarted: oneOf(true, false),
+    }),
+  }),
+  phase: oneOf('active', 'terminal', 'settled'),
+  result: oneOf(null, 'victory', 'defeat', 'abandoned'),
+  rng: object({ generation: rngWords, play: rngWords }),
+  sequence: integer(0),
+  journal: array(
+    object({
+      sequence: integer(1),
+      revision: integer(0),
+      event,
+      subjects: array(object({ id: nonempty, name: text }, { memberId: nonempty })),
+    }),
+  ),
+  settlements: array(receipt),
+});
+
+/** Validate the complete portable shape before runtime reconstruction. */
+export function validatePlaySessionSnapshot(pack: Pack, value: unknown): ErrorCard[] {
+  const errors = shapeErrors(pack, value, snapshot, '').map((card) => ({
+    ...card,
+    rule: card.jsonPath === 'snapshotVersion' ? 'E-SNAP-02' : 'E-SNAP-01',
+  }));
+  if (errors.length) return errors;
+  const input = value as PlaySessionSnapshot;
+  errors.push(
+    ...validateEncounterSessionOptions(pack, {
+      sessionId: input.sessionId,
+      seed: input.seed,
+      members: input.members,
+      setup: input.encounter.setup,
+    }),
+  );
+  errors.push(
+    ...validateEncounterSessionOptions(pack, {
+      sessionId: input.sessionId,
+      seed: input.seed,
+      members: input.encounter.entryMembers,
+      setup: input.encounter.setup,
+    }),
+  );
   return errors;
 }

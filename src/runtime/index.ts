@@ -168,3 +168,12 @@ export {
   type AssembledGroup,
   type Encounter,
 } from './encounter';
+export {
+  createEncounterSession,
+  restoreEncounterSession,
+  type EncounterSession,
+  type EncounterSessionView,
+  type EncounterCommand,
+  type EncounterActor,
+  type EncounterCommandResult,
+} from './play/session';

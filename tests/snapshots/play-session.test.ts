@@ -93,3 +93,41 @@ describe('AR-02 portable setup and options validation', () => {
       expect(validateEncounterSetup(pack, { ...setup, layout }).length).toBeGreaterThan(0);
   });
 });
+
+describe('CA-02 aggregate shape rejection', () => {
+  it('rejects malformed counters, nested fields and unsupported versions before changing the source session', async () => {
+    const { playFixture } = await import('../runtime/play/fixtures');
+    const { createEncounterSession, restoreEncounterSession } = await import('../../src/runtime');
+    const { pack, options } = playFixture();
+    const session = createEncounterSession(pack, options);
+    const before = session.serialize();
+    const cases: [string, string, unknown][] = [
+      ['snapshotVersion', 'snapshotVersion', 2],
+      ['revision', 'revision', Number.MAX_SAFE_INTEGER + 1],
+      ['rng.play.a', 'rng.play.a', 2 ** 32],
+      ['encounter.combat.rng.d', 'encounter.combat.rng.d', -1],
+      ['encounter.control', 'encounter.control.turn', 99],
+      ['members[0].character.state.hp', 'members.0.character.state.hp', undefined],
+      ['encounter.selection.seedUsed', 'encounter.selection.seedUsed', 42],
+      ['encounter.extra', 'encounter.extra', true],
+    ];
+    for (const [path, field, value] of cases) {
+      const bad = JSON.parse(JSON.stringify(before)) as Record<string, unknown>;
+      const keys = field.split('.');
+      let parent = bad;
+      for (const key of keys.slice(0, -1)) parent = parent[key] as Record<string, unknown>;
+      if (value === undefined) delete parent[keys[keys.length - 1]!];
+      else parent[keys[keys.length - 1]!] = value;
+      try {
+        restoreEncounterSession(pack, bad);
+        throw new Error('accepted malformed snapshot');
+      } catch (error) {
+        expect(error).toHaveProperty('errors');
+        expect((error as { errors: { jsonPath: string }[] }).errors.some((e) => e.jsonPath === path)).toBe(
+          true,
+        );
+      }
+      expect(session.serialize()).toEqual(before);
+    }
+  });
+});

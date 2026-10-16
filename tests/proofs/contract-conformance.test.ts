@@ -27,7 +27,13 @@ import Ajv2020 from 'ajv/dist/2020';
 import type { ValidateFunction } from 'ajv';
 import { describe, expect, it } from 'vitest';
 import { generateCampaign, loadTheme } from '../../src/compiler';
-import { Runtime, serializeCharacter, serializeParty } from '../../src/runtime/index';
+import {
+  createEncounterSession,
+  restoreEncounterSession,
+  Runtime,
+  serializeCharacter,
+  serializeParty,
+} from '../../src/runtime/index';
 import { LEG_RUNS, PACK_THEMES, recordingRaw, contentHashOfRaw, type LegId } from './determinism-oracle';
 import {
   emberMarchesAscendingPack,
@@ -38,11 +44,12 @@ import {
 } from '../runtime/fixtures/packs';
 import { cloneRuntimePack } from '../runtime/fixtures/pack';
 import { clonePack } from '../schema/fixtures';
+import { playFixture, send } from '../runtime/play/fixtures';
 
 type Contract = Record<string, unknown>;
 type Doc = Record<string, unknown>;
 
-function contract(name: 'pack' | 'snapshots' | 'override'): Contract {
+function contract(name: 'pack' | 'snapshots' | 'override' | 'play-session'): Contract {
   const url = new URL(`../../src/schema/contracts/${name}.schema.json`, import.meta.url);
   return JSON.parse(readFileSync(fileURLToPath(url), 'utf8')) as Contract;
 }
@@ -263,4 +270,34 @@ it('CA-01 oracle delta is exactly four added HP envelopes, with every old byte r
   expect(createHash('sha256').update(raw).digest('hex')).toBe(
     '23a287f174b5da23e962c6bacd9f0022cb1923280298941858be9390ba5e01a5',
   );
+});
+
+describe('CA-02 actual aggregate conformance and F-RA-01 empty seed', () => {
+  const ajv = new Ajv2020({ allErrors: true, strict: false });
+  ajv.addSchema(contract('snapshots'));
+  const validate = ajv.compile(contract('play-session'));
+  it('validates real initial/action and JSON-reopened aggregates with exact empty seeds', () => {
+    const { pack, options } = playFixture();
+    const session = createEncounterSession(pack, options);
+    const initial = session.serialize();
+    send(session, { type: 'advance' });
+    send(session, { type: 'use', actor: { kind: 'member', memberId: 'hero-1' }, itemId: 'mend-draught' });
+    const saved = session.serialize();
+    const restored = restoreEncounterSession(pack, json(saved));
+    for (const subject of [initial, saved, restored.serialize()]) {
+      expect(subject.encounter.setup.seed).toBe('');
+      expect(subject.encounter.selection.seedUsed).toBe('');
+      expect(validate(json(subject)), ajv.errorsText(validate.errors)).toBe(true);
+    }
+    expect(send(restored, { type: 'pass', actor: { kind: 'member', memberId: 'hero-1' } })).toEqual(
+      send(session, { type: 'pass', actor: { kind: 'member', memberId: 'hero-1' } }),
+    );
+  });
+  it('rejects nonstring seedUsed at the selection field', () => {
+    const { pack, options } = playFixture();
+    const saved = json(createEncounterSession(pack, options).serialize());
+    (saved.encounter.selection as unknown as Doc)['seedUsed'] = 42;
+    expect(validate(saved)).toBe(false);
+    expect(failedOn(validate, '/encounter/selection/seedUsed', 'type')).toBe(true);
+  });
 });
