@@ -7,6 +7,8 @@ import type { Pack, AdventureTemplate, AdventureStartOptions } from &#x27;rulesw
 
 export function adventureExample(pack: Pack, template: AdventureTemplate,
   options: AdventureStartOptions) {
+  // template must match this effective pack. A bundled recipe can be bound
+  // explicitly with loadAdventureTemplate(templateId, pack) from the compiler.
   const definition = generateAdventure({ pack, template, seed: 42 });
   const adventure = createAdventure(pack, definition, options);
   const before = adventure.view();

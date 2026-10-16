@@ -148,7 +148,7 @@ adds nothing for a headless product.
   only (all states are visual; buttons are non-functional by contract).
 ## AR-06 receipt — approved headless play DX
 
-New sources inherit the existing palette/type/spacing/radii and use inline CSS for offline viewing at 390px and 1280px widths. These are documentation contracts, not game screens. New example signatures are the Architect/DB implementation target; no example claims the runtime already exports them. Host-supplied pack/template/member inputs are explicit function arguments. All sample field anatomy is labeled when incomplete.
+New sources inherit the existing palette/type/spacing/radii and use inline CSS for offline viewing at 390px and 1280px widths. These are documentation contracts, not game screens. New example signatures are the Architect/DB implementation target; no example claims the runtime already exports them. Host-supplied pack/template/member inputs are explicit function arguments. The bundled-template call is `loadAdventureTemplate(id, pack)`: the effective pack is explicit so a static recipe can bind to the actual generated/overridden pack. A supplied bound template with a different hash refuses generation. All sample field anatomy is labeled when incomplete.
 
 Flow 6: random-encounters → snapshots: supply stable members/setup, inspect view, manually dispatch, finalize, save/reopen, next. Flow 7: random-adventures: generate definition, inspect available choices, choose route, command real combat, claim stored reward with selected recipient, rest/prepare explicitly, save/reopen. Flow 8: solo-director: advance maxSteps, yield to player, read factual messages, acknowledge presented sequence, save. Pure views/narration do not draw RNG.
 

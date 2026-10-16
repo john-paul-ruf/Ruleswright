@@ -91,7 +91,7 @@ settleSpellCasts(rt, char, fight, id?)          <span class="com">// after comba
 
   <section class="mb-10"><h2 class="font-display text-2xl mb-3">Approved additions — implementation pending</h2><pre><code>// ruleswright/compiler
 generateAdventure({pack, template, seed}) -&gt; AdventureDefinition
-loadAdventureTemplate(id) -&gt; AdventureTemplate
+loadAdventureTemplate(id, pack) -&gt; AdventureTemplate
 // ruleswright/runtime
 createEncounterSession(pack, options) / restoreEncounterSession(pack, snapshot)
 createAdventure(pack, definition, options) / restoreAdventure(pack, definition, snapshot)
