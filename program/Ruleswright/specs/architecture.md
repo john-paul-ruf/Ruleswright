@@ -1,12 +1,12 @@
 # Architecture — Ruleswright
 
-> **Status:** draft for builder approval — Architect, phase `architecture`.
+> **Status:** approved architecture with scoped random-adventures Author amendment (2026-10-16).
 > Revised in review: **Node floor set at 18 LTS (Electron-adjacent)** — builder
 > decision. **Library root corrected to the repo root (`./`)** per builder —
 > package.json, `src/`, and `tests/` live at the repository root; `program/Ruleswright/`
 > holds program artifacts (specs, mocks) and is never part of the shipped package.
 > Read with `specs/idea.md`, `specs/requirements.md` (approved), and
-> `specs/design.md` (approved, v2 — 18 surfaces). FR references throughout.
+> `specs/design.md` (approved, v3 — 21 surfaces). FR references throughout.
 > **Design contract compliance is tracked at the bottom** — no corrections to
 > approved design behavior were needed; see *Design Contract Ledger*.
 > **revised 2026-10-05 — Architect re-entry (class-features, builder-authorized
@@ -24,13 +24,13 @@
 |-------|-----------|-----------|
 | Language | TypeScript 5.x, strict mode, ESM first | Required by NFR-Platform/NFR-DX. `strict: true` + `noUncheckedIndexedAccess` — pack lookups by string id are exactly where unchecked indexing bites. |
 | Framework | **None** | Headless library (FR-14: engine performs no I/O; hosts own storage/UI). A framework would be a dependency without a job. |
-| UI Framework | None | No UI exists. The 18 design mocks are docs/data-contract surfaces, not implementation targets (design.md, *The Adaptation That Governs This Spec*). |
+| UI Framework | None | No UI exists. The 21 design surfaces are docs/data-contract surfaces, not implementation targets (design.md, *The Adaptation That Governs This Spec*). |
 | State Management | Plain-JSON state + stateless engine functions, thin facades over it | FR-5/FR-14 demand character/party/combat state be plain serializable JSON with no hidden state. Decision detail below — this is the load-bearing state decision. |
-| Database | **None.** No engine I/O of any kind | FR-14. The only persisted shapes are snapshots and packs — both plain JSON owned by hosts. The DB phase formalizes the pack data model as the persistence-adjacent contract; there are no migrations (schemaVersion *is* the migration story, deferred by design per FR-14/FR-23). |
+| Database | **None.** No engine I/O of any kind | FR-14. Persisted shapes are snapshots, packs and separate adventure templates/definitions — plain JSON owned by hosts. The DB phase formalizes the pack data model as the persistence-adjacent contract; there are no migrations (schemaVersion *is* the migration story, deferred by design per FR-14/FR-23). |
 | ORM / Data Layer | None | Nothing to map. Content-hash + schemaVersion checks live in `schema/version.ts`. |
 | Build Tool | **tsup** (esbuild core, dts rollup) | Dual ESM/CJS output, per-entry builds matching the three subpath exports, near-zero config. Runtime-only bundle proof runs against its output in CI. |
 | Test Framework | **Vitest** (node + browser modes) | TS/ESM-native, no jest transform friction. **Browser mode is not optional** — the determinism NFR (identical rolls on Node, browsers, Electron) is a cross-runtime test, and browser mode gives us real Chromium/Firefox/WebKit runs. |
-| Lint/Format | ESLint (typescript-eslint, strict-type rules) + Prettier | Type-aware lint carries the security posture: `no-restricted-properties` bans `Math.random`, `eval`, `new Function`, `Date.now` in engine paths — the NFR-Security/no-ambient-randomness rules become CI-enforced, not aspirational. |
+| Lint/Format | ESLint 10 flat config (typescript-eslint recommended, non-type-aware) + Prettier | Restricted-property lint carries the security posture: `no-restricted-properties` bans `Math.random`, `eval`, `new Function`, `Date.now` in engine paths — the NFR-Security/no-ambient-randomness rules become CI-enforced, not aspirational. |
 | Package Manager | pnpm + workspaces (single workspace for v1) | Deterministic installs; workspace ready if packaging ever splits (see Alternatives). |
 | CI | GitHub Actions | Test matrix (Node 18 floor + current LTS), browser determinism runs, bundle-isolation proof, FR-12 proof tests. |
 | Deployment Target | npm package (ESM primary + CJS dual); Node ≥ 18 LTS floor (Electron-adjacent; builder decision), evergreen browsers, Electron | NFR-Platform. No server exists. |
@@ -85,6 +85,11 @@ Precise paths — Planner lifts these directly into its Module Registry.
 │   │   │                         derived from progression tables (FR-6, v1.10)
 │   │   ├── pools.ts            — drain pools + vancian bindings (FR-8); known spells
 │   │   │                         (FR-9; class-feature unlocks via features.ts)
+│   │   ├── character-profile.ts — profile/balances and explicit item/spell settlement
+│   │   ├── inventory.ts        — item/loot writers through the shared table engine
+│   │   ├── equipment.ts        — equip/use gates and derived equipment view
+│   │   ├── feats.ts            — learned feats and slot caps; features.ts reads grants
+│   │   ├── display-roll.ts     — roll strings used in event provenance
 │   │   ├── conditions.ts       — condition lifecycle, stacking, restricts (FR-7)
 │   │   ├── combat/
 │   │   │   ├── combat.ts       — Combat: startCombat, the public verbs, turn advance;
@@ -148,10 +153,10 @@ Precise paths — Planner lifts these directly into its Module Registry.
 - **Owns:** everything stateful: characters, progression, pools/bindings, conditions, combat (loop, action economy, resolution, spatial, triggers), the event stream, encounter assembly, snapshots. All randomness through injected/core RNG; zero I/O; zero `Math.random`.
 - **Exports:** the `ruleswright/runtime` surface — `Runtime`, `Character`, `Combat` facades + the three serializers (design mock `api-map.html` fixes coverage).
 - **Depends on:** `schema` (validation, ErrorCard), `core` (rng, dice, dsl, tables). **Never imports `compiler` — CI-enforced.**
-- **Key types:** `Runtime`, `CharacterState` (plain JSON), `CombatState` (plain JSON), `GameEvent` (with `why: { rule, rolls[] }`), `Snapshot` variants.
+- **Key types:** `Runtime`, `CharacterState` (plain JSON), `CombatState` (plain JSON), `RuntimeEvent` (with `why: { rule, rolls[] }`), `Snapshot` variants.
 
 ### `src/compiler` — the generator
-- **Owns:** theme templates, knobs, composition (base + patches), the eight-stage pipeline, per-stage deterministic RNG streams, canonical serialization for byte-identical output, the two sample themes (FR-21).
+- **Owns:** theme templates, knobs, composition (base + patches), the eight-stage pipeline, per-stage deterministic RNG streams, canonical serialization for byte-identical output, the three bundled themes (dark-fantasy, zombie-urban, wyldwood).
 - **Exports:** the `ruleswright/compiler` surface — `generateCampaign`, `listThemeKnobs`, pipeline/stage types for extension.
 - **Depends on:** `schema` (its final stage *is* `schema.validatePack` — dogfooding without importing runtime), `core` (rng, tables).
 - **Key types:** `ThemeTemplate`, `KnobDecl`, `GenerateOptions`, `Stage` ({ name, run(ctx) }).
@@ -217,7 +222,7 @@ The budgets are NFR commitments; the architecture meets them by construction:
 - **Target:** npm (`ruleswright`), subpath exports per the packaging decision. Dual ESM/CJS; TypeScript types ship alongside every entry.
 - **Build:** `tsup` per entry → `dist/`; `exports` map in `package.json`; side-effect-free for tree-shaking. Build target **es2020** (Node 18 floor + evergreen browsers). **Strict `files` field** (`dist`, `README`, `LICENSE`) — with the package root at the repo root, this is what keeps `program/` and tooling docs out of the published tarball.
 - **Runtime:** consumer's process (Node ≥ 18, browser, Electron). The library never spawns, listens, fetches, or writes.
-- **CI gates:** typecheck · lint security rules · unit + browser determinism matrix · FR-12 proof trio · runtime-bundle isolation (no `generateCampaign` string) · perf budgets as regression thresholds · sample-theme generation + validation for both FR-21 packs.
+- **CI gates:** typecheck · lint security rules · unit + browser determinism matrix · FR-12 proof trio · runtime-bundle isolation (no `generateCampaign` string; extend to `generateAdventure` with S02) · perf budgets as regression thresholds · sample-theme generation + validation for all three bundled packs.
 
 ## Design Contract Ledger
 
@@ -240,3 +245,83 @@ How the approved design constrains this architecture — no corrections were nee
 2. ~~**Node floor**~~ — **Resolved in review (builder):** floor set at **Node 18 LTS**, the widest Electron-adjacent line. Consequences: tsup/esbuild target **es2020**; CI matrix = Node 18 / 20 / 22. Recorded trade-off: Node 18 is past upstream EOL — this floor is chosen for reach, not support policy; the browser determinism matrix remains the real compatibility story.
 
 Everything else above is decided and documented with its trade-offs.
+## Approved random-adventures composition — AR-01–AR-06 (2026-10-16)
+
+Authority: the presented packet was approved by “start”; “i authorize it” authorizes this deliberate Author re-entry. FR-24–29 and design v3 constrain this section. These are implementation contracts, not realized APIs or proof of capability. Existing low-level APIs, pack/override fields, generated pack bytes, stack, package and three subpaths remain unchanged. No provider, database, migration, application transport or runtime dependency is introduced.
+
+### Precise ownership and connections
+
+| Module | Planned paths | Producer → consumer; dependency |
+|---|---|---|
+| M01 schema | `src/schema/play-session.ts` | Portable EncounterSetup, EncounterSessionOptions and snapshot mirrors/validators → M03 play and M04 generation. Imports schema only; does not roll tables or instantiate Runtime. |
+| M01 schema | `src/schema/adventure.ts` | AdventureTemplate, AdventureDefinition, AdventureStartOptions and portable identity/policy mirrors/validators → M04 generator and M03 adventure. Composition of play-session DTOs; no core/runtime values. |
+| M03 runtime | `src/runtime/play/{session,encounter,settlement,snapshot}.ts` | createEncounterSession → real assembleEncounter/spawnEncounter → detached profileFromCharacter/startCombat → command routing → staged settlement → whole snapshot/restore. Uses M01/M02 and existing M03 writers. |
+| M04 compiler | `src/compiler/adventure.ts`, `adventure-templates.ts`, `adventure-templates/{dark-fantasy,zombie-urban,wyldwood}.json` | Separate generateAdventure + static loadAdventureTemplate registry → validated definition. Uses M01 and the existing M02 Rng/rollTable; never imports M03. Existing generateCampaign pipeline unchanged. |
+| M03 runtime | `src/runtime/adventure/{types,adventure,choices,rewards,snapshot}.ts` | Definition + members → node/choice guards → S01 encounter aggregate → earned reward roll/claim → existing awardXp/grantItem/rest/prepare/equipment writers → whole adventure snapshot. |
+| M03 runtime | `src/runtime/combat/preview.ts`, existing `combat/{combat,declare,movement}.ts` | Side-effect-free shared legality result → production declare and bounded candidates. No trial declaration, speculative event emission or independent AI rules engine. |
+| M03 runtime | `src/runtime/adventure/{director,narration}.ts` | Saved policy + legal candidates → actual aggregate dispatch; committed journal → pure narrated messages; acknowledgement → aggregate dispatch. |
+
+Barrels export only their own surface. M05 remains dumb re-export composition. These additions preserve module edges M03→M01/M02 and M04→M01/M02. New paths are declared, not realized; Planner reconciles the module registry separately. Contracts under `src/schema/contracts/` remain DB-owned.
+
+### Public call contract (synchronous; no endpoints)
+
+```ts
+// schema surface: portable data only
+EncounterSessionOptions = { sessionId: string; seed: string | number;
+  members: readonly { memberId: string; character: CharacterSnapshot }[];
+  setup: EncounterSetup };
+AdventureStartOptions = { adventureId: string; seed: string | number;
+  members: readonly { memberId: string; character: CharacterSnapshot }[] };
+// compiler surface
+generateAdventure({ pack, template, seed }): AdventureDefinition;
+loadAdventureTemplate(id: string): AdventureTemplate;
+// runtime surface
+createEncounterSession(pack: Pack, options: EncounterSessionOptions): EncounterSession;
+restoreEncounterSession(pack: Pack, snapshot: unknown): EncounterSession;
+createAdventure(pack: Pack, definition: AdventureDefinition, options: AdventureStartOptions): Adventure;
+restoreAdventure(pack: Pack, definition: AdventureDefinition, snapshot: unknown): Adventure;
+// both facades
+view(): EncounterSessionView | AdventureView; // actual facade returns its own variant
+serialize(): PlaySessionSnapshot | AdventureSnapshot; // detached object, never string
+// dispatch returns that facade's view, journal suffix and optional receipt
+// {ok:true,revision,events,view,receipt?} | {ok:false,revision,errors,events:[],view}
+advanceSolo(adventure: Adventure, options: { maxSteps: number }): SoloResult;
+readNarration(adventure: Adventure): readonly NarrationMessage[];
+```
+
+Creation/restore failure throws RuntimeRuleError carrying located ErrorCards. Dispatch refusal returns the explicit `ok:false` shape above; it is not a successful transition. No new rule registry entry: shape/ref/economy/spatial errors use existing families, snapshot semantics E-SNAP-01, unsupported snapshot version E-SNAP-02. Each successful mutation increments revision once; idempotent receipt lookup/ack of the already-acknowledged sequence leaves revision and journal unchanged. Validate expectedRevision before considering idempotence; stale retries refuse. All numeric counters are nonnegative safe integers; reject exhaustion rather than overflow.
+
+**Encounter commands:** every variant carries `{sessionId, expectedRevision, type}`. `advance` has no extra fields; `declare` carries `{actor,actionId,options?}` (existing targetId/at/to); `use` carries `{actor,itemId,targetId?}`; `respond` carries `{actor,triggerId,choice:'take'|'decline',targetId?}`; `pass` carries `{actor}`; `finalize` and `abandon` have no extra fields; `next` carries `{setup}`. Actor is `{kind:'member',memberId}` or `{kind:'enemy',enemyId}`. Resolve member to saved combatant binding; enemyId is its stable combatant id. Targets are combatant ids. Only the active actor or the owner of the named offer may act. `advance` performs one needed turn transition, never calls step to refresh an already-started turn. `pass()` is the additive low-level verb, using the existing end-turn path and refusing pending offers/terminal combat.
+
+**Adventure commands:** each carries `{adventureId,expectedRevision,type}`. `choose` adds `{nodeId,choiceId}`; `encounter` adds `{encounterId,command}` where command is a complete encounter command with its expectedRevision; `claim-reward` adds `{nodeId,rewardId,claimId,recipientMemberId?}` (required for a loot-bearing reward, even a no-item roll; forbidden when no loot); `rest` adds `{nodeId}` and applies existing rest to the party once at that node; `prepare` adds `{nodeId,memberId,spellId,slotIndex?}`; `equip` adds `{nodeId,memberId,itemId,slot}`; `unequip` adds `{nodeId,memberId,slot}`; `use-item` adds `{nodeId,memberId,itemId}` for the existing out-of-combat self-use operation; `abandon` adds nothing; `ack-narration` adds `{throughSequence}`. XP amounts, reward outcomes, eligibility, policy and current location are never command authority. Unknown keys/variants refuse. S03 exposes only implemented legal commands; S04 supplies the director and acknowledgement/narration consumers before claiming those capabilities.
+
+**Views:** EncounterSessionView is `{sessionId,revision,phase,members,combat,availableCommands,result,settlement}`. Members are `{memberId,character,combatantId}`; combat is `{state,pendingOffers}` with detached actual CombatState and PendingTrigger data. AdventureView is `{adventureId,revision,phase,nodeId,objective,members,combat,choices,pendingRewards,availableCommands,journalSequence,narrationAck}`. `choices` rows are `{choiceId,text,toNodeId,available,reason}` (reason ErrorCard or null), pendingRewards are `{claimId,nodeId,rewardId,eligibleMemberIds,roll}`. `availableCommands` lists discriminant strings, not fabricated legal targets/actions; S04 adds a pure bounded candidate accessor within the session implementation. During combat views project injury/conditions/remaining resources from raw combat plus original member baseline; serialize preserves both representations in their proper roles. No mutable Character/Combat/Runtime escapes.
+
+**Solo/narration:** SoloResult is `{reason,stepsUsed,events,view}`. Reasons: awaiting-player, awaiting-choice, completed, defeated, **abandoned**, budget-exhausted, stalled. Positive safe maxSteps is an explicit work budget; policy bounds candidates. One attempted automated transition counts one step; pure guards terminate over a finite candidate set. Persist no-progress detection and decision count so splitting budgets cannot change choices. Stop at player-owned turns/offers, routes, recipients and preparation. NarrationMessage is `{messageId,sequence,templateId,event,text}`; one per journal entry after narrationAck, including factual fallback (`templateId:null`). Message id is the canonical JSON tuple `[adventureId,sequence]`. Reads do not draw entropy or acknowledge. `why.rolls` remains existing display strings. Negative damage is healing. Acknowledgement has no journal event of its own (avoids an endless narration acknowledgement cycle); it changes revision/cursor only.
+
+### Data authority, restore and transactions
+
+| Subject | Actual source constraint / mismatch | Required mapping and proof |
+|---|---|---|
+| Character injury | `snapshots/character.ts` omits hp and reconstructs via reserveValue; profile/equipment use real current HP. Recorded 3/2→27/0 probe contradicts FR-14. | DB adds optional signed current/nonnegative temp; S01 writes/restores exactly, legacy absence unchanged. Before id allocation validate every member. Negative/above-max/temp and second-fight proofs required. |
+| Conditions | character `{conditionId,duration}` → snapshot `{id,remaining}` exists; StartCombatRequest currently has no initial conditions. | Optional `conditions` beside profile/balances on each start entry; copy/validate before initiative, then transfer final remaining durations back. Fix item duration before emitting the condition event; no new unit/vocabulary. |
+| Raw combat | `serializeCombat` returns array combatants, scalar hp, `slotsUsed` remaining, spend deltas, phase/offeredCount/offers. Restore requires original profiles/balances and current positions/terrain. | Aggregate embeds the raw envelope plus saved restore inputs. It must not serialize live CombatState as CombatSnapshot or reconstruct original balances from settled members. Pairing uses the specific encounter id; exact side/order/instance identity sets must agree. |
+| Abandon | Existing settleItemUses/settleSpellCasts refuse before combat-over. | Aggregate abandonment stages validated spend via existing character writers/direct pool and binding settlement rules, plus HP/conditions and an abandonment receipt, without forging combat-over or changing low-level settlement APIs. Keep raw fight snapshot for audit; aggregate phase/result controls terminality. No success rewards. |
+| Reward | rollLoot returns TableOutcome `{ok:true,value}` with no per-roll trace; grantLoot refuses flavor. | Stage successful value + tableId + RNG before/after + normalized item/no-item result; never invent dice/entry indices. Use existing grantItem and awardXp against staged members, not grantLoot's rerolling helper. Roll and claim are distinct commits; save before retry. |
+| Movement | resumeMove skips all first-edge checks today, losing a changed threatener. | Optional offeredDepartures records exact edge/reactor tuples, carried through types and raw writer/reader. S04 changes live and restored suppression together; old omission retains documented fallback. |
+
+A facade owns isolated Runtime instances and copied state. Validate command → stage all member/fight/RNG/journal mutations privately → validate result → replace the aggregate once → return committed events. A failed second-member debit publishes no first-member changes, receipt, RNG or event. Low-level rejection events may be observed within staging and returned as ErrorCards, but never appended to the committed journal. No external subscriber runs against staging. Definition/pack digests identify content; they are not cryptographic tamper authentication. Validate cross-field consistency; do not claim protection against an attacker rewriting an entire coherent document.
+
+Encounter selection calls existing assembly unchanged (12-enemy hard ceiling). Setup declares maxPartySize/maxEnemies and fixed placement arrays; preflight must prove the budget/positive minimum threat cannot generate more than maxEnemies (bounded by 12) and the layout fits maximum party/enemies, then reject a violating actual selection. Do not truncate, reroll, scale by party, silently relocate or alter the low-level heuristic. Allocate party combatant ids `m:<memberId>` and enemy ids `e:<encounterIndex>:<ordinal>` in saved member order and sorted group/instance order. These namespaces are disjoint even if pack/statblock ids collide. Member ids stay independent of reminted Character.id. Encounter id = canonical JSON tuple `[sessionId,encounterIndex]`; `pairsWith` equals it. Keep original character id binding for audit; remap reconstructed Runtime ids to stable subjects for dispatch/journal before publication. Reopening cannot rely on Runtime mint order.
+
+A session retains current encounter entry member snapshots plus raw combat and current spatial state until settlement. Settled member envelopes and a receipt are committed atomically; original inputs stay frozen for audit/restore. The raw combat keeps pre-settlement spend; settlement helpers may clear only staged working copies. `next` requires a settled victorious encounter and starts a new one with the updated party; terminal defeat/abandon cannot be bypassed. Adventure nests the active encounter and retains receipts after leaving it. A ready encounter node cannot resolve without its real terminal result; route traversal does not roll or infer success. Rest policy and reward eligibility come exclusively from the definition and saved progress. The whole JSON save is the unit of storage; older reopened saves are branches.
+
+### Determinism and proof seams
+
+DB fixes canonical seed-domain spellings and all persisted counters/streams. Generation uses bounded authored spine/branch construction, not retry-until-connected. One existing rollTable implementation serves descriptor and loot tables. Integer table weight sums must fit the existing RNG's 2^32 bound; reject larger totals rather than hanging its rejection loop. Runtime never imports compiler/template registry. Candidate preview retains production gate order and never evaluates random validity by drawing a speculative roll; reject unsupported random validity in the new solo policy domain with a located error, preserving low-level behavior.
+
+Required producer/consumer proofs remain S01 c3/c5 (built runtime → combat → JSON reopen → second encounter), S02 c2 (built compiler → exact definition validator, three templates and compatible authored pack), S03 c2/c4 (generated node → real encounter → reward/progression → reopen), S04 c2/c3/c4 (movement resume, real enemy commands, factual journal/ack). Node/browsers/Electron evidence and runtime isolation stay with the planned implementation checkpoints. Author schema conformance does not clear these proofs. No new harness/service is needed: synchronous exported ESM/CJS calls, detached JSON and fresh facade instances are the real transport/restart boundary.
+
+### Downstream reconciliation required before dispatch
+
+S01/CA-01–02 must adopt exact DB sidecar shapes, original-vs-current member authority, namespace/pairing, raw CombatSnapshot and explicit abandon adapter; low-level settlement cannot implement abandon by itself. S02/CA-03 must consume the same EncounterSetup, finite authored construction, effective-pack identity and canonical digest. S03/CA-04 must use exact claim/receipt subjects, once-staged TableOutcome+RNG, journal and nested encounter validation. S04/CA-05 must preserve saved departure tuples, pure shared legality, explicit abandoned yield, director no-progress state and narration acknowledgement. Reconcile every copied prompt and CA, not only this handoff. Existing PROGRAM-CONFIG/arch/STATE remain read-only here.
