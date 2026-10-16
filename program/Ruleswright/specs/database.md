@@ -1,6 +1,6 @@
 # Database Design — Ruleswright
 
-> **Status:** v1.12, scoped Author re-entry (2026-10-16, AR-01–AR-06): optional lossless HP and exact departure history; three new portable play/adventure contract files; existing pack/override unchanged. Positive-XP reward side effects remain blocked on B-RA-XP below; contracts are not runtime implementation.
+> **Status:** v1.12, scoped Author re-entry (2026-10-16, AR-01–AR-06): optional lossless HP and exact departure history; three new portable play/adventure contract files; existing pack/override unchanged. Lease revision 2 resolves B-RA-XP through the already-approved injury/resource preservation contract below; contracts are not runtime implementation.
 > Prior status: v1.11, revised — DB, schema-change Author re-entry (builder-authorized 2026-10-11, contract-conformance: combatant `hp` in combat snapshots has no lower bound — damage is not floored, hp ≤ 0 means down; loosening only, no rule id, no caveat); v1.10, revised — DB, schema-change Author re-entry (builder-authorized 2026-10-04, class-features: class features at `progression.<id>.features` grant a feat or unlock an action or spell at a class level; `content.classes.<id>.features` removed; refs resolve at load; no rule id; pre-release in-place revision, compatibility caveat (g); v1.9, revised — DB, Author re-entry (builder-authorized 2026-10-04, builder-rulings: out-of-combat restricts follow the in-combat rule; `awardXp` never lowers a class level; the feat-slotted predicate stated plainly; description only — no field, no rule id; two documented compatibility caveats (e) and (f); v1.8, revised — DB, schema-change Author re-entry (builder-authorized 2026-10-04, feat-progression: per-class feat slots `progression.<id>.featSlots`; additive-optional, no rule id added; one documented compatibility caveat (d) — a feat-slotted pack refuses learning past the cap and refuses to restore an over-cap character; v1.7: builder-authorized 2026-10-01, action-targeting: the `target(self, …)` shape word + self actions and the `ability(name)` formula function, registry 14→15; no field added, no rule id added, one documented compatibility caveat (c) — `target(self, …)` now resolves to the actor; v1.6: builder-authorized 2026-09-30, spells-in-combat: spells declarable in combat with a pack-declared range and empty-cell area centers, spend recorded in combat snapshots, characters hold feats, reactive feats offered, trigger grammar enforced, combat envelope offers/phase/offeredCount; additive-optional with two documented compatibility caveats — the `trigger.on` grammar and the legacy-read-only per-combatant `pendingTrigger` — no rule id added; v1.5: builder-authorized 2026-09-29, grid-movement: hex model, pack-declared terrain vocabulary, `move(formula)` + reserved `speed`, snapshot `pendingMove`; additive-optional with one documented `speed` compatibility caveat, no rule id added; v1.4: builder-authorized 2025-09-27, equipment-consumables: slot-based equipment + consumables + the `heal` effect, snapshot `equipped`/`itemsUsed`/`maxHp`; v1.3: optional spatial section (FR-11) + E-SPAT-01 registration; v1.2: UI B-1 class combat actions; v1.1: S-CONTRACT-GAP).
 > v1.0 (phase `database`, final Author phase) approved; v1.1 adds the turn-economy
 > declaration (`economy.turnSlots`) and action/spell `tags` with `restricts`
@@ -741,15 +741,17 @@ implemented runtime capabilities. Shapes are normative in the named `$defs`; the
 semantic predicates below are equally required. JSON Schema alone cannot establish
 pack references, legal progress, ledger conservation or whether a writer ran.
 
-**Open product conflict — B-RA-XP / R4:** `src/runtime/progression.ts` calls
+**Prior discovery and resolved disposition — B-RA-XP:** `src/runtime/progression.ts` calls
 `applyProgression` on every positive `awardXp`, including awards with no level change;
 it replaces every prepared slot with null and resets current HP to `reserveValue`.
-This conflicts with the approved injury/resource continuity and no implicit healing
-contract. A builder question is pending: preserve injury and existing bindings around
-the low-level writer (new capacity empty), or retain that writer's side effects.
-The latter would require revising the approved no-healing meaning. This receipt does
-not choose either. S03 c3/c4 and CA-04 remain blocked on that answer; saving a reward
-receipt does not resolve the conflict. No low-level progression change is authorized.
+The initial Author receipt reported R4 and a pending product question. That classification
+is superseded in lease revision 2: approved AR-01/04 and FR-26/27 already require exact
+injury/resource continuity and explicit rest/preparation. Adventure rewards therefore
+stage the real writer and preserve current/temp HP and existing prepared bindings,
+leaving newly gained capacity empty. Incompatible preparation refuses the whole claim.
+This is fixed-contract adaptation, not a new product choice; no renewed approval is
+pending. Low-level awardXp remains unchanged. S03 c3/c4 and CA-04 retain their
+implementation/proof gates, not a B-RA-XP product-decision gate.
 
 ### Existing snapshots: precise compatible additions
 
@@ -964,11 +966,26 @@ form the rewards stream chain in staged order; current rng.rewards is its final 
 
 Claim validates current node/phase/revision and exact claim subject; loot requires an
 explicit eligible recipient even on no-item. No-loot forbids a recipient. Stage positive
-XP through awardXp using existing class splitting/caps, zero XP by skipping that call,
-and item grant via grantItem. **Positive-XP injury/binding effects remain blocked on
-B-RA-XP above.** Publish all changed member envelopes and receipt together, or none.
+XP through real awardXp on isolated Runtime/member copies, skipping that call for zero
+XP. Retain its XP totals, per-class split, caps, levels and saves calculations and its
+resulting slot capacity. Capture each member's pre-award current/temp HP, bindings and
+resources first; restore exact HP without clamping (including negative/above-derived-max
+current HP), and preserve every old non-null binding at the same spell-level/index in
+the resulting capacity. Existing empty positions and newly gained capacity remain null;
+if any prepared binding no longer fits, refuse the entire transaction rather than move
+or discard it. Preserve existing pool balances, conditions/durations, known spells,
+held feats and equipment; inventory changes only by the explicit saved item grant via
+real grantItem. No implicit rest, preparation, healing or condition ticking occurs.
+Validate all members before publishing their envelopes and receipt together. Any writer
+or capacity failure, including a later member's failure, leaves every member, pending
+claim, saved roll, receipt, revision, RNG, journal and event sequence unchanged; staged
+writer events never escape. The prior roll remains saved for retry, with no reroll.
 Receipt id is `JSON.stringify([adventureId,claimId,'reward'])`; grant list has zero or one
-entry matching normalized roll and recipient. Before/after hashes are H of member arrays.
+entry matching normalized roll and recipient. Before/after hashes are H of member arrays;
+the after hash covers the preserved post-adapter state, not the intermediate awardXp state.
+Whole-save members carry that exact HP/slot/pool/condition/inventory state. Reopen uses
+the character envelopes and existing subject/receipt checks without calling awardXp,
+rest or prepare to reconstruct the claim; saves/levels derive from the saved progression.
 A matching already-claimed command at current revision returns its receipt with no
 mutation; altered subject/recipient and stale revisions refuse. Definition content,
 never caller amounts or an emitted audit event, authorizes reward writes. Historic
@@ -1045,6 +1062,17 @@ legacy HP/departure compatibility; multi-member atomic failure; actual second fi
 saved pending/no-item/claimed rewards; original conditioned action rejection; changed
 movement threatener; bounded director and no duplicate narration. Contract-only Ajv
 fixtures do not replace any of those proofs. No existing low-level API is changed here.
+
+For resolved B-RA-XP, S03 c3/c4 must assert no-level positive XP and level-up separately:
+exact current/temp HP and old bindings/resources survive both; real XP/class split/caps/
+levels/saves remain authoritative and newly gained slots are null. Assert incompatible
+preparation and later-member failure leave the whole pre-claim aggregate unchanged,
+including the already-staged roll. Reopen pending and claimed saves, then retry without
+reroll or duplicate award, preserving injury/preparation through the next consumer.
+These are implementation obligations, not runtime capability supplied by this receipt.
+Lease revision 2 changes no schema shape, version, pack/override field or low-level API;
+the snapshots.schema.json correction is formatting only. Existing legacy HP/departure
+fallbacks and whole-history receipt scope remain unchanged.
 
 ---
 
@@ -1140,7 +1168,7 @@ request back to DB, never a scope adjustment for Coder** (DB.md contract).
 | 10 | 1 (v1.9) | builder-authorized 2026-10-04, builder-rulings: restricts symmetric in and out of combat (isRestricted/restrictedIds match a spell by actions.tagged: or spells.tagged:); awardXp never lowers a class level; the feat-slotted predicate stated plainly (any class); description only — no field added/removed/renamed, no rule id added, schemaVersion stays 1 — **two compatibility caveats:** (e) out-of-combat restricts now also match a spell by actions.tagged:; (f) awardXp keeps a directly set level above its XP level | database.md only (no contract file changed) |
 | 11 | 1 (v1.10) | builder-authorized 2026-10-04, class-features: class features move to progression.<id>.features ({level, ref}; ref = feat granted / action or spell unlocked from that class level; granted feats use no feat slot and are never stored); content.classes.<id>.features removed (E-SCHEMA-02); refs, redundancy, level range and uniqueness checked at load (E-REF-01 / E-SCHEMA-01); no rule id added, schemaVersion stays 1 — pre-release in-place revision with **one compatibility caveat:** (g) packs using the old location or unresolved refs now fail load; bundled themes migrated, so their contentHash changes | pack.schema.json revised |
 | 12 | 1 (v1.11) | builder-authorized 2026-10-11, contract-conformance: combat snapshot combatant `hp` loses `minimum: 0` — damage is not floored, hp ≤ 0 means down; the schema now admits what the engine always wrote and restore always read; loosening only — no field added/removed/renamed, no rule id, schemaVersion and snapshotVersion stay 1, no compatibility caveat (no previously valid document becomes invalid) | snapshots.schema.json revised |
-| 13 | 1 (v1.12) | 2026-10-16 approved AR-02–05: optional character hp and paused-move offeredDepartures; three new closed sidecar contracts for whole encounter, finite adventure template/definition and whole adventure. No existing required field/version or rule id changes; pack/override byte-identical. Legacy absence follows documented fallback; old readers cannot guarantee new HP/departure semantics. B-RA-XP is an unresolved positive-reward behavior decision, not a schema readiness claim. | `src/schema/contracts/snapshots.schema.json` revised; new `src/schema/contracts/play-session.schema.json`, `src/schema/contracts/adventure.schema.json`, `src/schema/contracts/adventure-snapshot.schema.json` |
+| 13 | 1 (v1.12) | 2026-10-16 approved AR-02–05: optional character hp and paused-move offeredDepartures; three new closed sidecar contracts for whole encounter, finite adventure template/definition and whole adventure. No existing required field/version or rule id changes; pack/override byte-identical. Legacy absence follows documented fallback; old readers cannot guarantee new HP/departure semantics. Lease revision 2 resolves the previously reported B-RA-XP/R4 through the approved preservation adapter; prose clarification and snapshot formatting only, no new schema or runtime readiness claim. | `src/schema/contracts/snapshots.schema.json` revised; new `src/schema/contracts/play-session.schema.json`, `src/schema/contracts/adventure.schema.json`, `src/schema/contracts/adventure-snapshot.schema.json` |
 
 **Versioning discipline (FR-23, formalized):**
 - Additive optional fields within v1 = compatible (minor).

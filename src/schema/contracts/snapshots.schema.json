@@ -130,10 +130,7 @@
         "hp": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "current",
-            "temp"
-          ],
+          "required": ["current", "temp"],
           "properties": {
             "current": {
               "type": "integer"
@@ -265,19 +262,12 @@
                     "items": {
                       "type": "object",
                       "additionalProperties": false,
-                      "required": [
-                        "from",
-                        "to",
-                        "reactorId"
-                      ],
+                      "required": ["from", "to", "reactorId"],
                       "properties": {
                         "from": {
                           "type": "object",
                           "additionalProperties": false,
-                          "required": [
-                            "x",
-                            "y"
-                          ],
+                          "required": ["x", "y"],
                           "properties": {
                             "x": {
                               "type": "integer"
@@ -290,10 +280,7 @@
                         "to": {
                           "type": "object",
                           "additionalProperties": false,
-                          "required": [
-                            "x",
-                            "y"
-                          ],
+                          "required": ["x", "y"],
                           "properties": {
                             "x": {
                               "type": "integer"
