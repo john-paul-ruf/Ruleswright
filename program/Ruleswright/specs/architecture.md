@@ -274,7 +274,7 @@ AdventureStartOptions = { adventureId: string; seed: string | number;
   members: readonly { memberId: string; character: CharacterSnapshot }[] };
 // compiler surface
 generateAdventure({ pack, template, seed }): AdventureDefinition;
-loadAdventureTemplate(id: string): AdventureTemplate;
+loadAdventureTemplate(id: string, pack: Pack): AdventureTemplate;
 // runtime surface
 createEncounterSession(pack: Pack, options: EncounterSessionOptions): EncounterSession;
 restoreEncounterSession(pack: Pack, snapshot: unknown): EncounterSession;
@@ -288,6 +288,8 @@ serialize(): PlaySessionSnapshot | AdventureSnapshot; // detached object, never 
 advanceSolo(adventure: Adventure, options: { maxSteps: number }): SoloResult;
 readNarration(adventure: Adventure): readonly NarrationMessage[];
 ```
+
+The bundled registry stores immutable recipe literals with the template fields except `pack`. `loadAdventureTemplate(id, pack)` copies one recipe, attaches the explicitly supplied effective pack identity, validates every content/layout/policy reference against that pack, and returns the bound template. It performs no I/O. This refines the proposed new signature because static JSON cannot carry the hash of every possible generated/overridden pack. Host-authored complete templates remain valid inputs. `generateAdventure` refuses a foreign bound template; it never silently rebinds one. Runtime consumes only the resolved definition and never this registry.
 
 Creation/restore failure throws RuntimeRuleError carrying located ErrorCards. Dispatch refusal returns the explicit `ok:false` shape above; it is not a successful transition. No new rule registry entry: shape/ref/economy/spatial errors use existing families, snapshot semantics E-SNAP-01, unsupported snapshot version E-SNAP-02. Each successful mutation increments revision once; idempotent receipt lookup/ack of the already-acknowledged sequence leaves revision and journal unchanged. Validate expectedRevision before considering idempotence; stale retries refuse. All numeric counters are nonnegative safe integers; reject exhaustion rather than overflow.
 
@@ -308,6 +310,7 @@ Creation/restore failure throws RuntimeRuleError carrying located ErrorCards. Di
 | Raw combat | `serializeCombat` returns array combatants, scalar hp, `slotsUsed` remaining, spend deltas, phase/offeredCount/offers. Restore requires original profiles/balances and current positions/terrain. | Aggregate embeds the raw envelope plus saved restore inputs. It must not serialize live CombatState as CombatSnapshot or reconstruct original balances from settled members. Pairing uses the specific encounter id; exact side/order/instance identity sets must agree. |
 | Abandon | Existing settleItemUses/settleSpellCasts refuse before combat-over. | Aggregate abandonment stages validated spend via existing character writers/direct pool and binding settlement rules, plus HP/conditions and an abandonment receipt, without forging combat-over or changing low-level settlement APIs. Keep raw fight snapshot for audit; aggregate phase/result controls terminality. No success rewards. |
 | Reward | rollLoot returns TableOutcome `{ok:true,value}` with no per-roll trace; grantLoot refuses flavor. | Stage successful value + tableId + RNG before/after + normalized item/no-item result; never invent dice/entry indices. Use existing grantItem and awardXp against staged members, not grantLoot's rerolling helper. Roll and claim are distinct commits; save before retry. |
+| Reward progression side effects — pending builder decision | `progression.ts:applyProgression` replaces all slot bindings with null and resets current HP; `awardXp` calls it on every positive award, even without a level change. Zero awards refuse. | Skip awardXp for zero XP. Positive rewards require a builder ruling on preserving injury/bindings around the existing writer versus retaining these low-level side effects. No change to the low-level writer is authorized here. AR-04/S03 c3–c4 cannot be marked ready while this conflict with the approved no-implicit-healing/resource continuity contract is unresolved. Schema shape alone cannot settle this product meaning. |
 | Movement | resumeMove skips all first-edge checks today, losing a changed threatener. | Optional offeredDepartures records exact edge/reactor tuples, carried through types and raw writer/reader. S04 changes live and restored suppression together; old omission retains documented fallback. |
 
 A facade owns isolated Runtime instances and copied state. Validate command → stage all member/fight/RNG/journal mutations privately → validate result → replace the aggregate once → return committed events. A failed second-member debit publishes no first-member changes, receipt, RNG or event. Low-level rejection events may be observed within staging and returned as ErrorCards, but never appended to the committed journal. No external subscriber runs against staging. Definition/pack digests identify content; they are not cryptographic tamper authentication. Validate cross-field consistency; do not claim protection against an attacker rewriting an entire coherent document.
