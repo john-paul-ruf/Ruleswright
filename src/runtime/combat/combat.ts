@@ -23,13 +23,11 @@
  * executor path as an action. A heal arrives as a negative-amount damage
  * mutation and clamps at the combatant's `maxHp` (CA-EG4, R-2).
  */
-import type { ActionDef } from '../../schema/artifacts';
 import { Rng, type RandomSource, type RngState } from '../../core/rng';
 import type { Runtime } from '../runtime';
 import type { RuntimeEvent } from '../events';
 import { answerOffer, resolveReactive } from './triggers';
 import {
-  checkCost,
   freshLedger,
   replenish,
   resolveSlotGrants,
@@ -40,34 +38,15 @@ import {
 } from './action-economy';
 import type { CombatantProfile, Side } from './resolve';
 import type { Position } from './spatial';
-import { evalValidity } from '../../core/dsl/formula';
 import { RuntimeRuleError, ruleCard } from '../errors';
 import { displayRoll } from '../display-roll';
-import { balancesOf, combatantFeats, copyBindings, defeatedSide, isDowned, validityVars } from './combatants';
-import {
-  applyNonSlotCosts,
-  atRefusal,
-  castPayload,
-  isSelfAction,
-  pickSlot,
-  rangeGate,
-  resolveTarget,
-  restrictionRejection,
-  selfTargetRefusal,
-  spatialGate,
-} from './declare';
-import { endIfSideDefeated, executeBound, resolveAction, resolveShape } from './execute';
+import { combatantFeats, copyBindings, defeatedSide, isDowned } from './combatants';
+import { applyNonSlotCosts, castPayload, isSelfAction } from './declare';
+import { previewDeclaration, previewUse } from './preview';
+import { endIfSideDefeated, executeBound, resolveAction } from './execute';
 import { FightCore } from './fight';
-import {
-  copyTerrain,
-  forfeitMove,
-  moveBudgetAst,
-  movementGate,
-  resumeMove,
-  terrainRefusals,
-} from './movement';
+import { copyTerrain, forfeitMove, moveBudgetAst, resumeMove, terrainRefusals } from './movement';
 import type {
-  CastSlot,
   CombatantState,
   CombatState,
   DeclareOptions,
@@ -379,160 +358,22 @@ export class Combat {
   declare(actionId: string, options: DeclareOptions = {}): readonly RuntimeEvent[] {
     if (this.state.phase === 'combat-over') throw new Error('combat is over');
 
-    const actorId = this.state.active;
-    const actor = this.state.combatants[actorId]!;
-    const pack = this.runtime.pack;
-    // A spell is an action plus metadata (FR-9, CA-S1): ids are unique across
-    // actions and spells (E-DUP-01), so at most one lookup hits.
-    const spell = pack.actions[actionId] === undefined ? pack.content.spells?.[actionId] : undefined;
-    const def: ActionDef | undefined =
-      spell === undefined
-        ? pack.actions[actionId]
-        : {
-            cost: spell.cost,
-            effect: spell.effect,
-            ...(spell.tags !== undefined ? { tags: spell.tags } : {}),
-          };
-    if (def === undefined) {
-      return [
-        this.core.reject(actorId, {
-          kind: 'no-action',
-          rule: 'E-REF-01',
-          resource: actionId,
-          message: `action "${actionId}" is not declared in the pack.`,
-        }),
-      ];
-    }
-    if (spell === undefined ? !actor.actions.includes(actionId) : !actor.spells.includes(actionId)) {
-      return [
-        this.core.reject(actorId, {
-          kind: 'no-action',
-          rule: 'E-REF-01',
-          resource: actionId,
-          message:
-            spell === undefined
-              ? `combatant "${actorId}" does not have action "${actionId}".`
-              : `combatant "${actorId}" does not know spell "${actionId}".`,
-        }),
-      ];
-    }
-    const restriction = restrictionRejection(
-      this.runtime,
-      actor,
-      def,
-      spell === undefined ? 'action' : 'spell',
-    );
-    if (restriction !== undefined) {
-      return [this.core.reject(actorId, restriction)];
-    }
-    // DD-S8: `at` centers a burst spell on a cell (spatial packs only; theater packs drop it).
-    // An `at` cast binds the caster as the nominal executor target — no statement reads it.
-    const at = this.runtime.spatial.enabled ? options.at : undefined;
-    if (at !== undefined) {
-      const refusal = atRefusal(this.runtime, actionId, options.targetId);
-      if (refusal !== undefined) return [this.core.reject(actorId, refusal)];
-    }
-    // A move action targets its actor: no opponent resolution, no reach gate (DD-M9).
-    // Spells never move (a spell `move` is E-FORM-02), so the budget is action-only.
-    const budgetAst = moveBudgetAst(this.runtime, actionId);
-    // A self action targets its actor too (v1.7, DD-A2): no opponent resolution, no reach gate.
-    const selfAction = spell === undefined && isSelfAction(this.runtime, actionId);
-    if (selfAction) {
-      const refusal = selfTargetRefusal(actionId, actorId, options.targetId);
-      if (refusal !== undefined) return [this.core.reject(actorId, refusal)];
-    }
-    const target =
-      budgetAst !== undefined || at !== undefined || selfAction
-        ? { combatant: actor }
-        : resolveTarget(this.state, actor, options.targetId, spell !== undefined);
-    if ('rejection' in target) {
-      return [this.core.reject(actorId, target.rejection)];
-    }
-    // The validity gate speaks before the spatial gate (validity-into-grid.html:
-    // the hasTarget failure is what the declarative gate reports; reach is
-    // consulted after the action's own clause passes). Both run before cost.
-    const validity = this.runtime.index.validAsts[actionId];
-    if (validity !== undefined) {
-      const ok = evalValidity(
-        validity,
-        validityVars(actor),
-        (shape) =>
-          resolveShape(this.core, shape, actor, target.combatant.position, target.combatant).length > 0,
-      );
-      if (!ok) {
-        return [
-          this.core.reject(actorId, {
-            kind: 'valid',
-            rule: 'E-REF-01',
-            resource: actionId,
-            message: `action "${actionId}" is not valid right now — its valid clause failed (hasTarget: no combatant resolves for the declared shape).`,
-          }),
-        ];
-      }
-    }
-    let move: ((budget: number) => void) | undefined;
-    if (budgetAst !== undefined) {
-      const gate = movementGate(this.core, actor, actionId, budgetAst, options.to);
-      if ('rejection' in gate) {
-        return [this.core.reject(actorId, gate.rejection)];
-      }
-      move = gate.move;
-    } else if (selfAction) {
-      // DD-A2: a self action passes no reach gate.
-    } else if (spell !== undefined) {
-      // CA-S9: a spell passes the range gate where an action passes the reach gate.
-      const range = rangeGate(this.runtime, actor, actionId, spell.targeting?.range, at ?? target.combatant);
-      if (range !== undefined) {
-        return [this.core.reject(actorId, range)];
-      }
-    } else {
-      const spatial = spatialGate(this.runtime, actor, target.combatant);
-      if (spatial !== undefined) {
-        return [this.core.reject(actorId, spatial)];
-      }
-    }
-    // DD-S6: equipped armor blocks a vancian spell exactly as outside combat.
-    if (spell !== undefined && def.cost.vancian !== undefined && actor.castBlockedBy !== undefined) {
-      return [
-        this.core.reject(actorId, {
-          kind: 'armor-not-castable',
-          rule: 'E-REF-01',
-          resource: actor.castBlockedBy,
-          message: `"${actor.castBlockedBy}" is equipped armor of a kind none of the caster's classes lists in armorCasting — no slot cast (FR-9).`,
-        }),
-      ];
-    }
-    const costRejection = checkCost(def.cost, this.core.grants, balancesOf(actor));
-    if (costRejection !== undefined) {
-      return [this.core.reject(actorId, costRejection)];
-    }
-    // DD-S18: a vancian spell consumes a slot bound to it — chosen before any spend, recorded after.
-    let slot: CastSlot | undefined;
-    if (spell !== undefined && def.cost.vancian !== undefined) {
-      const level = String(spell.magic.level);
-      const index = pickSlot(actor, level, actionId);
-      if (index === undefined) {
-        return [
-          this.core.reject(actorId, {
-            kind: 'vancian',
-            rule: 'E-VANC-01',
-            resource: level,
-            message: `no uncast level-${level} slot is bound to "${actionId}"`,
-          }),
-        ];
-      }
-      slot = { level, index };
-    }
+    const preview = previewDeclaration(this.core, actionId, options, {
+      validity: this.runtime.index.validAsts[actionId],
+    });
+    if (preview.rejection !== undefined) return [this.core.reject(this.state.active, preview.rejection)];
+    const { actorId, actor, def, spell, at, target, move } = preview;
+    let { slot } = preview;
     // All gates passed — commit the spend and resolve.
     const spendRejection = spend(actor.slots, this.core.grants, def.cost);
     if (spendRejection !== undefined) {
       return [this.core.reject(actorId, spendRejection)];
     }
     slot = applyNonSlotCosts(actor, def.cost, slot);
-    const aim = at !== undefined ? { at: { x: at.x, y: at.y } } : { targetId: target.combatant.id };
+    const aim = at !== undefined ? { at: { x: at.x, y: at.y } } : { targetId: target.id };
     const cast = spell === undefined ? undefined : castPayload(actionId, def.cost, aim, slot);
     const { result: events, emitted } = this.core.collect(() =>
-      resolveAction(this.core, actor, actionId, def, target.combatant, { move, cast, at }),
+      resolveAction(this.core, actor, actionId, def, target, { move, cast, at }),
     );
     this.core.surfaceOffers(emitted);
     return events;
@@ -552,60 +393,9 @@ export class Combat {
   use(itemId: string, options: UseOptions = {}): readonly RuntimeEvent[] {
     if (this.state.phase === 'combat-over') throw new Error('combat is over');
 
-    const actorId = this.state.active;
-    const actor = this.state.combatants[actorId]!;
-    const item = this.runtime.pack.content.items?.[itemId];
-    if (item === undefined) {
-      return [
-        this.core.reject(actorId, {
-          kind: 'unknown-item',
-          rule: 'E-REF-01',
-          resource: itemId,
-          message: `item "${itemId}" is not declared in content.items.`,
-        }),
-      ];
-    }
-    const ast = this.runtime.index.itemEffects[itemId];
-    if (ast === undefined || item.use === undefined) {
-      return [
-        this.core.reject(actorId, {
-          kind: 'not-consumable',
-          rule: 'E-REF-01',
-          resource: itemId,
-          message: `item "${itemId}" declares no use effect — it cannot be used.`,
-        }),
-      ];
-    }
-    // F-E15: an item-only synthetic action; spells are declared through declare() (v1.6), never use().
-    const def: ActionDef = { cost: {}, effect: item.use };
-    const restriction = restrictionRejection(this.runtime, actor, def);
-    if (restriction !== undefined) {
-      return [this.core.reject(actorId, restriction)];
-    }
-    const targetId = options.target ?? actorId;
-    const target = this.state.combatants[targetId];
-    if (target === undefined) {
-      return [
-        this.core.reject(actorId, {
-          kind: 'unknown-target',
-          rule: 'E-REF-01',
-          resource: targetId,
-          message: `target "${targetId}" is not in this fight.`,
-        }),
-      ];
-    }
-    const used = actor.itemsUsed[itemId] ?? 0;
-    const remaining = (actor.itemBalances[itemId] ?? 0) - used;
-    if (remaining <= 0) {
-      return [
-        this.core.reject(actorId, {
-          kind: 'no-charges',
-          rule: 'E-REF-01',
-          resource: itemId,
-          message: `combatant "${actorId}" has no "${itemId}" charges left (${used} of ${actor.itemBalances[itemId] ?? 0} spent).`,
-        }),
-      ];
-    }
+    const preview = previewUse(this.core, itemId, options);
+    if (preview.rejection !== undefined) return [this.core.reject(this.state.active, preview.rejection)];
+    const { actorId, actor, targetId, target, def, ast, used, remaining } = preview;
 
     actor.itemsUsed = { ...actor.itemsUsed, [itemId]: used + 1 };
     const rule = `content.items.${itemId}`;

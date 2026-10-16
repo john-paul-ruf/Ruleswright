@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createEncounterSession, restoreEncounterSession } from '../../../src/runtime';
+import { createEncounterSession, restoreEncounterSession, type EncounterCommand } from '../../../src/runtime';
 import { packContentHash } from '../../../src/schema/version';
 import { Rng } from '../../../src/core/rng';
 import { actor, nextAction, playFixture, send } from './fixtures';
@@ -445,4 +445,88 @@ it('defeat takes precedence when both sides start down', () => {
   expect(session.view().result).toBe('defeat');
   expect(send(session, { type: 'finalize' }).ok).toBe(true);
   expect(restoreEncounterSession(pack, session.serialize()).view().result).toBe('defeat');
+});
+
+it('enumerates bounded pure commands that every real facade accepts with current identity and revision', async () => {
+  const { encounterCandidates } = await import('../../../src/runtime/play/session');
+  const { pack, options } = playFixture();
+  const session = createEncounterSession(pack, options);
+  const initial = session.serialize();
+  const start = encounterCandidates(pack, initial, 100);
+  expect(start.commands.map((command) => command.type)).toEqual(['advance']);
+  expect(session.dispatch(start.commands[0]!).ok).toBe(true);
+  const saved = session.serialize();
+  const candidates = encounterCandidates(pack, saved, 100);
+  expect(candidates.exhausted).toBe(false);
+  expect(candidates.commands.map((command) => command.type)).toEqual(
+    expect.arrayContaining(['declare', 'use', 'pass']),
+  );
+  expect(session.serialize()).toEqual(saved);
+  for (const command of candidates.commands) {
+    const branch = restoreEncounterSession(pack, saved);
+    expect(branch.dispatch(command), JSON.stringify(command)).toMatchObject({ ok: true });
+  }
+  expect(encounterCandidates(pack, saved, 1).exhausted).toBe(true);
+  expect(session.serialize()).toEqual(saved);
+});
+
+it('bounds spatial destinations by cost and cap, then maps each candidate through real dispatch', async () => {
+  const { encounterCandidates } = await import('../../../src/runtime/play/session');
+  const { playPack } = await import('./fixtures');
+  const pack = playPack();
+  pack.spatial = {
+    model: 'hex',
+    reach: { default: 1 },
+    shapes: ['single', 'burst'],
+    terrain: { wall: { blocks: true } },
+  };
+  pack.formulas['speed'] = { expr: '2' };
+  pack.actions['stride'] = { cost: { slots: { move: 1 } }, effect: 'move(speed)', tags: ['move'] };
+  pack.content.classes!['warden']!.actions!.push('stride');
+  const { options } = playFixture(pack);
+  const session = createEncounterSession(pack, options);
+  send(session, { type: 'advance' });
+  const saved = session.serialize();
+  expect(encounterCandidates(pack, saved, 2).exhausted).toBe(true);
+  const result = encounterCandidates(pack, saved, 200);
+  expect(result.exhausted).toBe(false);
+  const moves = result.commands.filter(
+    (command) => command.type === 'declare' && command.actionId === 'stride',
+  );
+  expect(moves.length).toBeGreaterThan(6);
+  for (const command of moves) {
+    expect(restoreEncounterSession(pack, saved).dispatch(command), JSON.stringify(command)).toMatchObject({
+      ok: true,
+    });
+  }
+  expect(session.serialize()).toEqual(saved);
+});
+
+it('previews open offers separately, retaining ownership and aggregate refusal atomicity', async () => {
+  const { encounterCandidates } = await import('../../../src/runtime/play/session');
+  const { settlementFixture } = await import('./fixtures');
+  const { pack, options } = settlementFixture();
+  const session = createEncounterSession(pack, options);
+  send(session, { type: 'advance' });
+  send(session, { type: 'pass', actor: { kind: 'member', memberId: 'hero-1' } });
+  send(session, { type: 'advance' });
+  expect(
+    send(session, {
+      type: 'declare',
+      actor: { kind: 'enemy', enemyId: 'e:0:1' },
+      actionId: 'poke',
+      options: { targetId: 'm:hero-1' },
+    }).ok,
+  ).toBe(true);
+  const saved = session.serialize();
+  const result = encounterCandidates(pack, saved, 100);
+  expect(result.commands).toEqual([]);
+  expect(result.offers.length).toBeGreaterThan(1);
+  for (const command of result.offers)
+    expect(restoreEncounterSession(pack, saved).dispatch(command)).toMatchObject({ ok: true });
+  const command = result.offers[0]!;
+  expect(
+    session.dispatch({ ...command, actor: { kind: 'enemy', enemyId: 'e:0:1' } } as EncounterCommand).ok,
+  ).toBe(false);
+  expect(session.serialize()).toEqual(saved);
 });

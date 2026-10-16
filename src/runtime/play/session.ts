@@ -23,6 +23,20 @@ import { settleEncounter } from './settlement';
 import { beginEncounter } from './encounter';
 import { detached, freezeFight, hydrateFight, projectMembers, readSnapshot } from './snapshot';
 
+import { FightCore } from '../combat/fight';
+import { Rng } from '../../core/rng';
+import { resolveSlotGrants } from '../combat/action-economy';
+import { isSelfAction } from '../combat/declare';
+import { moveBudgetAst, movementDestinations } from '../combat/movement';
+import {
+  assertDeterministicValidity,
+  previewDeclaration,
+  previewReaction,
+  previewFeat,
+  previewReactionCost,
+  previewUse,
+} from '../combat/preview';
+
 export type EncounterActor =
   | { readonly kind: 'member'; readonly memberId: string }
   | { readonly kind: 'enemy'; readonly enemyId: string };
@@ -447,4 +461,95 @@ export function createEncounterSession(pack: Pack, options: EncounterSessionOpti
 export function restoreEncounterSession(pack: Pack, snapshot: unknown): EncounterSession {
   const owned = detached(pack);
   return facade(owned, readSnapshot(owned, snapshot));
+}
+
+/** Internal host commands, stamped for this exact saved boundary. No command is executed here. */
+export function encounterCandidates(pack: Pack, saved: PlaySessionSnapshot, maxCandidates: number) {
+  if (!Number.isSafeInteger(maxCandidates) || maxCandidates <= 0)
+    refuse('maxCandidates', 'Expected a positive safe integer.');
+  const commands: EncounterCommand[] = [];
+  const offers: EncounterCommand[] = [];
+  let exhausted = false;
+  if (saved.phase !== 'active') return { commands, offers, exhausted };
+  const { runtime, fight } = hydrateFight(pack, saved);
+  assertDeterministicValidity(
+    runtime,
+    Object.values(fight.state.combatants).flatMap((c) => c.actions),
+  );
+  const core = new FightCore(
+    runtime,
+    fight.state,
+    new Rng(fight.state.rng),
+    resolveSlotGrants(pack),
+    fight.offeredCount,
+  );
+  const base = { sessionId: saved.sessionId, expectedRevision: saved.revision };
+  const actorOf = (id: string): EncounterActor =>
+    fight.state.combatants[id]!.side === 'allies'
+      ? { kind: 'member', memberId: id.slice(2) }
+      : { kind: 'enemy', enemyId: id };
+  const targets = Object.keys(fight.state.combatants).sort();
+  let inspected = 0;
+  const inspect = () => {
+    if (inspected === maxCandidates) {
+      exhausted = true;
+      return false;
+    }
+    inspected++;
+    return true;
+  };
+  for (const offer of fight.pendingTriggers) {
+    const actor = actorOf(offer.actorId);
+    offers.push({ ...base, type: 'respond', actor, triggerId: offer.triggerId, choice: 'decline' });
+    for (const targetId of targets) {
+      if (!inspect()) return { commands, offers, exhausted };
+      const result =
+        offer.source === 'feat' ? previewFeat(core, offer, targetId) : previewReaction(core, offer, targetId);
+      if (!('rejection' in result))
+        offers.push({
+          ...base,
+          type: 'respond',
+          actor,
+          triggerId: offer.triggerId,
+          choice: 'take',
+          targetId,
+        });
+    }
+  }
+  if (offers.length) return { commands, offers, exhausted };
+  if (!saved.encounter.control.turnStarted || fight.state.phase === 'resolved')
+    commands.push({ ...base, type: 'advance' });
+  if (!saved.encounter.control.turnStarted) return { commands, offers, exhausted };
+  const actor = fight.state.combatants[fight.state.active]!;
+  const identity = actorOf(actor.id);
+  commands.push({ ...base, type: 'pass', actor: identity });
+  for (const actionId of [...actor.actions].sort()) {
+    const def = pack.actions[actionId]!;
+    if (def.trigger) continue;
+    const move = moveBudgetAst(runtime, actionId) !== undefined;
+    if (move && previewReactionCost(core, actor, def)) continue;
+    const destinations = move
+      ? movementDestinations(core, actor, actionId, maxCandidates - inspected)
+      : undefined;
+    if (destinations?.exhausted) return { commands, offers, exhausted: true };
+    const bindings: DeclareOptions[] =
+      move && runtime.spatial.enabled
+        ? destinations!.positions.map((to) => ({ to }))
+        : move || isSelfAction(runtime, actionId)
+          ? [{}]
+          : targets.map((targetId) => ({ targetId }));
+    for (const options of bindings) {
+      if (!inspect()) return { commands, offers, exhausted };
+      if (!('rejection' in previewDeclaration(core, actionId, options)))
+        commands.push({ ...base, type: 'declare', actor: identity, actionId, options });
+    }
+  }
+  for (const itemId of Object.keys(actor.itemBalances).sort()) {
+    for (const targetId of targets) {
+      if (!inspect()) return { commands, offers, exhausted };
+      if (!('rejection' in previewUse(core, itemId, { target: targetId })))
+        commands.push({ ...base, type: 'use', actor: identity, itemId, targetId });
+    }
+  }
+  return { commands, offers, exhausted };
 }

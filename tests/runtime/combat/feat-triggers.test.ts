@@ -201,3 +201,41 @@ describe('answering a feat offer (DD-S12)', () => {
     ]);
   });
 });
+
+it.each(['brynn', 'wight'])('pure feat preview retains holder-only semantics: %s', async (targetId) => {
+  const { FightCore } = await import('../../../src/runtime/combat/fight');
+  const { resolveSlotGrants } = await import('../../../src/runtime/combat/action-economy');
+  const { previewFeat } = await import('../../../src/runtime/combat/preview');
+  const { fight, events } = featFight();
+  fight.declare('grave-gaze', { targetId: 'brynn' });
+  fight.state.combatants['brynn']!.slots.remaining = {};
+  fight.state.combatants['brynn']!.conditions.push({ conditionId: 'shaken', duration: 2 });
+  const offer = fight.pendingTriggers[0]!;
+  const core = new FightCore(
+    fight.runtime,
+    fight.state,
+    new Rng(fight.state.rng),
+    resolveSlotGrants(fight.runtime.pack),
+    0,
+  );
+  const before = fight.serialize(),
+    count = events.length;
+  const preview = previewFeat(core, offer, targetId);
+  expect(fight.serialize()).toEqual(before);
+  expect(events).toHaveLength(count);
+  expect(fight.pendingTriggers).toEqual([offer]);
+  const result = fight.respond(offer.triggerId, 'take', targetId);
+  if (preview.rejection)
+    expect(result[0]).toMatchObject({
+      type: 'declare:rejected',
+      payload: {
+        kind: preview.rejection.kind,
+        resource: preview.rejection.resource,
+        message: preview.rejection.message,
+      },
+      why: { rule: preview.rejection.rule },
+    });
+  else expect(result[0]).toMatchObject({ type: 'condition:applied', target: 'brynn' });
+  expect(fight.state.combatants['brynn']!.slots.remaining).toEqual({});
+  expect(fight.pendingTriggers).toEqual([]);
+});

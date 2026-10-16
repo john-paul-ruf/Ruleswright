@@ -349,3 +349,41 @@ export function moveBudgetAst(runtime: Runtime, actionId: string): FormulaAst | 
   const ast = runtime.index.actionEffects[actionId];
   return ast?.kind === 'call' && ast.text === 'move' ? ast.args?.[0] : undefined;
 }
+
+/** Cost-bounded flood fill; the policy cap also bounds work through occupied cells. */
+export function movementDestinations(
+  core: FightCore,
+  actor: CombatantState,
+  actionId: string,
+  limit: number,
+) {
+  const ast = moveBudgetAst(core.runtime, actionId);
+  const positions: Position[] = [];
+  if (!ast || !core.runtime.spatial.enabled || !actor.position) return { positions, exhausted: false };
+  const profile = profileOf(actor);
+  const budget = valueOfFormula(evalFormula(ast, effectVars(profile, profile), ZERO_RNG));
+  const query = pathQuery(core, actor, actor.position, actor.position, budget);
+  const kindAt = terrainAt(query.terrain, query.cells);
+  const key = (p: Position) => `${p.x},${p.y}`;
+  const visited = new Set<string>();
+  const frontier = [{ at: actor.position, cost: 0 }];
+  const best = new Map([[key(actor.position), 0]]);
+  while (frontier.length) {
+    frontier.sort((a, b) => a.cost - b.cost);
+    const next = frontier.shift()!;
+    if (visited.has(key(next.at))) continue;
+    if (visited.size > limit) return { positions, exhausted: true };
+    visited.add(key(next.at));
+    if (query.endable(next.at)) positions.push(next.at);
+    for (const at of core.runtime.spatial.neighbors(next.at)) {
+      if (!Number.isSafeInteger(at.x) || !Number.isSafeInteger(at.y) || !query.passable(at)) continue;
+      const cost = entryCost(kindAt(at));
+      if (cost === undefined || cost + next.cost > budget) continue;
+      const total = cost + next.cost;
+      if ((best.get(key(at)) ?? Infinity) <= total) continue;
+      best.set(key(at), total);
+      frontier.push({ at, cost: total });
+    }
+  }
+  return { positions, exhausted: false };
+}

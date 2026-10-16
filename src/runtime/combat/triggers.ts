@@ -24,16 +24,9 @@ import type { ActionDef, FeatDef } from '../../schema/artifacts';
 import type { Combat } from './combat';
 import type { FightCore } from './fight';
 import type { CombatantState, PendingTrigger } from './types';
-import { checkCost, spend } from './action-economy';
-import { balancesOf } from './combatants';
-import {
-  applyNonSlotCosts,
-  isSelfAction,
-  resolveTarget,
-  restrictionRejection,
-  selfTargetRefusal,
-  spatialGate,
-} from './declare';
+import { spend } from './action-economy';
+import { applyNonSlotCosts } from './declare';
+import { previewReaction, previewReactionCost, previewFeat } from './preview';
 import { endIfSideDefeated, executeBound, resolveAction } from './execute';
 
 /** A reactive action registered from the pack: the action id + its pattern. */
@@ -185,27 +178,9 @@ export function resolveReactive(
   offer: PendingTrigger,
   targetId: string | undefined,
 ): readonly RuntimeEvent[] {
-  const reactor = core.state.combatants[offer.actorId]!;
-  const def = core.runtime.pack.actions[offer.actionId]!;
-  const restriction = restrictionRejection(core.runtime, reactor, def);
-  if (restriction !== undefined) {
-    return [core.reject(reactor.id, restriction)];
-  }
-  if (isSelfAction(core.runtime, offer.actionId)) {
-    // DD-A2: a self reaction binds its reactor — no opponent resolution, no reach gate.
-    const refusal = selfTargetRefusal(offer.actionId, reactor.id, targetId);
-    if (refusal !== undefined) return [core.reject(reactor.id, refusal)];
-    return resolveReactiveAgainst(core, offer, def, reactor, reactor);
-  }
-  const target = resolveTarget(core.state, reactor, targetId);
-  if ('rejection' in target) {
-    return [core.reject(reactor.id, target.rejection)];
-  }
-  const spatial = spatialGate(core.runtime, reactor, target.combatant);
-  if (spatial !== undefined) {
-    return [core.reject(reactor.id, spatial)];
-  }
-  return resolveReactiveAgainst(core, offer, def, reactor, target.combatant);
+  const preview = previewReaction(core, offer, targetId);
+  if (preview.rejection !== undefined) return [core.reject(offer.actorId, preview.rejection)];
+  return resolveReactiveAgainst(core, offer, preview.def, preview.reactor, preview.target);
 }
 
 /** The cost gates, spend and resolution of a taken reaction whose target is bound. */
@@ -216,7 +191,7 @@ export function resolveReactiveAgainst(
   reactor: CombatantState,
   target: CombatantState,
 ): readonly RuntimeEvent[] {
-  const costRejection = checkCost(def.cost, core.grants, balancesOf(reactor));
+  const costRejection = previewReactionCost(core, reactor, def);
   if (costRejection !== undefined) {
     return [core.reject(reactor.id, costRejection)];
   }
@@ -244,17 +219,9 @@ export function resolveFeat(
   offer: PendingTrigger,
   targetId: string | undefined,
 ): readonly RuntimeEvent[] {
-  const holder = core.state.combatants[offer.actorId]!;
-  if (targetId !== undefined && targetId !== holder.id) {
-    return [
-      core.reject(holder.id, {
-        kind: 'invalid-target',
-        rule: 'E-REF-01',
-        resource: targetId,
-        message: `feat "${offer.actionId}" acts on its holder "${holder.id}" only (DD-S12).`,
-      }),
-    ];
-  }
+  const preview = previewFeat(core, offer, targetId);
+  if (preview.rejection !== undefined) return [core.reject(offer.actorId, preview.rejection)];
+  const { holder } = preview;
   const feat = core.runtime.pack.content.feats?.[offer.actionId];
   const ast = core.runtime.index.featEffects[offer.actionId];
   if (feat?.effect === undefined || ast === undefined) return [];

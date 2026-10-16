@@ -222,3 +222,69 @@ describe('triggered actions (FR-4/FR-13, FR-12 proof 2 shape)', () => {
     expect(reactive[0]!.pattern).toBe('attack:rolled[target=self]');
   });
 });
+
+it.each(['legal', 'target', 'cost', 'restricted', 'reach', 'self'] as const)(
+  'reaction preview preserves real take and queue behavior: %s',
+  async (mode) => {
+    const { FightCore } = await import('../../../src/runtime/combat/fight');
+    const { resolveSlotGrants } = await import('../../../src/runtime/combat/action-economy');
+    const { previewReaction } = await import('../../../src/runtime/combat/preview');
+    const { fight, events } = parryFight();
+    stepToDeclare(fight, 'wight');
+    fight.step();
+    fight.declare('wight-claw', { targetId: 'brynn' });
+    const offer = fight.pendingTriggers[0]!;
+    if (mode === 'cost') fight.state.combatants['brynn']!.slots.remaining['reaction'] = 0;
+    if (mode === 'restricted') {
+      fight.runtime.pack.content.conditions!['shaken']!.restricts = ['actions.tagged:reaction'];
+      fight.state.combatants['brynn']!.conditions.push({ conditionId: 'shaken', duration: 2 });
+    }
+    if (mode === 'reach')
+      Object.defineProperty(fight.runtime, 'spatial', { value: gridGeometry({ defaultReach: 1 }) });
+    if (mode === 'self') {
+      const { Runtime } = await import('../../../src/runtime/runtime');
+      const pack = emberMarchesPack();
+      pack.actions['parry']!.effect = 'target(self, heal(1))';
+      Object.assign(fight.runtime.index.actionEffects, new Runtime(pack).index.actionEffects);
+    }
+    const targetId = mode === 'target' || mode === 'self' ? 'brynn' : 'wight';
+    const core = new FightCore(
+      fight.runtime,
+      fight.state,
+      new Rng(fight.state.rng),
+      resolveSlotGrants(fight.runtime.pack),
+      0,
+    );
+    const before = fight.serialize(),
+      count = events.length,
+      offers = [...fight.pendingTriggers];
+    const preview = previewReaction(core, offer, targetId);
+    expect(preview.rejection?.kind).toBe(
+      {
+        legal: undefined,
+        target: 'invalid-target',
+        cost: 'slot-exhausted',
+        restricted: 'restricted',
+        reach: 'spatial',
+        self: undefined,
+      }[mode],
+    );
+    expect(fight.serialize()).toEqual(before);
+    expect(fight.pendingTriggers).toEqual(offers);
+    expect(events).toHaveLength(count);
+    const result = fight.respond(offer.triggerId, 'take', targetId);
+    if (preview.rejection) {
+      expect(result[0]).toMatchObject({
+        type: 'declare:rejected',
+        payload: {
+          kind: preview.rejection.kind,
+          resource: preview.rejection.resource,
+          message: preview.rejection.message,
+        },
+        why: { rule: preview.rejection.rule },
+      });
+      expect(fight.serialize()).toEqual(before);
+    } else expect(result.some((event) => event.type === 'declare:rejected')).toBe(false);
+    expect(fight.pendingTriggers.some((pending) => pending.triggerId === offer.triggerId)).toBe(false);
+  },
+);
