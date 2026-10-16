@@ -1,5 +1,5 @@
 {
-  "planHead": "c8e526047b8186d35710965d5f210f858ab232a3",
+  "planHead": "310397c4d1825d9163a5797addd73bc6d1f912d1",
   "sessions": [
     {
       "id": "SESSION-01",
@@ -53,7 +53,8 @@
         "scripts/check-runtime-isolation.mjs",
         "tests/proofs/runtime-isolation-gate.test.ts",
         "README.md",
-        "tests/proofs/docs-run.test.ts"
+        "tests/proofs/docs-run.test.ts",
+        "tests/proofs/contract-conformance.test.ts"
       ],
       "dependsOn": ["SESSION-01"],
       "checkpoints": 3
@@ -115,10 +116,36 @@
         "src/runtime/snapshots/combat.ts",
         "tests/snapshots/combat.test.ts",
         "tests/proofs/movement-journey.test.ts",
-        "tests/proofs/determinism-oracle.ts"
+        "tests/proofs/determinism-oracle.ts",
+        "tests/runtime/adventure/fixtures.ts",
+        "tests/runtime/play/session.test.ts",
+        "src/runtime/combat/triggers.ts",
+        "tests/runtime/combat/spatial-triggers.test.ts",
+        "tests/runtime/combat/feat-triggers.test.ts"
       ],
       "dependsOn": ["SESSION-03"],
       "checkpoints": 5
+    }
+  ],
+  "planRevision": 2,
+  "replan": "REPLAN-RA-CONTRACTS",
+  "implementationSource": "c8e526047b8186d35710965d5f210f858ab232a3",
+  "authorContractsThrough": "fcec34d28f51f91c931e544d09d1a12f2423b0a9",
+  "amendments": [
+    {
+      "revision": 2,
+      "reason": "Committed AR-03 output conformance belongs with its generator; S04 owns shared fixtures, session candidate assertions, and actual reactive/feat guard implementation with both associated regression suites so legal takes do not trial-mutate an offer. No new sessions or checkpoint count changes.",
+      "addedOwns": {
+        "SESSION-02": ["tests/proofs/contract-conformance.test.ts"],
+        "SESSION-04": [
+          "tests/runtime/adventure/fixtures.ts",
+          "tests/runtime/play/session.test.ts",
+          "src/runtime/combat/triggers.ts",
+          "tests/runtime/combat/spatial-triggers.test.ts",
+          "tests/runtime/combat/feat-triggers.test.ts"
+        ]
+      },
+      "order": "SESSION-01 -> SESSION-02 -> SESSION-03 -> SESSION-04; no concurrent pairs"
     }
   ]
 }

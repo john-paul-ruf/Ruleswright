@@ -8,16 +8,16 @@ Planner planned this. Coder builds it ([CODER.md](../../../../program-agents/COD
 
 **Parallel run:** hand this directory to Orchestrator. It spawns Coder using the active runtime's subagent mechanism and awaits results; no shell process, pid file or environment handshake. Orchestrator owns STATE.md/MASTER.md/arch and inline Orchestration Envelopes. Coder commits its own lease at every checkpoint and returns the CODER.md Handoff. This plan has four serial capability waves, so a parallel runtime does not make their dependent leases concurrent.
 
-**Dispatch status:** planning complete enough for Author review, **not cleared for Coder dispatch**. Read AUTHOR-HANDOFF.md and STATE Current Blockers. The user's “plan all three” resolves feature scope; the subsequent “start” responding to the concrete AR-01–AR-06 request approves those amendments and Author re-entry (STATE Authorization Receipt). The protected amendments still need committed receipts from a separate Author session; do not request the same approval again. Do not rerun the three-option scope question. Request the scoped Archivist planning-completeness review before affected execution after those amendments are reconciled.
+**Dispatch status:** REPLAN-RA-CONTRACTS revision 2 reconciles all committed AR-01–06 receipts through `fcec34d` on base `310397c4d1825d9163a5797addd73bc6d1f912d1`; implementation remains unchanged from `c8e5260`. Approval (“start” / “i authorize it”), Author source, B-RA-XP and formatting gates are closed. S03 c3/c4 owns the approved real-awardXp preservation adapter and proof. Runtime capabilities remain planned, and **scoped Archivist planning-completeness review is due before Coder dispatch**. No repeat scope/approval question. AUTHOR-HANDOFF and raw receives are historical proposal/discovery records; current STATE and reconciled prompts apply exact committed contracts.
 
 ## Sessions
 
 | File                           | Capability                                                    | Modules  | Owns                                                      | Depends on             | Checkpoints |
 | ------------------------------ | ------------------------------------------------------------- | -------- | --------------------------------------------------------- | ---------------------- | ----------- |
 | [SESSION-01.md](SESSION-01.md) | Play and resume a random encounter                            | M01, M03 | Exact 27-path lease in front matter / lease-manifest.json | —                      | 6           |
-| [SESSION-02.md](SESSION-02.md) | Generate finite adventures as portable data                   | M01, M04 | Exact 16-path lease in front matter / lease-manifest.json | SESSION-01             | 3           |
+| [SESSION-02.md](SESSION-02.md) | Generate finite adventures as portable data                   | M01, M04 | Exact 17-path lease in front matter / lease-manifest.json | SESSION-01             | 3           |
 | [SESSION-03.md](SESSION-03.md) | Play complete adventures with durable rewards and progression | M03      | Exact 18-path lease in front matter / lease-manifest.json | SESSION-01, SESSION-02 | 5           |
-| [SESSION-04.md](SESSION-04.md) | Run a bounded solo director with offline narration            | M03      | Exact 30-path lease in front matter / lease-manifest.json | SESSION-03             | 5           |
+| [SESSION-04.md](SESSION-04.md) | Run a bounded solo director with offline narration            | M03      | Exact 35-path lease in front matter / lease-manifest.json | SESSION-03             | 5           |
 
 ## Protocol — Each iteration (solo mode)
 
@@ -47,7 +47,7 @@ Wave 1 S01 → Wave 2 S02 → Wave 3 S03 → Wave 4 S04. S01's EncounterSetup is
 ## Stopping Conditions
 
 - All sessions done: report completion only if every required capability and agreement/proof is current. Otherwise identify incomplete capability, correction/proof owner and condition to resume.
-- Blocked: record concrete gap and owner, then run unrelated eligible work. Pending Author contracts block only their actual consumers.
+- Blocked: record concrete gap and owner, then run unrelated eligible work. Actual missing predecessor producers/proofs block their consumers; Author contracts for this run are complete.
 - Context terminal: commit a valid checkpoint when possible, preserve work and return a usable Handoff. No turn/token ceilings are planned.
 - Human input: only unresolved product decisions or destructive work. Non-product mechanical seams/environmental repairs use standing authority. Existing scope authorization persists.
 
@@ -60,3 +60,5 @@ Include summary, sessions done/total, actual files changed (derived against an e
 ## Granularity and first journey
 
 Four sessions, 19 checkpoints. Each owns a coherent capability and its producer/consumer tests; splits reflect real artifacts rather than frontend/backend layers. S01 c3 proves a real public encounter and mid-fight reopen early; c5 proves atomic settlement and the next encounter. S03 c2/c4 integrates generated adventures and rewards; S04 c3/c4 integrates solo control/narration. No verification-only or bookkeeping-only session exists.
+
+Revision 2 amendments are recorded in lease-manifest.json and STATE: S02 owns its actual generated-output conformance test; S04 owns the shared fixtures, encounter-candidate assertions and reactive guard/feat regression files it adapts. S03 stages reward rolls at c2 with node/settlement transitions, then claims at c3 and proves reopen at c4. No unresolved CA meaning or new product choice remains in this scope. B-BD-1 remains CI evidence debt, with no publication/push instruction.
