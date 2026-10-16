@@ -129,3 +129,7 @@ Document the new generator, separate pack/definition identity and template overr
 ## State Update
 
 Report actual generated schema/version/digests, template ids, sample refs and gate self-test outcomes. Recheck after landing: Orchestrator compares CA-03 to generated definitions and all three template outputs, then amends S03 mappings before dispatch. The old pack pipeline and pack digests must remain unchanged. CAP-02 can be verified independently; CAP-03/04 remain planned.
+
+## Landed prerequisite receipt — SESSION-01
+
+Orchestrator accepted SESSION-01 through `27a24d0` (six checkpoints). `src/schema/play-session.ts` exports the exact `EncounterSetup` and `validateEncounterSetup(pack, value, path?) -> ErrorCard[]` required here. Input caps/threat/weight/layout validation and empty-seed conformance/reopen are verified. Consume these production exports without a second setup/assembler implementation. CA-03 generator/output proofs remain this session's own c1/c2 work; S03 still owns play integration. Full receive/evidence is in current STATE.

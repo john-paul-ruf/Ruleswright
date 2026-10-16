@@ -159,3 +159,7 @@ Harness owners: S03 c2 built journey, c4 oracle/browser proof and fixtures. Tran
 ## State Update
 
 Return actual CA-04 mappings, receipt predicates, new public symbols, journal/cursor semantics, runtime wiring and proof outcomes. Orchestrator rechecks CA-04 at c4 and amends S04 against committed state/dispatch contracts before dispatch. CAP-03/04 are not verified by a generator test or by mere conformance. No later director session owns an unclosed manual adventure assertion.
+
+## Landed encounter prerequisite — SESSION-01
+
+SESSION-01 accepted through `27a24d0`: real create/restoreEncounterSession, revision-guarded dispatch, member projection, original/current restore inputs, journal subjects and receipt-bound atomic settlement are available. Victory/defeat/active abandonment and consecutive-fight JSON continuation are verified in its actual leased tests. Consume these committed production mappings; no encounter double or audit-only settlement. CA-02 is ready; CA-03 definition still waits S02. This does not complete this session's reward/adventure proofs.
