@@ -129,13 +129,14 @@
         "tests/runtime/combat/feat-triggers.test.ts",
         "src/schema/play-session.ts",
         "tests/snapshots/play-session.test.ts",
-        "src/runtime/adventure/choices.ts"
+        "src/runtime/adventure/choices.ts",
+        "tests/runtime/adventure/adventure.test.ts"
       ],
       "dependsOn": [
         "SESSION-03"
       ],
       "checkpoints": 5,
-      "leaseRevision": 3
+      "leaseRevision": 4
     }
   ],
   "planRevision": 2,
@@ -175,6 +176,18 @@
       "checkpoints": {
         "2": "closed aggregate pendingMove shape accepts absent/empty/populated histories and rejects malformed history; real transaction/reopen regression",
         "4": "central commandShape accepts only exact ack-narration shape; existing ack behavior/rejection tests"
+      },
+      "dependenciesUnchanged": true
+    },
+    {
+      "revision": 4,
+      "session": "SESSION-04",
+      "lastCommittedCheckpoint": 3,
+      "reason": "B-RA-S04-ACK-LEASE exact existing consumer assertion; B-RA-S04-STALL proof within existing lease",
+      "addedOwns": {
+        "SESSION-04": [
+          "tests/runtime/adventure/adventure.test.ts"
+        ]
       },
       "dependenciesUnchanged": true
     }
