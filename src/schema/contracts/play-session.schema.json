@@ -480,8 +480,7 @@
           "exclusiveMinimum": 0
         },
         "seedUsed": {
-          "type": "string",
-          "minLength": 1
+          "type": "string"
         },
         "heuristic": {
           "const": "threat-weighted-uniform"
