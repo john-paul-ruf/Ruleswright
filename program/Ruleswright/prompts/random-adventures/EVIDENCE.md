@@ -1,6 +1,26 @@
 # Planning Evidence — Ruleswright / random-adventures
 
-## REPLAN-RA-CONTRACTS revision 2
+## F-RA-01 assertion reconciliation — 2026-10-16 (current addendum)
+
+Plan edit base `44fac85625db8eb62ebddb795018f1ee12a97c22`; prior plan `6ec316fb7c349cac82e9ba4fb6ae6894e5745953`; implementation source remains `c8e526047b8186d35710965d5f210f858ab232a3`. Protected contract source is now `42bad6023e698bd430a7c50842a1882c5bd9f206`. Read current STATE’s latest receive and the two raw results below. Read-only `git show 42bad60 -- src/schema/contracts/play-session.schema.json` confirms the sole change removes `selection.seedUsed.minLength`; type string and all other constraints are unchanged. `src/runtime/encounter.ts:55,87` and database.md’s canonical seed mapping preserve `String(setup.seed)`, including `""`. No new product meaning or source correction is prescribed.
+
+F-RA-01’s **contract counterexample is closed**. The latest Orchestrator receive independently reports seven real assembler seed cases including empty string/JSON preservation, six nonstring negatives, six local schemas compiled, typecheck/lint/format and 42/42 conformance green at 42bad60; these are inherited received results, not tests rerun by this Planner or proofs of the future aggregate/generator. The old-schema failure remains in the verbatim review history.
+
+- S01 c3: leased play fixture/session tests, encounter-session journey and authoritative conformance prove explicit empty setup seed → real selection.seedUsed exactly `""` → conforming aggregate → detached JSON/fresh facade → identical next-command result/events/revision/journal/RNG/positions/conditions/resources through fresh built synchronous library exports. S01 c5 extends that proof through settlement and next encounter, snapshot tests and nonstring rejection. Exact assertions and invocation are in SESSION-01; no lease additions.
+- S02 c1: leased schema/adventure and conformance tests accept empty encounter-setup seed in template/definition fixtures. S02 c2: compiler/adventure, fresh built adventure-generation journey and conformance retain it through real generation and JSON with identical content hash/repeated bytes; no substitution with the definition seed. Fixtures stay in existing leased tests. S03’s existing play integration ownership is unchanged.
+- All proof owners remain future. Four sessions, 19 checkpoints (6/3/5/5), exact leases and serialized dependencies are unchanged. D1/D2/D4/D6/D7 review evidence is retained at its original source references; Orchestrator must route a scoped D3/D5 recheck before affected dispatch. No Planner score or runtime-completion verdict is issued. B-BD-1 remains carried CI evidence debt; no publish/push.
+
+Current scoped input SHA256 values (supersede only the corresponding older digest for current-source use; older revision tables below remain historical):
+
+| Path | SHA256 |
+| --- | --- |
+| `src/schema/contracts/play-session.schema.json` at 42bad60 | `84d8ed89cae1d67c50eaafe6219fcd8a99c1bc79c6fb828b5b69555851b0d034` |
+| `.program/results/ARCH-PRE-RANDOM-ADVENTURES.result.md` | `098e130e5ddd1da83ff570b5ed49c9d76b2bc118e24fddf52386c7e467afad57` |
+| `.program/results/AUTHOR-RA-EMPTY-SEED.result.md` | `4dad2bd9d0158f42b1983a9a2e177daae583e55ad743f674e12fb16243979789` |
+
+This addendum changes only SESSION-01, SESSION-02, STATE and EVIDENCE. Checks: exact allowed diff, unchanged session front matter/Files path sets/checkpoint counts/dependencies, byte-identical STATE history from Orchestration Startup, and whitespace validation. No runtime/test implementation, protected file, lease manifest, config or arch edits. No runtime tests rerun for this assertion-only correction; no new discovery sweep.
+
+## REPLAN-RA-CONTRACTS revision 2 (historical batch)
 
 Base `310397c4d1825d9163a5797addd73bc6d1f912d1`; implementation source `c8e526047b8186d35710965d5f210f858ab232a3`; protected contract receipt through `fcec34d28f51f91c931e544d09d1a12f2423b0a9`. Author commits: 6af52f1 (idea), 0686be0 (FR-24–29), 5b88826 (DX), d68f258 (architecture), 5b92b52 (template binding DX), 164a0c9 (binding/discovery architecture), 05dff11 (schemas/DB), fcec34d (approved reward continuity/format correction). No source/test/config/arch/protected file is written by this replan. Final plan commit identity is in the git receipt and returned Handoff.
 
