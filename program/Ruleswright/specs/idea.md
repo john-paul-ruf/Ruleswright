@@ -1,6 +1,7 @@
 # Idea — Ruleswright
 
 > **Status:** approved by builder (phase gate passed). Revised: product renamed to **Ruleswright**; expression policy applied.
+> **Author re-entry, 2026-10-16:** AR-01–AR-06 approved by “start” and “i authorize it”; this amendment describes contracts to implement, not delivered runtime capability.
 > Internal repo codename: `d20-rpg-system` — internal paths are not published use.
 
 ## One-Sentence Summary
@@ -13,11 +14,13 @@ Anyone who wants to run or embed a d20 tabletop game hits the same wall: the rul
 
 ## Vision
 
-The product is three layers, each independently valuable:
+The product retains three independent layers and adds an opt-in play composition:
 
 1. **Runtime engine** — theme-agnostic d20 machinery: seeded dice, character creation and progression, party management, and combat (initiative, action economy, attack rolls, saves, damage, conditions). It consumes a content pack; it has never heard of zombies.
 2. **Content pack format** — a versioned JSON schema for everything the engine reads: skills, feats, classes and progressions, conditions, equipment, bestiary, lookup tables.
 3. **Theme compiler** (the "mad lib" engine) — takes a *theme template* (itself JSON), generation knobs (threat level, tech level, tone), and a seed, and deterministically expands them into a complete content pack. `generateCampaign({ theme: "zombie-urban", seed: 42 })` yields Scavenging, Zombie Lore, Headshot, Infected, shambler bestiary entries, district encounter tables, and radio-broadcast flavor fragments. The same call with `dark-fantasy` yields Arcana, Hexcraft, cursed-item tables, omen tables, fae. Themes are data — the two sample themes shipped in v1 exist to prove the format, not as hard-coded features.
+
+4. **Headless play composition** — random encounter sessions, finite generated adventures with explicit routes/objectives/rewards, and an optional offline solo director. Hosts choose player actions and loot recipients; deterministic enemies and factual narration use authored data. Whole-session saves preserve injuries, conditions, resources, pending decisions and receipts without engine I/O. Adventure templates and definitions are separate pack-bound documents; existing packs need no new fields.
 
 The design principle that makes everything else cheap: **rules are data.** Combat actions, maneuvers, conditions, and damage types live in the pack, not in engine code. The engine is a rules *interpreter*; the compiler is a content *generator*; both are extended by writing JSON.
 
@@ -36,12 +39,13 @@ Every generated artifact is plain JSON the host can inspect, hand-edit, or layer
 3. **Theme compiler** — JSON theme templates + knobs + seed → full deterministic pack, via a pluggable generation pipeline.
 4. **Campaign bootstrap** — one call from theme to playable campaign pack.
 5. **Override layers** — generated content can be inspected, edited, and layered over by host or GM without forking anything.
-6. **Extensibility by construction** — the v2 reaches below are deferred, not rejected; v1 ships the seams they will grow through (see Extension Commitments).
+6. **Random adventures without a UI** — manually drive an encounter or an entire finite adventure, optionally let a bounded solo director handle enemies, and resume a whole aggregate from JSON.
+7. **Extensibility by construction** — the v2 reaches below are deferred, not rejected; v1 ships the seams they will grow through (see Extension Commitments).
 
 ## Non-Goals (v1) — deferred, not rejected
 
-- **Authored narrative generation** (plot arcs, written adventures): v1 generates everything that makes a campaign *playable* — the rules layer and the tables/flavor layer that support a GM telling the story. Campaign-level story generation is a planned v2 reach.
-- **Advanced combat content** (attacks of opportunity, grapple, flanking, AoE targeting): v1 ships a slim combat core. These arrive later as pack content and schema additions.
+- **Unbounded or model-generated stories** remain deferred. The approved random-adventures scope adds finite authored graph construction and offline event narration; it selects authored alternatives, never interprets prose as rules. No model/provider integration is selected.
+- **Additional combat mechanisms** beyond the approved pack-driven core remain deferred. Existing movement reactions, single/burst targeting and grid/hex support remain intact; this amendment adds no death/injury system or automatic healing.
 - **No UI, no persistence** — the library computes, validates, and serializes state; the host app stores it and renders it.
 - **No SRD text shipped** — the pack format is SRD-*shaped* so SRD-style content can be authored into it; the sample themes ship original content only.
 - **No VTT integration** — host applications integrate on their own terms via the library's API and events.
