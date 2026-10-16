@@ -56,7 +56,9 @@
         "tests/proofs/docs-run.test.ts",
         "tests/proofs/contract-conformance.test.ts"
       ],
-      "dependsOn": ["SESSION-01"],
+      "dependsOn": [
+        "SESSION-01"
+      ],
       "checkpoints": 3
     },
     {
@@ -81,7 +83,10 @@
         "README.md",
         "tests/proofs/docs-run.test.ts"
       ],
-      "dependsOn": ["SESSION-01", "SESSION-02"],
+      "dependsOn": [
+        "SESSION-01",
+        "SESSION-02"
+      ],
       "checkpoints": 5
     },
     {
@@ -121,10 +126,16 @@
         "tests/runtime/play/session.test.ts",
         "src/runtime/combat/triggers.ts",
         "tests/runtime/combat/spatial-triggers.test.ts",
-        "tests/runtime/combat/feat-triggers.test.ts"
+        "tests/runtime/combat/feat-triggers.test.ts",
+        "src/schema/play-session.ts",
+        "tests/snapshots/play-session.test.ts",
+        "src/runtime/adventure/choices.ts"
       ],
-      "dependsOn": ["SESSION-03"],
-      "checkpoints": 5
+      "dependsOn": [
+        "SESSION-03"
+      ],
+      "checkpoints": 5,
+      "leaseRevision": 3
     }
   ],
   "planRevision": 2,
@@ -136,7 +147,9 @@
       "revision": 2,
       "reason": "Committed AR-03 output conformance belongs with its generator; S04 owns shared fixtures, session candidate assertions, and actual reactive/feat guard implementation with both associated regression suites so legal takes do not trial-mutate an offer. No new sessions or checkpoint count changes.",
       "addedOwns": {
-        "SESSION-02": ["tests/proofs/contract-conformance.test.ts"],
+        "SESSION-02": [
+          "tests/proofs/contract-conformance.test.ts"
+        ],
         "SESSION-04": [
           "tests/runtime/adventure/fixtures.ts",
           "tests/runtime/play/session.test.ts",
@@ -146,6 +159,24 @@
         ]
       },
       "order": "SESSION-01 -> SESSION-02 -> SESSION-03 -> SESSION-04; no concurrent pairs"
+    },
+    {
+      "revision": 3,
+      "session": "SESSION-04",
+      "lastAcceptedCheckpoint": 0,
+      "reason": "B-RA-S04-LEASE: approved departure-history aggregate validator and central ack command guard coverage",
+      "addedOwns": {
+        "SESSION-04": [
+          "src/schema/play-session.ts",
+          "tests/snapshots/play-session.test.ts",
+          "src/runtime/adventure/choices.ts"
+        ]
+      },
+      "checkpoints": {
+        "2": "closed aggregate pendingMove shape accepts absent/empty/populated histories and rejects malformed history; real transaction/reopen regression",
+        "4": "central commandShape accepts only exact ack-narration shape; existing ack behavior/rejection tests"
+      },
+      "dependenciesUnchanged": true
     }
   ]
 }

@@ -8,7 +8,7 @@ Planner planned this. Coder builds it ([CODER.md](../../../../program-agents/COD
 
 **Parallel run:** hand this directory to Orchestrator. It spawns Coder using the active runtime's subagent mechanism and awaits results; no shell process, pid file or environment handshake. Orchestrator owns STATE.md/MASTER.md/arch and inline Orchestration Envelopes. Coder commits its own lease at every checkpoint and returns the CODER.md Handoff. This plan has four serial capability waves, so a parallel runtime does not make their dependent leases concurrent.
 
-**Dispatch status:** REPLAN-RA-CONTRACTS revision 2 reconciles all committed AR-01–06 receipts through `fcec34d` on base `310397c4d1825d9163a5797addd73bc6d1f912d1`; implementation remains unchanged from `c8e5260`. Approval (“start” / “i authorize it”), Author source, B-RA-XP and formatting gates are closed. S03 c3/c4 owns the approved real-awardXp preservation adapter and proof. Runtime capabilities remain planned, and **scoped Archivist planning-completeness review is due before Coder dispatch**. No repeat scope/approval question. AUTHOR-HANDOFF and raw receives are historical proposal/discovery records; current STATE and reconciled prompts apply exact committed contracts.
+**Dispatch status:** S01–S03 accepted through31c822f; CAP01–04 and CA01–04 current proofs verified. Author authorization/receipts and planning review complete. S04 attempt1 returned checkpoint0 mechanical coverage gap, fully received; Controlled Lease Revision3 adds three exact source/test paths, with unchanged five checkpoints and dependencies. Resume same context after revision acknowledgement. Current STATE holds proof revisions and historical handoffs; no approval remains pending.
 
 ## Sessions
 
@@ -17,7 +17,7 @@ Planner planned this. Coder builds it ([CODER.md](../../../../program-agents/COD
 | [SESSION-01.md](SESSION-01.md) | Play and resume a random encounter                            | M01, M03 | Exact 27-path lease in front matter / lease-manifest.json | —                      | 6           |
 | [SESSION-02.md](SESSION-02.md) | Generate finite adventures as portable data                   | M01, M04 | Exact 17-path lease in front matter / lease-manifest.json | SESSION-01             | 3           |
 | [SESSION-03.md](SESSION-03.md) | Play complete adventures with durable rewards and progression | M03      | Exact 18-path lease in front matter / lease-manifest.json | SESSION-01, SESSION-02 | 5           |
-| [SESSION-04.md](SESSION-04.md) | Run a bounded solo director with offline narration            | M03      | Exact 35-path lease in front matter / lease-manifest.json | SESSION-03             | 5           |
+| [SESSION-04.md](SESSION-04.md) | Run a bounded solo director with offline narration            | M03      | Exact 38-path lease (revision3) in front matter / lease-manifest.json | SESSION-03             | 5           |
 
 ## Protocol — Each iteration (solo mode)
 
