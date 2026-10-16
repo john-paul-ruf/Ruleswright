@@ -1788,3 +1788,33 @@ at the class-features final pass (original text recoverable at c915610). -->
 - Settlement stages the entire party: terminal paths reuse `settleItemUses`/`settleSpellCasts`; active abandonment uses real inventory mutation plus validated pool/indexed binding settlement, preserving terminal-only low-level APIs. HP, temp bookkeeping, condition duration and resource carryover publish together with a receipt. Raw combat spend remains frozen. Receipt ids use JSON.stringify([sessionId, encounterId, 'settlement']); hashes use packContentHash of `{pack, encounter}`, ordered entry members and ordered resulting members. Current-revision finalize is idempotent; only settled victory permits an explicit next setup. Host persistence must atomically save the entire aggregate; older saves remain independent replay branches.
 - Character snapshot writers now include exact signed current HP and nonnegative temp; independent legacy snapshots may omit HP and retain formula reconstruction. Encounter members require HP/pools/slots. `CharacterCombatant` and start entries optionally carry detached conditions; empty-profile shape is preserved. `Combat.pass()` ends the turn through the existing move/end-turn machinery and refuses terminal combat/open offers. `applyCondition` accepts an optional effective duration so item application and emitted duration agree with stacking semantics.
 - CAP-01 and CA-01/02 are exercised through fresh built ESM/CJS entry journeys, production settlement/reopen tests and authoritative local-schema conformance. CAP-03/04 receive shared producers only; S03/S04 retain their own consumer/integration proofs. No new module-registry id, package dependency, server, storage adapter or UI is introduced.
+
+<!-- random-adventures SESSION-02 -->
+
+## SESSION-02 — portable adventure generation delta
+
+M01 adds `src/schema/adventure.ts`: portable AdventureTemplate/AdventureDefinition,
+start options, identities, graph/reward/policy/narration DTOs and
+`validateAdventureTemplate(pack, value)` / `validateAdventureDefinition(pack, value)`.
+Its only internal value dependencies are M01 play-session (`validateEncounterSetup`),
+version (`packContentHash`), error-card and validation helpers. Schema imports no core
+or runtime values. `src/schema/index.ts` exports the portable surface.
+
+M04 adds `generateAdventure({pack, template, seed})` and explicit
+`loadAdventureTemplate(id, pack)`, exported from compiler/index.ts. The static registry
+contains original dark-fantasy, zombie-urban and wyldwood recipes omitting only pack.
+The loader attaches the validated effective pack identity; generation refuses foreign
+bindings. Generation uses M02 Rng/rollTable, M01 pack/adventure validators/hash/error
+cards, and the existing compiler GenerationError; there is no M04→M03 value edge.
+
+The finite construction rolls base recipes, then declared branch inclusion/descriptors;
+mandatory branches consume no inclusion draw. It emits detached JSON with a canonical
+definition hash, exact authored encounter setup seeds (including empty strings), and
+resolved choices. No existing pack pipeline, content, identity pin or runtime facade
+changes. CAP-02/CA-03 generation and JSON boundaries are proved; S03 still owns actual
+adventure play/rewards/save integration, and S04 owns director/narration consumption.
+
+The isolation gate now rejects both generateCampaign and generateAdventure in both
+runtime formats, requires runtime declarations, and supports an explicit absolute
+--fixture-dir for bounded subprocess self-tests. No new module ID, rule ID, dependency,
+manifest, build configuration, or runtime-only bundle content was introduced.
