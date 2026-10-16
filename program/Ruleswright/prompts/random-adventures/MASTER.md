@@ -8,7 +8,7 @@ Planner planned this. Coder builds it ([CODER.md](../../../../program-agents/COD
 
 **Parallel run:** hand this directory to Orchestrator. It spawns Coder using the active runtime's subagent mechanism and awaits results; no shell process, pid file or environment handshake. Orchestrator owns STATE.md/MASTER.md/arch and inline Orchestration Envelopes. Coder commits its own lease at every checkpoint and returns the CODER.md Handoff. This plan has four serial capability waves, so a parallel runtime does not make their dependent leases concurrent.
 
-**Dispatch status:** S01–S03 accepted; S04 checkpoints1–3 committed through178fe54 and independently tested1429/72. S04 revision4 adds its existing acknowledgement command-list consumer test; c3 actual stall-counter production proof and c4/c5 narration/platform work remain owned. Prior attempts fully received, no human approval pending. STATE is current evidence authority; completed history preserved.
+**Dispatch status:** S01–S03 accepted; S04 checkpoints1–3 committed through178fe54 and independently tested1429/72. REPLAN-RA-STALL retires the disproved agent-imposed unchanged-transition prerequisite; S04 may resume c4/c5 under revision4, exact39paths and five checkpoints. c4 owns the explicit restored-counter reset assertion and narration/ack/oracle work; c5 owns docs/platform/clean-copy acceptance. Bounded production progress and defensive restored-stall yield do not establish reachable production stalemate detection (EVIDENCE current addendum). Prior attempts fully received, no human approval pending. STATE is current evidence authority; completed history preserved.
 
 ## Sessions
 
