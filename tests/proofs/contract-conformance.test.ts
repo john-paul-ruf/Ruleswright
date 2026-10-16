@@ -547,3 +547,25 @@ describe('CA-04 real adventure aggregate writers conform to the approved databas
       expect(validate(json(bad))).toBe(false);
   });
 });
+
+it('CA-05 movement oracle delta is exactly the saved departure history, preserving every prior byte', () => {
+  const recording = json(LEG_RUNS['leg-2']());
+  let count = 0;
+  for (const value of recording.snapshots) {
+    const snapshot = value as { combatants: { pendingMove?: { offeredDepartures?: unknown } }[] };
+    for (const combatant of snapshot.combatants) {
+      if (!combatant.pendingMove) continue;
+      expect(combatant.pendingMove.offeredDepartures).toEqual([
+        { from: { x: 0, y: 0 }, to: { x: -1, y: 0 }, reactorId: 'foe' },
+      ]);
+      delete combatant.pendingMove.offeredDepartures;
+      count++;
+    }
+  }
+  expect(count).toBe(1);
+  const raw = recordingRaw(recording);
+  expect(contentHashOfRaw(raw)).toBe('28ee4afb');
+  expect(createHash('sha256').update(raw).digest('hex')).toBe(
+    '007a55676e14a8bc7f971d68ae98c7491b62d850be829fcbcfd0ea81ec76be1f',
+  );
+});

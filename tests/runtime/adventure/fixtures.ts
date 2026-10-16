@@ -216,3 +216,49 @@ export function claim(adventure: Adventure, index = 0, recipientMemberId?: strin
     ...(recipientMemberId === undefined ? {} : { recipientMemberId }),
   });
 }
+
+export function departureFixture() {
+  const f = combatFixture();
+  f.pack.spatial = { model: 'hex', reach: { default: 1 }, shapes: ['single', 'burst'] };
+  f.pack.formulas['speed'] = { expr: '3' };
+  f.pack.economy!.turnSlots!['reaction'] = 1;
+  f.pack.actions['stride'] = { cost: { slots: { move: 1 } }, effect: 'move(speed)', tags: ['move'] };
+  f.pack.actions['departure'] = {
+    cost: { slots: { reaction: 1 } },
+    effect: 'damage(1)',
+    tags: ['reaction'],
+    trigger: { on: 'move:leaving-reach[target=self]' },
+  };
+  f.pack.content.classes!['warden']!.actions!.push('stride');
+  for (const monster of Object.values(f.pack.bestiary)) monster.actions.push('departure');
+  const identity = { ...f.definition.pack, contentHash: packContentHash(f.pack) };
+  const definition = rehash({
+    ...f.definition,
+    pack: identity,
+    nodes: f.definition.nodes.map((n) =>
+      n.encounter
+        ? {
+            ...n,
+            encounter: {
+              ...n.encounter,
+              layout: {
+                kind: 'spatial' as const,
+                model: 'hex' as const,
+                allies: [{ x: 0, y: 0 }],
+                enemies: [{ x: 0, y: 1 }],
+                terrain: [],
+              },
+            },
+          }
+        : n,
+    ),
+  });
+  return {
+    pack: f.pack,
+    definition,
+    options: {
+      ...f.options,
+      members: f.options.members.map((m) => ({ ...m, character: { ...m.character, pack: identity } })),
+    },
+  };
+}

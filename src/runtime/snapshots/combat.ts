@@ -17,6 +17,7 @@ import type { CombatantProfile } from '../combat/resolve';
 import type { Position, TerrainCell } from '../combat/spatial';
 import type { EconomyBalances } from '../combat/action-economy';
 import type { Runtime } from '../runtime';
+import { eventMatches } from '../combat/triggers';
 import type { SnapshotActiveCondition } from './character';
 import {
   SNAPSHOT_VERSION,
@@ -438,6 +439,81 @@ function combatRestoreRefusals(
       );
     }
   });
+  const allies = new Set(restore.allies.map((c) => c.id));
+  const position = (value: unknown): value is Position =>
+    isRecord(value) &&
+    Object.keys(value).length === 2 &&
+    Number.isSafeInteger(value['x']) &&
+    Number.isSafeInteger(value['y']);
+  for (const [index, mover] of saved.combatants.entries()) {
+    const history: unknown = mover.pendingMove?.offeredDepartures;
+    if (history === undefined) continue;
+    const at = `combatants[${index}].pendingMove.offeredDepartures`;
+    const refuse = (message: string) => cards.push(makeErrorCard('E-SNAP-01', artifactId, at, message));
+    if (!Array.isArray(history)) {
+      refuse('Departure history must be an array.');
+      continue;
+    }
+    const seen = new Set<string>();
+    for (const d of history) {
+      if (
+        !isRecord(d) ||
+        Object.keys(d).length !== 3 ||
+        !position(d['from']) ||
+        !position(d['to']) ||
+        typeof d['reactorId'] !== 'string'
+      ) {
+        refuse('Each departure requires exactly from, to and reactorId.');
+        continue;
+      }
+      const from = d['from'],
+        to = d['to'],
+        reactor = d['reactorId'];
+      const key = JSON.stringify([from.x, from.y, to.x, to.y, reactor]);
+      if (seen.has(key)) refuse('Departure tuple repeats.');
+      seen.add(key);
+      if (!frozenIds.has(reactor) || allies.has(reactor) === allies.has(mover.id))
+        refuse('Departure reactor must exist on the opposing side.');
+      if (!runtime.spatial.enabled || runtime.spatial.distance(from, to) !== 1)
+        refuse('Departure must connect adjacent cells.');
+    }
+    if (Array.isArray(saved.offers))
+      for (const offer of saved.offers) {
+        if (
+          !isRecord(offer) ||
+          offer.on !== 'move:leaving-reach' ||
+          typeof offer.id !== 'string' ||
+          typeof offer.actorId !== 'string'
+        )
+          continue;
+        const pattern =
+          offer.source === 'feat'
+            ? runtime.pack.content.feats?.[offer.id]?.trigger?.on
+            : runtime.pack.actions[offer.id]?.trigger?.on;
+        const reactorId = offer.actorId;
+        const current = history.filter(
+          (d) =>
+            isRecord(d) &&
+            position(d['from']) &&
+            d['from'].x === mover.position?.x &&
+            d['from'].y === mover.position?.y,
+        );
+        const events = (history.length ? current : [{ reactorId: offer.actorId }]).map((d) => ({
+          type: 'move:leaving-reach',
+          actor: mover.id,
+          target: d.reactorId as string,
+          at: { round: saved.round, turn: saved.turn },
+          payload: {},
+          why: { rule: '', rolls: [] },
+        }));
+        if (
+          saved.order[saved.turn] !== mover.id ||
+          !pattern ||
+          !events.some((event) => eventMatches(pattern, event, reactorId))
+        )
+          refuse('Current departure offer disagrees with the paused mover, edge or reactive source.');
+      }
+  }
   cards.push(...envelopeV16Refusals(runtime, saved, restore, artifactId));
   saved.combatants.forEach((combatant, index) => {
     if (combatant.pendingTrigger === undefined || combatant.pendingTrigger === null) return;
@@ -511,6 +587,14 @@ function envelopeV16Refusals(
       if (!saved.order.includes(actorId)) {
         refuse(`${at}.actorId`, `offer names combatant "${actorId}", who is not in this fight (DD-S14).`);
         return;
+      }
+      if (saved.combatants.some((c) => c.pendingMove?.offeredDepartures !== undefined)) {
+        const pattern =
+          source === 'feat'
+            ? runtime.pack.content.feats?.[id]?.trigger?.on
+            : runtime.pack.actions[id]?.trigger?.on;
+        if (pattern !== undefined && pattern.split('[')[0] !== offer['on'])
+          refuse(`${at}.on`, 'Offer event disagrees with its reactive source.');
       }
       const profile = profiles.get(actorId);
       const held =
@@ -649,6 +733,15 @@ function copyPendingMove(pending: PendingMove): PendingMove {
     actionId: pending.actionId,
     to: { x: pending.to.x, y: pending.to.y },
     remaining: pending.remaining,
+    ...(pending.offeredDepartures === undefined
+      ? {}
+      : {
+          offeredDepartures: pending.offeredDepartures.map((d) => ({
+            from: { ...d.from },
+            to: { ...d.to },
+            reactorId: d.reactorId,
+          })),
+        }),
   };
 }
 

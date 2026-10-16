@@ -399,6 +399,7 @@ describe('provoke: leaving reach pauses the move (CAP-M4, CA-M4)', () => {
       actionId: 'stride',
       to: DESTINATION,
       remaining: 4,
+      offeredDepartures: [{ from: { x: 0, y: 0 }, to: { x: -1, y: 0 }, reactorId: 'wight' }],
     });
     expect(combatant(fight, 'hero').position).toEqual({ x: 0, y: 0 });
     expect(ofType(events, 'move:advanced')).toEqual([]); // the walked segment is empty
@@ -592,4 +593,110 @@ describe('provoke: leaving reach pauses the move (CAP-M4, CA-M4)', () => {
     expect(combatant(fight, 'hero').position).toEqual(DESTINATION);
     expect(fight.pendingTriggers).toEqual([]);
   });
+});
+
+function reopened(fight: Combat): Combat {
+  const snapshot = JSON.parse(JSON.stringify(serializeCombat(fight, { pairsWith: 'departure-test' })));
+  const runtime = new Runtime(fight.runtime.pack);
+  const entries = Object.values(fight.state.combatants);
+  const profile = (c: CombatantState) => ({
+    id: c.id,
+    profile: {
+      id: c.id,
+      abilities: c.abilities,
+      saves: c.saves,
+      level: c.level,
+      ac: c.ac,
+      hp: c.maxHp,
+      maxHp: c.maxHp,
+      initiativeBonus: c.initiativeBonus,
+      actions: c.actions,
+      spells: c.spells,
+      speed: c.speed,
+      feats: c.feats,
+    },
+  });
+  return deserializeCombat(runtime, snapshot, {
+    allies: entries.filter((c) => c.side === 'allies').map(profile),
+    enemies: entries.filter((c) => c.side === 'enemies').map(profile),
+    positions: Object.fromEntries(entries.map((c) => [c.id, c.position!])),
+    terrain: fight.state.terrain,
+  });
+}
+
+it.each([false, true])('R-GM-3 reevaluates a new reactor on the same edge (reopen=%s)', (restore) => {
+  let { fight } = provokeFight({ extraEnemies: { second: { x: 8, y: 8 } } });
+  fight.declare('stride', { to: DESTINATION });
+  fight.state = {
+    ...fight.state,
+    combatants: {
+      ...fight.state.combatants,
+      second: { ...fight.state.combatants['second']!, position: { x: 0, y: 1 } },
+    },
+  };
+  if (restore) fight = reopened(fight);
+  fight.respond('wight.opportunist', 'decline');
+  expect(fight.pendingTriggers.map((o) => o.triggerId)).toEqual(['second.opportunist']);
+  expect(fight.state.combatants['hero']!.pendingMove!.offeredDepartures).toHaveLength(2);
+  if (restore) fight = reopened(fight);
+  fight.respond('second.opportunist', 'decline');
+  expect(fight.pendingTriggers).toEqual([]);
+  expect(fight.state.combatants['hero']!.position).toEqual(DESTINATION);
+});
+
+it.each([false, true])('R-GM-3 reevaluates a changed edge for the same reactor (reopen=%s)', (restore) => {
+  let { fight } = provokeFight();
+  fight.declare('stride', { to: DESTINATION });
+  fight.state = { ...fight.state, terrain: [{ at: { x: -1, y: 0 }, kind: 'standing-stone' }] };
+  if (restore) fight = reopened(fight);
+  fight.respond('wight.opportunist', 'decline');
+  expect(fight.pendingTriggers.map((o) => o.triggerId)).toEqual(['wight.opportunist']);
+  const history = fight.state.combatants['hero']!.pendingMove!.offeredDepartures!;
+  expect(history).toHaveLength(2);
+  expect(history[1]!.to).not.toEqual(history[0]!.to);
+  if (restore) fight = reopened(fight);
+  fight.respond('wight.opportunist', 'decline');
+  expect(fight.pendingTriggers).toEqual([]);
+  expect(fight.state.combatants['hero']!.position).toEqual(DESTINATION);
+});
+
+it('retains historical cells and a now downed reactor across multiple pauses and reopening', () => {
+  let { fight } = provokeFight({ extraEnemies: { second: { x: -2, y: 1 } } });
+  fight.declare('stride', { to: DESTINATION });
+  fight.respond('wight.opportunist', 'decline');
+  expect(fight.pendingTriggers.map((o) => o.triggerId)).toEqual(['second.opportunist']);
+  expect(fight.state.combatants['hero']!.position).toEqual({ x: -2, y: 0 });
+  fight.state.combatants['wight']!.hp.current = 0;
+  fight.state = {
+    ...fight.state,
+    combatants: {
+      ...fight.state.combatants,
+      wight: { ...fight.state.combatants['wight']!, position: { x: 100, y: 100 } },
+    },
+  };
+  fight = reopened(fight);
+  expect(fight.state.combatants['hero']!.pendingMove!.offeredDepartures).toHaveLength(2);
+  fight.respond('second.opportunist', 'decline');
+  expect(fight.state.combatants['hero']!.position).toEqual(DESTINATION);
+});
+
+it.each(['absent', 'empty', 'recorded'])('distinguishes %s departure history across restore', (mode) => {
+  let { fight } = provokeFight();
+  fight.declare('stride', { to: DESTINATION });
+  const pending = { ...fight.state.combatants['hero']!.pendingMove! };
+  if (mode === 'absent') delete pending.offeredDepartures;
+  if (mode === 'empty') pending.offeredDepartures = [];
+  fight.state = {
+    ...fight.state,
+    combatants: {
+      ...fight.state.combatants,
+      hero: { ...fight.state.combatants['hero']!, pendingMove: pending },
+    },
+  };
+  fight = reopened(fight);
+  expect('offeredDepartures' in fight.state.combatants['hero']!.pendingMove!).toBe(mode !== 'absent');
+  fight.respond('wight.opportunist', 'decline');
+  expect(fight.pendingTriggers.length).toBe(mode === 'empty' ? 1 : 0);
+  if (mode === 'empty') fight.respond('wight.opportunist', 'decline');
+  expect(fight.state.combatants['hero']!.position).toEqual(DESTINATION);
 });

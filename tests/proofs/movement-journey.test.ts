@@ -226,6 +226,7 @@ describe('CAP-M6 — generated themes move (wyldwood hex, seed 42)', () => {
       actionId: 'glide',
       to: destination,
       remaining: 5,
+      offeredDepartures: [{ from: { x: 0, y: 0 }, to: { x: -1, y: 0 }, reactorId: 'foe' }],
     });
 
     // Snapshot here → JSON → restore on a fresh runtime (positions from the snapshot, same terrain).

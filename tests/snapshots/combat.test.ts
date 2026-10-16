@@ -601,7 +601,12 @@ describe('spatial snapshots (CAP-G5, CA-G3)', () => {
       const { fightA, fightB, snap } = pausedPair();
       const brynn = snap.combatants.find((combatant) => combatant.id === 'brynn')!;
       const wight = snap.combatants.find((combatant) => combatant.id === 'wight')!;
-      expect(brynn.pendingMove).toEqual({ actionId: 'stride', to: DESTINATION, remaining: 5 });
+      expect(brynn.pendingMove).toEqual({
+        actionId: 'stride',
+        to: DESTINATION,
+        remaining: 5,
+        offeredDepartures: [{ from: { x: 0, y: 0 }, to: { x: -1, y: 0 }, reactorId: 'wight' }],
+      });
       expect('pendingMove' in wight).toBe(false);
       expect(snap.offers).toEqual([
         { actorId: 'wight', source: 'action', id: 'opportunist', on: 'move:leaving-reach' },
@@ -615,6 +620,34 @@ describe('spatial snapshots (CAP-G5, CA-G3)', () => {
       expect(fightB.pendingTriggers).toEqual(fightA.pendingTriggers);
       expect(fightB.pendingTriggers[0]!.matchingEvent).toBe('move:leaving-reach');
     });
+
+    it.each(['duplicate', 'ally', 'unknown', 'nonadjacent', 'wrong-edge', 'wrong-source', 'malformed'])(
+      'rejects invalid departure history: %s',
+      (variant) => {
+        const { snap } = pausedPair();
+        const bad = JSON.parse(JSON.stringify(snap));
+        const mover = bad.combatants.find((c: { id: string }) => c.id === 'brynn');
+        const history = mover.pendingMove.offeredDepartures;
+        if (variant === 'duplicate') history.push({ ...history[0] });
+        if (variant === 'ally') history[0].reactorId = 'brynn';
+        if (variant === 'unknown') history[0].reactorId = 'missing';
+        if (variant === 'nonadjacent') history[0].to.x = -20;
+        if (variant === 'wrong-edge') {
+          history[0].from = { x: 10, y: 0 };
+          history[0].to = { x: 11, y: 0 };
+        }
+        if (variant === 'wrong-source') bad.offers[0].on = 'attack:rolled';
+        if (variant === 'malformed') history[0].from.x = 0.5;
+        const runtime = new Runtime(emberMarchesHexPack());
+        expect(() =>
+          deserializeCombat(runtime, bad, {
+            ...moveSides(runtime),
+            positions: Object.fromEntries(snap.combatants.map((c) => [c.id, c.position!])),
+            terrain: MOVE_TERRAIN,
+          }),
+        ).toThrow();
+      },
+    );
 
     it('resume parity (take): respond in both fights yields identical move/attack/damage payloads and positions', () => {
       const { fightA, eventsA, fightB, eventsB } = pausedPair();

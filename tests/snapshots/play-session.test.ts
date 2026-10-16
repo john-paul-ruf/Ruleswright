@@ -278,3 +278,93 @@ it('rejects cyclic/non-JSON journal payloads and changed offer provenance before
   expect(() => restoreEncounterSession(pack, nonJson)).toThrow(/play-session field/);
   expect(session.serialize()).toEqual(original);
 });
+
+it.each(['absent', 'empty', 'populated'])(
+  'accepts %s departure history through real nested dispatch and reopen',
+  async (mode) => {
+    const { createAdventure, restoreAdventure, restoreEncounterSession } = await import('../../src/runtime');
+    const { validatePlaySessionSnapshot } = await import('../../src/schema/play-session');
+    const { departureFixture, choose, dispatch } = await import('../runtime/adventure/fixtures');
+    const f = departureFixture();
+    const adventure = createAdventure(f.pack, f.definition, f.options);
+    expect(choose(adventure).ok).toBe(true);
+    const send = (body: object) => {
+      const n = adventure.serialize().activeEncounter!;
+      return dispatch(adventure, {
+        type: 'encounter',
+        encounterId: n.encounter.encounterId,
+        command: {
+          ...body,
+          sessionId: n.sessionId,
+          expectedRevision: n.revision,
+        } as Exclude<import('../../src/runtime').EncounterCommand, { type: 'next' }>,
+      });
+    };
+    expect(send({ type: 'advance' }).ok).toBe(true);
+    expect(
+      send({
+        type: 'declare',
+        actor: { kind: 'member', memberId: 'hero-1' },
+        actionId: 'stride',
+        options: { to: { x: -2, y: 0 } },
+      }).ok,
+    ).toBe(true);
+    const saved = JSON.parse(JSON.stringify(adventure.serialize()));
+    const mover = saved.activeEncounter.encounter.combat.combatants.find(
+      (c: { id: string }) => c.id === 'm:hero-1',
+    );
+    expect(mover.pendingMove.offeredDepartures).toHaveLength(1);
+    if (mode === 'absent') delete mover.pendingMove.offeredDepartures;
+    if (mode === 'empty') mover.pendingMove.offeredDepartures = [];
+    expect(validatePlaySessionSnapshot(f.pack, saved.activeEncounter)).toEqual([]);
+    const encounter = restoreEncounterSession(f.pack, saved.activeEncounter);
+    let branch = restoreAdventure(f.pack, f.definition, saved);
+    const offer = branch.view().combat!.pendingOffers[0]!;
+    for (let i = 0; i < (mode === 'empty' ? 2 : 1); i++) {
+      const n = branch.serialize().activeEncounter!;
+      const command = {
+        type: 'respond' as const,
+        actor: { kind: 'enemy' as const, enemyId: offer.actorId },
+        triggerId: offer.triggerId,
+        choice: 'decline' as const,
+        sessionId: n.sessionId,
+        expectedRevision: n.revision,
+      };
+      expect(encounter.dispatch(command).ok).toBe(true);
+      expect(dispatch(branch, { type: 'encounter', encounterId: n.encounter.encounterId, command }).ok).toBe(
+        true,
+      );
+      expect(branch.serialize().activeEncounter).toEqual(encounter.serialize());
+      branch = restoreAdventure(f.pack, f.definition, branch.serialize());
+    }
+    expect(branch.view().combat!.state.combatants['m:hero-1']!.position).toEqual({ x: -2, y: 0 });
+    expect(branch.view().combat!.pendingOffers).toEqual([]);
+  },
+);
+
+it.each([
+  null,
+  {},
+  [{ from: { x: 0.5, y: 0 }, to: { x: 1, y: 0 }, reactorId: 'e:0:1' }],
+  [{ from: { x: 0, y: 0 }, to: { x: 1, y: 0 } }],
+  [{ from: { x: 0, y: 0 }, to: { x: 1, y: 0 }, reactorId: 'e:0:1', extra: true }],
+])('closed aggregate validator rejects malformed departure history %j', async (history) => {
+  const { createEncounterSession, restoreEncounterSession } = await import('../../src/runtime');
+  const { validatePlaySessionSnapshot } = await import('../../src/schema/play-session');
+  const { playFixture } = await import('../runtime/play/fixtures');
+  const { pack, options } = playFixture();
+  const session = createEncounterSession(pack, options),
+    before = session.serialize();
+  const bad = JSON.parse(JSON.stringify(before));
+  bad.encounter.combat.combatants[0].pendingMove = {
+    actionId: 'stride',
+    to: { x: 2, y: 0 },
+    remaining: 2,
+    offeredDepartures: history,
+  };
+  expect(validatePlaySessionSnapshot(pack, bad).some((e) => e.jsonPath.includes('offeredDepartures'))).toBe(
+    true,
+  );
+  expect(() => restoreEncounterSession(pack, bad)).toThrow();
+  expect(session.serialize()).toEqual(before);
+});

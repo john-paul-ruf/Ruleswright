@@ -60,6 +60,11 @@ export interface PendingMove {
   readonly actionId: string;
   readonly to: Position;
   readonly remaining: number;
+  readonly offeredDepartures?: readonly {
+    readonly from: Position;
+    readonly to: Position;
+    readonly reactorId: string;
+  }[];
 }
 
 /** The one combat state object — plain JSON end to end (FR-14). */

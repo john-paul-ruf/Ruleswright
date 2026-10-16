@@ -569,7 +569,12 @@ const rawCombat = object(
           itemsUsed: record(integer(0)),
           poolsSpent: record(integer(0)),
           slotsCast: record(array(integer(0))),
-          pendingMove: object({ actionId: nonempty, to: position, remaining: finite }),
+          pendingMove: object(
+            { actionId: nonempty, to: position, remaining: finite },
+            {
+              offeredDepartures: array(object({ from: position, to: position, reactorId: nonempty })),
+            },
+          ),
         },
       ),
       1,

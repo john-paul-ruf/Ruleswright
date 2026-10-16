@@ -376,8 +376,9 @@ export const CHARACTERIZATION_DIGESTS: Readonly<Record<LegId, Digest>> = {
     contentHash: '1cc2c131',
   },
   'leg-2': {
-    sha256: '007a55676e14a8bc7f971d68ae98c7491b62d850be829fcbcfd0ea81ec76be1f',
-    contentHash: '28ee4afb',
+    // CA-05: only the paused snapshot gains its offered departure tuple.
+    sha256: 'a7d101288d69ef266d8be89d95c1e2dacbbe2e34ff03f9a7477e9adeb17f3b7e',
+    contentHash: '2f10783d',
   },
   'leg-3a': {
     sha256: '6356cff8a590fda756e96f4db7360ec235c73487fa951da33661ecf153ca0b2c',

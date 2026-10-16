@@ -196,9 +196,8 @@ export function pathQuery(
  * pauses the move at P: `move:advanced` for the segment walked (omitted when
  * empty) and `pendingMove {actionId, to, remaining}`. Otherwise the walk
  * lands on `to`: `move:advanced` then `move:ended {reason: 'arrived'}`.
- * A resumed walk (`resumed`) does not re-check its first step out of the
- * paused cell: that step's leaving-reach offers were already raised and
- * answered (spatial.html: the move resumes straight to its destination).
+ * Resumption suppresses only recorded departure tuples. Legacy absent history
+ * retains the old first-step suppression; a present empty history suppresses none.
  */
 export function walk(
   core: FightCore,
@@ -207,9 +206,11 @@ export function walk(
   to: Position,
   path: readonly Position[],
   budget: number,
-  resumed = false,
+  history: PendingMove['offeredDepartures'] = [],
+  legacyResume = false,
 ): void {
   const from = core.state.combatants[moverId]!.position!;
+  const departures = [...(history ?? [])];
   const kindAt = terrainAt(core.runtime.pack.spatial?.terrain ?? {}, core.state.terrain);
   const why = { rule: ruleBaseOf(core.runtime, actionId), rolls: [] };
   const walked: Position[] = [];
@@ -232,7 +233,20 @@ export function walk(
   };
   for (const [index, next] of path.entries()) {
     let offers = 0;
-    const threateners = resumed && index === 0 ? [] : threatenersLeft(core, moverId, at, next);
+    const threateners =
+      legacyResume && index === 0
+        ? []
+        : threatenersLeft(core, moverId, at, next).filter(
+            (reactorId) =>
+              !departures.some(
+                (d) =>
+                  d.reactorId === reactorId &&
+                  d.from.x === at.x &&
+                  d.from.y === at.y &&
+                  d.to.x === next.x &&
+                  d.to.y === next.y,
+              ),
+          );
     for (const threatener of threateners) {
       const leaving = core.runtime.events.emit({
         type: 'move:leaving-reach',
@@ -242,11 +256,17 @@ export function walk(
         why,
       });
       offers += core.surfaceOffers([leaving]);
+      departures.push({ from: { ...at }, to: { ...next }, reactorId: threatener });
     }
     if (offers > 0) {
       place(core, moverId, at);
       advanced();
-      setPendingMove(core, moverId, { actionId, to: { x: to.x, y: to.y }, remaining: budget - cost });
+      setPendingMove(core, moverId, {
+        actionId,
+        to: { x: to.x, y: to.y },
+        remaining: budget - cost,
+        offeredDepartures: departures,
+      });
       return;
     }
     cost += entryCost(kindAt(next))!;
@@ -299,7 +319,16 @@ export function resumeMove(core: FightCore): readonly RuntimeEvent[] {
     const plan = findPath(core.runtime.spatial, pathQuery(core, mover, from, pending.to, pending.remaining));
     if (!plan.ok) return endMove(core, moverId, pending.actionId, 'blocked');
     setPendingMove(core, moverId, undefined);
-    walk(core, moverId, pending.actionId, pending.to, plan.path, pending.remaining, true);
+    walk(
+      core,
+      moverId,
+      pending.actionId,
+      pending.to,
+      plan.path,
+      pending.remaining,
+      pending.offeredDepartures,
+      pending.offeredDepartures === undefined,
+    );
   });
   core.surfaceOffers(emitted);
   return emitted;
