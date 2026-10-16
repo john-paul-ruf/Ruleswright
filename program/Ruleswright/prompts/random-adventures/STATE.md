@@ -380,3 +380,52 @@ deviations:
     id: B-RA-XP
     disposition: Prior R4 classification superseded by approved continuity; fixed-contract adaptation.
 ```
+
+## Replan Receive — 2026-10-16
+
+Accepted REPLAN-RA-CONTRACTS commit 6ec316f; Native h-suAI/P3eez ended normally. Raw final saved verbatim in .program/results/REPLAN-RA-CONTRACTS.result.md. One commit touches only eight authorized planning files; no source/Author/arch changes, residual or lease violation. Owns/File tables/manifest match exactly at 27/17/18/35 paths. Historical suffix beginning Orchestration Startup is byte-identical to base310397c. Independently reran typecheck, lint, format:check, git diff --check: all exit0. No runtime test rerun for plan-only edits; prior source gates remain at fcec34d. No implementation checkpoint/proof accepted. Arch fragment inapplicable.
+
+Contract inputs and current blockers reconciled by replan v2. B-RA-AUTHOR/B-RA-DX/B-RA-XP are source-prerequisite closed; B-RA-REVIEW remains pending. S01 blocked only on review; S02–04 pending dependencies. CAP-01..06 implementations/proofs remain planned. No active worker or pending receive at this quiet boundary; next scoped Archivist D1–D7 against plan6ec316f and sourcefcec34d.
+
+### Replan Handoff — verbatim
+
+## Handoff
+
+**Task:** REPLAN-RA-CONTRACTS  
+**Commit:** `6ec316fb7c349cac82e9ba4fb6ae6894e5745953`  
+**Base:** `310397c4d1825d9163a5797addd73bc6d1f912d1`  
+**Implementation source:** `c8e5260`; **Author contracts:** through `fcec34d`.
+
+**Mapped contracts and due proofs:**
+
+| Session | Reconciled obligations | Proof owner |
+|---|---|---|
+| S01 | Exact snapshot/identity/RNG mappings, turn control, original/current inputs, abandonment settlement | c1–c5; first exported-library journey remains c3 |
+| S02 | Explicit template binding, graph construction, weights, references, policy/narration fields | c1/c2 |
+| S03 | Nested revisions, reward identities/streams, real awardXp preservation, atomic failures, terminal/reopen predicates | c2 roll staging; c3 claims; c4 reopen |
+| S04 | Departure history/legacy fallback, shared reaction legality, persisted director state, abandoned yield, acknowledgement without journal events | c1–c4 |
+
+**Lease amendments:** S02 adds `tests/proofs/contract-conformance.test.ts`. S04 adds shared adventure fixtures, encounter-session assertions, `combat/triggers.ts`, and spatial/feat trigger regression suites. Exact lease counts are **27/17/18/35**, synchronized across all records.
+
+**Granularity:** Four sessions, **19 checkpoints (6/3/5/5)**, serialized **S01 → S02 → S03 → S04**. No new sessions. S03 reward staging moves to c2 because settlement must publish pending rewards atomically.
+
+**filesTouched:**
+
+```text
+program/Ruleswright/prompts/random-adventures/MASTER.md
+program/Ruleswright/prompts/random-adventures/STATE.md
+program/Ruleswright/prompts/random-adventures/SESSION-01.md
+program/Ruleswright/prompts/random-adventures/SESSION-02.md
+program/Ruleswright/prompts/random-adventures/SESSION-03.md
+program/Ruleswright/prompts/random-adventures/SESSION-04.md
+program/Ruleswright/prompts/random-adventures/lease-manifest.json
+program/Ruleswright/prompts/random-adventures/EVIDENCE.md
+```
+
+**Verification/checks:** Six schemas compiled locally; lease/table/manifest/STATE agreement, checkpoint counts, serialized overlaps, file actions, test ownership, input digests, formatting and `git diff --check` checked. Committed historical STATE suffix is byte-identical to base. Working tree clean. No implementation tests or source changes.
+
+**Notes/surprises:** Terminal-only settlement helpers require the abandonment adapter. Positive awardXp resets HP/preparation even without leveling; **B-RA-XP is closed**, with preservation implementation/proofs retained in S03. Protected Author outputs and raw handoffs remain unchanged.
+
+**followUp:** Orchestrator refreshes stale scratch summaries and requests scoped Archivist planning-completeness review before dispatch. D1–D7 remain advisory, unscored. B-BD-1 remains carried CI evidence debt; no push/publication performed.
+
+**status: done** — bounded replan committed; implementation has not begun.
