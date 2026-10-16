@@ -9,8 +9,8 @@ specifics, the engine interprets them.
 
 - Zero runtime dependencies. Engine performs no I/O — hosts own storage, pacing, and UI.
 - Determinism to the byte: same theme + seed + knobs ⇒ byte-identical packs; same seed +
-  same call sequence ⇒ identical rolls. Verified in CI on the Node 18/20/22 matrix, in
-  Chromium, Firefox and WebKit (Vitest browser mode), and under Electron's runtime.
+  same call sequence ⇒ identical rolls. The test suite covers Node, Chromium,
+  Firefox, WebKit (Vitest browser mode), and Electron's runtime.
 - Three surfaces: `ruleswright/runtime` (dice, characters, combat, snapshots, events),
   `ruleswright/schema` (the pack format, validator, version contract), and
   `ruleswright/compiler` (theme → pack generation, knobs, stage pipeline).
@@ -333,11 +333,160 @@ oversized weights, or inadequate placement capacity produce located ErrorCards
 (`GenerationError.errors` at the compiler boundary). There are no retries or fallback
 templates. Existing packs and `generateCampaign` remain unchanged.
 
-This API generates portable data. An adventure play facade is not yet available;
-route progression, reward claims, and adventure saves require the forthcoming runtime
-integration. Rest policy refills existing pools/slots only; it does not heal HP or
-resurrect characters. Hosts own storage, and content hashes are identity checks,
-not cryptographic authentication.
+## Play and resume a complete adventure
+
+`createAdventure(pack, definition, options)` owns exploration, nested encounters,
+rewards and party progression. The host chooses every action. This independent
+example uses a small host policy: take the passage branch, decline reactions,
+have heroes attack and enemies pass, and give loot to the second member. Replace
+those selections with your players' input and your host's enemy decisions.
+
+<!-- example: adventure/play -->
+
+```ts
+import { generateCampaign, loadTheme, loadAdventureTemplate, generateAdventure } from 'ruleswright/compiler';
+import {
+  Runtime,
+  awardXp,
+  serializeCharacter,
+  createAdventure,
+  restoreAdventure,
+  type AdventureCommand,
+  type EncounterActor,
+} from 'ruleswright/runtime';
+
+const pack = generateCampaign({ theme: loadTheme('dark-fantasy'), seed: 42 });
+const definition = generateAdventure({
+  pack,
+  template: loadAdventureTemplate('dark-fantasy', pack),
+  seed: 42,
+});
+const characters = new Runtime(pack);
+const members = [0, 1].map((i) => {
+  const hero = characters.createCharacter({ name: `Warden ${i + 1}`, race: 'ashkin', classes: ['warden'] });
+  awardXp(characters, hero.state, 975); // Start near a level threshold to show reward progression.
+  hero.state.hp = { current: 19 - i, temp: 3 + i };
+  hero.prepare('ward-sigil', 1);
+  return { memberId: `hero-${i + 1}`, character: serializeCharacter(characters, hero.state) };
+});
+let adventure = createAdventure(pack, definition, { adventureId: 'manual-example', seed: 42, members });
+const actorFor = (id: string): EncounterActor =>
+  id.startsWith('m:') ? { kind: 'member', memberId: id.slice(2) } : { kind: 'enemy', enemyId: id };
+
+for (let steps = 0; steps < 1000 && adventure.view().phase !== 'completed'; steps++) {
+  const view = adventure.view();
+  const base = { adventureId: view.adventureId, expectedRevision: view.revision };
+  let command: AdventureCommand;
+  if (view.phase === 'exploration') {
+    const choice =
+      view.choices.find((c) => c.available && c.toNodeId === 'passage') ??
+      view.choices.find((c) => c.available);
+    if (!choice) throw new Error('No available route');
+    command = { ...base, type: 'choose', nodeId: view.nodeId, choiceId: choice.choiceId };
+  } else if (view.phase === 'reward-pending') {
+    const reward = view.pendingRewards[0]!;
+    command = {
+      ...base,
+      type: 'claim-reward',
+      nodeId: reward.nodeId,
+      rewardId: reward.rewardId,
+      claimId: reward.claimId,
+      ...(reward.roll === null ? {} : { recipientMemberId: 'hero-2' }),
+    };
+  } else if (view.phase === 'encounter') {
+    const nested = adventure.serialize().activeEncounter!;
+    const combat = view.combat!;
+    const nestedBase = { sessionId: nested.sessionId, expectedRevision: nested.revision };
+    const offer = combat.pendingOffers[0];
+    const active = combat.state.combatants[combat.state.active]!;
+    let action: Extract<AdventureCommand, { type: 'encounter' }>['command'];
+    if (offer) {
+      action = {
+        ...nestedBase,
+        type: 'respond',
+        actor: actorFor(offer.actorId),
+        triggerId: offer.triggerId,
+        choice: 'decline',
+      };
+    } else if (!nested.encounter.control.turnStarted || combat.state.phase === 'resolved') {
+      action = { ...nestedBase, type: 'advance' };
+    } else if (active.side === 'enemies') {
+      action = { ...nestedBase, type: 'pass', actor: actorFor(active.id) };
+    } else {
+      const target = Object.values(combat.state.combatants).find(
+        (c) => c.side !== active.side && c.hp.current > 0,
+      )!;
+      action = {
+        ...nestedBase,
+        type: 'declare',
+        actor: actorFor(active.id),
+        actionId: active.actions[0]!,
+        options: { targetId: target.id },
+      };
+    }
+    command = { ...base, type: 'encounter', encounterId: nested.encounter.encounterId, command: action };
+  } else {
+    throw new Error(`Adventure ended: ${view.phase}`);
+  }
+  const result = adventure.dispatch(command);
+  if (!result.ok) throw new Error(JSON.stringify(result.errors));
+  // Host storage can persist this one document after any accepted command.
+  const checkpoint = JSON.stringify(adventure.serialize());
+  adventure = restoreAdventure(pack, definition, JSON.parse(checkpoint));
+}
+if (adventure.view().phase !== 'completed') throw new Error('Adventure exceeded the host step limit');
+const saved = JSON.stringify(adventure.serialize());
+adventure = restoreAdventure(pack, definition, JSON.parse(saved));
+console.log(
+  adventure.view().phase,
+  adventure.serialize().encounterReceipts.length,
+  adventure.view().members.length,
+);
+```
+
+Expected output:
+
+```text
+completed 2 2
+```
+
+Every outer command requires its own `adventureId` and `expectedRevision`; the
+nested encounter command independently requires its session id and revision.
+Refusals leave the entire aggregate, streams and journal unchanged. A victory
+settles automatically and stages authored rewards before allowing travel.
+Defeat and abandonment remain terminal, preserve injury/spend, and earn no new
+reward. Completion requires the explicit success node and all earned claims.
+
+- Each reward awards its declared XP to every fixed party member, including
+  downed members. Loot requires an explicit eligible recipient even when the
+  stored roll is flavor/no-item; a reward without loot forbids a recipient.
+  Claims consume the saved roll without rerolling. A matching receipt retry at
+  the current revision returns no new events or grants; stale revisions refuse.
+- Adventure XP keeps real class progression and saves while preserving exact
+  HP/temp, pools, conditions, equipment, known spells and prepared bindings at
+  their original indices. New slot positions are empty. An incompatible slot
+  capacity rejects the whole claim, including any earlier staged member changes.
+  Direct low-level `awardXp` retains its existing HP/preparation behavior.
+- `rest` is available once at an authored rest node. It refills pools and clears
+  prepared bindings, without healing HP or ticking conditions. Use `prepare`
+  explicitly at a preparation-enabled node afterward. `equip`, `unequip` and
+  self `use-item` are available at resolved nonterminal nodes outside combat.
+- Save one complete `serialize()` document with its matching pack and definition.
+  It contains party state, current fight and pending reactions, receipts, journal
+  and four RNG streams. No Runtime or remembered start options are needed to
+  reopen. Old complete saves create replay branches; receipts are not a
+  cross-device exactly-once service, and content hashes are identity checks,
+  not cryptographic authentication.
+- Pack generation, definition generation, authored encounter setup seeds and
+  adventure play seed have separate roles. The adventure derives independent
+  generation, play, reward and reserved director streams from its id and seed;
+  saves retain every stream's words. Manual dispatch exposes no solo director or
+  narration-acknowledgement command.
+
+`tests/proofs/adventure-journey.test.ts` exercises the built ESM/CJS exports.
+`tests/proofs/adventure-oracle.ts` compares continuous and repeated-JSON play,
+including two encounters, a branch, reactions, claims and a level-up; its pinned
+recordings run in Node and in the browser's Vite source harness.
 
 ## Grid combat
 
@@ -502,8 +651,7 @@ and dark-fantasy packs (seed 42).
 - The engine performed **no I/O** anywhere above — `serialize()` hands you JSON;
   your app owns storage (FR-14).
 - Same theme + seed + knobs ⇒ byte-identical pack; same seed + same call sequence
-  ⇒ identical rolls on Node, browsers, Electron (FR-1, FR-17; verified in CI on the
-  Node 18/20/22 matrix, in Chromium, Firefox and WebKit, and under Electron's runtime).
+  ⇒ identical rolls across the Node, browser and Electron test legs (FR-1, FR-17).
 
 ## Spells and feats in combat
 
@@ -760,8 +908,7 @@ Engine determinism contract: all randomness flows through the seeded, injectable
 (`core/rng`) whose state serializes as four uint32 words — snapshots carry it so a
 resumed fight rolls the same future as an uninterrupted one.
 
-CI (`.github/workflows/ci.yml`) runs the Node matrix (18/20/22 — the whole suite,
-so same-seed ⇒ identical rolls is proven on all three lines), the FR-12 proof trio
+CI (`.github/workflows/ci.yml`) is configured for the Node matrix (18/20/22 — the whole suite), the FR-12 proof trio
 (rules-are-data: zero engine diffs), the FR-21 coverage floor for all three sample
 themes, the bundle-isolation + security-sweep gates, and the lint + Prettier format checks on every push (lint runs on Node 22 — ESLint 10's floor is above the Node 18 matrix leg).
 `tests/proofs/contract-conformance.test.ts` checks the three bundled themes' generated packs
@@ -783,3 +930,6 @@ that the README names `pnpm test:browser`, `pnpm test:electron` and the conforma
 that `ci.yml` runs the browser matrix, the Electron job, `pnpm test` and `tests/proofs/` as `run`
 steps, that the conformance test file exists, and that the retired browser follow-up wording is
 gone; it does not check the rest of this prose.
+
+Local verification is separate from remote CI evidence; the configured jobs do not
+by themselves establish a successful published Actions run.

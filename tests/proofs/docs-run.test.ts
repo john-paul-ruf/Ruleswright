@@ -15,8 +15,14 @@ const EXAMPLES = [
   'quickstart/loot',
   'encounter/play',
   'adventure/generate',
+  'adventure/play',
 ] as const;
-function extractExamples(markdown: string): { quickstart: string; encounter: string; adventure: string } {
+function extractExamples(markdown: string): {
+  quickstart: string;
+  encounter: string;
+  adventure: string;
+  play: string;
+} {
   const blocks = [...markdown.matchAll(/<!-- example: ([a-z/-]+) -->\s*```ts\n([\s\S]*?)```/g)];
   if (blocks.length !== [...markdown.matchAll(/```ts\n/g)].length)
     throw new Error('Unlabelled TypeScript example');
@@ -34,6 +40,7 @@ function extractExamples(markdown: string): { quickstart: string; encounter: str
       .join('\n'),
     encounter: examples.get('encounter/play')!,
     adventure: examples.get('adventure/generate')!,
+    play: examples.get('adventure/play')!,
   };
 }
 const examples = extractExamples(readme);
@@ -250,6 +257,7 @@ describe('README quickstart runs verbatim (NFR-DX)', () => {
       ...typecheckQuickstart(examples.quickstart),
       ...typecheckQuickstart(examples.encounter),
       ...typecheckQuickstart(examples.adventure),
+      ...typecheckQuickstart(examples.play),
     ];
     expect(
       problems,
@@ -304,7 +312,7 @@ describe('portable adventure documentation and extractor controls', () => {
       definition.nodes.filter((n) => n.kind === 'encounter').every((n) => n.encounter!.seed === ''),
     ).toBe(true);
     expect(readme).toContain('dark-fantasy 7 6823dd50');
-    expect(readme).toContain('An adventure play facade is not yet available');
+    expect(readme).toContain('createAdventure(pack, definition, options)');
   });
   it('rejects a missing adventure block, duplicate label and unknown label', () => {
     expect(() =>
@@ -324,4 +332,47 @@ describe('portable adventure documentation and extractor controls', () => {
     const changed = runExample(examples.adventure.replace('definition.nodes.length,', '0,')).logs;
     expect(() => expect(changed).toEqual([['dark-fantasy', 7, '6823dd50']])).toThrow();
   });
+});
+
+describe('manual adventure example and runner negative controls', () => {
+  it('executes the exact generated manual host loop, claims and JSON restarts through built exports', () => {
+    const { bindings, logs } = runExample(examples.play, ['adventure', 'saved']);
+    expect(logs).toEqual([['completed', 2, 2]]);
+    const saved = JSON.parse(bindings['saved'] as string) as import('../../src/runtime').AdventureSnapshot;
+    const adventure = bindings['adventure'] as import('../../src/runtime').Adventure;
+    expect(adventure.serialize()).toEqual(saved);
+    expect(saved.visitedNodeIds).toContain('passage');
+    expect(saved.rewards.every((r) => r.status === 'claimed')).toBe(true);
+    expect(saved.members.map((m) => m.character.state.classes[0]!.level)).toEqual([2, 2]);
+    expect(saved.members.map((m) => m.character.state.classes[0]!.xp)).toEqual([1050, 1050]);
+    expect(saved.members.map((m) => m.character.state.hp)).toEqual([
+      { current: 19, temp: 3 },
+      { current: 18, temp: 4 },
+    ]);
+    expect(saved.members.map((m) => m.character.state.slots['1'])).toEqual([
+      [null, 'ward-sigil', null],
+      [null, 'ward-sigil', null],
+    ]);
+    expect(readme).toContain('completed 2 2');
+    expect(readme).toContain('refills pools and clears');
+    expect(readme).toContain('replay branches');
+  }, 10000);
+  it('rejects a missing play block and an invalid package import', () => {
+    expect(() =>
+      extractExamples(readme.replace(/<!-- example: adventure\/play -->\s*```ts\n[\s\S]*?```/, '')),
+    ).toThrow(/Missing example/);
+    expect(() => runExample(examples.play.replace('ruleswright/runtime', 'ruleswright/missing'))).toThrow(
+      /Unsupported/,
+    );
+  });
+  it('propagates real guard rejection and fails a zero-step script instead of accepting no work', () => {
+    expect(() =>
+      runExample(examples.play.replace('expectedRevision: view.revision', 'expectedRevision: -1')),
+    ).toThrow();
+    expect(() => runExample(examples.play.replace('steps < 1000', 'steps < 0'))).toThrow(/host step limit/);
+    const changed = runExample(
+      examples.play.replace('adventure.serialize().encounterReceipts.length,', '0,'),
+    ).logs;
+    expect(() => expect(changed).toEqual([['completed', 2, 2]])).toThrow();
+  }, 10000);
 });
