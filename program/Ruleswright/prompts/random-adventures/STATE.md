@@ -147,13 +147,13 @@ First narrow journey: S01 c3 built package encounter → real combat action → 
 
 | ID    | Required meaning / authority                                                         | Producer → boundary → consumer                                                                  | Mapping / constraints                                                                                                | Correction + proof owners / checkpoints     | Agreement  | Producer | Proof / evidence / checked sources                         |
 | ----- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- | ---------- | -------- | ---------------------------------------------------------- |
-| CA-01 | Character injury/conditions/identity survive encounters and saves; FR-5/7/14 + RA-01 | character state → character envelope/profile/start input → play session                         | Exact HP/temp; conditionId/duration ↔ id/remaining; explicit memberId separate from reminted char id                 | DB AR-02; S01 c1/c2/c3                      | unresolved | planned  | blocked on Author; plan probe and source trace in EVIDENCE |
-| CA-02 | One encounter aggregate has complete restore inputs and atomic terminal settlement   | Combat state+start inputs → aggregate snapshot/receipt → reconstructed party and next encounter | Spend is not remaining balance; frozen current positions supplied to restore; side/member/receipt identities checked | S01 c3/c4/c5                                | unresolved | planned  | planned; provisional against AR-02/S01 c5                  |
-| CA-03 | A portable finite definition preserves pack/template identity and authored meaning   | S02 generator → AdventureDefinition → S03 adventure runtime                                     | EncounterSetup from S01; graph refs, objective, policy and reward refs retain distinct meanings                      | DB AR-03; S02 c1/c2; S03 c2 play proof      | unresolved | planned  | planned; provisional against S02 c2; recheck before S03    |
-| CA-04 | Choice/reward/rest eligibility derives from saved authoritative state and definition | S03 dispatch/writers → aggregate revision/receipt/journal → views/restored adventure/director   | Exact node/reward/member ids, per-member XP vs class split, one saved roll/claim, no implicit heal                   | DB AR-04; S03 c2/c3/c4                      | unresolved | planned  | planned; provisional against S03 c4; recheck before S04    |
-| CA-05 | Automated actions legal and bounded; narration factual and separately acknowledged   | Pure gates + committed adventure state/events → director/renderer → actual commands/messages    | Player control preserved; no-action/stalled not victory; negative damage means healing; cursor can't exceed journal  | AR-05 required additive contract; S04 c1–c4 | unresolved | planned  | planned; provisional against S04 c3/c4                     |
+| CA-01 | Character injury/conditions/identity survive encounters and saves; FR-5/7/14 + RA-01 | character state → character envelope/profile/start input → play session                         | Exact HP/temp; conditionId/duration ↔ id/remaining; explicit memberId separate from reminted char id                 | DB AR-02; S01 c1/c2/c3                      | agreed (Author fcec34d; exact plan reconciliation pending) | contract producer landed 05dff11/fcec34d; runtime producer planned | blocked on Author; plan probe and source trace in EVIDENCE |
+| CA-02 | One encounter aggregate has complete restore inputs and atomic terminal settlement   | Combat state+start inputs → aggregate snapshot/receipt → reconstructed party and next encounter | Spend is not remaining balance; frozen current positions supplied to restore; side/member/receipt identities checked | S01 c3/c4/c5                                | agreed (Author fcec34d; exact plan reconciliation pending) | contract producer landed 05dff11/fcec34d; runtime producer planned | planned; provisional against AR-02/S01 c5                  |
+| CA-03 | A portable finite definition preserves pack/template identity and authored meaning   | S02 generator → AdventureDefinition → S03 adventure runtime                                     | EncounterSetup from S01; graph refs, objective, policy and reward refs retain distinct meanings                      | DB AR-03; S02 c1/c2; S03 c2 play proof      | agreed (Author fcec34d; exact plan reconciliation pending) | contract producer landed 05dff11/fcec34d; runtime producer planned | planned; provisional against S02 c2; recheck before S03    |
+| CA-04 | Choice/reward/rest eligibility derives from saved authoritative state and definition | S03 dispatch/writers → aggregate revision/receipt/journal → views/restored adventure/director   | Exact node/reward/member ids, per-member XP vs class split, one saved roll/claim, no implicit heal                   | DB AR-04; S03 c2/c3/c4                      | agreed (Author fcec34d; exact plan reconciliation pending) | contract producer landed 05dff11/fcec34d; runtime producer planned | planned; provisional against S03 c4; recheck before S04    |
+| CA-05 | Automated actions legal and bounded; narration factual and separately acknowledged   | Pure gates + committed adventure state/events → director/renderer → actual commands/messages    | Player control preserved; no-action/stalled not victory; negative damage means healing; cursor can't exceed journal  | AR-05 required additive contract; S04 c1–c4 | agreed (Author fcec34d; exact plan reconciliation pending) | contract producer landed 05dff11/fcec34d; runtime producer planned | planned; provisional against S04 c3/c4                     |
 
-The human approved the proposed AR-01–AR-06 meaning on resume. All five exact mappings remain unresolved pending the named Author receipts and producer checkpoints; approved intent is not a committed schema. Once Author resolves semantics, Agreement may become agreed while Producer/Proof remain planned. Completed Coder checkpoints alone do not verify downstream boundary proofs.
+The human approved AR-01–AR-06 and explicitly authorized execution. Author contracts landed through fcec34d; exact schemas and meanings are agreed, pending bounded Planner reconciliation into every copied prompt. Runtime producers and boundary proofs remain planned; Author schema conformance does not verify a capability.
 
 ### CA-01 — defect, map and assertions
 
@@ -189,7 +189,7 @@ Tests: S04 preview/director/narration, movement regression, built solo journey a
 
 | ID          | Affected                                          | Next action / owner                                                                                                        | Evidence to clear                                                                                               |
 | ----------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| B-RA-AUTHOR | CA-01..05, initial S01 then scoped later sessions | Author receipt 05dff11 received; exact contract reconciliation and narrow Author correction pending; no repeat approval | Seven Author commits landed; snapshots formatting correction and B-RA-XP fixed-contract clarification owned by returned Author; Planner then reconciles |
+| B-RA-AUTHOR | CA-01..05, initial S01 then scoped later sessions | Author receipts complete through fcec34d; Planner reconciles all session/CA mappings before review; no repeat approval | Eight Author commits landed and receive gates pass; B-RA-XP and formatting corrected at fcec34d; Planner reconciliation remains |
 | B-RA-DX     | Relevant documentation checkpoints                | Author supplied all scoped DX sources at 5b88826/5b92b52; Planner reconciles exact signatures                             | Source receipt complete, no UI build; runtime examples remain Coder-owned proof                                                      |
 | B-RA-REVIEW | Affected execution                                | Orchestrator requests scoped Archivist planning-completeness at first quiet boundary, after receipt amendments             | Findings dispositions in these canonical sections; scoring belongs to Archivist                                 |
 | B-BD-1      | CI acceptance only; carried                       | Human publication/push owner, then Orchestrator observes actual Actions and assigns any mechanical repair                  | Relevant Node/browser/Electron/package runs green at the implemented revision                                   |
@@ -313,4 +313,56 @@ deviations:
     action: Recorded blocker; no runtime or speculative policy change.
   - classification: not a deviation
     meaning: Explicit template binding and exact schema spelling refine the approved packet.
+```
+
+## Author Revision 2 Receive — 2026-10-16
+
+Accepted contract correction fcec34d, one commit on exactly four authorized paths. Native h-IiAH/Ar5xi ended normally; raw final saved verbatim to .program/results/AUTHOR-RANDOM-ADVENTURES.rev2.result.md. No residual, lease violation or arch fragment. Independently reran typecheck/lint/format:check (all exit 0), contract-conformance (1 file, 42 tests, exit 0); prior fresh build remains valid because correction changed only docs/JSON formatting. Diff whitespace clean. Author's semantic-equality/schema compile checks are reported evidence, not runtime proof. No Coder checkpoint accepted.
+
+B-RA-XP product-decision gate is closed by fcec34d; fixed-contract implementation/proof belongs to S03 c3/c4. Formatting gate closed. Author prerequisite source is ready; B-RA-AUTHOR now tracks plan reconciliation, not missing authorization or contracts. B-RA-DX source ready at 5b88826/5b92b52; docs implementation proofs future. CA-01..05 contract producers landed at 05dff11/fcec34d; runtime producers/proofs and CAP-01..06 remain unverified. Next owner is bounded Planner reconciliation, then scoped Archivist D1–D7. No workers or pending receives remain at this boundary.
+
+### Author Revision 2 Handoff — verbatim
+
+## Handoff
+
+```yaml
+session: AUTHOR-RANDOM-ADVENTURES
+leaseRevision: 2
+status: done
+base: 5bba00770f031972009d36a703361f4b79320ed3
+commit: fcec34d28f51f91c931e544d09d1a12f2423b0a9
+checkpoints:
+  requirements: FR-27 preservation contract clarified
+  architecture: staged adapter and proof ownership clarified
+  database: reward write/readback and discovery disposition corrected
+  formatting: snapshot formatting corrected without semantic change
+filesTouched:
+  - program/Ruleswright/specs/requirements.md
+  - program/Ruleswright/specs/architecture.md
+  - program/Ruleswright/specs/database.md
+  - src/schema/contracts/snapshots.schema.json
+verification:
+  formatCheck: exit 0
+  contractConformance: 42/42; exit 0
+  schemaCompilationAndReferences: six passed
+  snapshotSemanticEquality: passed against base
+  commitScopeAndWhitespace: passed
+  worktree: clean
+notes:
+  - AR-01/04 and FR-26/27 supply existing approval.
+  - Schema shapes, versions, legacy fallbacks and low-level APIs unchanged.
+  - Contract correction only; runtime readiness remains unproven.
+surprises:
+  - No new discoveries.
+  - Prior awardXp HP/binding reset discovery retained as factual history.
+followUp:
+  - Reconcile S03 c3/c4 and CA-04/CAP-04 with the preservation adapter.
+  - Remove the B-RA-XP product-decision gate; retain implementation/proof gates.
+  - S03 owns no-level, level-up, incompatible-capacity, multi-member-failure and reopen assertions.
+  - Dependent solo reward paths consume the same contract.
+  - Prior Planner reconciliation and receive/review obligations remain.
+deviations:
+  - classification: not a deviation
+    id: B-RA-XP
+    disposition: Prior R4 classification superseded by approved continuity; fixed-contract adaptation.
 ```
