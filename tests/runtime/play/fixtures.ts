@@ -92,3 +92,49 @@ export function finish(session: EncounterSession): void {
   }
   throw new Error(`Encounter exceeded 500 commands: ${JSON.stringify(session.serialize())}`);
 }
+
+export function settlementFixture(count = 1, equippedLast = false) {
+  const pack = playPack();
+  pack.bestiary['barrow-wight']!.abilityOverrides!['vigor'] = 30;
+  pack.actions['poke'] = {
+    cost: { slots: { main: 1 } },
+    effect: 'sequence(damage(1), applyCondition(dazzed, 4))',
+    tags: ['main'],
+  };
+  pack.actions['retort'] = {
+    cost: { slots: { main: 1 } },
+    effect: 'damage(1)',
+    trigger: { on: 'damage:applied[target=self]' },
+    tags: ['main'],
+  };
+  pack.bestiary['barrow-wight']!.actions = ['poke'];
+  pack.content.classes!['warden']!.actions!.push('retort');
+  if (equippedLast) {
+    pack.content.items!['mend-draught']!.slots = ['ring'];
+    pack.content.items!['mend-draught']!.grants = { luck: 1 };
+  }
+  const { options } = playFixture(pack, count);
+  const runtime = new runtimeApi.Runtime(pack);
+  const members = options.members.map((member, i) => {
+    const character = runtimeApi.restoreCharacter(runtime, member.character);
+    character.prepare('grave-light');
+    if (equippedLast && i === count - 1) character.equip('mend-draught', 'ring');
+    return { ...member, character: runtimeApi.serializeCharacter(runtime, character.state) };
+  });
+  return { pack, options: { ...options, members } };
+}
+
+export function declineOffers(session: EncounterSession): void {
+  for (let i = 0; i < 30; i++) {
+    const offer = session.view().combat.pendingOffers[0];
+    if (!offer) return;
+    const result = send(session, {
+      type: 'respond',
+      actor: actor(offer.actorId),
+      triggerId: offer.triggerId,
+      choice: 'decline',
+    });
+    if (!result.ok) throw new Error(JSON.stringify(result.errors));
+  }
+  throw new Error('Offer driver exceeded 30 responses');
+}

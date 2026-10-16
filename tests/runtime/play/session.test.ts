@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createEncounterSession, restoreEncounterSession } from '../../../src/runtime';
+import { packContentHash } from '../../../src/schema/version';
 import { Rng } from '../../../src/core/rng';
 import { actor, nextAction, playFixture, send } from './fixtures';
 
@@ -158,4 +159,113 @@ it('preserves paused movement and offers, rejects a refused take transaction, th
   expect(session.serialize().encounter.positions['m:hero-1']).toEqual({ x: 0, y: -2 });
   expect(session.serialize().encounter.start.positions['m:hero-1']).toEqual({ x: 0, y: 0 });
   expect(restoreEncounterSession(pack, session.serialize()).view()).toEqual(session.view());
+});
+
+describe('CA-02 atomic settlement', () => {
+  it.each(['victory', 'defeat', 'abandoned'] as const)(
+    'settles %s exactly once and reopens the receipt',
+    async (result) => {
+      const { settlementFixture, finish, declineOffers } = await import('./fixtures');
+      const { pack, options } = settlementFixture();
+      const session = createEncounterSession(pack, options);
+      send(session, { type: 'advance' });
+      const player = { kind: 'member' as const, memberId: 'hero-1' };
+      for (const body of [
+        { type: 'use' as const, actor: player, itemId: 'mend-draught' },
+        { type: 'declare' as const, actor: player, actionId: 'hex-bolt', options: { targetId: 'e:0:1' } },
+        { type: 'declare' as const, actor: player, actionId: 'grave-light', options: { targetId: 'e:0:1' } },
+      ]) {
+        const response = send(session, body);
+        expect(response.ok, JSON.stringify(response)).toBe(true);
+        declineOffers(session);
+      }
+      if (result === 'victory') finish(session);
+      else {
+        for (let i = 0; i < 500; i++) {
+          if (session.view().phase === 'terminal') break;
+          const view = session.view();
+          if (result === 'abandoned' && view.combat.pendingOffers.length) break;
+          const body = view.combat.pendingOffers.length
+            ? nextAction(session)
+            : view.availableCommands.includes('advance')
+              ? { type: 'advance' as const }
+              : view.combat.state.active.startsWith('m:')
+                ? { type: 'pass' as const, actor: player }
+                : nextAction(session);
+          expect(send(session, body).ok).toBe(true);
+          if (i === 499) throw new Error('settlement driver exhausted');
+        }
+      }
+      if (result === 'abandoned') expect(session.view().combat.pendingOffers.length).toBeGreaterThan(0);
+      else expect(session.view().result).toBe(result);
+      const before = session.serialize();
+      const reopened = restoreEncounterSession(pack, JSON.parse(JSON.stringify(before)));
+      const body = { type: result === 'abandoned' ? ('abandon' as const) : ('finalize' as const) };
+      const answer = send(session, body);
+      expect(answer.ok).toBe(true);
+      expect(send(reopened, body)).toEqual(answer);
+      const after = session.serialize();
+      expect(after.encounter).toEqual(before.encounter);
+      expect(after.settlements[0]).toMatchObject({
+        receiptId: JSON.stringify([before.sessionId, before.encounter.encounterId, 'settlement']),
+        sourceHash: packContentHash({ pack: before.pack, encounter: before.encounter }),
+        beforeMembersHash: packContentHash(before.members),
+        afterMembersHash: packContentHash(after.members),
+      });
+      expect(after.members[0]!.character.state.pools['stamina']).toBe(
+        options.members[0]!.character.state.pools['stamina']! - 3,
+      );
+      expect(after.members[0]!.character.state.slots['1']).toEqual([null]);
+      expect(after.members[0]!.character.state.inventory).toEqual([{ id: 'mend-draught', qty: 1 }]);
+      const raw = before.encounter.combat.combatants.find((c) => c.id === 'm:hero-1')!;
+      expect(after.members[0]!.character.state.hp).toEqual({ current: raw.hp, temp: 2 });
+      expect(after.members[0]!.character.state.conditions).toEqual(raw.conditions);
+      expect(after.journal.slice(before.sequence).every((entry) => entry.event.actor === 'm:hero-1')).toBe(
+        true,
+      );
+      const restored = restoreEncounterSession(pack, JSON.parse(JSON.stringify(after)));
+      const repeated = send(restored, { type: 'finalize' });
+      expect(repeated.ok).toBe(true);
+      expect(repeated.events).toEqual([]);
+      expect(restored.serialize()).toEqual(after);
+      expect(
+        restored.dispatch({
+          type: 'finalize',
+          sessionId: options.sessionId,
+          expectedRevision: before.revision,
+        }).ok,
+      ).toBe(false);
+    },
+  );
+  it.each(['abandon', 'finalize'] as const)(
+    'rolls back earlier member debits when a later equipped spend blocks %s',
+    async (type) => {
+      const { settlementFixture, finish, declineOffers } = await import('./fixtures');
+      const { pack, options } = settlementFixture(2, true);
+      const session = createEncounterSession(pack, options);
+      for (let member = 0; member < 2; member++) {
+        expect(send(session, { type: 'advance' }).ok).toBe(true);
+        const id = session.view().combat.state.active;
+        expect(id.startsWith('m:')).toBe(true);
+        expect(send(session, { type: 'use', actor: actor(id), itemId: 'mend-draught' }).ok).toBe(true);
+        declineOffers(session);
+        if (id === 'm:hero-2') {
+          const response = send(session, { type: 'use', actor: actor(id), itemId: 'mend-draught' });
+          expect(response.ok, JSON.stringify(response)).toBe(true);
+          declineOffers(session);
+        }
+        expect(send(session, { type: 'pass', actor: actor(id) }).ok).toBe(true);
+      }
+      if (type === 'finalize') finish(session);
+      const before = session.serialize();
+      const result = send(session, { type });
+      expect(result.ok).toBe(false);
+      expect(result.events).toEqual([]);
+      if (!result.ok) expect(result.errors.some((e) => e.rule === 'item-equipped')).toBe(true);
+      expect(session.serialize()).toEqual(before);
+      const restored = restoreEncounterSession(pack, JSON.parse(JSON.stringify(before)));
+      expect(send(restored, { type })).toEqual(result);
+      expect(restored.serialize()).toEqual(before);
+    },
+  );
 });

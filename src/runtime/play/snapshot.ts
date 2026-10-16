@@ -10,6 +10,7 @@ import { Runtime } from '../runtime';
 import { RuntimeRuleError, ruleCard } from '../errors';
 import { serializeCombat, deserializeCombat } from '../snapshots/combat';
 import { isRecord, packIdentity } from '../snapshots/envelope';
+import { settleEncounter } from './settlement';
 import type { Combat } from '../combat/combat';
 
 export function detached<T>(value: T): T {
@@ -117,16 +118,25 @@ export function readSnapshot(pack: Pack, input: unknown): PlaySessionSnapshot {
     'encounter.control',
     'Turn control differs from raw combat.',
   );
-  requireSnapshot(
-    saved.phase !== 'settled',
-    'phase',
-    'Settlement restore is not available until the settlement boundary is implemented.',
-  );
-  requireSnapshot(
-    same(saved.members, e.entryMembers),
-    'members',
-    'Unsettled members differ from encounter baseline.',
-  );
+  if (saved.phase === 'settled') {
+    const receipt = saved.settlements.find((r) => r.encounterId === e.encounterId);
+    requireSnapshot(
+      receipt !== undefined && saved.result !== null,
+      'settlements',
+      'Current settlement receipt is missing.',
+    );
+    const staged = settleEncounter(pack, saved, saved.result!, receipt!.revision);
+    requireSnapshot(
+      same(staged.receipt, receipt) && same(staged.members, saved.members),
+      'settlements',
+      'Settlement receipt or member projection differs.',
+    );
+  } else
+    requireSnapshot(
+      same(saved.members, e.entryMembers),
+      'members',
+      'Unsettled members differ from encounter baseline.',
+    );
   const { fight } = hydrateFight(pack, saved);
   requireSnapshot(
     same(freezeFight(fight, e.encounterId, e.control.turnStarted).combat, e.combat),

@@ -15,6 +15,7 @@ import { RuntimeRuleError, ruleCard } from '../errors';
 import type { RuntimeEvent } from '../events';
 import type { CombatState, DeclareOptions, PendingTrigger } from '../combat/types';
 import { packIdentity, isRecord } from '../snapshots/envelope';
+import { settleEncounter } from './settlement';
 import { beginEncounter } from './encounter';
 import { detached, freezeFight, hydrateFight, projectMembers, readSnapshot } from './snapshot';
 
@@ -208,12 +209,14 @@ function facade(pack: Pack, initial: PlaySessionSnapshot): EncounterSession {
     const { fight } = hydrateFight(pack, saved);
     const availableCommands: EncounterCommand['type'][] = [];
     if (saved.phase === 'active') {
+      availableCommands.push('abandon');
       if (fight.pendingTriggers.length) availableCommands.push('respond');
       else if (!saved.encounter.control.turnStarted || fight.state.phase === 'resolved')
         availableCommands.push('advance');
       if (saved.encounter.control.turnStarted && !fight.pendingTriggers.length)
         availableCommands.push('declare', 'use', 'pass');
     }
+    if (saved.phase === 'terminal' || saved.phase === 'settled') availableCommands.push('finalize');
     return detached({
       sessionId: saved.sessionId,
       revision: saved.revision,
@@ -234,10 +237,48 @@ function facade(pack: Pack, initial: PlaySessionSnapshot): EncounterSession {
         const command = detached(input);
         if (command.sessionId !== saved.sessionId) refuse('sessionId', 'Foreign session.');
         if (command.expectedRevision !== saved.revision) refuse('expectedRevision', 'Stale revision.');
+        if (command.type === 'finalize' && saved.phase === 'settled') {
+          return {
+            ok: true,
+            revision: saved.revision,
+            events: [],
+            view: view(),
+            receipt: detached(
+              saved.settlements.find((receipt) => receipt.encounterId === saved.encounter.encounterId)!,
+            ),
+          };
+        }
         if (!Number.isSafeInteger(saved.revision + 1)) refuse('revision', 'Revision exhausted.');
+        if (command.type === 'finalize' || command.type === 'abandon') {
+          if (command.type === 'finalize' ? saved.phase !== 'terminal' : saved.phase !== 'active')
+            refuse('phase', 'Settlement is not available at this boundary.');
+          const result = command.type === 'abandon' ? 'abandoned' : saved.result;
+          if (result === null) refuse('result', 'Terminal result is missing.');
+          const staged = settleEncounter(pack, saved, result, saved.revision + 1);
+          const next = appendJournal(
+            pack,
+            {
+              ...saved,
+              revision: saved.revision + 1,
+              phase: 'settled',
+              result,
+              members: staged.members,
+              settlements: [...saved.settlements, staged.receipt],
+            },
+            staged.events,
+          );
+          const suffix = next.journal.slice(saved.sequence);
+          saved = next;
+          return {
+            ok: true,
+            revision: saved.revision,
+            events: detached(suffix),
+            view: view(),
+            receipt: detached(staged.receipt),
+          };
+        }
         if (saved.phase !== 'active') refuse('phase', 'Encounter is not active.');
-        if (command.type === 'finalize' || command.type === 'abandon' || command.type === 'next')
-          refuse('type', 'Command is not yet available.');
+        if (command.type === 'next') refuse('type', 'Command is not yet available.');
         const { runtime, fight } = hydrateFight(pack, saved);
         let started = saved.encounter.control.turnStarted;
         if ('actor' in command) {
