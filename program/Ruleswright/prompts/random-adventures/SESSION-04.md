@@ -160,3 +160,8 @@ Harness owner S04 c3/c4; fixtures reuse S03's real pack/definition construction.
 ## State Update
 
 Return CA-05 observed mappings, R-GM-3 evidence, new API symbols, actual runtimes and remaining debts. Orchestrator updates all CAP/CA rows and requests the final scoped Archivist pass. No capability is verified by a docs string or schema conformance alone. Keep B-BD-1 open until actual Actions results are observed; do not push to clear it without separate user instruction.
+
+
+## Landed manual adventure prerequisite — SESSION-03
+
+S03 accepted through `31c822f`: createAdventure/restoreAdventure and actual manual dispatch, saved roll staging, atomic real XP/item writers, full journal/subject/receipt validation and restart are ready. CA03 play and CA04 verified by built journey5/rewards15/snapshots73/conformance59; full Node/Electron1353 each, three browsers76 each independently passed. Four streams, director policy/counters/hash and narrationAck already persist; this session composes their actual director/ack consumers. Exact HP/indexed preparation/resource preservation, later-member rollback and terminal damage/spend are proved; preserve these assertions. Pure preview/candidates/director/narration are your planned outputs, not missing predecessor inputs. Strict browser flags are --browser.api.port=63315 --browser.api.strictPort; no separate --api server. V-CLEAN and final cross-runtime gates remain yours; remote Actions require later authorized publication.
