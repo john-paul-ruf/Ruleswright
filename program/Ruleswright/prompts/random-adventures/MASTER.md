@@ -8,7 +8,7 @@ Planner planned this. Coder builds it ([CODER.md](../../../../program-agents/COD
 
 **Parallel run:** hand this directory to Orchestrator. It spawns Coder using the active runtime's subagent mechanism and awaits results; no shell process, pid file or environment handshake. Orchestrator owns STATE.md/MASTER.md/arch and inline Orchestration Envelopes. Coder commits its own lease at every checkpoint and returns the CODER.md Handoff. This plan has four serial capability waves, so a parallel runtime does not make their dependent leases concurrent.
 
-**Dispatch status:** planning complete enough for Author review, **not cleared for Coder dispatch**. Read AUTHOR-HANDOFF.md and STATE Current Blockers. The user's “plan all three” resolves feature scope; the protected requirement/schema amendments still need the scoped Author receipt. Do not rerun the three-option scope question. Request the scoped Archivist planning-completeness review before affected execution after those amendments are reconciled.
+**Dispatch status:** planning complete enough for Author review, **not cleared for Coder dispatch**. Read AUTHOR-HANDOFF.md and STATE Current Blockers. The user's “plan all three” resolves feature scope; the subsequent “start” responding to the concrete AR-01–AR-06 request approves those amendments and Author re-entry (STATE Authorization Receipt). The protected amendments still need committed receipts from a separate Author session; do not request the same approval again. Do not rerun the three-option scope question. Request the scoped Archivist planning-completeness review before affected execution after those amendments are reconciled.
 
 ## Sessions
 

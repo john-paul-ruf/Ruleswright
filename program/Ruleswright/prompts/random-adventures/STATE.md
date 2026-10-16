@@ -6,7 +6,7 @@
 - Feature: random-adventures. Plan HEAD `c8e526047b8186d35710965d5f210f858ab232a3`; planning date 2026-10-16.
 - Intent: all three requested modes — standalone random encounters, complete headless adventures, and a solo director — through one UI-independent library.
 - Four implementation sessions, 19 checkpoint commits planned. No implementation has been executed. Author re-entry is a prerequisite, not a Coder lease.
-- Input authority: current user's “plan all three” after the three scopes; original “regardless of ui”; current config and Author sources. Older narrative deferral is superseded in scope by that answer, while offline/no-I/O/rules-as-data remain.
+- Input authority: user's “plan all three” after the three scopes; original “regardless of ui”; current config and Author sources. On resume, the user's “start” in direct response to the concrete AR-01–AR-06 approval request is interpreted as approval of those amendments and deliberate Author re-entry; see Authorization Receipt below. Older narrative deferral is superseded in scope by that answer, while offline/no-I/O/rules-as-data remain.
 
 ## Session Status
 
@@ -153,7 +153,7 @@ First narrow journey: S01 c3 built package encounter → real combat action → 
 | CA-04 | Choice/reward/rest eligibility derives from saved authoritative state and definition | S03 dispatch/writers → aggregate revision/receipt/journal → views/restored adventure/director   | Exact node/reward/member ids, per-member XP vs class split, one saved roll/claim, no implicit heal                   | DB AR-04; S03 c2/c3/c4                      | unresolved | planned  | planned; provisional against S03 c4; recheck before S04    |
 | CA-05 | Automated actions legal and bounded; narration factual and separately acknowledged   | Pure gates + committed adventure state/events → director/renderer → actual commands/messages    | Player control preserved; no-action/stalled not victory; negative damage means healing; cursor can't exceed journal  | AR-05 required additive contract; S04 c1–c4 | unresolved | planned  | planned; provisional against S04 c3/c4                     |
 
-All five mappings are proposed agreements pending the named Author/producer checkpoints. Once Author resolves semantics, Agreement may become agreed while Producer/Proof remain planned. Completed Coder checkpoints alone do not verify downstream boundary proofs.
+The human approved the proposed AR-01–AR-06 meaning on resume. All five exact mappings remain unresolved pending the named Author receipts and producer checkpoints; approved intent is not a committed schema. Once Author resolves semantics, Agreement may become agreed while Producer/Proof remain planned. Completed Coder checkpoints alone do not verify downstream boundary proofs.
 
 ### CA-01 — defect, map and assertions
 
@@ -189,7 +189,7 @@ Tests: S04 preview/director/narration, movement regression, built solo journey a
 
 | ID          | Affected                                          | Next action / owner                                                                                                        | Evidence to clear                                                                                               |
 | ----------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| B-RA-AUTHOR | CA-01..05, initial S01 then scoped later sessions | Human-routed Author review of concrete AUTHOR-HANDOFF; scope answer already recorded, no repeated choice among three modes | Approved requirements/contract meaning and committed DB/Architect receipt; Orchestrator amends affected prompts |
+| B-RA-AUTHOR | CA-01..05, initial S01 then scoped later sessions | Approval received on resume (“start”); separate Author session must commit AR-01–AR-06 receipts under AUTHOR.md; no repeat approval request | Committed Spec/Designer/Architect/DB receipts, then Orchestrator reconciles prompts and CA mappings; approval alone is not producer evidence |
 | B-RA-DX     | Relevant documentation checkpoints                | Orchestrator routes Designer design-fill/new surfaces and scoped existing design-change packet                             | Matching developer-facing source and examples; no UI build                                                      |
 | B-RA-REVIEW | Affected execution                                | Orchestrator requests scoped Archivist planning-completeness at first quiet boundary, after receipt amendments             | Findings dispositions in these canonical sections; scoring belongs to Archivist                                 |
 | B-BD-1      | CI acceptance only; carried                       | Human publication/push owner, then Orchestrator observes actual Actions and assigns any mechanical repair                  | Relevant Node/browser/Electron/package runs green at the implemented revision                                   |
@@ -226,5 +226,21 @@ User instruction: “start”. This authorizes orchestration execution; AR-01–
 - B-RA-REVIEW remains pending: scoped Archivist D1–D7 review follows committed Author receipts and prompt/CA reconciliation, before affected Coder dispatch. No review score or readiness claim is fabricated.
 - B-RA-DX remains scoped to documentation checkpoints; B-BD-1 remains carried CI evidence debt with the human publication owner.
 - Next action: receive human disposition, route the approved protected revisions through deliberate Author re-entry, reconcile exact receipts, then complete preflight/review and dispatch S01. This is a paused run, not completion; no FINAL-REPORT or end_run has been issued.
+
+## Authorization Receipt — 2026-10-16 resume
+
+User response, verbatim: “start”.
+
+Context: this response follows the concrete request to approve AR-01–AR-06 in AUTHOR-HANDOFF.md and authorize Author re-entry. Orchestrator interprets it as approval of that presented packet and re-entry, not merely a repetition of the earlier planning request. No further approval of the same packet is requested.
+
+Current disposition supersedes the earlier startup approval blocker: B-RA-AUTHOR is **approved, awaiting committed Author receipt**. Source remains `a8f44884f9df523c69db1775709af40c5558174f`; no implementation or protected Author artifact changed. No worker launched, no live handle, no reserved lease, no pending receive. Native binding re-confirmed; cap 3; W1 S01 → W2 S02 → W3 S03 → W4 S04.
+
+The supplied Orchestrator protocol says “Does not dispatch a Spec worker, or any worker that writes requirements.md, architecture.md, or database.md.” AUTHOR.md, Author Re-entry, says “Spec is never spawned” and requires the builder to start a separate Author session. Therefore Orchestrator cannot turn this approval into an automatic protected-author worker. This is an owner/role transition, not a renewed product approval or an implementation failure. Alternatives rejected: spawning a disguised owner-correction worker, writing protected contracts as Orchestrator, or dispatching S01 against draft schemas.
+
+### Ready-to-use Author handoff
+
+Read `program-agents/AUTHOR.md`. Perform deliberate Author re-entry for `program/Ruleswright/prompts/random-adventures/AUTHOR-HANDOFF.md`, AR-01–AR-06. The builder answered “start” to the concrete approval and re-entry request; that approval is recorded above and must not be requested again for the same scope. Preserve approved semantics and compatibility. Follow the relevant role phases for requirements, developer design, architecture and schema; keep implementation source/tests outside this Author work. Read `program/Ruleswright/PROGRAM-CONFIG.MD`, existing Author sources, and the packet's evidence references. Commit exact owned paths using explicit pathspecs; preserve unrelated work. Return commit IDs, exact paths, approved references, compatibility notes, verification and structured R1–R4 deviations (or “not a deviation”). Route genuinely new product decisions to the builder.
+
+After receipts land, Orchestrator reconciles every affected CA/session assumption, requests the scoped Archivist D1–D7 review against exact plan/source revisions, refreshes the ledger and dispatches S01. CAP/CA producer and proof readiness remain blocked/planned until their actual evidence lands. No FINAL-REPORT or end_run is issued at this paused boundary.
 
 ## Handoff Notes
