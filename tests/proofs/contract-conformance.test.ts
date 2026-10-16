@@ -27,6 +27,7 @@ import Ajv2020 from 'ajv/dist/2020';
 import type { ValidateFunction } from 'ajv';
 import { describe, expect, it } from 'vitest';
 import { generateCampaign, loadTheme } from '../../src/compiler';
+import { generateAdventure, loadAdventureTemplate } from '../../dist/compiler.js';
 import {
   createEncounterSession,
   restoreEncounterSession,
@@ -475,6 +476,30 @@ describe('CA-03 / F-RA-01 authoritative adventure input conformance', () => {
     expect(json(template).locations['watch']!.encounter!.seed).toBe('');
     expect(json(definition).nodes[1]!.encounter!.seed).toBe('');
   });
+  it.each(['dark-fantasy', 'zombie-urban', 'wyldwood', 'hand-authored'])(
+    '%s actual bound and generated output conforms through JSON',
+    (theme) => {
+      const custom = adventureFixture();
+      const pack =
+        theme === 'hand-authored' ? custom.pack : generateCampaign({ theme: loadTheme(theme), seed: 42 });
+      const template = theme === 'hand-authored' ? custom.template : loadAdventureTemplate(theme, pack);
+      expect(validate(json(template)), ajv.errorsText(validate.errors)).toBe(true);
+      const definition = generateAdventure({ pack, template, seed: 'conformance' });
+      for (const doc of [definition, json(definition)]) {
+        expect(validate(doc), ajv.errorsText(validate.errors)).toBe(true);
+        expect(validateAdventureDefinition(pack, doc)).toEqual([]);
+        expect(doc.nodes.filter((n) => n.kind === 'encounter').every((n) => n.encounter!.seed === '')).toBe(
+          true,
+        );
+      }
+      expect(json(definition).contentHash).toBe(definition.contentHash);
+      const bad = json(definition) as unknown as { nodes: Doc[] };
+      const index = definition.nodes.findIndex((n) => n.kind === 'encounter');
+      (bad.nodes[index]!['encounter'] as Doc)['seed'] = null;
+      expect(validate(bad)).toBe(false);
+      expect(failedOn(validate, `/nodes/${index}/encounter/seed`, 'type')).toBe(true);
+    },
+  );
   it('rejects non-JSON setup seed and extra fields at their authoritative locations', () => {
     const { template, definition } = adventureFixture();
     const bad = json(template);

@@ -1,0 +1,433 @@
+{
+  "kind": "adventure-template",
+  "schemaVersion": 1,
+  "id": "wyldwood",
+  "version": 1,
+  "nodeBounds": {
+    "min": 5,
+    "max": 8
+  },
+  "objective": {
+    "id": "deliver",
+    "text": "Return the rootlight to the hollow crossing."
+  },
+  "tables": {
+    "arrival": {
+      "kind": "weighted",
+      "entries": [
+        {
+          "weight": 1,
+          "value": "threshold"
+        },
+        {
+          "weight": 1,
+          "value": "landmark"
+        }
+      ]
+    },
+    "watch": {
+      "kind": "weighted",
+      "entries": [
+        {
+          "weight": 1,
+          "value": "gate"
+        }
+      ]
+    },
+    "refuge": {
+      "kind": "weighted",
+      "entries": [
+        {
+          "weight": 1,
+          "value": "shelter"
+        }
+      ]
+    },
+    "last-watch": {
+      "kind": "weighted",
+      "entries": [
+        {
+          "weight": 1,
+          "value": "vault"
+        }
+      ]
+    },
+    "side-path": {
+      "kind": "weighted",
+      "entries": [
+        {
+          "weight": 1,
+          "value": "stair"
+        }
+      ]
+    },
+    "side-watch": {
+      "kind": "weighted",
+      "entries": [
+        {
+          "weight": 1,
+          "value": "sentry"
+        }
+      ]
+    },
+    "relic": {
+      "kind": "weighted",
+      "entries": [
+        {
+          "weight": 1,
+          "value": "dial"
+        }
+      ]
+    }
+  },
+  "locations": {
+    "threshold": {
+      "kind": "discovery",
+      "title": "Rainleaf Verge",
+      "description": "A weathered marker points toward two paths. Neither hides its destination.",
+      "rewardIds": [],
+      "rest": "none",
+      "preparation": false,
+      "facts": {
+        "place": "Rainleaf Verge"
+      }
+    },
+    "landmark": {
+      "kind": "discovery",
+      "title": "The Listening Pool",
+      "description": "A shallow basin holds a reflection of the way ahead.",
+      "rewardIds": [],
+      "rest": "none",
+      "preparation": false,
+      "facts": {
+        "place": "The Listening Pool"
+      }
+    },
+    "gate": {
+      "kind": "encounter",
+      "title": "Bramble Ford",
+      "description": "A lone watcher blocks the direct approach.",
+      "rewardIds": ["watch-cache"],
+      "rest": "none",
+      "preparation": false,
+      "facts": {
+        "place": "Bramble Ford"
+      },
+      "encounter": {
+        "budget": 1.5,
+        "seed": "",
+        "maxPartySize": 4,
+        "maxEnemies": 1,
+        "layout": {
+          "kind": "spatial",
+          "model": "hex",
+          "allies": [
+            {
+              "x": 0,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 1
+            },
+            {
+              "x": 0,
+              "y": 2
+            },
+            {
+              "x": 0,
+              "y": 3
+            }
+          ],
+          "enemies": [
+            {
+              "x": 1,
+              "y": 0
+            }
+          ],
+          "terrain": [
+            {
+              "at": {
+                "x": 2,
+                "y": 1
+              },
+              "kind": "bramble"
+            }
+          ]
+        }
+      }
+    },
+    "shelter": {
+      "kind": "rest",
+      "title": "Mossveil Hollow",
+      "description": "A dry alcove offers time to rest and prepare. Supplies do not mend injuries.",
+      "rewardIds": [],
+      "rest": "once",
+      "preparation": true,
+      "facts": {
+        "place": "Mossveil Hollow"
+      }
+    },
+    "vault": {
+      "kind": "encounter",
+      "title": "Rootlight Ring",
+      "description": "The last watcher stands between the party and its delivery.",
+      "rewardIds": ["delivery-cache"],
+      "rest": "none",
+      "preparation": false,
+      "facts": {
+        "place": "Rootlight Ring"
+      },
+      "encounter": {
+        "budget": 1.5,
+        "seed": "",
+        "maxPartySize": 4,
+        "maxEnemies": 1,
+        "layout": {
+          "kind": "spatial",
+          "model": "hex",
+          "allies": [
+            {
+              "x": 0,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 1
+            },
+            {
+              "x": 0,
+              "y": 2
+            },
+            {
+              "x": 0,
+              "y": 3
+            }
+          ],
+          "enemies": [
+            {
+              "x": 1,
+              "y": 0
+            }
+          ],
+          "terrain": [
+            {
+              "at": {
+                "x": 2,
+                "y": 1
+              },
+              "kind": "bramble"
+            }
+          ]
+        }
+      }
+    },
+    "stair": {
+      "kind": "discovery",
+      "title": "A Buried Walk",
+      "description": "The longer route curves around the gate and rejoins at the refuge.",
+      "rewardIds": [],
+      "rest": "none",
+      "preparation": false,
+      "facts": {
+        "place": "A Buried Walk"
+      }
+    },
+    "sentry": {
+      "kind": "encounter",
+      "title": "Thornwatch Rise",
+      "description": "A watcher keeps the side route. A small cache lies beyond.",
+      "rewardIds": ["watch-cache"],
+      "rest": "none",
+      "preparation": false,
+      "facts": {
+        "place": "Thornwatch Rise"
+      },
+      "encounter": {
+        "budget": 1.5,
+        "seed": "",
+        "maxPartySize": 4,
+        "maxEnemies": 1,
+        "layout": {
+          "kind": "spatial",
+          "model": "hex",
+          "allies": [
+            {
+              "x": 0,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 1
+            },
+            {
+              "x": 0,
+              "y": 2
+            },
+            {
+              "x": 0,
+              "y": 3
+            }
+          ],
+          "enemies": [
+            {
+              "x": 1,
+              "y": 0
+            }
+          ],
+          "terrain": [
+            {
+              "at": {
+                "x": 2,
+                "y": 1
+              },
+              "kind": "bramble"
+            }
+          ]
+        }
+      }
+    },
+    "dial": {
+      "kind": "discovery",
+      "title": "The Seed Dial",
+      "description": "An old dial records the route in marks worn smooth by travelers.",
+      "rewardIds": ["dial-cache"],
+      "rest": "none",
+      "preparation": false,
+      "facts": {
+        "place": "The Seed Dial"
+      }
+    }
+  },
+  "fragments": {
+    "forward": "Continue along the marked route.",
+    "detour": "Take the longer passage to the refuge.",
+    "inspect": "Inspect the old dial before continuing."
+  },
+  "construction": {
+    "entry": {
+      "id": "arrival",
+      "tableId": "arrival"
+    },
+    "spine": [
+      {
+        "id": "gate",
+        "tableId": "watch"
+      },
+      {
+        "id": "refuge",
+        "tableId": "refuge"
+      },
+      {
+        "id": "vault",
+        "tableId": "last-watch"
+      }
+    ],
+    "terminal": {
+      "id": "delivery",
+      "title": "The Rootlight Errand",
+      "description": "The delivery is complete. The route remains behind you."
+    },
+    "branches": [
+      {
+        "id": "passage",
+        "fromNodeId": "arrival",
+        "toNodeId": "refuge",
+        "nodes": [
+          {
+            "id": "passage",
+            "tableId": "side-path"
+          },
+          {
+            "id": "sentry",
+            "tableId": "side-watch"
+          }
+        ],
+        "includeWeight": 1,
+        "omitWeight": 0,
+        "choiceTextRef": "detour"
+      },
+      {
+        "id": "dial",
+        "fromNodeId": "refuge",
+        "toNodeId": "vault",
+        "nodes": [
+          {
+            "id": "dial",
+            "tableId": "relic"
+          }
+        ],
+        "includeWeight": 1,
+        "omitWeight": 1,
+        "choiceTextRef": "inspect"
+      }
+    ],
+    "continueTextRef": "forward"
+  },
+  "rewards": [
+    {
+      "id": "watch-cache",
+      "xpPerMember": 25,
+      "eligible": "party",
+      "loot": {
+        "tableId": "wyrd-charms",
+        "recipient": "host-choice"
+      }
+    },
+    {
+      "id": "delivery-cache",
+      "xpPerMember": 50,
+      "eligible": "party",
+      "loot": null
+    },
+    {
+      "id": "dial-cache",
+      "xpPerMember": 0,
+      "eligible": "party",
+      "loot": {
+        "tableId": "wyrd-charms",
+        "recipient": "host-choice"
+      }
+    }
+  ],
+  "facts": {
+    "journey": "The Rootlight Errand"
+  },
+  "director": {
+    "id": "wyldwood-watch",
+    "version": 1,
+    "priorities": [
+      {
+        "kind": "action",
+        "actionId": "strike"
+      },
+      {
+        "kind": "move",
+        "actionId": "glide"
+      },
+      {
+        "kind": "pass"
+      }
+    ],
+    "targetOrder": "nearest",
+    "tieBreak": "lexical",
+    "reactionPriority": ["bramble-snap"],
+    "maxCandidates": 256,
+    "stallLimit": 8
+  },
+  "narration": {
+    "fragments": [
+      {
+        "id": "arrival",
+        "eventType": "node:entered",
+        "text": "The party reaches {place}.",
+        "slots": [
+          {
+            "name": "place",
+            "path": "facts.place"
+          }
+        ]
+      }
+    ]
+  }
+}

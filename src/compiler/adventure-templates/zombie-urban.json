@@ -1,0 +1,433 @@
+{
+  "kind": "adventure-template",
+  "schemaVersion": 1,
+  "id": "zombie-urban",
+  "version": 1,
+  "nodeBounds": {
+    "min": 5,
+    "max": 8
+  },
+  "objective": {
+    "id": "deliver",
+    "text": "Bring the repeater coil to the roof aerial."
+  },
+  "tables": {
+    "arrival": {
+      "kind": "weighted",
+      "entries": [
+        {
+          "weight": 1,
+          "value": "threshold"
+        },
+        {
+          "weight": 1,
+          "value": "landmark"
+        }
+      ]
+    },
+    "watch": {
+      "kind": "weighted",
+      "entries": [
+        {
+          "weight": 1,
+          "value": "gate"
+        }
+      ]
+    },
+    "refuge": {
+      "kind": "weighted",
+      "entries": [
+        {
+          "weight": 1,
+          "value": "shelter"
+        }
+      ]
+    },
+    "last-watch": {
+      "kind": "weighted",
+      "entries": [
+        {
+          "weight": 1,
+          "value": "vault"
+        }
+      ]
+    },
+    "side-path": {
+      "kind": "weighted",
+      "entries": [
+        {
+          "weight": 1,
+          "value": "stair"
+        }
+      ]
+    },
+    "side-watch": {
+      "kind": "weighted",
+      "entries": [
+        {
+          "weight": 1,
+          "value": "sentry"
+        }
+      ]
+    },
+    "relic": {
+      "kind": "weighted",
+      "entries": [
+        {
+          "weight": 1,
+          "value": "dial"
+        }
+      ]
+    }
+  },
+  "locations": {
+    "threshold": {
+      "kind": "discovery",
+      "title": "Glass Mile Stop",
+      "description": "A weathered marker points toward two paths. Neither hides its destination.",
+      "rewardIds": [],
+      "rest": "none",
+      "preparation": false,
+      "facts": {
+        "place": "Glass Mile Stop"
+      }
+    },
+    "landmark": {
+      "kind": "discovery",
+      "title": "The Flooded Kiosk",
+      "description": "A shallow basin holds a reflection of the way ahead.",
+      "rewardIds": [],
+      "rest": "none",
+      "preparation": false,
+      "facts": {
+        "place": "The Flooded Kiosk"
+      }
+    },
+    "gate": {
+      "kind": "encounter",
+      "title": "Turnstile Yard",
+      "description": "A lone watcher blocks the direct approach.",
+      "rewardIds": ["watch-cache"],
+      "rest": "none",
+      "preparation": false,
+      "facts": {
+        "place": "Turnstile Yard"
+      },
+      "encounter": {
+        "budget": 1,
+        "seed": "",
+        "maxPartySize": 4,
+        "maxEnemies": 1,
+        "layout": {
+          "kind": "spatial",
+          "model": "grid",
+          "allies": [
+            {
+              "x": 0,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 1
+            },
+            {
+              "x": 0,
+              "y": 2
+            },
+            {
+              "x": 0,
+              "y": 3
+            }
+          ],
+          "enemies": [
+            {
+              "x": 1,
+              "y": 0
+            }
+          ],
+          "terrain": [
+            {
+              "at": {
+                "x": 2,
+                "y": 1
+              },
+              "kind": "debris"
+            }
+          ]
+        }
+      }
+    },
+    "shelter": {
+      "kind": "rest",
+      "title": "The Shutter Room",
+      "description": "A dry alcove offers time to rest and prepare. Supplies do not mend injuries.",
+      "rewardIds": [],
+      "rest": "once",
+      "preparation": true,
+      "facts": {
+        "place": "The Shutter Room"
+      }
+    },
+    "vault": {
+      "kind": "encounter",
+      "title": "Coil Station",
+      "description": "The last watcher stands between the party and its delivery.",
+      "rewardIds": ["delivery-cache"],
+      "rest": "none",
+      "preparation": false,
+      "facts": {
+        "place": "Coil Station"
+      },
+      "encounter": {
+        "budget": 1,
+        "seed": "",
+        "maxPartySize": 4,
+        "maxEnemies": 1,
+        "layout": {
+          "kind": "spatial",
+          "model": "grid",
+          "allies": [
+            {
+              "x": 0,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 1
+            },
+            {
+              "x": 0,
+              "y": 2
+            },
+            {
+              "x": 0,
+              "y": 3
+            }
+          ],
+          "enemies": [
+            {
+              "x": 1,
+              "y": 0
+            }
+          ],
+          "terrain": [
+            {
+              "at": {
+                "x": 2,
+                "y": 1
+              },
+              "kind": "debris"
+            }
+          ]
+        }
+      }
+    },
+    "stair": {
+      "kind": "discovery",
+      "title": "Service Tunnel",
+      "description": "The longer route curves around the gate and rejoins at the refuge.",
+      "rewardIds": [],
+      "rest": "none",
+      "preparation": false,
+      "facts": {
+        "place": "Service Tunnel"
+      }
+    },
+    "sentry": {
+      "kind": "encounter",
+      "title": "The Dry Cistern",
+      "description": "A watcher keeps the side route. A small cache lies beyond.",
+      "rewardIds": ["watch-cache"],
+      "rest": "none",
+      "preparation": false,
+      "facts": {
+        "place": "The Dry Cistern"
+      },
+      "encounter": {
+        "budget": 1,
+        "seed": "",
+        "maxPartySize": 4,
+        "maxEnemies": 1,
+        "layout": {
+          "kind": "spatial",
+          "model": "grid",
+          "allies": [
+            {
+              "x": 0,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 1
+            },
+            {
+              "x": 0,
+              "y": 2
+            },
+            {
+              "x": 0,
+              "y": 3
+            }
+          ],
+          "enemies": [
+            {
+              "x": 1,
+              "y": 0
+            }
+          ],
+          "terrain": [
+            {
+              "at": {
+                "x": 2,
+                "y": 1
+              },
+              "kind": "debris"
+            }
+          ]
+        }
+      }
+    },
+    "dial": {
+      "kind": "discovery",
+      "title": "Signal Cabinet",
+      "description": "An old dial records the route in marks worn smooth by travelers.",
+      "rewardIds": ["dial-cache"],
+      "rest": "none",
+      "preparation": false,
+      "facts": {
+        "place": "Signal Cabinet"
+      }
+    }
+  },
+  "fragments": {
+    "forward": "Continue along the marked route.",
+    "detour": "Take the longer passage to the refuge.",
+    "inspect": "Inspect the old dial before continuing."
+  },
+  "construction": {
+    "entry": {
+      "id": "arrival",
+      "tableId": "arrival"
+    },
+    "spine": [
+      {
+        "id": "gate",
+        "tableId": "watch"
+      },
+      {
+        "id": "refuge",
+        "tableId": "refuge"
+      },
+      {
+        "id": "vault",
+        "tableId": "last-watch"
+      }
+    ],
+    "terminal": {
+      "id": "delivery",
+      "title": "Signal at Glass Mile",
+      "description": "The delivery is complete. The route remains behind you."
+    },
+    "branches": [
+      {
+        "id": "passage",
+        "fromNodeId": "arrival",
+        "toNodeId": "refuge",
+        "nodes": [
+          {
+            "id": "passage",
+            "tableId": "side-path"
+          },
+          {
+            "id": "sentry",
+            "tableId": "side-watch"
+          }
+        ],
+        "includeWeight": 1,
+        "omitWeight": 0,
+        "choiceTextRef": "detour"
+      },
+      {
+        "id": "dial",
+        "fromNodeId": "refuge",
+        "toNodeId": "vault",
+        "nodes": [
+          {
+            "id": "dial",
+            "tableId": "relic"
+          }
+        ],
+        "includeWeight": 1,
+        "omitWeight": 1,
+        "choiceTextRef": "inspect"
+      }
+    ],
+    "continueTextRef": "forward"
+  },
+  "rewards": [
+    {
+      "id": "watch-cache",
+      "xpPerMember": 25,
+      "eligible": "party",
+      "loot": {
+        "tableId": "street-remnants",
+        "recipient": "host-choice"
+      }
+    },
+    {
+      "id": "delivery-cache",
+      "xpPerMember": 50,
+      "eligible": "party",
+      "loot": null
+    },
+    {
+      "id": "dial-cache",
+      "xpPerMember": 0,
+      "eligible": "party",
+      "loot": {
+        "tableId": "street-remnants",
+        "recipient": "host-choice"
+      }
+    }
+  ],
+  "facts": {
+    "journey": "Signal at Glass Mile"
+  },
+  "director": {
+    "id": "zombie-urban-watch",
+    "version": 1,
+    "priorities": [
+      {
+        "kind": "action",
+        "actionId": "shambler-claw"
+      },
+      {
+        "kind": "move",
+        "actionId": "hustle"
+      },
+      {
+        "kind": "pass"
+      }
+    ],
+    "targetOrder": "nearest",
+    "tieBreak": "lexical",
+    "reactionPriority": ["cheap-shot"],
+    "maxCandidates": 256,
+    "stallLimit": 8
+  },
+  "narration": {
+    "fragments": [
+      {
+        "id": "arrival",
+        "eventType": "node:entered",
+        "text": "The party reaches {place}.",
+        "slots": [
+          {
+            "name": "place",
+            "path": "facts.place"
+          }
+        ]
+      }
+    ]
+  }
+}
