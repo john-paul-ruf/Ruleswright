@@ -1,0 +1,946 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ruleswright.dev/schemas/1/play-session.schema.json",
+  "title": "Ruleswright Play Session — snapshotVersion 1",
+  "$ref": "#/$defs/playSessionSnapshot",
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "opaqueId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "counter": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}$"
+    },
+    "seed": {
+      "type": ["string", "number"],
+      "description": "Finite numeric or string input; canonicalize with String(seed), as core Rng does. Persist canonical strings in snapshots."
+    },
+    "jsonValue": {
+      "anyOf": [
+        {
+          "type": ["null", "boolean", "string", "number"]
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/jsonValue"
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/jsonValue"
+          }
+        }
+      ]
+    },
+    "position": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y"],
+      "properties": {
+        "x": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "y": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "terrainCell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["at", "kind"],
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/position"
+        },
+        "kind": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        }
+      }
+    },
+    "layout": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": {
+            "kind": {
+              "const": "theater"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "model", "allies", "enemies", "terrain"],
+          "properties": {
+            "kind": {
+              "const": "spatial"
+            },
+            "model": {
+              "enum": ["grid", "hex"]
+            },
+            "allies": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/position"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "enemies": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/position"
+              },
+              "minItems": 1,
+              "uniqueItems": true,
+              "maxItems": 12
+            },
+            "terrain": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/terrainCell"
+              },
+              "uniqueItems": true
+            }
+          }
+        }
+      ],
+      "description": "Explicit fixed placement in saved member order and generated enemy order. Spatial model matches pack; capacity covers declared caps; all cells unique across sides and not blocking. Theater only for a pack without spatial."
+    },
+    "encounterSetup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["budget", "seed", "maxPartySize", "maxEnemies", "layout"],
+      "properties": {
+        "budget": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "seed": {
+          "$ref": "#/$defs/seed"
+        },
+        "maxPartySize": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "maxEnemies": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12
+        },
+        "layout": {
+          "$ref": "#/$defs/layout"
+        }
+      },
+      "description": "AR-02: no implicit party scaling. Validate finite positive budget, affordable monsters, safe assembly weight sum, declared capacity and upper bound on assembled bodies before any RNG draw. Existing assembler unchanged (ceiling 12); reject an impossible cap, never truncate/reroll."
+    },
+    "member": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["memberId", "character"],
+      "properties": {
+        "memberId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "character": {
+          "allOf": [
+            {
+              "$ref": "snapshots.schema.json#/$defs/characterSnapshot"
+            },
+            {
+              "properties": {
+                "state": {
+                  "required": ["hp", "pools", "slots"]
+                }
+              }
+            }
+          ]
+        }
+      },
+      "description": "Stable member identity independent of Runtime character id. New aggregates require exact HP; optional legacy HP applies to independent old snapshots only. All nested pack identities must match."
+    },
+    "members": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/member"
+      },
+      "minItems": 1
+    },
+    "encounterSessionOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sessionId", "seed", "members", "setup"],
+      "properties": {
+        "sessionId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "seed": {
+          "$ref": "#/$defs/seed"
+        },
+        "members": {
+          "$ref": "#/$defs/members"
+        },
+        "setup": {
+          "$ref": "#/$defs/encounterSetup"
+        }
+      }
+    },
+    "initialCondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["conditionId", "duration"],
+      "properties": {
+        "conditionId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "duration": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "abilities", "saves", "level", "hp", "ac", "initiativeBonus", "actions"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "abilities": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "saves": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "level": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "hp": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "maxHp": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "ac": {
+          "type": "number"
+        },
+        "initiativeBonus": {
+          "type": "number"
+        },
+        "speed": {
+          "type": "number"
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "uniqueItems": true
+        },
+        "attackTable": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["level", "byDefense"],
+            "properties": {
+              "level": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "byDefense": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        },
+        "attackBonus": {
+          "type": "number"
+        },
+        "spells": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "uniqueItems": true
+        },
+        "castBlockedBy": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "feats": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "uniqueItems": true
+        }
+      },
+      "description": "Portable mirror of CombatantProfile, not a character envelope. Optional fields retain source presence. Numeric derived profile values may be fractional; saved HP and maxHp remain integer."
+    },
+    "balances": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {
+        "pools": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          }
+        },
+        "boundSlots": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "propertyNames": {
+            "pattern": "^[1-9]$"
+          }
+        },
+        "items": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          }
+        },
+        "bindings": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9-]*$"
+                }
+              ]
+            }
+          },
+          "propertyNames": {
+            "pattern": "^[1-9]$"
+          }
+        }
+      },
+      "description": "Original fight-start balances. Binding indices are authoritative; boundSlots counts non-null bindings, never array length. Never reconstruct from settled members."
+    },
+    "startEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "profile", "balances"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "profile": {
+          "$ref": "#/$defs/profile"
+        },
+        "balances": {
+          "$ref": "#/$defs/balances"
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/initialCondition"
+          }
+        }
+      },
+      "description": "Matches StartCombatRequest entry plus approved optional conditions. Profile.id equals id. Enemy profiles have no invented spell entitlement."
+    },
+    "startInputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allies", "enemies", "positions", "terrain"],
+      "properties": {
+        "allies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/startEntry"
+          },
+          "minItems": 1
+        },
+        "enemies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/startEntry"
+          },
+          "minItems": 1,
+          "maxItems": 12
+        },
+        "positions": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/position"
+          }
+        },
+        "terrain": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/terrainCell"
+          }
+        }
+      },
+      "description": "Complete original start inputs, excluding injected RNG object. Empty positions/terrain for theater. Current restore positions/terrain are separate fields on encounter."
+    },
+    "selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["groups", "threat", "budget", "seedUsed", "heuristic"],
+      "properties": {
+        "groups": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "count"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]*$"
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 12
+              }
+            }
+          },
+          "minItems": 1
+        },
+        "threat": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "budget": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "seedUsed": {
+          "type": "string",
+          "minLength": 1
+        },
+        "heuristic": {
+          "const": "threat-weighted-uniform"
+        }
+      }
+    },
+    "enemyInstance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enemyId", "monsterId", "instance"],
+      "properties": {
+        "enemyId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "monsterId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "instance": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "memberBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["memberId", "characterId", "combatantId"],
+      "properties": {
+        "memberId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "characterId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "combatantId": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "description": "characterId is the original Runtime binding for audit, never reused as campaign identity after restore. Resolve fresh minted ids through memberId."
+    },
+    "rawCombatSnapshot": {
+      "allOf": [
+        {
+          "$ref": "snapshots.schema.json#/$defs/combatSnapshot"
+        },
+        {
+          "required": ["phase", "offeredCount"],
+          "properties": {
+            "order": {
+              "uniqueItems": true
+            },
+            "combatants": {
+              "items": {
+                "required": ["maxHp", "slotsUsed", "conditions"],
+                "properties": {
+                  "position": {
+                    "$ref": "#/$defs/position"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "Actual serializeCombat envelope: ARRAY combatants, scalar hp, slotsUsed remaining, spend deltas, raw offers. New aggregates require current writer fields. Semantic checks additionally enforce exact ids/order/sides, phase, valid conditions/spends, all RNG words uint32. This is not live CombatState."
+    },
+    "turnControl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["round", "turn", "activeId", "turnStarted"],
+      "properties": {
+        "round": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "turn": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "activeId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "turnStarted": {
+          "type": "boolean"
+        }
+      },
+      "description": "Must match raw round/turn/order[turn]. startCombat may await first step before turn grants; saved flag prevents double replenishment. No private-only turn cursor."
+    },
+    "encounter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "encounterId",
+        "setup",
+        "selection",
+        "entryMembers",
+        "memberBindings",
+        "enemyInstances",
+        "start",
+        "combat",
+        "positions",
+        "terrain",
+        "control"
+      ],
+      "properties": {
+        "encounterId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "setup": {
+          "$ref": "#/$defs/encounterSetup"
+        },
+        "selection": {
+          "$ref": "#/$defs/selection"
+        },
+        "entryMembers": {
+          "$ref": "#/$defs/members"
+        },
+        "memberBindings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/memberBinding"
+          },
+          "minItems": 1
+        },
+        "enemyInstances": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/enemyInstance"
+          },
+          "minItems": 1,
+          "maxItems": 12
+        },
+        "start": {
+          "$ref": "#/$defs/startInputs"
+        },
+        "combat": {
+          "$ref": "#/$defs/rawCombatSnapshot"
+        },
+        "positions": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/position"
+          }
+        },
+        "terrain": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/terrainCell"
+          }
+        },
+        "control": {
+          "$ref": "#/$defs/turnControl"
+        }
+      },
+      "description": "Current encounter with immutable entry baseline/start inputs and live raw fight/current geometry. combat.pairsWith equals encounterId. Position map equals raw positions; restore passes this CURRENT map, never start.positions."
+    },
+    "runtimeEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "at", "payload", "why"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "at": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["round", "turn"],
+          "properties": {
+            "round": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "turn": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        "actor": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/jsonValue"
+          }
+        },
+        "why": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["rule", "rolls"],
+          "properties": {
+            "rule": {
+              "type": "string",
+              "minLength": 1
+            },
+            "rolls": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "description": "Existing RuntimeEvent anatomy; payload is open JSON because existing events are extensible. why.rolls are display strings. No functions, dates, undefined, NaN or Infinity."
+    },
+    "eventSubject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string"
+        },
+        "memberId": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "description": "Stable id/name at event time, memberId when party-owned. Allows narration after the encounter is no longer active; no dependence on fresh Runtime ids."
+    },
+    "journalEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence", "revision", "event", "subjects"],
+      "properties": {
+        "sequence": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "event": {
+          "$ref": "#/$defs/runtimeEvent"
+        },
+        "subjects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/eventSubject"
+          }
+        }
+      }
+    },
+    "settlementReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "receiptId",
+        "sessionId",
+        "encounterId",
+        "encounterIndex",
+        "revision",
+        "result",
+        "memberIds",
+        "sourceHash",
+        "beforeMembersHash",
+        "afterMembersHash"
+      ],
+      "properties": {
+        "receiptId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sessionId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "encounterId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "encounterIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "result": {
+          "enum": ["victory", "defeat", "abandoned"]
+        },
+        "memberIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "sourceHash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}$"
+        },
+        "beforeMembersHash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}$"
+        },
+        "afterMembersHash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}$"
+        }
+      },
+      "description": "Receipt id is canonical JSON [sessionId,encounterId,\"settlement\"]. Hash source is pack identity + complete terminal encounter; before/after are member envelopes. Current settlement checked against raw fight and party. Historical receipts are retained, not cross-device authorization."
+    },
+    "playSessionSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "snapshotVersion",
+        "pack",
+        "sessionId",
+        "revision",
+        "seed",
+        "members",
+        "encounterIndex",
+        "encounter",
+        "phase",
+        "result",
+        "rng",
+        "sequence",
+        "journal",
+        "settlements"
+      ],
+      "properties": {
+        "kind": {
+          "const": "play-session"
+        },
+        "snapshotVersion": {
+          "const": 1
+        },
+        "pack": {
+          "$ref": "snapshots.schema.json#/$defs/packIdentity"
+        },
+        "sessionId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "seed": {
+          "type": "string"
+        },
+        "members": {
+          "$ref": "#/$defs/members"
+        },
+        "encounterIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "encounter": {
+          "$ref": "#/$defs/encounter"
+        },
+        "phase": {
+          "enum": ["active", "terminal", "settled"]
+        },
+        "result": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "enum": ["victory", "defeat", "abandoned"]
+            }
+          ]
+        },
+        "rng": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["generation", "play"],
+          "properties": {
+            "generation": {
+              "$ref": "snapshots.schema.json#/$defs/rngState"
+            },
+            "play": {
+              "$ref": "snapshots.schema.json#/$defs/rngState"
+            }
+          }
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "journal": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/journalEntry"
+          }
+        },
+        "settlements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/settlementReceipt"
+          }
+        }
+      },
+      "description": "AR-02 aggregate transaction boundary; combat RNG is encounter.combat.rng. Every mutable stream/cursor is saved. active has null result; terminal victory/defeat awaits finalize; settled has subject-bound receipt. Abandon stages spend and settles atomically without forging raw combat-over. Before settlement members equal entryMembers; after settlement match receipt.afterMembersHash.",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "phase": {
+                "const": "active"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "result": {
+                "const": null
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "result": {
+                "enum": ["victory", "defeat", "abandoned"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

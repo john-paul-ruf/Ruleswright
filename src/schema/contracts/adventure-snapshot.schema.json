@@ -1,0 +1,602 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ruleswright.dev/schemas/1/adventure-snapshot.schema.json",
+  "title": "Ruleswright Whole Adventure — snapshotVersion 1",
+  "$ref": "#/$defs/adventureSnapshot",
+  "$defs": {
+    "grant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "itemId", "qty"],
+      "properties": {
+        "kind": {
+          "const": "item"
+        },
+        "itemId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "qty": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "noItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "const": "no-item"
+        }
+      }
+    },
+    "rewardRoll": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tableId", "value", "rngBefore", "rngAfter", "result"],
+      "properties": {
+        "tableId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "value": {
+          "$ref": "play-session.schema.json#/$defs/jsonValue"
+        },
+        "rngBefore": {
+          "$ref": "snapshots.schema.json#/$defs/rngState"
+        },
+        "rngAfter": {
+          "$ref": "snapshots.schema.json#/$defs/rngState"
+        },
+        "result": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/grant"
+            },
+            {
+              "$ref": "#/$defs/noItem"
+            }
+          ]
+        }
+      },
+      "description": "One successful TableOutcome.value from rollLoot; current core exposes no dice/entry trace. Store exact JSON value and replayable stream endpoints. Normalize string resolving item -> qty1, object {id,qty>=1} resolving item -> stack; other values -> no-item. Failure never stages a roll. Reopen validates normalization and may replay on a detached stream without consuming live entropy."
+    },
+    "rewardReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "receiptId",
+        "adventureId",
+        "definitionHash",
+        "claimId",
+        "nodeId",
+        "rewardId",
+        "revision",
+        "eligibleMemberIds",
+        "recipientMemberId",
+        "xpPerMember",
+        "grants",
+        "beforeMembersHash",
+        "afterMembersHash"
+      ],
+      "properties": {
+        "receiptId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "adventureId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "definitionHash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}$"
+        },
+        "claimId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "nodeId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "rewardId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "eligibleMemberIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "recipientMemberId": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "minLength": 1
+            }
+          ]
+        },
+        "xpPerMember": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "grants": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["memberId", "itemId", "qty"],
+            "properties": {
+              "memberId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "itemId": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]*$"
+              },
+              "qty": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              }
+            }
+          }
+        },
+        "beforeMembersHash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}$"
+        },
+        "afterMembersHash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}$"
+        }
+      },
+      "description": "Actual committed XP/inventory mutation plus receipt, atomic. recipientMemberId null only when definition reward has no loot; loot-bearing no-item roll still records host choice. Subject, amounts and grants must equal definition + staged roll, never request data."
+    },
+    "pendingReward": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claimId",
+        "adventureId",
+        "nodeId",
+        "rewardId",
+        "eligibleMemberIds",
+        "xpPerMember",
+        "stagedRevision",
+        "roll",
+        "status"
+      ],
+      "properties": {
+        "claimId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "adventureId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "nodeId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "rewardId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "eligibleMemberIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "xpPerMember": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "stagedRevision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "roll": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/rewardRoll"
+            }
+          ]
+        },
+        "status": {
+          "const": "pending"
+        }
+      }
+    },
+    "claimedReward": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claimId",
+        "adventureId",
+        "nodeId",
+        "rewardId",
+        "eligibleMemberIds",
+        "xpPerMember",
+        "stagedRevision",
+        "roll",
+        "status",
+        "receipt"
+      ],
+      "properties": {
+        "claimId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "adventureId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "nodeId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "rewardId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "eligibleMemberIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "xpPerMember": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "stagedRevision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "roll": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/rewardRoll"
+            }
+          ]
+        },
+        "status": {
+          "const": "claimed"
+        },
+        "receipt": {
+          "$ref": "#/$defs/rewardReceipt"
+        }
+      }
+    },
+    "rewardState": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/pendingReward"
+        },
+        {
+          "$ref": "#/$defs/claimedReward"
+        }
+      ]
+    },
+    "choiceTrail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodeId", "choiceId", "toNodeId", "revision"],
+      "properties": {
+        "nodeId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "choiceId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "toNodeId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "encounterReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodeId", "receipt"],
+      "properties": {
+        "nodeId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "receipt": {
+          "$ref": "play-session.schema.json#/$defs/settlementReceipt"
+        }
+      }
+    },
+    "directorState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy", "decisions", "stalledSteps", "lastMechanicalHash"],
+      "properties": {
+        "policy": {
+          "$ref": "adventure.schema.json#/$defs/templateIdentity"
+        },
+        "decisions": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "stalledSteps": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "lastMechanicalHash": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}$"
+            }
+          ]
+        }
+      },
+      "description": "Policy identity must equal definition.director id/version. Counters survive maxSteps partitioning; hash excludes revision/journal/RNG/cursors and includes authoritative mechanical state. maxSteps is a per-call bound, not saved state."
+    },
+    "adventureSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "snapshotVersion",
+        "pack",
+        "definition",
+        "adventureId",
+        "revision",
+        "seed",
+        "nodeId",
+        "phase",
+        "visitedNodeIds",
+        "resolvedNodeIds",
+        "choiceTrail",
+        "restedNodeIds",
+        "members",
+        "activeEncounter",
+        "encounterReceipts",
+        "rng",
+        "rewards",
+        "sequence",
+        "journal",
+        "encounterEventCursor",
+        "director",
+        "narrationAck"
+      ],
+      "properties": {
+        "kind": {
+          "const": "adventure"
+        },
+        "snapshotVersion": {
+          "const": 1
+        },
+        "pack": {
+          "$ref": "snapshots.schema.json#/$defs/packIdentity"
+        },
+        "definition": {
+          "$ref": "adventure.schema.json#/$defs/definitionIdentity"
+        },
+        "adventureId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "seed": {
+          "type": "string"
+        },
+        "nodeId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "phase": {
+          "enum": ["exploration", "encounter", "reward-pending", "completed", "defeated", "abandoned"]
+        },
+        "visitedNodeIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "resolvedNodeIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "uniqueItems": true
+        },
+        "choiceTrail": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/choiceTrail"
+          }
+        },
+        "restedNodeIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "uniqueItems": true
+        },
+        "members": {
+          "$ref": "play-session.schema.json#/$defs/members"
+        },
+        "activeEncounter": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "play-session.schema.json#/$defs/playSessionSnapshot"
+            }
+          ]
+        },
+        "encounterReceipts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/encounterReceipt"
+          }
+        },
+        "rng": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["generation", "play", "rewards", "director"],
+          "properties": {
+            "generation": {
+              "$ref": "snapshots.schema.json#/$defs/rngState"
+            },
+            "play": {
+              "$ref": "snapshots.schema.json#/$defs/rngState"
+            },
+            "rewards": {
+              "$ref": "snapshots.schema.json#/$defs/rngState"
+            },
+            "director": {
+              "$ref": "snapshots.schema.json#/$defs/rngState"
+            }
+          }
+        },
+        "rewards": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/rewardState"
+          }
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "journal": {
+          "type": "array",
+          "items": {
+            "$ref": "play-session.schema.json#/$defs/journalEntry"
+          }
+        },
+        "encounterEventCursor": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "director": {
+          "$ref": "#/$defs/directorState"
+        },
+        "narrationAck": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "description": "AR-04 whole-save transaction. Immutable definition supplied separately and digest verified. All nested identities, party/encounter authority, trail, resolution/reward/terminal predicates, receipts, uint32 streams and sequence/cursor limits validated before constructing observable state. No storage adapter/SQL/global exactly-once guarantee.",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "phase": {
+                "const": "encounter"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "activeEncounter": {
+                "$ref": "play-session.schema.json#/$defs/playSessionSnapshot"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "activeEncounter": {
+                "const": null
+              },
+              "encounterEventCursor": {
+                "const": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "phase": {
+                "const": "reward-pending"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rewards": {
+                "contains": {
+                  "required": ["status"],
+                  "properties": {
+                    "status": {
+                      "const": "pending"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -126,6 +126,24 @@
             }
           },
           "description": "v1.4 — optional equipment state: one {slot, itemId} entry per occupied slot (one item per slot). Absent = nothing equipped (equivalent to []). The runtime emits the key only when the character's state carries it, preserving the byte-exact round-trip of characters that never equipped. Slot uniqueness across entries cannot be expressed in JSON Schema (uniqueItems compares whole objects), so runtime restore enforces it fail-closed, together with item/slot existence, slot eligibility and held quantity — any violation = E-SNAP-01, all refusals collected before any application. Inventory still restores verbatim."
+        },
+        "hp": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "current",
+            "temp"
+          ],
+          "properties": {
+            "current": {
+              "type": "integer"
+            },
+            "temp": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "description": "v1.12 / AR-02: optional for legacy input; new writers emit exact current and temp. No clamp, including negative current or above-derived-max. Absence uses legacy reserveValue reconstruction and temp=0. Temp remains bookkeeping; old readers cannot preserve this guarantee."
         }
       }
     },
@@ -241,7 +259,59 @@
                     "required": ["x", "y"],
                     "properties": { "x": { "type": "integer" }, "y": { "type": "integer" } }
                   },
-                  "remaining": { "type": "integer", "minimum": 0 }
+                  "remaining": { "type": "integer", "minimum": 0 },
+                  "offeredDepartures": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "from",
+                        "to",
+                        "reactorId"
+                      ],
+                      "properties": {
+                        "from": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "x",
+                            "y"
+                          ],
+                          "properties": {
+                            "x": {
+                              "type": "integer"
+                            },
+                            "y": {
+                              "type": "integer"
+                            }
+                          }
+                        },
+                        "to": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "x",
+                            "y"
+                          ],
+                          "properties": {
+                            "x": {
+                              "type": "integer"
+                            },
+                            "y": {
+                              "type": "integer"
+                            }
+                          }
+                        },
+                        "reactorId": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "uniqueItems": true,
+                    "description": "v1.12 / AR-05: new paused-move writers always include this array. Complete tuples already offered, including events with offers still queued. Resume only after the queue is answered; suppress exact from/to/reactorId tuples, check new edges/reactors; discard at move end. Containing actor and reactor must exist on opposing sides, coordinates integer, no duplicate tuples (runtime validates identities). Legacy absence preserves first-step suppression; do not infer a complete history from an empty queue."
+                  }
                 },
                 "description": "v1.5 — optional: a move paused by open leaving-reach offers (FR-11). Resumes when the offer queue empties. Unknown or non-move actionId = E-SNAP-01. Absent = no paused move. Restore phase: the envelope phase when present (v1.6); otherwise the v1.5 derivation, resolved when any combatant carries pendingMove or pendingTrigger."
               },

@@ -1,6 +1,7 @@
 # Database Design — Ruleswright
 
-> **Status:** v1.11, revised — DB, schema-change Author re-entry (builder-authorized 2026-10-11, contract-conformance: combatant `hp` in combat snapshots has no lower bound — damage is not floored, hp ≤ 0 means down; loosening only, no rule id, no caveat); v1.10, revised — DB, schema-change Author re-entry (builder-authorized 2026-10-04, class-features: class features at `progression.<id>.features` grant a feat or unlock an action or spell at a class level; `content.classes.<id>.features` removed; refs resolve at load; no rule id; pre-release in-place revision, compatibility caveat (g); v1.9, revised — DB, Author re-entry (builder-authorized 2026-10-04, builder-rulings: out-of-combat restricts follow the in-combat rule; `awardXp` never lowers a class level; the feat-slotted predicate stated plainly; description only — no field, no rule id; two documented compatibility caveats (e) and (f); v1.8, revised — DB, schema-change Author re-entry (builder-authorized 2026-10-04, feat-progression: per-class feat slots `progression.<id>.featSlots`; additive-optional, no rule id added; one documented compatibility caveat (d) — a feat-slotted pack refuses learning past the cap and refuses to restore an over-cap character; v1.7: builder-authorized 2026-10-01, action-targeting: the `target(self, …)` shape word + self actions and the `ability(name)` formula function, registry 14→15; no field added, no rule id added, one documented compatibility caveat (c) — `target(self, …)` now resolves to the actor; v1.6: builder-authorized 2026-09-30, spells-in-combat: spells declarable in combat with a pack-declared range and empty-cell area centers, spend recorded in combat snapshots, characters hold feats, reactive feats offered, trigger grammar enforced, combat envelope offers/phase/offeredCount; additive-optional with two documented compatibility caveats — the `trigger.on` grammar and the legacy-read-only per-combatant `pendingTrigger` — no rule id added; v1.5: builder-authorized 2026-09-29, grid-movement: hex model, pack-declared terrain vocabulary, `move(formula)` + reserved `speed`, snapshot `pendingMove`; additive-optional with one documented `speed` compatibility caveat, no rule id added; v1.4: builder-authorized 2025-09-27, equipment-consumables: slot-based equipment + consumables + the `heal` effect, snapshot `equipped`/`itemsUsed`/`maxHp`; v1.3: optional spatial section (FR-11) + E-SPAT-01 registration; v1.2: UI B-1 class combat actions; v1.1: S-CONTRACT-GAP).
+> **Status:** v1.12, scoped Author re-entry (2026-10-16, AR-01–AR-06): optional lossless HP and exact departure history; three new portable play/adventure contract files; existing pack/override unchanged. Positive-XP reward side effects remain blocked on B-RA-XP below; contracts are not runtime implementation.
+> Prior status: v1.11, revised — DB, schema-change Author re-entry (builder-authorized 2026-10-11, contract-conformance: combatant `hp` in combat snapshots has no lower bound — damage is not floored, hp ≤ 0 means down; loosening only, no rule id, no caveat); v1.10, revised — DB, schema-change Author re-entry (builder-authorized 2026-10-04, class-features: class features at `progression.<id>.features` grant a feat or unlock an action or spell at a class level; `content.classes.<id>.features` removed; refs resolve at load; no rule id; pre-release in-place revision, compatibility caveat (g); v1.9, revised — DB, Author re-entry (builder-authorized 2026-10-04, builder-rulings: out-of-combat restricts follow the in-combat rule; `awardXp` never lowers a class level; the feat-slotted predicate stated plainly; description only — no field, no rule id; two documented compatibility caveats (e) and (f); v1.8, revised — DB, schema-change Author re-entry (builder-authorized 2026-10-04, feat-progression: per-class feat slots `progression.<id>.featSlots`; additive-optional, no rule id added; one documented compatibility caveat (d) — a feat-slotted pack refuses learning past the cap and refuses to restore an over-cap character; v1.7: builder-authorized 2026-10-01, action-targeting: the `target(self, …)` shape word + self actions and the `ability(name)` formula function, registry 14→15; no field added, no rule id added, one documented compatibility caveat (c) — `target(self, …)` now resolves to the actor; v1.6: builder-authorized 2026-09-30, spells-in-combat: spells declarable in combat with a pack-declared range and empty-cell area centers, spend recorded in combat snapshots, characters hold feats, reactive feats offered, trigger grammar enforced, combat envelope offers/phase/offeredCount; additive-optional with two documented compatibility caveats — the `trigger.on` grammar and the legacy-read-only per-combatant `pendingTrigger` — no rule id added; v1.5: builder-authorized 2026-09-29, grid-movement: hex model, pack-declared terrain vocabulary, `move(formula)` + reserved `speed`, snapshot `pendingMove`; additive-optional with one documented `speed` compatibility caveat, no rule id added; v1.4: builder-authorized 2025-09-27, equipment-consumables: slot-based equipment + consumables + the `heal` effect, snapshot `equipped`/`itemsUsed`/`maxHp`; v1.3: optional spatial section (FR-11) + E-SPAT-01 registration; v1.2: UI B-1 class combat actions; v1.1: S-CONTRACT-GAP).
 > v1.0 (phase `database`, final Author phase) approved; v1.1 adds the turn-economy
 > declaration (`economy.turnSlots`) and action/spell `tags` with `restricts`
 > reference semantics. Read with `specs/architecture.md` (approved),
@@ -16,7 +17,7 @@ architecture*). The engine performs no I/O of any kind (FR-14); hosts own all st
 There are **no tables, no connections, no migrations** in the SQL sense.
 
 What "persistence" means here, formally: the only documents that ever outlive a process
-are **packs**, **overrides**, and **snapshots** — all plain JSON, all validated at load.
+are **packs**, **overrides**, **adventure templates/definitions**, and **snapshots** — all plain JSON, all validated at load.
 This document is the contract for those shapes. The equivalent of a migration path in
 this stack idiom is the **versioned schema contract layer** in `src/schema/contracts/`:
 JSON Schema documents that are the normative shape references for `schemaVersion 1`,
@@ -46,16 +47,20 @@ Pack (one JSON document, 8 required + 3 optional sections)
 └── tables          weighted / ranged / nested lookup tables (the one table engine)
 
 Override document  — GM/author patches, merged at load (FR-19)
-Snapshot envelopes — character · party · combat (FR-14; three serializers)
+Snapshot envelopes — character · party · combat (FR-14; three independent serializers)
+Play sidecars      — encounter session · adventure template/definition · whole adventure
 ```
 
-All three contract files live at the real repo path:
+All six contract files live at the real repo path:
 
 ```
 src/schema/contracts/
 ├── pack.schema.json        — the pack document, schemaVersion 1 (v1.5)
 ├── snapshots.schema.json   — the three snapshot envelopes (v1.5)
-└── override.schema.json    — the override/patch document
+├── override.schema.json    — the override/patch document
+├── play-session.schema.json — complete encounter/session + restore inputs (v1.12)
+├── adventure.schema.json — separate template + generated definition (v1.12)
+└── adventure-snapshot.schema.json — progress/rewards/journal/director state (v1.12)
 ```
 
 These are **data artifacts, not application code** — DB-owned permanently (see
@@ -66,7 +71,7 @@ These are **data artifacts, not application code** — DB-owned permanently (see
 
 ## Artifact Identity & Reference Rules
 
-These rules are semantic validator duties (FR-2); every one maps to a registered rule id.
+These pack artifact rules are semantic validator duties (FR-2); every one maps to a registered rule id. Sidecar session/member ids below are opaque identities, not pack artifact ids.
 
 | Rule | Contract |
 |---|---|
@@ -650,7 +655,7 @@ its state; `savedAt` is host metadata if a host wants it, never engine state.
 |---|---|
 | `character` | name, race, classes `[{id, level, xp?}]`, abilities (map name→score), skill ranks, feats, knownSpells, `pools` (map poolId→current), `slots` (per level: array of bindings — `null` or spell id), active conditions `[{id, remaining}]`, inventory `[{id, qty}]`, optional `equipped` `[{slot, itemId}]` (v1.4). All plain JSON — no class instances, no closures (FR-5) |
 | `party` | `members` (array of character state) |
-| `combat` | `pairsWith` (party snapshot id — the documented pairing), `round`, `turn`, `order`, per-combatant state incl. transients (optional `itemsUsed` and `maxHp`, v1.4; optional `pendingMove`, v1.5; optional `poolsSpent`/`slotsCast`, v1.6), optional envelope `phase`/`offeredCount`/`offers` (v1.6), **`rng: {a, b, c, d}`** — four uint32 sfc32 words (FR-1 state export; resume test: next roll equals the uninterrupted fight's next roll) |
+| `combat` | `pairsWith` (host pairing token; encounterId in the aggregate below), `round`, `turn`, `order`, per-combatant state incl. transients (optional `itemsUsed` and `maxHp`, v1.4; optional `pendingMove`, v1.5; optional `poolsSpent`/`slotsCast`, v1.6), optional envelope `phase`/`offeredCount`/`offers` (v1.6), **`rng: {a, b, c, d}`** — four uint32 sfc32 words (FR-1 state export; resume test: next roll equals the uninterrupted fight's next roll) |
 
 **v1.4 fields** (additive-optional; `snapshotVersion` stays 1; no `required` array changed):
 
@@ -729,6 +734,321 @@ answer (FR-23).
 
 ---
 
+## Headless play contracts — v1.12 (AR-02–AR-05)
+
+These portable contracts are the approved implementation target for FR-24–29, not
+implemented runtime capabilities. Shapes are normative in the named `$defs`; the
+semantic predicates below are equally required. JSON Schema alone cannot establish
+pack references, legal progress, ledger conservation or whether a writer ran.
+
+**Open product conflict — B-RA-XP / R4:** `src/runtime/progression.ts` calls
+`applyProgression` on every positive `awardXp`, including awards with no level change;
+it replaces every prepared slot with null and resets current HP to `reserveValue`.
+This conflicts with the approved injury/resource continuity and no implicit healing
+contract. A builder question is pending: preserve injury and existing bindings around
+the low-level writer (new capacity empty), or retain that writer's side effects.
+The latter would require revising the approved no-healing meaning. This receipt does
+not choose either. S03 c3/c4 and CA-04 remain blocked on that answer; saving a reward
+receipt does not resolve the conflict. No low-level progression change is authorized.
+
+### Existing snapshots: precise compatible additions
+
+| Definition / addition | Write and read contract | Compatibility |
+|---|---|---|
+| `snapshots.schema.json#/$defs/characterState/properties/hp` | Optional closed `{current: integer, temp: integer >= 0}`. New writers emit both exactly, including negative and above-derived-maximum current HP. Present malformed values refuse; absence alone uses the old `reserveValue` reconstruction and temp=0. Applies to independent character and party states. | No old required field changes; version remains 1. Old readers may ignore HP and therefore cannot promise lossless injury. No new temp-HP combat mechanic, healing or resurrection. |
+| `combatSnapshot.properties.combatants.items.properties.pendingMove.properties.offeredDepartures` | Optional array of closed `{from:{x,y},to:{x,y},reactorId}`; integer coordinates, uniqueness by the **whole tuple**. New paused-move writers emit it, including an empty array if appropriate. | Absence retains legacy first-resumed-step suppression. Presence uses exact tuple suppression. Old incomplete snapshots cannot gain a history they never stored. No version change or removal. |
+
+For departures, the containing mover and every reactor must exist on opposing sides.
+Each tuple records an event already offered, including one whose offers are still in
+the saved queue. The queue must be answered before resuming. A changed edge or reactor
+is checked normally. Preserve earlier tuples until the move ends; then discard them.
+Do not require earlier `from` to equal the current cell, or an earlier reactor to remain
+standing: historical offers can precede movement/damage. Current departure offers must
+agree with the paused mover, edge and matching reactive source. Decline and refused
+`take` both answer an offer. Legacy suppression must not leak into a present empty list.
+
+**Condition bridge:** no new character-state field is needed. Existing snapshot
+`conditions:[{id,remaining}]` maps to optional start-entry
+`conditions:[{conditionId,duration}]`, alongside profile/balances; omitted means empty.
+Check pack ids and nonnegative integral durations before initiative. The reverse writes
+actual remaining round durations after settlement; travel/rest do not tick them. The
+new optional StartCombatRequest field and explicit `pass()` are S01 runtime work, not
+implemented here. `pass()` ends the active turn through the existing lifecycle and
+refuses open offers/terminal combat. No new unit, vocabulary or per-turn reset rule.
+
+### PlaySessionSnapshot — `play-session.schema.json`
+
+| `$defs` / fields | Meaning and constraints |
+|---|---|
+| `encounterSetup` | `{budget,seed,maxPartySize,maxEnemies,layout}`. Finite positive budget; positive safe party cap; enemy cap 1..12. `layout` is `{kind:'theater'}` or `{kind:'spatial',model,allies,enemies,terrain}`. Placement arrays are fixed capacity, not generated geometry. |
+| `member`, `members`, `encounterSessionOptions` | Stable nonempty member ids and independent character envelopes. New aggregate members require hp/pools/slots, even though old independent snapshots may omit HP. Hosts can restore legacy characters with the documented fallback and then serialize with the new writer. Membership is ordered, unique and fixed. |
+| `profile`, `balances`, `initialCondition`, `startEntry`, `startInputs` | Exact portable mirrors of the inspected combat source. Start entry has id/profile/balances and optional conditions; profile.id equals id. Required start sides/positions/terrain retain immutable fight-start inputs. Empty geometry for theater. `bindings` stores exact indexed slots; `boundSlots` counts non-null bindings, not total capacity. |
+| `selection`, `enemyInstance`, `memberBinding` | Actual assembler groups/threat/budget/seedUsed/heuristic, stable enemy→statblock/instance mapping, original member→characterId/combatantId binding. Character ids are audit data and remap on reopen. |
+| `rawCombatSnapshot`, `turnControl`, `encounter` | Raw combat envelope plus current positions/terrain and `{round,turn,activeId,turnStarted}`. Raw combatants are an **array**, HP is scalar, `slotsUsed` is remaining per-turn slots, and itemsUsed/poolsSpent/slotsCast are spends. Original inputs and current geometry have separate fields. |
+| `runtimeEvent`, `eventSubject`, `journalEntry` | Existing `{type,at,actor?,target?,payload,why}` event; payload is JSON, why.rolls is string[]. Journal adds sequence/revision and event-time subject names, with memberId where applicable. No fabricated dice trace, Date or mutable Runtime values. |
+| `settlementReceipt` | Receipt/session/encounter/index/result/revision/member subjects plus sourceHash, beforeMembersHash, afterMembersHash. Lives with the actual updated party. Receipt alone is not a ledger writer or external authorization. |
+| `playSessionSnapshot` | Required kind/version/pack/sessionId/revision/seed/members/encounterIndex/encounter/phase/result/rng/sequence/journal/settlements. Phase `active` has null result; `terminal` is victory/defeat awaiting settlement; `settled` has its current encounter receipt. Abandon settles atomically. |
+
+**Preflight and assembly.** Validate the full effective pack, references and all inputs
+before exposing state or consuming live entropy. A spatial pack requires its matching
+model, capacity at least maxPartySize/maxEnemies, unique cells across both sides, known
+terrain kinds, no duplicate terrain cells and no blocking spawn. A theater setup requires
+no pack spatial model. Actual party length must fit. At least one monster must be
+positive-threat and affordable. Reject nonpositive/nonfinite threats in the assembly
+menu. Use a conservative upper bound
+`min(12, floor((budget + 1e-9) / minimumPositiveThreat))` for bodies; reject if it exceeds
+maxEnemies. Every affordable integer-weight sum (`max(1,round(threat*100))`) must fit
+1..2^32. Existing assembly is unchanged: no party scaling, truncation or retry/reroll.
+Validate the resulting nonempty groups/counts and total threat against the same pack,
+budget and tolerance. `selection.seedUsed` records the explicit seed supplied even when
+an injected generation stream performs the draws.
+
+**Identity and restore constraints.** Party combat ids are `m:<memberId>`, enemy ids
+`e:<encounterIndex>:<ordinal>` (ordinal starts at 1, groups sorted by id and then instance
+1..count). `encounterId = JSON.stringify([sessionId,encounterIndex])`; raw `pairsWith`
+equals that id. Stable member ids, original character ids and all combatant ids must be
+unique within their respective sets. Entry members, current members and bindings have
+the same member order. Exact ally/enemy sets, profiles, selection instances, combatants
+and initiative order agree, with no extra/missing/duplicate ids. Raw turn is in order
+bounds; control round/turn/activeId match it. HP/conditions/profile/balance projections
+must match original entry members and pack-derived enemy profiles; reminting a Runtime
+id never changes a stable subject. Unknown actions/spells/conditions/items/pools refuse.
+
+Restore uses immutable start profiles/balances/initial conditions but **current**
+`encounter.positions` and terrain. The map agrees with every raw combatant.position;
+terrain agrees with saved start terrain (no terrain mutation command exists). Spatial
+occupancy/placement rules still apply. Raw maxHp is the saved fight-start heal cap;
+original current HP can differ. Restore checks each spend against original balances,
+nonnull indexed bindings and equipped-item constraints; it never substitutes the current
+settled party for the original balances. All RNG words satisfy integer 0 <= word < 2^32,
+including the low-level deserializer's previously underchecked upper boundary.
+
+Validate raw phase precedence as documented above; a present phase and offers must be
+consistent. Terminal victory means the enemy side is down and party not all down;
+defeat means all party down (defeat wins if both sides are down). Terminal snapshots
+cannot carry abandonment. Settled abandonment may retain nonterminal raw combat for
+audit, but cannot be resumed. `turnStarted` is false before grants for a new turn, true
+once granted; the aggregate must not call step to replenish an already-started turn.
+Open offers block advance/pass and player intent cannot act for a different actor.
+
+Before settlement, current members equal entryMembers; views project live injury and
+resources from raw state without overwriting the baseline. Settlement stages every
+member, carries raw current HP plus original temp bookkeeping, final conditions and
+resource spends, then publishes party+receipt+events atomically. Existing terminal-only
+settleItemUses/settleSpellCasts can work on staged copies. **Abandon needs the Architect's
+explicit adapter** using existing inventory writer and pool/binding rules; never forge
+combat-over to call those helpers. Keep raw pre-settlement spend for audit. The current
+receipt's sourceHash is `H({pack,encounter})`; before/after hashes are H of ordered member
+arrays. Receipt id is `JSON.stringify([sessionId,encounterId,'settlement'])`. Validate
+result/subjects/hash/revision and recompute the current party projection before acceptance.
+Historical receipt ids/indexes are unique and increasing, revisions <= current revision;
+they do not purport to store old fights. `next` is legal only after settled victory,
+increments encounterIndex once and starts with the settled party. Defeat/abandon cannot
+be bypassed with next. Repeated finalize at the current revision returns the existing
+receipt without spending or emitting again; stale expectedRevision still refuses first.
+
+### Template and definition — `adventure.schema.json`
+
+| `$defs` | Exact role |
+|---|---|
+| `templateIdentity`, `definitionIdentity`, `objective`, `facts` | Versioned template id; definition id/version/digest; explicit objective; declared scalar factual values. No unbounded prose interpretation. |
+| `location`, `descriptorTable`, `nodeRecipe`, `branch`, `construction` | Weighted location descriptors; finite entry/spine/optional-detour recipes and one success terminal. Node recipe id is distinct from the descriptor/table id. |
+| `reward` | Authored id, nonnegative safe xpPerMember, eligible:'party', loot:null or `{tableId,recipient:'host-choice'}`. Party distribution differs from the existing per-class XP split. |
+| `directorPolicy`, `narration` | Ordered legal action/move/pass and reaction priority policy; bounded candidates/stall limit; factual text fragments and declared interpolation slots. |
+| `template` | kind/schemaVersion/id/version/effective pack/nodeBounds/objective/tables/locations/fragments/construction/rewards/facts/director/narration. Closed separate document, not a ThemeTemplate or added Pack property. |
+| `choice`, `node`, `definition` | Fully resolved graph, text, EncounterSetup, reward refs, facts and rest/preparation policy. Definition carries template identity, effective pack, canonical seed, startNodeId/successNodeId, objective/rewards/director/narration and contentHash. |
+| `adventureStartOptions` | adventureId/seed/members; independently seeded runtime play, separate from definition-generation seed. |
+
+`loadAdventureTemplate(id, pack)` binds a bundled recipe explicitly to the passed
+validated effective pack; internal bundled JSON is template fields except `pack`.
+The returned complete template must validate. `generateAdventure` requires the bound
+identity to match; it never silently retargets a host template. No static file I/O or
+Runtime dependency is introduced. A custom pack must actually supply every referenced
+content id; a familiar theme name is insufficient proof of compatibility.
+
+**Finite construction.** Base order is entry, spine in declared array order, terminal.
+Recipe ids and terminal id are unique. Branch ids are unique; branch node ids are
+unique across base and every branch. Branch anchors refer only to base nodes, with
+from earlier than to; each branch adds an alternate detour, keeping the base route.
+Every table/location/text/reward/action/condition/terrain reference resolves before
+random draws. `nodeBounds.min <= base count`; `nodeBounds.max >= base count + sum of
+all branch node counts`; min <= max. This conservative bound includes omitted branches.
+All descriptor weights are finite positive integers and each total <= 2^32; branch
+includeWeight + omitWeight <= 2^32. There is no retry-until-connected algorithm.
+
+Generation rolls base recipes in base order (terminal has no roll), then branches in
+declaration order: include/omit via the existing weighted rollTable, entries include
+then omit; omitWeight=0 includes without a draw. For included branches, roll their
+node descriptors in declared order. Generated node array is base order followed by
+included branch nodes in declaration order. Nodes copy selected descriptor fields;
+terminal has kind success, supplied title/description, empty rewardIds/choices/facts,
+rest none and preparation false. Retain all declared rewards/facts/policies verbatim.
+Each base/internal branch continuation choice has id `continue`; each branch entrance
+choice has id `branch-<branchId>` and uses its choiceTextRef. Choice ids are unique
+**within a node**, not across the graph. Base continuation comes first, branch entrances
+in declaration order. Fragment refs must yield nonempty choice text. Graph validation
+checks all nodes reachable from start, exactly one success node at successNodeId, a
+success route from every node, no cycles, no choices on success and nonempty choices
+on all others. Host-authored definitions may use other kebab choice ids but must meet
+these same graph and policy constraints. Bundled templates must guarantee at least one meaningful alternate route (at least one branch with omitWeight=0), and exercise real encounters, rewards and eligible preparation/rest; a seed cannot remove their entire route-choice coverage.
+
+Encounter nodes require EncounterSetup; other kinds forbid it. Rest/preparation are
+explicit node policy, not inferred from prose/kind. Rewards resolve by id. Loot tables
+and all nested table references are valid and safely bounded; item-shaped leaves must
+refer to real items, while other JSON flavor values remain legitimate no-item outcomes.
+No policy grants monster spells, pools or slots not supplied by its real profile/balances.
+Director priorities end in one pass; action/move ids refer to the corresponding pack
+action kinds; reactionPriority references real triggered actions/feats. `nearest`
+requires spatial encounter layouts. Invalid random-dependent legality must be refused
+for the new solo domain before play, not sampled in preview. maxCandidates and stallLimit
+are explicit finite work bounds; exhausting either yields rather than silently choosing
+an omitted candidate or running forever.
+
+Narration fragment ids and eventType are unique; declared slot names are unique and
+exactly match `{slot-name}` placeholders. `facts.*` resolves to definition facts, or
+current node facts overriding the same key. Event slots resolve to the actual event
+fields; unknown/missing event-specific slots fall back to generic factual rendering.
+Actor/target names come from event-time journal subjects. Text is literal text, never
+executed code/HTML, and cannot create or change facts. Negative damage is healing;
+why.rolls is existing display text, not invented structured dice rolls.
+
+### AdventureSnapshot — `adventure-snapshot.schema.json`
+
+| `$defs` / fields | Persistence and authority |
+|---|---|
+| `grant`, `noItem`, `rewardRoll` | Actual rollLoot value, tableId, rngBefore/rngAfter, and item `{itemId,qty}` or explicit no-item result. No guessed roll trace. |
+| `pendingReward`, `claimedReward`, `rewardState` | claimId/adventureId/nodeId/rewardId/eligibleMemberIds/xpPerMember/stagedRevision/roll plus pending or claimed status; only claimed carries a receipt. |
+| `rewardReceipt` | Subject-bound definitionHash, claim, recipient, actual XP/grants/revision and before/after member hashes. Loot-bearing no-item still records chosen recipient; no-loot records null. |
+| `choiceTrail`, `encounterReceipt` | Exact source choice and target/revision; resolved encounter node plus its settlement receipt. No invented completion when unavailable. |
+| `directorState` | Policy id/version, decisions, stalledSteps, lastMechanicalHash. No-progress detection survives budget partitioning. |
+| `adventureSnapshot` | Required identity/version/seed/revision/node/phase; visited/resolved/rested nodes and choice trail; members/activeEncounter/encounterReceipts; four streams; rewards; journal/sequence/encounterEventCursor/director/narrationAck. Definition is supplied separately and digest-checked. |
+
+**Progress predicates.** Members are fixed ordered stable identities from creation;
+all nested pack identities match the effective pack and definition. Start is visited
+first; every choiceTrail step refers to an actual source-node choice and its exact
+target, in traversal order, with increasing revisions <= aggregate revision. Visited
+nodes equal that path (including current); resolved/rested nodes are unique subsets.
+A non-encounter node resolves on entry; an encounter resolves only after a victorious
+settlement receipt. Rested nodes must allow rest once and have been visited/resolved.
+An encounter receipt has one node subject, an encounter session id
+`JSON.stringify([adventureId,nodeId])`, index 0 and its matching settlement identity.
+Do not use `next` within an adventure-owned session: each encounter node has its own.
+
+`exploration` means resolved non-success current node with no active encounter and no
+pending current reward. `encounter` means unresolved encounter node and a non-null
+activeEncounter whose sessionId, setup, party and pairing agree; adventure members equal
+that session's entry baseline. `reward-pending` means resolved current node with at
+least one pending earned reward, no active encounter. Victory settlement archives its
+receipt, updates members, clears activeEncounter/cursor and stages rewards in the same
+outer transaction. Defeat settles partial injury/resources and terminates; abandonment
+also settles an active encounter, archives its receipt and terminates without new rewards.
+Terminal defeated/abandoned cannot grant/claim rewards, rest, prepare, equip, use items
+or choose routes; previously earned records remain audit data, not fresh authority.
+`completed` requires the explicit success node resolved and all earned rewards claimed;
+it cannot coexist with a pending reward or active encounter. Reaching a host-authored
+success node with rewards first yields reward-pending. A blocked route never implies
+success. Acknowledgement remains available after terminal outcomes.
+
+**Reward writer/readback.** Each resolved eligible node creates one record per rewardId
+in authored order: `claimId = JSON.stringify([adventureId,nodeId,rewardId])`. The eligible
+set is the fixed ordered member list; a downed member is not silently removed from an
+authored party award. No rewards stage on defeated/abandoned transitions. A loot-bearing
+reward calls existing rollLoot once on a staged rewards stream, preserving exact JSON
+value and before/after stream states. String resolving to item => qty 1; valid object
+`{id,qty}` resolving to item => that positive integer stack; other flavor => no-item.
+A failed table roll refuses the outer transition, with no partial fight settlement,
+RNG advance, journal append or claim. A reward without loot has roll:null and no draw.
+On reopen, verify definition table/id/XP/eligible subjects, normalization and stream
+endpoints (replay on a detached stream is validation, never a live reroll). Stored rolls
+form the rewards stream chain in staged order; current rng.rewards is its final endpoint.
+
+Claim validates current node/phase/revision and exact claim subject; loot requires an
+explicit eligible recipient even on no-item. No-loot forbids a recipient. Stage positive
+XP through awardXp using existing class splitting/caps, zero XP by skipping that call,
+and item grant via grantItem. **Positive-XP injury/binding effects remain blocked on
+B-RA-XP above.** Publish all changed member envelopes and receipt together, or none.
+Receipt id is `JSON.stringify([adventureId,claimId,'reward'])`; grant list has zero or one
+entry matching normalized roll and recipient. Before/after hashes are H of member arrays.
+A matching already-claimed command at current revision returns its receipt with no
+mutation; altered subject/recipient and stale revisions refuse. Definition content,
+never caller amounts or an emitted audit event, authorizes reward writes. Historic
+hashes are consistency checks, not proof against a completely rewritten coherent history.
+
+Rest uses the saved current resolved node's once policy and existing pools.rest: refill
+pools, clear bindings, no HP heal/resurrection/condition time. Preparation/equipment/item
+commands use explicit member ids and existing guards; preparation needs preparation:true.
+No automatic preparatory command is run by the director. All successful mutation effects
+are staged; event subscribers never observe failed private work.
+
+**Journal/cursors.** Sequence starts at 0; entries are contiguous 1..sequence, ordered
+and never trimmed in v1. Revisions are nondecreasing and <= current revision. Subject ids
+are stable combat/member subjects with names captured at emission, including past enemy
+names after the fight has been removed. Encounter events append exactly once to the
+adventure journal using encounterEventCursor <= nested sequence; while active it equals
+the already-copied prefix, and after removal it is 0. Never use round-local event windows
+as adventure sequence. narrationAck is integer 0..sequence, monotonic; readNarration emits
+one message for each later entry, id JSON.stringify([adventureId,sequence]), without RNG
+or acknowledgement. Ack beyond sequence or backwards refuses; equal is an idempotent
+no-op. Ack changes revision/cursor but emits no new journal event.
+
+### Canonical hashes, streams and bounded work
+
+`H(value)` is the existing `packContentHash` canonical JSON algorithm (sorted object keys,
+array order preserved, FNV-1a over JavaScript UTF-16 code units, lowercase 8-digit hex).
+Definition contentHash = H of the complete definition with only contentHash omitted;
+id equals template.id. Snapshot definition identity stores id/schemaVersion/contentHash.
+Pack hashes bind the effective merged pack, not only manifest id or theme name. These
+are deterministic identity checks, **not** cryptographic authentication or cross-device
+exactly-once protection. An older whole snapshot reopened independently is a replay branch.
+
+Canonical seeds use `String(seed)`; nonfinite numbers and non-JSON inputs refuse. Let
+`D(tag, ...parts) = JSON.stringify(['ruleswright',1,tag,...parts])`. Construct core Rng with:
+
+| Stream | Seed and use |
+|---|---|
+| Definition generation | D('adventure-definition', template.id, template.version, H(template), String(seed)); used by the finite construction above. No runtime instance. |
+| Encounter generation | D('encounter-generation', sessionId, String(seed), encounterIndex, String(setup.seed)); initialize once for each new encounter, inject into assembly, then save its advanced state. Pass String(setup.seed) as assembly seedUsed. Next initializes the next index's domain; restore does not reseed. |
+| Encounter play | D('encounter-play', sessionId, String(seed)); on each new encounter take one uint32 draw and seed combat with D('combat', sessionId, encounterIndex, String(setup.seed), draw). Combat retains its own exact rng state. |
+| Adventure generation | D('adventure-generation', adventureId, String(seed)); one uint32 draw on entering an encounter, used as that nested session seed. Saved setup.seed remains the definition's explicit input. |
+| Adventure play | D('adventure-play', adventureId, String(seed)); explicit out-of-combat random item/effect work only. |
+| Adventure rewards | D('adventure-rewards', adventureId, String(seed)); staged reward table rolls only, in authored reward order. |
+| Adventure director | D('adventure-director', adventureId, String(seed)); only seeded ties after deterministic legal candidate enumeration. |
+
+A uint32 draw means `int(4294967296)`; never use a larger maxExclusive. Restore initializes
+from saved words, never from these seed strings or by replaying live commands. Pure views,
+validation, rejected commands, lexical ties and narration consume no live entropy. All
+new counters/coordinates use safe integers; reject overflow before commit. Raw legacy
+snapshot numeric acceptance is unchanged. Director mechanical hash includes location,
+phase, members, current raw combat/geometry/turn control, resolved/rested nodes and reward
+statuses; omit rng, revisions, journal/sequence, acknowledgement and director counters.
+A no-progress decision increments stalledSteps; actual mechanical progress resets it.
+Policy version/id and saved hash/counters survive maxSteps calls and reopen.
+
+### Access paths, rejection and implementation evidence
+
+Build maps once after full validation: memberId→member/binding, combatantId→start/raw
+entry, nodeId→node, (nodeId,choiceId)→choice, rewardId→definition reward,
+claimId→rewardState, receiptId→receipt. Ordered arrays remain the serialized authority;
+maps are derived and never saved. Direct sequence indexing serves journal/narration;
+node/reward/receipt sets serve phase and duplicate guards. No SQL index or storage I/O.
+
+Shape/unknown keys use existing schema error families, unresolved refs existing reference
+families, inconsistent snapshots E-SNAP-01, unsupported snapshotVersion E-SNAP-02. Every
+located refusal is collected before exposure; a failed second member leaves no first
+member debit/mint visible, receipt, committed event or RNG advance. Counters and complete
+cross-field validation precede construction of observable facade state.
+
+Required runtime proofs remain with S01 c1/c3/c5, S02 c1/c2, S03 c3/c4 and S04 c2/c3/c4:
+real producer→schema validation→JSON stringify/parse→fresh restore→consumer continuation;
+wrong hash/identity/sides/order/balances/receipt/phase/cursor and RNG 2^32 rejection;
+legacy HP/departure compatibility; multi-member atomic failure; actual second fight;
+saved pending/no-item/claimed rewards; original conditioned action rejection; changed
+movement threatener; bounded director and no duplicate narration. Contract-only Ajv
+fixtures do not replace any of those proofs. No existing low-level API is changed here.
+
+---
+
+
 ## ErrorCard Rule Registry — v1
 
 One error shape everywhere (`schema/error-card.ts`); this registry is the DB-owned
@@ -790,13 +1110,13 @@ all built or compiled once at load (architecture: parse once, play many):
 
 ## Seed Data
 
-The only initial data in the repository are the **three sample theme templates**
+The existing initial data include the **three sample theme templates**
 (`src/compiler/themes/dark-fantasy.json`, `zombie-urban.json`, `wyldwood.json` — wyldwood since
 loot-inventory) — JSON, not code (FR-21).
 DB owns their **shape** (knob declarations, stage inputs, patch vocabulary, and the v1.1
 fields: `economy.turnSlots` grants, action/spell `tags`, `restricts` patterns; from v1.10, class features at `progression.<id>.features`); their content
 is authored coined material per the FR-21 coverage floor and expression policy (Q7/Q8).
-No database seeding exists — there is no database.
+S02 additionally owns original adventure recipe JSON in `src/compiler/adventure-templates/` for those three themes, conforming to the bound-template contract through the explicit pack-binding loader. These recipes are planned content, not supplied by this DB change. No database seeding exists — there is no database.
 
 ---
 
@@ -820,6 +1140,7 @@ request back to DB, never a scope adjustment for Coder** (DB.md contract).
 | 10 | 1 (v1.9) | builder-authorized 2026-10-04, builder-rulings: restricts symmetric in and out of combat (isRestricted/restrictedIds match a spell by actions.tagged: or spells.tagged:); awardXp never lowers a class level; the feat-slotted predicate stated plainly (any class); description only — no field added/removed/renamed, no rule id added, schemaVersion stays 1 — **two compatibility caveats:** (e) out-of-combat restricts now also match a spell by actions.tagged:; (f) awardXp keeps a directly set level above its XP level | database.md only (no contract file changed) |
 | 11 | 1 (v1.10) | builder-authorized 2026-10-04, class-features: class features move to progression.<id>.features ({level, ref}; ref = feat granted / action or spell unlocked from that class level; granted feats use no feat slot and are never stored); content.classes.<id>.features removed (E-SCHEMA-02); refs, redundancy, level range and uniqueness checked at load (E-REF-01 / E-SCHEMA-01); no rule id added, schemaVersion stays 1 — pre-release in-place revision with **one compatibility caveat:** (g) packs using the old location or unresolved refs now fail load; bundled themes migrated, so their contentHash changes | pack.schema.json revised |
 | 12 | 1 (v1.11) | builder-authorized 2026-10-11, contract-conformance: combat snapshot combatant `hp` loses `minimum: 0` — damage is not floored, hp ≤ 0 means down; the schema now admits what the engine always wrote and restore always read; loosening only — no field added/removed/renamed, no rule id, schemaVersion and snapshotVersion stay 1, no compatibility caveat (no previously valid document becomes invalid) | snapshots.schema.json revised |
+| 13 | 1 (v1.12) | 2026-10-16 approved AR-02–05: optional character hp and paused-move offeredDepartures; three new closed sidecar contracts for whole encounter, finite adventure template/definition and whole adventure. No existing required field/version or rule id changes; pack/override byte-identical. Legacy absence follows documented fallback; old readers cannot guarantee new HP/departure semantics. B-RA-XP is an unresolved positive-reward behavior decision, not a schema readiness claim. | `src/schema/contracts/snapshots.schema.json` revised; new `src/schema/contracts/play-session.schema.json`, `src/schema/contracts/adventure.schema.json`, `src/schema/contracts/adventure-snapshot.schema.json` |
 
 **Versioning discipline (FR-23, formalized):**
 - Additive optional fields within v1 = compatible (minor).
