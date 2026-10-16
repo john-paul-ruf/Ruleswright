@@ -189,8 +189,8 @@ Tests: S04 preview/director/narration, movement regression, built solo journey a
 
 | ID          | Affected                                          | Next action / owner                                                                                                        | Evidence to clear                                                                                               |
 | ----------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| B-RA-AUTHOR | CA-01..05, initial S01 then scoped later sessions | Approval received on resume (“start”); separate Author session must commit AR-01–AR-06 receipts under AUTHOR.md; no repeat approval request | Committed Spec/Designer/Architect/DB receipts, then Orchestrator reconciles prompts and CA mappings; approval alone is not producer evidence |
-| B-RA-DX     | Relevant documentation checkpoints                | Orchestrator routes Designer design-fill/new surfaces and scoped existing design-change packet                             | Matching developer-facing source and examples; no UI build                                                      |
+| B-RA-AUTHOR | CA-01..05, initial S01 then scoped later sessions | Author receipt 05dff11 received; exact contract reconciliation and narrow Author correction pending; no repeat approval | Seven Author commits landed; snapshots formatting correction and B-RA-XP fixed-contract clarification owned by returned Author; Planner then reconciles |
+| B-RA-DX     | Relevant documentation checkpoints                | Author supplied all scoped DX sources at 5b88826/5b92b52; Planner reconciles exact signatures                             | Source receipt complete, no UI build; runtime examples remain Coder-owned proof                                                      |
 | B-RA-REVIEW | Affected execution                                | Orchestrator requests scoped Archivist planning-completeness at first quiet boundary, after receipt amendments             | Findings dispositions in these canonical sections; scoring belongs to Archivist                                 |
 | B-BD-1      | CI acceptance only; carried                       | Human publication/push owner, then Orchestrator observes actual Actions and assigns any mechanical repair                  | Relevant Node/browser/Electron/package runs green at the implemented revision                                   |
 
@@ -250,3 +250,67 @@ After receipts land, Orchestrator reconciles every affected CA/session assumptio
 User response, verbatim: “i authorize it”. This follows the explanation that a separate Author session is required. The builder explicitly authorizes initiating that scoped re-entry now, in addition to the already approved AR-01–AR-06 meanings. This supersedes the prior procedural pause and no-spawn restriction for this single deliberate Author session; it is not standing authority to invent product changes. No repeat approval is needed. Orchestrator remains scheduler and writes no implementation.
 
 B-RA-AUTHOR: authorized Author re-entry being dispatched with exact protected paths from AUTHOR-HANDOFF, at base `470a777`. Implementation remains unready until committed receipts, reconciliation and planning-completeness review. No active implementation lease exists. Binding Native; cap 3; S01 → S02 → S03 → S04 unchanged. The alternative of asking the builder to restate authorization is rejected because the explicit authorization is now present.
+
+## Author Receive — 2026-10-16, source 05dff11
+
+Native h-4vGo / AvKBh ended normally (endedBy end_turn), raw reply saved verbatim in .program/results/AUTHOR-RANDOM-ADVENTURES.result.md. Declared-blocked, seven phase/correction commits: 6af52f1, 0686be0, 5b88826, d68f258, 5b92b52, 164a0c9, 05dff11. All 16 changed paths are within the exact Author write set; no lease violation. Clean working tree; no residual. Architecture fragment inapplicable to Author contract receipt. No implementation checkpoint accepted.
+
+Orchestrator independently ran fresh pnpm build (0), pnpm typecheck (0), pnpm lint (0), contract-conformance --cache=false (0; 1 file, 42 tests), git diff --check (0). pnpm format:check returned 1 solely for src/schema/contracts/snapshots.schema.json, introduced by Author, assigned to the same Author correction. Pack/override diff empty. Browser and full suite not rerun at this receive; Author visual checks are self-reported.
+
+B-RA-XP disposition: source-backed side effect in progression.ts applyProgression resets current HP and bindings. The approved AR-01/04 and FR-26/27 already require injury/resource continuity and explicit rest/preparation; retaining automatic heal/clear would change those approved semantics. Standing authority selects the narrow adapter preserving exact HP/temp and existing bindings around awardXp in adventure rewards, retaining its XP/class split/caps/level calculation and low-level behavior. Newly gained capacity remains empty; incompatible capacity refuses atomically rather than discarding preparation. No new product choice is made. Author's reported R4 is preserved below; Orchestrator classifies resolution as fixed-contract adaptation, not a new human approval. Protected documentation clarification stays with returned Author. Implementation/proof owner S03 c3/c4; CA-04/CAP-04 and dependent solo capabilities remain unready until contract reconciliation and actual proof.
+
+Current receipt is fully reconciled as declared-blocked with named corrections, not done. B-RA-AUTHOR is contracts-landed/correction-pending; B-RA-DX source supplied; B-RA-REVIEW awaits Planner reconciliation. All producer implementations and CAP proofs remain planned/blocked. The seven Author commits do not establish runtime readiness.
+
+### Author Handoff — verbatim (classification above is Orchestrator's)
+
+## Handoff
+
+```yaml
+session: AUTHOR-RANDOM-ADVENTURES
+status: blocked
+checkpoints:
+  idea: committed
+  requirements: committed
+  design: committed
+  architecture: committed
+  database: committed; positive-XP semantics unresolved
+filesTouched:
+  - program/Ruleswright/specs/idea.md
+  - program/Ruleswright/specs/requirements.md
+  - program/Ruleswright/specs/design.md
+  - program/Ruleswright/specs/architecture.md
+  - program/Ruleswright/specs/database.md
+  - program/Ruleswright/mocks/random-encounters.html
+  - program/Ruleswright/mocks/random-adventures.html
+  - program/Ruleswright/mocks/solo-director.html
+  - program/Ruleswright/mocks/snapshots.html
+  - program/Ruleswright/mocks/api-map.html
+  - program/Ruleswright/mocks/combat-loop.html
+  - program/Ruleswright/mocks/spatial.html
+  - src/schema/contracts/snapshots.schema.json
+  - src/schema/contracts/play-session.schema.json
+  - src/schema/contracts/adventure.schema.json
+  - src/schema/contracts/adventure-snapshot.schema.json
+verification:
+  schemaCompilationAndReferences: passed
+  structuralCompatibilityAssertions: 26 passed
+  existingContractConformance: 42 passed
+  commitScopeAndWhitespace: passed
+  worktree: clean
+notes: Contracts supplied only; no runtime implementation or readiness claim.
+surprises:
+  - Positive awardXp resets HP and prepared bindings even without leveling.
+  - Static adventure recipes require explicit effective-pack binding.
+followUp:
+  - Resolve B-RA-XP, then reconcile its dependent Author contracts.
+  - Planner/Orchestrator must reconcile all SESSION and CA mappings.
+  - Run receive gates and planning-completeness review before dependent dispatch.
+  - Runtime producer, restart and cross-platform proofs remain with S01–S04.
+deviations:
+  - rule: R4
+    id: B-RA-XP
+    meaning: Positive-reward injury/binding policy requires builder decision.
+    action: Recorded blocker; no runtime or speculative policy change.
+  - classification: not a deviation
+    meaning: Explicit template binding and exact schema spelling refine the approved packet.
+```
