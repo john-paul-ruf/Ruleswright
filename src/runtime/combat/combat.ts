@@ -99,6 +99,31 @@ export type {
  * row).
  */
 export function startCombat(runtime: Runtime, request: StartCombatRequest): Combat {
+  const conditionErrors = [...request.allies, ...request.enemies].flatMap((member) => {
+    if (member.conditions === undefined) return [];
+    const at = `combatants.${member.id}.conditions`;
+    if (!Array.isArray(member.conditions))
+      return [ruleCard('E-SNAP-01', member.id, at, 'Initial conditions must be an array.')];
+    return member.conditions.flatMap((active, index) =>
+      active !== null &&
+      typeof active === 'object' &&
+      Object.keys(active).length === 2 &&
+      typeof active.conditionId === 'string' &&
+      runtime.pack.content.conditions?.[active.conditionId] !== undefined &&
+      Number.isSafeInteger(active.duration) &&
+      active.duration >= 0
+        ? []
+        : [
+            ruleCard(
+              'E-SNAP-01',
+              member.id,
+              `${at}[${index}]`,
+              'Initial condition requires a declared id and nonnegative safe duration.',
+            ),
+          ],
+    );
+  });
+  if (conditionErrors.length) throw new RuntimeRuleError(conditionErrors);
   // CAP-G2 fail-closed gate: a spatial pack's fight is refused — all missing
   // combatants and every bad terrain placement in one aggregate, nothing
   // built — before any state or rolls.
@@ -135,6 +160,7 @@ export function startCombat(runtime: Runtime, request: StartCombatRequest): Comb
     balances: EconomyBalances;
     positions: Position | undefined;
     initiativeRoll: number;
+    conditions: CombatantState['conditions'];
   }[] = [];
   for (const member of request.allies) {
     entries.push({
@@ -145,6 +171,7 @@ export function startCombat(runtime: Runtime, request: StartCombatRequest): Comb
       balances: member.balances ?? {},
       positions: request.positions?.[member.id],
       initiativeRoll: rng.int(20) + 1,
+      conditions: (member.conditions ?? []).map((active) => ({ ...active })),
     });
   }
   for (const member of request.enemies) {
@@ -156,6 +183,7 @@ export function startCombat(runtime: Runtime, request: StartCombatRequest): Comb
       balances: member.balances ?? {},
       positions: request.positions?.[member.id],
       initiativeRoll: rng.int(20) + 1,
+      conditions: (member.conditions ?? []).map((active) => ({ ...active })),
     });
   }
   const order = entries
@@ -176,7 +204,7 @@ export function startCombat(runtime: Runtime, request: StartCombatRequest): Comb
       name: entry.name,
       hp: { current: entry.profile.hp },
       maxHp: entry.profile.maxHp ?? Math.max(0, entry.profile.hp),
-      conditions: [],
+      conditions: entry.conditions,
       slots: freshLedger(grants),
       pools: { ...(entry.balances.pools ?? {}) },
       boundSlots: { ...(entry.balances.boundSlots ?? {}) },
@@ -322,6 +350,22 @@ export class Combat {
       return this.endTurn();
     }
     return { kind: 'awaiting-declare', combatantId: this.state.active };
+  }
+
+  /** End this turn without replenishing its ledger. Open offers must be answered first. */
+  pass(): StepOutcome {
+    if (this.state.phase === 'combat-over' || this.pendingTriggers.length > 0) {
+      throw new RuntimeRuleError([
+        ruleCard(
+          'E-REF-01',
+          this.state.active,
+          'phase',
+          'Cannot pass terminal combat or a turn with unanswered offers.',
+        ),
+      ]);
+    }
+    forfeitMove(this.core);
+    return this.endTurn();
   }
 
   /**

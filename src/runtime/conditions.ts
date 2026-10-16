@@ -80,6 +80,7 @@ export function applyCondition(
   runtime: Runtime,
   character: CharacterState,
   conditionId: string,
+  duration?: number,
 ): RuntimeEvent {
   const def = runtime.pack.content.conditions?.[conditionId];
   if (def === undefined) {
@@ -93,21 +94,22 @@ export function applyCondition(
     ]);
   }
   const existing = character.conditions.filter((active) => active.conditionId === conditionId);
+  const effectiveDuration = duration ?? def.duration;
   if (existing.length > 0) {
     switch (def.stacking) {
       case 'refresh': {
         const active = existing[0]!;
-        active.duration = def.duration;
+        active.duration = effectiveDuration;
         break;
       }
       case 'stack':
-        character.conditions.push({ conditionId, duration: def.duration });
+        character.conditions.push({ conditionId, duration: effectiveDuration });
         break;
       case 'ignore':
         break;
     }
   } else {
-    character.conditions.push({ conditionId, duration: def.duration });
+    character.conditions.push({ conditionId, duration: effectiveDuration });
   }
   return runtime.events.emit({
     type: 'condition:applied',
@@ -115,7 +117,7 @@ export function applyCondition(
     target: character.id,
     payload: {
       conditionId,
-      duration: def.duration,
+      duration: def.stacking === 'ignore' && existing.length > 0 ? existing[0]!.duration : effectiveDuration,
       stacking: def.stacking,
       active: character.conditions.filter((active) => active.conditionId === conditionId).length,
     },

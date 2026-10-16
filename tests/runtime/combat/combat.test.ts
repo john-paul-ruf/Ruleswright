@@ -642,3 +642,74 @@ describe('fight.use — consumables in combat (CAP-E4, CA-EG4, CA-EG5)', () => {
     expect(damage!.why.rolls[0]).toMatch(/^d6\[\d+\]=\d+$/);
   });
 });
+
+describe('CA-01 start conditions and explicit pass', () => {
+  it('initial conditions restrict a real declare without post-start mutation', () => {
+    const runtime = new Runtime(emberMarchesPack());
+    const sides = ruleSides(
+      runtime,
+      [{ id: 'mage', actions: ['grave-gaze'], initiativeBonus: 100 }],
+      [WIGHT_AT_1],
+    );
+    const conditions = [{ conditionId: 'hexbound', duration: 2 }];
+    const fight = startCombat(runtime, { ...sides, allies: sides.allies.map((c) => ({ ...c, conditions })) });
+    fight.step();
+    expect(fight.declare('grave-gaze')[0]!.payload['kind']).toBe('restricted');
+    conditions[0]!.duration = 99;
+    expect(fight.state.combatants['mage']!.conditions[0]!.duration).toBe(2);
+  });
+  it.each(
+    [
+      [{ conditionId: 'unknown', duration: 1 }],
+      [{ conditionId: 'hexbound', duration: -1 }],
+      [{ conditionId: 'hexbound', duration: 0.5 }],
+      [{ conditionId: 'hexbound', duration: Infinity }],
+      [null],
+      {},
+      [{ conditionId: 'hexbound', duration: 1, extra: true }],
+    ].map((conditions) => ({ conditions })),
+  )('refuses malformed initial conditions before initiative and events: %j', ({ conditions }) => {
+    const runtime = new Runtime(emberMarchesPack());
+    const sides = ruleSides(runtime, [BRYNN], [WIGHT_AT_1]);
+    const rng = new Rng('unchanged');
+    const before = rng.getState();
+    expect(() =>
+      startCombat(runtime, {
+        ...sides,
+        enemies: sides.enemies.map((c) => ({ ...c, conditions: conditions as never })),
+        rng,
+      }),
+    ).toThrow(/Initial condition/);
+    expect(rng.getState()).toEqual(before);
+    expect(runtime.events.sinceRound(0)).toEqual([]);
+  });
+  it('pass advances once through endTurn without refreshing the spent ledger', () => {
+    const { fight, events } = journeyFight();
+    fight.step();
+    const actor = fight.state.active;
+    fight.declare(fight.state.combatants[actor]!.actions[0]!);
+    const before = { ...fight.state.combatants[actor]!.slots.remaining };
+    const outcome = fight.pass();
+    expect(outcome.kind).toBe('turn-ended');
+    expect(fight.state.active).not.toBe(actor);
+    expect(fight.state.combatants[actor]!.slots.remaining).toEqual(before);
+    expect(events.filter((e) => e.type === 'turn:ended')).toHaveLength(1);
+  });
+  it('terminal and unanswered-offer passes refuse without state or event changes', () => {
+    const terminal = lastSideDefeated();
+    const open = ruleFight(
+      [{ id: 'guard', actions: ['parry'], initiativeBonus: 0 }],
+      [{ id: 'attacker', actions: ['wight-claw'], initiativeBonus: 100 }],
+    );
+    open.fight.step();
+    open.fight.declare('wight-claw');
+    expect(open.fight.pendingTriggers.length).toBeGreaterThan(0);
+    for (const { fight, events } of [terminal, open]) {
+      const before = JSON.stringify({ state: fight.serialize(), offers: fight.pendingTriggers, events });
+      expect(() => fight.pass()).toThrow(/Cannot pass/);
+      expect(JSON.stringify({ state: fight.serialize(), offers: fight.pendingTriggers, events })).toBe(
+        before,
+      );
+    }
+  });
+});

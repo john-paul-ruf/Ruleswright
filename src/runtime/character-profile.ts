@@ -11,8 +11,7 @@
  * (CA-S3, v1.6): the fight never touches character state, so the host settles
  * a finished fight's item and spell spend back into the character explicitly.
  *
- * v1 limits (documented, not silent): active conditions are not carried into
- * the fight — `StartCombatRequest` has no conditions field — and a multiclass
+ * A multiclass
  * character on the table convention uses one class's row (see
  * `profileFromCharacter`).
  */
@@ -34,6 +33,7 @@ import { RuntimeRuleError, ruleCard } from './errors';
 export interface CharacterCombatant {
   readonly profile: CombatantProfile;
   readonly balances: EconomyBalances;
+  readonly conditions?: readonly { readonly conditionId: string; readonly duration: number }[];
 }
 
 /**
@@ -67,7 +67,7 @@ export interface CharacterCombatant {
  *   (an item with a parse-once `use` effect) — the fight's item charges — and
  *   (v1.6) `bindings`, a deep copy of the character's `slots`, which spell
  *   casts consume (DD-S18).
- * - Active conditions are NOT carried (v1: `StartCombatRequest` has no field).
+ * - Active conditions are copied into the start entry when nonempty.
  */
 export function profileFromCharacter(
   runtime: Runtime,
@@ -141,6 +141,7 @@ export function profileFromCharacter(
       ...(feats.length > 0 ? { feats } : {}),
     },
     balances: { pools: { ...state.pools }, boundSlots, items, bindings },
+    ...(state.conditions.length > 0 ? { conditions: state.conditions.map((active) => ({ ...active })) } : {}),
   };
 }
 

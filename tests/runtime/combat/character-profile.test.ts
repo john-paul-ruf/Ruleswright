@@ -578,3 +578,25 @@ describe('CA-EG5 — settleItemUses writes the fight’s spend back to the inven
     ]);
   });
 });
+
+describe('CA-01 initial condition transfer', () => {
+  it('copies remaining conditions only when nonempty, beside profile and balances', () => {
+    const rt = new Runtime(packFor('dark-fantasy'));
+    const character = hero(rt, 'ashkin', [{ id: 'warden', level: 1 }]);
+    expect(Object.keys(profileFromCharacter(rt, character)).sort()).toEqual(['balances', 'profile']);
+    character.applyCondition('sapped');
+    character.tick();
+    const pair = profileFromCharacter(rt, character, 'hero');
+    expect(pair.conditions).toEqual(character.state.conditions);
+    const fight = startCombat(rt, {
+      allies: [{ id: 'hero', ...pair }],
+      enemies: [{ id: 'foe', profile: spawnMonster(rt, 'hill-spider', 'foe') }],
+      positions: { hero: { x: 0, y: 0 }, foe: { x: 1, y: 0 } },
+    });
+    expect(fight.state.combatants['hero']!.conditions).toEqual(character.state.conditions);
+    character.state.conditions[0]!.duration = 99;
+    expect(pair.conditions![0]!.duration).not.toBe(99);
+    fight.state.combatants['hero']!.conditions[0]!.duration = 88;
+    expect(pair.conditions![0]!.duration).not.toBe(88);
+  });
+});

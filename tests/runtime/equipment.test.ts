@@ -236,6 +236,7 @@ describe('useItem — out-of-combat consumables (CAP-E4 character leg, CA-EG4/CA
     const events = character.useItem('sap-dust');
     expect(events.map((event) => event.type)).toEqual(['item:used', 'condition:applied']);
     expect(character.state.conditions).toEqual([{ conditionId: 'sapped', duration: 5 }]); // pack default 3
+    expect(events[1]!.payload['duration']).toBe(5);
   });
 
   it('rejects every gate by name with no state change and no event', () => {

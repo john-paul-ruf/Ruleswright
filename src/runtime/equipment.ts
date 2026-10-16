@@ -317,17 +317,7 @@ export function useItem(
       );
     },
     condition: (_target, conditionId, duration) => {
-      const count = state.conditions.length;
-      events.push(applyCondition(runtime, state, conditionId));
-      // The effect's evaluated duration overrides the pack default on the entry
-      // this application created (stack/new) or refreshed; `ignore` touches none.
-      const touched =
-        state.conditions.length > count
-          ? state.conditions[state.conditions.length - 1]
-          : runtime.pack.content.conditions?.[conditionId]?.stacking === 'refresh'
-            ? state.conditions.find((active) => active.conditionId === conditionId)
-            : undefined;
-      if (touched !== undefined) touched.duration = duration;
+      events.push(applyCondition(runtime, state, conditionId, duration));
     },
   };
   executeEffect(effect, {

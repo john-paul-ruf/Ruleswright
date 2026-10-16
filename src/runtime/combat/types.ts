@@ -154,8 +154,13 @@ export type StepOutcome =
   | { kind: 'combat-over' };
 
 export interface StartCombatRequest {
-  readonly allies: readonly { id: string; profile: CombatantProfile; balances?: EconomyBalances }[];
-  readonly enemies: readonly { id: string; profile: CombatantProfile; balances?: EconomyBalances }[];
+  readonly allies: readonly {
+    id: string;
+    profile: CombatantProfile;
+    balances?: EconomyBalances;
+    conditions?: readonly { readonly conditionId: string; readonly duration: number }[];
+  }[];
+  readonly enemies: StartCombatRequest['allies'];
   /** Host-declared grid positions (FR-11); every combatant needs one when the pack declares a spatial model. */
   readonly positions?: Readonly<Record<string, Position>>;
   /** v1.5 — host-placed terrain cells; kinds come from the pack's `spatial.terrain` vocabulary. */

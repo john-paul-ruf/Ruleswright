@@ -190,3 +190,22 @@ describe('CA-6 guard — derived stats never bypass reserved formulas', () => {
     expect(() => new Runtime(pack)).toThrow(/reserved formula id "ac" is not defined/);
   });
 });
+
+describe('CA-01 effective duration and stacking events', () => {
+  it.each(['sapped', 'hexbound', 'dazzed'])(
+    'publishes the actual applied or retained duration for %s',
+    (id) => {
+      const runtime = new Runtime(cloneRuntimePack());
+      const state = runtime.createCharacter({ name: 'Hero', race: 'ashkin', classes: ['warden'] }).state;
+      const first = applyCondition(runtime, state, id, 7);
+      expect(first.payload['duration']).toBe(7);
+      tickConditions(runtime, state);
+      const second = applyCondition(runtime, state, id, 4);
+      const policy = runtime.pack.content.conditions![id]!.stacking;
+      expect(state.conditions.map((c) => c.duration)).toEqual(
+        policy === 'stack' ? [6, 4] : policy === 'ignore' ? [6] : [4],
+      );
+      expect(second.payload['duration']).toBe(policy === 'ignore' ? 6 : 4);
+    },
+  );
+});
