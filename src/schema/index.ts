@@ -10,3 +10,4 @@ export * from './validate';
 export * from './version';
 export * from './overrides';
 export * from './play-session';
+export * from './adventure';

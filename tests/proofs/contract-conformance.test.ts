@@ -46,6 +46,14 @@ import { cloneRuntimePack } from '../runtime/fixtures/pack';
 import { clonePack } from '../schema/fixtures';
 import { playFixture, send, finish } from '../runtime/play/fixtures';
 
+import {
+  packContentHash,
+  validateAdventureTemplate,
+  validateAdventureDefinition,
+  type AdventureTemplate,
+  type AdventureDefinition,
+} from '../../src/schema';
+
 type Contract = Record<string, unknown>;
 type Doc = Record<string, unknown>;
 
@@ -323,5 +331,157 @@ describe('CA-02 actual aggregate conformance and F-RA-01 empty seed', () => {
     (saved.encounter.selection as unknown as Doc)['seedUsed'] = 42;
     expect(validate(saved)).toBe(false);
     expect(failedOn(validate, '/encounter/selection/seedUsed', 'type')).toBe(true);
+  });
+});
+function adventureFixture() {
+  const pack = cloneRuntimePack();
+  const template: AdventureTemplate = {
+    kind: 'adventure-template',
+    schemaVersion: 1,
+    id: 'lantern-route',
+    version: 1,
+    pack: { id: pack.manifest.id, schemaVersion: 1, contentHash: packContentHash(pack) },
+    nodeBounds: { min: 3, max: 4 },
+    objective: { id: 'return', text: 'Return the signal lantern.' },
+    tables: {
+      arrival: { kind: 'weighted', entries: [{ weight: 1, value: 'clearing' }] },
+      danger: { kind: 'weighted', entries: [{ weight: 1, value: 'watch' }] },
+    },
+    locations: {
+      clearing: {
+        kind: 'discovery',
+        title: 'Lantern clearing',
+        description: '',
+        rewardIds: [],
+        rest: 'once',
+        preparation: true,
+        facts: { place: 'clearing' },
+      },
+      watch: {
+        kind: 'encounter',
+        title: 'The silent watch',
+        description: '',
+        rewardIds: ['cache'],
+        rest: 'none',
+        preparation: false,
+        facts: {},
+        encounter: { budget: 2, seed: '', maxPartySize: 1, maxEnemies: 1, layout: { kind: 'theater' } },
+      },
+    },
+    fragments: { forward: 'Follow the lanterns.', detour: 'Search the old watch.' },
+    construction: {
+      entry: { id: 'start', tableId: 'arrival' },
+      spine: [{ id: 'guard', tableId: 'danger' }],
+      terminal: { id: 'home', title: 'Home', description: '' },
+      branches: [
+        {
+          id: 'watch',
+          fromNodeId: 'start',
+          toNodeId: 'home',
+          nodes: [{ id: 'side', tableId: 'danger' }],
+          includeWeight: 1,
+          omitWeight: 0,
+          choiceTextRef: 'detour',
+        },
+      ],
+      continueTextRef: 'forward',
+    },
+    rewards: [
+      {
+        id: 'cache',
+        xpPerMember: 0,
+        eligible: 'party',
+        loot: { tableId: 'district-scavenge', recipient: 'host-choice' },
+      },
+    ],
+    facts: { place: 'vale' },
+    director: {
+      id: 'watch-policy',
+      version: 1,
+      priorities: [{ kind: 'action', actionId: 'strike' }, { kind: 'pass' }],
+      targetOrder: 'id',
+      tieBreak: 'lexical',
+      reactionPriority: ['vengeful-strike'],
+      maxCandidates: 30,
+      stallLimit: 5,
+    },
+    narration: {
+      fragments: [
+        {
+          id: 'arrival',
+          eventType: 'node:entered',
+          text: 'Arrived at {place}.',
+          slots: [{ name: 'place', path: 'facts.place' }],
+        },
+      ],
+    },
+  };
+  const body: Omit<AdventureDefinition, 'contentHash'> = {
+    kind: 'adventure-definition',
+    schemaVersion: 1,
+    id: template.id,
+    template: { id: template.id, version: 1 },
+    pack: template.pack,
+    seed: 'host',
+    objective: template.objective,
+    startNodeId: 'start',
+    successNodeId: 'home',
+    nodes: [
+      {
+        ...template.locations['clearing']!,
+        id: 'start',
+        choices: [{ id: 'continue', text: 'Forward', toNodeId: 'guard' }],
+      },
+      {
+        ...template.locations['watch']!,
+        id: 'guard',
+        choices: [{ id: 'continue', text: 'Home', toNodeId: 'home' }],
+      },
+      {
+        id: 'home',
+        kind: 'success',
+        title: 'Home',
+        description: '',
+        choices: [],
+        rewardIds: ['cache'],
+        rest: 'none',
+        preparation: false,
+        facts: {},
+      },
+    ],
+    rewards: template.rewards,
+    facts: template.facts,
+    director: template.director,
+    narration: template.narration,
+  };
+  return { pack, template, definition: { ...body, contentHash: packContentHash(body) } };
+}
+
+describe('CA-03 / F-RA-01 authoritative adventure input conformance', () => {
+  const ajv = new Ajv2020({ allErrors: true, strict: false });
+  for (const name of ['snapshots', 'play-session', 'adventure'])
+    ajv.addSchema(
+      JSON.parse(
+        readFileSync(new URL(`../../src/schema/contracts/${name}.schema.json`, import.meta.url), 'utf8'),
+      ),
+    );
+  const validate = ajv.getSchema('https://ruleswright.dev/schemas/1/adventure.schema.json')!;
+  it('accepts host template and definition with exact empty setup seeds through JSON', () => {
+    const { pack, template, definition } = adventureFixture();
+    expect(validateAdventureTemplate(pack, template)).toEqual([]);
+    expect(validateAdventureDefinition(pack, definition)).toEqual([]);
+    for (const doc of [template, definition])
+      expect(validate(json(doc)), ajv.errorsText(validate.errors)).toBe(true);
+    expect(json(template).locations['watch']!.encounter!.seed).toBe('');
+    expect(json(definition).nodes[1]!.encounter!.seed).toBe('');
+  });
+  it('rejects non-JSON setup seed and extra fields at their authoritative locations', () => {
+    const { template, definition } = adventureFixture();
+    const bad = json(template);
+    (bad.locations['watch']!.encounter as unknown as Doc)['seed'] = null;
+    expect(validate(bad)).toBe(false);
+    expect(failedOn(validate, '/locations/watch/encounter/seed', 'type')).toBe(true);
+    expect(validate({ ...definition, extra: true })).toBe(false);
+    expect(failedOn(validate, '', 'additionalProperties')).toBe(true);
   });
 });
