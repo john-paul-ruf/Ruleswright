@@ -163,3 +163,8 @@ Return actual CA-04 mappings, receipt predicates, new public symbols, journal/cu
 ## Landed encounter prerequisite — SESSION-01
 
 SESSION-01 accepted through `27a24d0`: real create/restoreEncounterSession, revision-guarded dispatch, member projection, original/current restore inputs, journal subjects and receipt-bound atomic settlement are available. Victory/defeat/active abandonment and consecutive-fight JSON continuation are verified in its actual leased tests. Consume these committed production mappings; no encounter double or audit-only settlement. CA-02 is ready; CA-03 definition still waits S02. This does not complete this session's reward/adventure proofs.
+
+
+## Landed definition prerequisite — SESSION-02
+
+SESSION-02 accepted through `09e9766`: AdventureDefinition/Template/StartOptions, validators, generateAdventure({pack,template,seed}), loadAdventureTemplate(id,pack) and three original recipes are ready. CA-03 generator/JSON boundary verified in actual built ESM/CJS journey4, schema77/compiler17/conformance56; exact empty setup seeds preserved. Full Node1238/64 and fast gates pass. Use these actual committed producers; this session owns real play integration and reward/save assertions. Existing nested pack tables with unresolved nothing references are not used by the validated recipes; do not mutate unrelated packs. CA-01/02 remain verified at27a24d0. No human approval or missing external producer remains.
