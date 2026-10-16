@@ -1838,3 +1838,15 @@ manifest, build configuration, or runtime-only bundle content was introduced.
 - Internal `combat/preview.ts` shares declaration/reaction/feat legality with production execution without spending resources or entropy. Manual random-dependent validity remains compatible; solo rejects it before automated play.
 - `PendingMove.offeredDepartures` persists exact `{ from, to, reactorId }` history through combat and aggregate snapshots. Absent legacy history retains first-edge suppression; an explicit empty array checks all departures. Resume suppresses only previously offered tuples, permitting a new edge or threatener.
 - Narration and acknowledgement remain checkpoint-4 work; no `readNarration` export or acknowledgement dispatch is delivered by this delta.
+
+<!-- random-adventures SESSION-04 c4-c5 -->
+
+# SESSION-04 checkpoints 4–5 delta (lease revision 4)
+
+M03 exports `readNarration(adventure): readonly NarrationMessage[]` and `NarrationMessage` with exactly messageId, sequence, templateId, event and text. `AdventureCommand` adds the approved exact `ack-narration` shape with throughSequence; views advertise it in every phase. Identity/revision guards precede equal no-op handling. A new ack validates and commits revision/cursor only, without appending an event, including terminal phases. Existing snapshot cursor validation/writers are reused unchanged.
+
+`adventure/narration.ts` projects detached committed journal entries using event-time subjects and node context. Authored slots interpolate literal text; missing data and negative damage use factual fallback (healing for negative damage). Reads neither acknowledge nor consume entropy. New value edges: barrel → adventure/narration; adventure/narration → adventure/adventure and adventure/choices. No cross-module edge, dependency, schema change or rule id added.
+
+CA-05/CAP-05 reset proof now covers a real director turn-start resetting explicitly restored below-limit nonzero stalledSteps and exact JSON reopen. B-RA-S04-STALL remains disproved; no reachable production stalemate claim. CAP-06 has real acknowledgement, factual narration and cross-runtime continuation proofs. Existing adventure oracle rekeys are only the new availableCommands entry; removing it reproduces both prior digests. Combat digests remain unchanged from the accepted c2 history delta.
+
+README now executes/types all three host modes; docs-run has 17 tests and negative controls. Final source passes Node/Electron 1447 tests/73 files each, Chromium/Firefox/WebKit 77 tests/7 files each, all fast gates and outside-HOME clean frozen install/build/typecheck with 467 local tsc input paths. Remote Actions B-BD-1 remains with publication owner. Full artifact/source/lock manifests and logs: /private/tmp/ruleswright-s04-final.uhmVPL.
