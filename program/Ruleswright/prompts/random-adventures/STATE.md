@@ -1094,3 +1094,30 @@ CAP05/06 and CA05 now verified at exact c4/c5 commits, CA02 history extension cu
   - `tests/snapshots/adventure.test.ts`
   - `tests/snapshots/combat.test.ts`
   - `tests/snapshots/play-session.test.ts`
+
+
+## Feature Verification Complete Receive — 2026-10-16 21:21:36 UTC
+
+One initial verification envelope h-OsTi/Crldt ended; raw final saved. Worker declared blocked archival-only after commit_pathspec GIT_FAILED at git add because .gitignore29 ignores prompt directory. No source/test/state/arch write or checkpoint. Existing PROGRAM-CONFIG authority applied: exact unchanged VERIFICATION.md SHA256158a0d0b4ed20c674823e328bd08dd736d513d18e0e092fd116a684b68ab601a force-added/committed26510c4, sole committed path. Orchestrator read committed file through read_file and counted all56six-column rows:56verified,0present-unverified,0failed,0blocked within stated local acceptance scope. This resolves worker archival block; not a capability failure or proof waiver. No failed rows to route, no second pass warranted.
+
+Independent verifier N1 891/39 +N2 556/34 disjoint=1447/73 Node, scopedElectron892/40, sequential three browser77/7 each, all0; fastgates0;16built JS/declaration hashes and188source/test entries match accepted6d919f3. Current full receive evidence separately includes fullElectron1447. Supporting FR slices scoped, not all historical program guarantees; 24must-haves individually enumerated. RemoteActions B-BD-1 unverified external debt retained, unused old lootrefs carried Planner/M04, no natural stalemate claim. No new contradictory CAP/CA evidence. Slot/resources released; no pending receive; FinalReport then finalArchivist next.
+
+Timing normalization: S01 launch19:35:01UTC→receive20:00:49UTC; S02 launch20:03:08UTC→receive20:13:00UTC. Earlier scratch/receive text rendering [object Object] referred to these clock values, not missing evidence. S03 20:16:41→20:35:20; S04 first20:37:31→final21:13:17 including corrections/replan waits. All dates2026-10-16. No hands-on duration inferred.
+
+### Verification Handoff — verbatim
+
+## Handoff
+
+- **session:** Feature Verification — random-adventures, pass 1
+- **status:** blocked — archival only; verification complete
+- **checkpoint:** Verification artifact complete; no commit created
+- **notes:** Audited implementation `6d919f3` at HEAD `f5533f1`. All 56 scoped rows verified, including CAP-01–06 and 24 acceptance criteria.
+- **delivered:** [VERIFICATION.md](/Users/the.phoenix/WebstormProjects/Ruleswright/program/Ruleswright/prompts/random-adventures/VERIFICATION.md)
+- **verification:** Independent Node runs: **1,447 tests / 73 files**. Scoped Electron: **892 / 40**. Chromium, Firefox and WebKit: **77 / 7 each**. All exit 0. Typecheck, lint, formatting, isolation and security passed. Built artifact hashes match accepted implementation.
+- **surprises:** Required `commit_pathspec` returned `GIT_FAILED` at `git add`. `.gitignore:29` ignores the output directory. No bypass attempted.
+- **deviations:** —
+- **followUp:** Preserve B-BD-1 remote CI debt and Planner/M04’s unused legacy loot-reference debt. No naturally reachable stalemate-detection claim.
+- **needsOwnerCorrection:** Orchestrator archives the permitted artifact unchanged under the existing convention. SHA256: `158a0d0b4ed20c674823e328bd08dd736d513d18e0e092fd116a684b68ab601a`.
+- **needsDesignSource:** —
+- **blockedReason:** Commit-tool rejection prevents worker archival; no required local capability proof remains blocked.
+- **filesTouched:** `program/Ruleswright/prompts/random-adventures/VERIFICATION.md` — created, ignored, uncommitted. No source/test/STATE/architecture edits.
