@@ -13,7 +13,8 @@ A headless TypeScript library that turns a one-line theme — "zombie urban," "d
 into a complete, playable d20-style campaign: a JSON content pack consumed by an embeddable
 runtime providing party management, character management, and combat management. Every
 rule, skill, feat, spell, save, table, and monster lives in the pack. A theme compiler
-expands theme templates into packs deterministically from a seed.
+expands theme templates into packs deterministically from a seed. The opt-in play layer adds
+random encounters, finite pack-bound adventures and offline solo direction (FR-24–29).
 
 ---
 
@@ -66,7 +67,7 @@ expands theme templates into packs deterministically from a seed.
 - **User story:** As a pack author, I want leveling to read from pack tables so any progression scheme works.
 - **Acceptance criteria:**
   - [ ] Progression tables in the pack define: HD, attack progression (classic to-hit tables by class/level), save progressions, feat slots, class features, and vancian slot tables.
-  - [ ] XP accumulates on the character; the engine emits events and never decides awards — hosts/GMs award XP.
+  - [ ] XP accumulates on the character; the engine emits events and never decides awards — hosts/GMs award XP, including explicit authored adventure rewards (FR-27); threat never implies an award.
   - [ ] Direct level-set is supported for character creation (no XP simulation needed); both paths validate identically.
   - [ ] **Multi-class in v1:** a character may hold multiple concurrent classes with XP split per pack policy; each class contributes its own progression tables (including slot tables for vancian casters).
   - [ ] Race/class restriction matrices and level caps are pack data (classic demihuman caps included).
@@ -145,13 +146,14 @@ expands theme templates into packs deterministically from a seed.
 ### FR-14: Snapshots (save/load)
 - **User story:** As a host-app developer, I want lossless snapshots as plain JSON so my app owns storage.
 - **Acceptance criteria:**
-  - [ ] Snapshots carry **state only**: characters (abilities, saves, skills, feats, classes + XP split, pools, slot bindings, conditions, inventory), party membership, and combat state (initiative order, round, current turn, per-combatant transients).
+  - [ ] Snapshots carry **state only**: characters (exact current and temporary HP, abilities, saves, skills, feats, classes + XP split, pools, slot bindings, conditions, inventory), party membership, and combat state (initiative order, round, current turn, per-combatant transients).
   - [ ] Snapshots include **RNG state** — a resumed fight rolls the same future as an uninterrupted one (testable).
   - [ ] Snapshots include **pack identity**: pack id, version, content hash.
   - [ ] On load, the engine verifies pack identity and **refuses loudly on mismatch** — no mangled characters.
   - [ ] No snapshot migration in v1 (documented v2 seam); a schema/content version bump renders old snapshots stale, and the API says so plainly.
+  - [ ] New character writers preserve signed integer current HP (including above-derived-max values) and nonnegative integer temporary HP without clamping. Legacy snapshots without HP use the old reconstruction; old readers cannot promise injury preservation. Temporary HP remains bookkeeping, not new absorption mechanics.
   - [ ] Three independent serializers: character, party, combat. A combat snapshot names the party snapshot it pairs with; docs state the pairing.
-  - [ ] The engine performs **no I/O of any kind** — no filesystem, no DB, no localStorage, no autosave timers. `serialize()` returns a JSON string; storage adapters are third-party territory.
+  - [ ] The engine performs **no I/O of any kind** — no filesystem, no DB, no localStorage, no autosave timers. serializers return plain JSON objects; hosts use `JSON.stringify` for bytes; storage adapters are third-party territory.
 
 ### E. Content Tooling
 
@@ -235,6 +237,59 @@ expands theme templates into packs deterministically from a seed.
 
 ---
 
+### G. Opt-in Headless Play — approved AR-01–AR-06
+
+These are approved contracts for implementation, not a claim of delivered capabilities. Existing FR-1–23 remain binding. Plan-local RA-01–06/CAP-01–06 map in order to FR-24–29.
+
+### FR-24: Playable random encounters (RA-01 / CAP-01; AR-01/02)
+- **User story:** As a host developer, I want to play and resume a random encounter without supplying an application UI or a story.
+- **Acceptance criteria:**
+  - [ ] Explicit seed, positive finite threat budget, stable session/member ids, participant cap and layout/terrain policy produce an affordable nonempty encounter. Party composition does not implicitly scale the budget.
+  - [ ] Detached views expose manual actions, reactions and pass-turn control. Start conditions transfer with their actual remaining round durations; restrictions apply through real combat. Passing advances once and cannot refresh the same turn's resources or bypass an unanswered offer.
+  - [ ] One aggregate saves member envelopes, original combat bindings/profiles/balances, selection/enemy ids/sides, raw fight state, current positions/terrain, turn-start control, pending offers/movement, stream states, sequences and settlement receipts. Restore requires only the effective pack plus that document.
+  - [ ] Settlement stages every member's HP/conditions/item/pool/slot changes and the subject-bound receipt together. A failure on any member commits nothing. Repeated settlement returns its receipt without re-spending. The next encounter uses the settled party.
+
+### FR-25: Finite portable adventures (RA-02 / CAP-02; AR-01/03)
+- **User story:** As a content author, I want authored themed alternatives to generate a finite playable adventure as portable data.
+- **Acceptance criteria:**
+  - [ ] Separate versioned templates and generated definitions bind effective pack id/schemaVersion/contentHash. Existing Pack, ThemeTemplate and override fields and pack generation bytes remain unchanged.
+  - [ ] Templates declare finite node bounds, weighted original descriptor tables, entry/spine/branch/terminal construction, choice text, encounter setups, rest/preparation policy, rewards, director priorities and narration fragments. The bounded generator selects authored alternatives through the existing table engine.
+  - [ ] Definitions carry template id/version, pack identity, seed, unique resolved nodes/choices, explicit objective/success terminal, setups/rewards/policy/narrative facts and a canonical content digest excluding itself. No Runtime instances, callbacks or dates.
+  - [ ] Every node is reachable; a success route exists; refs, weights, budgets, capacities and nonblocking unique initial positions validate before output. Original templates exercise dark-fantasy, zombie-urban and wyldwood; compatible hand-authored packs are supported without a theme-name dependency.
+
+### FR-26: Manual adventure progression (RA-03 / CAP-03; AR-01/04)
+- **User story:** As a player through any host, I want meaningful route choices and real encounters leading to an explicit terminal outcome.
+- **Acceptance criteria:**
+  - [ ] The immutable definition and saved location/phase/revision determine legal commands and available/unavailable choices with reasons. Caller-supplied eligibility is never authority.
+  - [ ] A real settled victory resolves its encounter node; unresolved encounters, pending rewards, claimed rewards, completed, defeated and abandoned remain distinct. Running out of candidates is not success.
+  - [ ] Defeat and abandon are terminal without success rewards; actual injury and spend remain saved. No death/injury subsystem, resurrection, travel condition ticks or automatic HP healing is added.
+  - [ ] Commands identify the aggregate and expected revision, plus stable member/choice ids where applicable. Wrong identity/revision/phase or illegal action returns an explicit refusal with no committed aggregate state, RNG or journal change. Existing low-level Combat rejection events remain compatible.
+
+### FR-27: Durable rewards, preparation and whole saves (RA-04 / CAP-04; AR-02/04)
+- **User story:** As a host developer, I want progression and saves to survive restart without duplicate awards or lost injury.
+- **Acceptance criteria:**
+  - [ ] Definition reward id + node id + eligible member set authorize nonnegative XP **per member**, then existing awardXp class split/caps/level policy; never derive XP from monster threat or accept an XP amount in a claim command.
+  - [ ] Roll a reward table once, persist its exact roll/provenance and staged item or flavor/no-item outcome, then require the host's eligible loot recipient. Apply all XP/inventory changes and receipt atomically. Retry/reopen never rerolls or awards twice within the same history.
+  - [ ] Saved node policy controls rest availability. Rest refills declared pools and clears bindings, with no HP heal/resurrection. Preparing, equipping, unequipping and using consumables are explicit player commands; retain current mechanics.
+  - [ ] Whole saves include pack/definition identity, stable membership, progress/trail, party/active encounter, separate streams, revision, reward rolls/claims/receipts, event journal/sequence, director policy/state and narration cursor. Validate all structural and cross-field constraints before exposing state.
+  - [ ] The whole snapshot is the transaction boundary. Exactly-once receipts cover that history only; reopening an earlier save creates a deliberate replay branch. No external concurrency, database constraint, storage or transport guarantee is implied.
+
+### FR-28: Bounded offline solo direction (RA-05 / CAP-05; AR-05)
+- **User story:** As a solo player, I want enemies controlled deterministically while I retain player actions and choices.
+- **Acceptance criteria:**
+  - [ ] Pure legal-action preview shares production gates and changes no RNG/state/events. Policy orders bounded legal enemy actions, movement, pass and reactions; it invents no monster spells, slots or action names.
+  - [ ] An explicit positive maxSteps bounds work and reports player/choice/terminal/budget/stalled yield reasons. Dividing the same work into smaller budgets preserves decisions and results. Player turns, offers, routes, recipients and preparation remain player-controlled.
+  - [ ] Paused movement saves offered departures by complete from/to/reactor tuple, including queued offers; resume waits for the queue and suppresses only that tuple. Changed edge/new threatener is checked. Discard records at move end. New writers include the records; legacy omission retains the old first-step suppression and cannot promise the stronger behavior.
+
+### FR-29: Factual offline narration (RA-06 / CAP-06; AR-05/06)
+- **User story:** As a host developer, I want structured facts and optional authored narration independent of rendering.
+- **Acceptance criteria:**
+  - [ ] Pure narration reads committed adventure sequence/journal facts, actor/target bindings and rule/roll provenance. Unknown events retain a factual fallback; negative damage amounts are healing. Prose never drives mechanics.
+  - [ ] Stable messages carry source sequence and template identity. Reading consumes no entropy or cursor; explicit acknowledgement is monotonic and cannot exceed the current journal. Restart preserves acknowledged/unacknowledged boundaries.
+  - [ ] Encounter/manual/solo DX examples expose exact commands, detached views, refusals and atomic saves, with host-owned storage/presentation. All are offline, with no ambient randomness/time, I/O, player autoplay or provider integration.
+
+---
+
 ## Non-Functional Requirements
 
 - **Performance:**
@@ -254,7 +309,7 @@ expands theme templates into packs deterministically from a seed.
 - The library ships **no SRD/OGL text**; the *format* is SRD-shaped, the sample content is original.
 - **Classic 1980s-CRPG feel, d20 heart:** attack tables, descending AC (expressible, not hard-coded), five named saves, race/class matrix, level caps, vancian slots. Excluded esoterica (percentile strength, weapon-speed factors, weapon-vs-armor tables, segment initiative) remain *addable as pack data* later.
 - Skills exist even though the classic edition had none (builder's founding requirement).
-- **Deferred, with seams (not rejections):** cone/line AoE; snapshot migration; 5e-style progression (proficiency bonus); material components; metamagic; spell research; counterspell mechanics beyond the reactive substrate; authored narrative/story generation; storage adapters; VTT integration; SRD content packs.
+- **Deferred, with seams (not rejections):** cone/line AoE; snapshot migration; 5e-style progression (proficiency bonus); material components; metamagic; spell research; counterspell mechanics beyond the reactive substrate; unbounded/model-generated stories beyond FR-25/29; storage adapters; VTT integration; SRD content packs.
 - Themes are trusted developer-authored data, not untrusted user input; validation guards structure, not hostility.
 
 ## Dependencies
@@ -265,7 +320,7 @@ expands theme templates into packs deterministically from a seed.
 ## Assumptions
 
 - Hosts own persistence, pacing, and all presentation.
-- Hosts author or supply narrative; the engine supplies rules, tables, and flavor fragments — not plot.
+- Hosts supply authored narrative data; the optional generator selects finite routes and fragments, and narration projects committed facts. No provider, prose model or external service is selected.
 - One active (possibly merged) pack per game instance; merging is FR-19/FR-20 territory.
 
 ## Glossary
@@ -297,3 +352,4 @@ expands theme templates into packs deterministically from a seed.
 | Q8 | Legal hardening: coined-names rule bites at the authoring floor, not just globally; clearance scope = existing marks in tabletop gaming and developer tooling; USPTO search required (npm availability ≠ clearance) | FR-21, NFR-Legal |
 | 2026-09-29 | grid-movement: movement as pack data (Option B); hex model additive; terrain pack-declared + host-placed; provoke via pack reactions (human) | FR-11 |
 | 2026-09-30 | spells-in-combat: spells declare a range (pack data; absent = caster reach); area spells may be centered on an empty cell (human) | FR-9, FR-11 |
+| 2026-10-16 | AR-01–AR-06: “start” approved the presented amendments; “i authorize it” authorized deliberate Author re-entry. Exact meanings above are pre-approved; implementation/proof remains with S01–S04. | FR-14, FR-24–29; idea scope; Designer/Architect/DB receipts |
