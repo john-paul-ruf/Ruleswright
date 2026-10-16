@@ -3,7 +3,7 @@ import * as runtimeApi from '../../src/runtime';
 import * as compilerApi from '../../src/compiler';
 import { packContentHash } from '../../src/schema';
 import type { AdventureCommand, AdventureSnapshot } from '../../src/runtime';
-import { encounterCommand, rewardFixture, rehash } from '../runtime/adventure/fixtures';
+import { encounterCommand, rewardFixture, rehash, soloRewardFixture } from '../runtime/adventure/fixtures';
 
 function demand(ok: unknown, message: string): asserts ok {
   if (!ok) throw new Error(message);
@@ -198,4 +198,100 @@ export function fixtureJourney(reopen = false, api = runtimeApi) {
 export function oracleRecording(kind: 'generated' | 'fixture', reopen = false) {
   const journey = kind === 'generated' ? generatedJourney(reopen) : fixtureJourney(reopen);
   return { snapshots: journey.snapshots, results: journey.results, final: journey.final };
+}
+
+export function soloJourney(
+  reopen = false,
+  api: Pick<typeof runtimeApi, 'createAdventure' | 'restoreAdventure' | 'advanceSolo'> = runtimeApi,
+  budget = 10,
+) {
+  const f = soloRewardFixture();
+  let adventure = api.createAdventure(f.pack, f.definition, f.options);
+  const snapshots: AdventureSnapshot[] = [adventure.serialize()],
+    results: unknown[] = [];
+  let sawPlayerOffer = false,
+    decisions = 0;
+  const perform = (command: AdventureCommand) => {
+    const result = adventure.dispatch(command);
+    demand(result.ok, JSON.stringify(result));
+    results.push(result);
+    snapshots.push(adventure.serialize());
+  };
+  for (let step = 0; step < 1000; step++) {
+    if (reopen)
+      adventure = api.restoreAdventure(
+        f.pack,
+        f.definition,
+        JSON.parse(JSON.stringify(adventure.serialize())),
+      );
+    const solo = api.advanceSolo(adventure, { maxSteps: budget });
+    demand(solo.stepsUsed <= budget, 'Director exceeded caller budget');
+    decisions += solo.stepsUsed;
+    results.push(solo);
+    snapshots.push(adventure.serialize());
+    if (solo.reason === 'completed') break;
+    if (solo.reason === 'budget-exhausted') continue;
+    demand(
+      solo.reason === 'awaiting-player' || solo.reason === 'awaiting-choice',
+      'Unexpected solo terminal/stall',
+    );
+    const view = adventure.view(),
+      base = { adventureId: view.adventureId, expectedRevision: view.revision };
+    if (view.phase === 'encounter') {
+      const offer = view.combat!.pendingOffers.find(
+        (o) => view.combat!.state.combatants[o.actorId]!.side === 'allies',
+      );
+      if (offer) sawPlayerOffer = true;
+      perform(encounterCommand(adventure));
+    } else if (view.phase === 'reward-pending') {
+      const before = adventure.serialize(),
+        r = view.pendingRewards[0]!;
+      demand(
+        api.advanceSolo(adventure, { maxSteps: budget }).reason === 'awaiting-choice' &&
+          JSON.stringify(adventure.serialize()) === JSON.stringify(before),
+        'Director must not claim rewards',
+      );
+      perform({
+        ...base,
+        type: 'claim-reward',
+        nodeId: r.nodeId,
+        rewardId: r.rewardId,
+        claimId: r.claimId,
+        ...(r.roll === null ? {} : { recipientMemberId: 'hero-2' }),
+      });
+      const after = adventure.serialize();
+      demand(
+        after.members.every(
+          (m, i) =>
+            JSON.stringify(m.character.state.hp) === JSON.stringify(before.members[i]!.character.state.hp) &&
+            m.character.state.slots['1']![1] === 'grave-light' &&
+            m.character.state.slots['2']![1] === 'high-light' &&
+            m.character.state.pools['stamina'] === 4 + i,
+        ),
+        'Actual XP claim must preserve injury/temp/indexed preparation/resources',
+      );
+      if (r.rewardId === 'cache')
+        demand(
+          after.members.every(
+            (m) => m.character.state.slots['1']!.length >= 3 && m.character.state.slots['1']![2] === null,
+          ),
+          'New slots must remain empty',
+        );
+    } else {
+      demand(view.phase === 'exploration', 'Host route requires exploration');
+      perform({ ...base, type: 'choose', nodeId: view.nodeId, choiceId: view.choices[0]!.choiceId });
+    }
+  }
+  const final = adventure.serialize();
+  demand(
+    final.phase === 'completed' && final.encounterReceipts.length === 2 && sawPlayerOffer,
+    'Solo must complete two real fights with a player offer',
+  );
+  demand(final.director.decisions === decisions && decisions > 0, 'All automated transitions must persist');
+  demand(final.members[1]!.character.state.hp.current < 11, 'Enemy damage must survive settlement');
+  demand(
+    final.members[1]!.character.state.inventory.some((i) => i.id === 'rope' && i.qty === 4),
+    'Actual host loot grant must survive both fights',
+  );
+  return { ...f, snapshots, results, final };
 }

@@ -188,3 +188,6 @@ export type {
   RewardState,
   RewardReceipt,
 } from './adventure/types';
+
+export { advanceSolo } from './adventure/director';
+export type { SoloResult } from './adventure/types';

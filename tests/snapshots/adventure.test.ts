@@ -181,3 +181,29 @@ it('keeps host member ids opaque even when they resemble a different combatant i
     restoreAdventure(f.pack, f.definition, JSON.parse(JSON.stringify(a.serialize()))).serialize(),
   ).toEqual(a.serialize());
 });
+
+it('retains committed policy, decisions, mechanical hash and tie entropy, rejecting malformed director data', async () => {
+  const { directorFixture } = await import('../runtime/adventure/fixtures');
+  const { advanceSolo } = await import('../../src/runtime');
+  const f = directorFixture({ tieBreak: 'seeded' }),
+    adventure = createAdventure(f.pack, f.definition, f.options);
+  choose(adventure);
+  advanceSolo(adventure, { maxSteps: 2 });
+  const saved = adventure.serialize();
+  expect(saved.director.decisions).toBe(2);
+  expect(saved.director.lastMechanicalHash).toMatch(/^[0-9a-f]{8}$/);
+  expect(restoreAdventure(f.pack, f.definition, JSON.parse(JSON.stringify(saved))).serialize()).toEqual(
+    saved,
+  );
+  for (const [path, value] of [
+    ['director.policy.id', 'other'],
+    ['director.decisions', -1],
+    ['director.stalledSteps', 1.5],
+    ['director.lastMechanicalHash', 'invalid'],
+    ['rng.director.a', -1],
+  ] as const) {
+    const bad = JSON.parse(JSON.stringify(saved));
+    replacePath(bad, path, value);
+    expect(() => restoreAdventure(f.pack, f.definition, bad)).toThrow(RuntimeRuleError);
+  }
+});

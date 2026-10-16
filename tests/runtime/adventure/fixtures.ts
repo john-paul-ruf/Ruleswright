@@ -262,3 +262,128 @@ export function departureFixture() {
     },
   };
 }
+
+export function directorFixture({
+  damage = 1,
+  spatial = false,
+  tieBreak = 'lexical' as 'lexical' | 'seeded',
+} = {}) {
+  const f = adventureFixture(),
+    pack = f.pack;
+  pack.actions['press'] = {
+    cost: { slots: { main: 1 } },
+    effect: `damage(${damage})`,
+    tags: ['main'],
+  };
+  pack.actions['stride'] = { cost: { slots: { move: 1 } }, effect: 'move(speed)', tags: ['move'] };
+  pack.formulas['speed'] = { expr: '2' };
+  for (const monster of Object.values(pack.bestiary)) {
+    monster.actions = ['press', 'stride'];
+    monster.abilityOverrides = { ...monster.abilityOverrides, grace: 100, vigor: 20 };
+  }
+  if (spatial) pack.spatial = { model: 'hex', reach: { default: 1 }, shapes: ['single', 'burst'] };
+  const { options: encounter } = playFixture(pack, 2);
+  const setup = {
+    ...encounter.setup,
+    ...(spatial
+      ? {
+          layout: {
+            kind: 'spatial' as const,
+            model: 'hex' as const,
+            allies: [
+              { x: 0, y: 0 },
+              { x: 0, y: 1 },
+            ],
+            enemies: [{ x: 4, y: 0 }],
+            terrain: [],
+          },
+        }
+      : {}),
+  };
+  const definition = rehash({
+    ...f.definition,
+    pack: encounter.members[0]!.character.pack,
+    nodes: f.definition.nodes.map((n) =>
+      n.id === 'clearing' ? { ...n, kind: 'encounter' as const, encounter: setup } : n,
+    ),
+    director: {
+      id: 'sentinel',
+      version: 2,
+      priorities: [
+        { kind: 'action', actionId: 'press' },
+        { kind: 'move', actionId: 'stride' },
+        { kind: 'pass' },
+      ],
+      targetOrder: spatial ? 'nearest' : 'lowest-hp',
+      tieBreak,
+      reactionPriority: [],
+      maxCandidates: 256,
+      stallLimit: 3,
+    },
+  });
+  const options = {
+    ...f.options,
+    members: encounter.members.map((m) => ({
+      ...m,
+      character: { ...m.character, state: { ...m.character.state, hp: { current: 20, temp: 2 } } },
+    })),
+  };
+  return { pack, definition, options };
+}
+
+export function soloRewardFixture() {
+  const f = rewardFixture(1000, 12),
+    pack = f.pack;
+  pack.actions['strike']!.effect = 'damage(10)';
+  pack.actions['press'] = { cost: { slots: { main: 1 } }, effect: 'damage(1)', tags: ['main'] };
+  pack.actions['echo'] = {
+    cost: { slots: { move: 1 } },
+    effect: 'damage(0)',
+    tags: ['move'],
+    trigger: { on: 'damage:applied[actor=self]' },
+  };
+  pack.content.classes!['warden']!.actions!.push('echo');
+  for (const monster of Object.values(pack.bestiary)) {
+    monster.actions = ['press'];
+    monster.abilityOverrides = { ...monster.abilityOverrides, grace: 100, vigor: 14 };
+  }
+  const identity = { ...f.definition.pack, contentHash: packContentHash(pack) };
+  const setup = { budget: 2, seed: '', maxPartySize: 2, maxEnemies: 1, layout: { kind: 'theater' as const } };
+  const node = f.definition.nodes[1]!;
+  const definition = rehash({
+    ...f.definition,
+    pack: identity,
+    director: {
+      ...f.definition.director,
+      priorities: [{ kind: 'action', actionId: 'press' }, { kind: 'pass' }],
+      targetOrder: 'lowest-hp',
+      tieBreak: 'seeded',
+    },
+    nodes: [
+      f.definition.nodes[0]!,
+      {
+        ...node,
+        kind: 'encounter',
+        encounter: setup,
+        rewardIds: ['cache'],
+        choices: [{ id: 'continue', text: 'Second watch', toNodeId: 'second' }],
+      },
+      {
+        ...node,
+        id: 'second',
+        kind: 'encounter',
+        encounter: setup,
+        choices: [{ id: 'continue', text: 'Home', toNodeId: 'home' }],
+      },
+      f.definition.nodes[2]!,
+    ],
+  });
+  return {
+    pack,
+    definition,
+    options: {
+      ...f.options,
+      members: f.options.members.map((m) => ({ ...m, character: { ...m.character, pack: identity } })),
+    },
+  };
+}

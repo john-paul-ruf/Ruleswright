@@ -5,7 +5,7 @@ import {
   type AdventureStartOptions,
 } from '../../schema/adventure';
 import { packContentHash } from '../../schema/version';
-import { Rng } from '../../core/rng';
+import { Rng, type RngState } from '../../core/rng';
 import { RuntimeRuleError } from '../errors';
 import { Runtime, PackLoadError } from '../runtime';
 import { CharacterBuildError } from '../progression';
@@ -13,11 +13,27 @@ import { packIdentity } from '../snapshots/envelope';
 import { streamKey } from '../play/encounter';
 import { detached } from '../play/snapshot';
 import { choices, commandShape, currentNode, exact, refuse, prepareMembers } from './choices';
-import { jsonValue, readMembers, readAdventureSnapshot } from './snapshot';
+import { jsonValue, readMembers, readAdventureSnapshot, mechanicalHash } from './snapshot';
 import { createEncounterSession, restoreEncounterSession, type EncounterSession } from '../play/session';
 import type { PlayJournalEntry } from '../../schema/play-session';
 import { stageRewards, claimReward } from './rewards';
-import type { Adventure, AdventureSnapshot, AdventureView, AdventureCommand, RewardReceipt } from './types';
+import type {
+  Adventure,
+  AdventureSnapshot,
+  AdventureView,
+  AdventureCommand,
+  AdventureCommandResult,
+  RewardReceipt,
+} from './types';
+
+export const adventureContexts = new WeakMap<
+  Adventure,
+  {
+    readonly pack: Pack;
+    readonly definition: AdventureDefinition;
+    readonly decide: (command: AdventureCommand, rng: RngState) => AdventureCommandResult;
+  }
+>();
 
 function append(
   saved: AdventureSnapshot,
@@ -151,153 +167,172 @@ function facade(pack: Pack, definition: AdventureDefinition, initial: AdventureS
       narrationAck: saved.narrationAck,
     });
   };
-  return {
-    view,
-    serialize: () => detached(saved),
-    dispatch(input) {
-      try {
-        jsonValue(input, 'command');
-        if (!commandShape(input)) refuse('command', 'Malformed command or unexpected field.');
-        if (input.adventureId !== saved.adventureId) refuse('adventureId', 'Foreign adventure.');
-        if (input.expectedRevision !== saved.revision) refuse('expectedRevision', 'Stale revision.');
-        if (saved.phase === 'defeated' || saved.phase === 'abandoned')
-          refuse('phase', 'Adventure is terminal.');
-        let claim;
-        let recipient: string | null = null;
-        if (input.type === 'claim-reward') {
-          claim = saved.rewards.find((r) => r.claimId === input.claimId);
-          if (!claim || claim.nodeId !== input.nodeId || claim.rewardId !== input.rewardId)
-            refuse('claimId', 'Foreign reward subject.');
-          if (claim.roll !== null) {
-            if (!input.recipientMemberId || !claim.eligibleMemberIds.includes(input.recipientMemberId))
-              refuse('recipientMemberId', 'Choose an eligible loot recipient.');
-            recipient = input.recipientMemberId;
-          } else if ('recipientMemberId' in input)
-            refuse('recipientMemberId', 'A reward without loot has no recipient.');
-          if (claim.status === 'claimed') {
-            if (claim.receipt.recipientMemberId !== recipient)
-              refuse('recipientMemberId', 'Receipt recipient differs.');
-            return {
-              ok: true,
-              revision: saved.revision,
-              events: [],
-              view: view(),
-              receipt: detached(claim.receipt),
-            };
-          }
-          if (saved.phase !== 'reward-pending' || claim.nodeId !== saved.nodeId)
-            refuse('phase', 'Claim is not available at this node.');
+  const dispatch = (input: AdventureCommand, directorRng?: RngState): AdventureCommandResult => {
+    try {
+      jsonValue(input, 'command');
+      if (!commandShape(input)) refuse('command', 'Malformed command or unexpected field.');
+      if (input.adventureId !== saved.adventureId) refuse('adventureId', 'Foreign adventure.');
+      if (input.expectedRevision !== saved.revision) refuse('expectedRevision', 'Stale revision.');
+      if (saved.phase === 'defeated' || saved.phase === 'abandoned')
+        refuse('phase', 'Adventure is terminal.');
+      let claim;
+      let recipient: string | null = null;
+      if (input.type === 'claim-reward') {
+        claim = saved.rewards.find((r) => r.claimId === input.claimId);
+        if (!claim || claim.nodeId !== input.nodeId || claim.rewardId !== input.rewardId)
+          refuse('claimId', 'Foreign reward subject.');
+        if (claim.roll !== null) {
+          if (!input.recipientMemberId || !claim.eligibleMemberIds.includes(input.recipientMemberId))
+            refuse('recipientMemberId', 'Choose an eligible loot recipient.');
+          recipient = input.recipientMemberId;
+        } else if ('recipientMemberId' in input)
+          refuse('recipientMemberId', 'A reward without loot has no recipient.');
+        if (claim.status === 'claimed') {
+          if (claim.receipt.recipientMemberId !== recipient)
+            refuse('recipientMemberId', 'Receipt recipient differs.');
+          return {
+            ok: true,
+            revision: saved.revision,
+            events: [],
+            view: view(),
+            receipt: detached(claim.receipt),
+          };
         }
-        if (!Number.isSafeInteger(saved.revision + 1)) refuse('revision', 'Revision exhausted.');
-        if (saved.phase === 'completed') refuse('phase', 'Adventure is complete.');
-        let next: AdventureSnapshot = { ...saved, revision: saved.revision + 1 };
-        let receipt: RewardReceipt | undefined;
-        if (input.type === 'choose') {
-          if (saved.phase !== 'exploration') refuse('phase', 'Resolve this node and its rewards first.');
-          if (input.nodeId !== saved.nodeId) refuse('nodeId', 'Foreign current node.');
-          const choice = currentNode(definition, saved).choices.find((c) => c.id === input.choiceId);
-          if (!choice) refuse('choiceId', 'Unknown choice.');
-          next = enter(pack, definition, {
-            ...next,
-            nodeId: choice.toNodeId,
-            visitedNodeIds: [...saved.visitedNodeIds, choice.toNodeId],
-            choiceTrail: [
-              ...saved.choiceTrail,
-              {
-                nodeId: saved.nodeId,
-                choiceId: choice.id,
-                toNodeId: choice.toNodeId,
-                revision: next.revision,
+        if (saved.phase !== 'reward-pending' || claim.nodeId !== saved.nodeId)
+          refuse('phase', 'Claim is not available at this node.');
+      }
+      if (!Number.isSafeInteger(saved.revision + 1)) refuse('revision', 'Revision exhausted.');
+      if (saved.phase === 'completed') refuse('phase', 'Adventure is complete.');
+      let next: AdventureSnapshot = { ...saved, revision: saved.revision + 1 };
+      let receipt: RewardReceipt | undefined;
+      if (input.type === 'choose') {
+        if (saved.phase !== 'exploration') refuse('phase', 'Resolve this node and its rewards first.');
+        if (input.nodeId !== saved.nodeId) refuse('nodeId', 'Foreign current node.');
+        const choice = currentNode(definition, saved).choices.find((c) => c.id === input.choiceId);
+        if (!choice) refuse('choiceId', 'Unknown choice.');
+        next = enter(pack, definition, {
+          ...next,
+          nodeId: choice.toNodeId,
+          visitedNodeIds: [...saved.visitedNodeIds, choice.toNodeId],
+          choiceTrail: [
+            ...saved.choiceTrail,
+            {
+              nodeId: saved.nodeId,
+              choiceId: choice.id,
+              toNodeId: choice.toNodeId,
+              revision: next.revision,
+            },
+          ],
+        });
+      } else if (input.type === 'encounter') {
+        if (
+          !saved.activeEncounter ||
+          saved.phase !== 'encounter' ||
+          input.encounterId !== saved.activeEncounter.encounter.encounterId
+        )
+          refuse('encounterId', 'No matching active encounter.');
+        if ((input.command.type as string) === 'next')
+          refuse('command.type', 'Adventure nodes own separate encounters.');
+        const session = restoreEncounterSession(pack, saved.activeEncounter);
+        const result = session.dispatch(input.command);
+        if (!result.ok) throw new RuntimeRuleError(result.errors);
+        next = settle(pack, definition, next, session);
+      } else if (input.type === 'claim-reward') {
+        const staged = claimReward(pack, definition, next, claim!, recipient);
+        next = append(staged.saved, staged.events);
+        receipt = staged.receipt;
+        next = append(next, [
+          {
+            event: {
+              type: 'reward:claimed',
+              at: { round: 0, turn: 0 },
+              payload: { receipt: { ...receipt } },
+              why: { rule: `rewards.${claim!.rewardId}`, rolls: [] },
+            },
+            subjects: [],
+          },
+        ]);
+      } else if (input.type !== 'abandon') {
+        const staged = prepareMembers(pack, definition, next, input);
+        next = append(staged.saved, staged.events);
+        next = append(next, [
+          {
+            event: {
+              type: 'members:updated',
+              at: { round: 0, turn: 0 },
+              payload: {
+                nodeId: next.nodeId,
+                command: input.type,
+                beforeMembersHash: packContentHash(saved.members),
+                afterMembersHash: packContentHash(next.members),
               },
-            ],
-          });
-        } else if (input.type === 'encounter') {
-          if (
-            !saved.activeEncounter ||
-            saved.phase !== 'encounter' ||
-            input.encounterId !== saved.activeEncounter.encounter.encounterId
-          )
-            refuse('encounterId', 'No matching active encounter.');
-          if ((input.command.type as string) === 'next')
-            refuse('command.type', 'Adventure nodes own separate encounters.');
+              why: { rule: `nodes.${next.nodeId}`, rolls: [] },
+            },
+            subjects: [],
+          },
+        ]);
+      } else {
+        if (saved.activeEncounter) {
           const session = restoreEncounterSession(pack, saved.activeEncounter);
-          const result = session.dispatch(input.command);
+          const result = session.dispatch({
+            type: 'abandon',
+            sessionId: session.view().sessionId,
+            expectedRevision: session.view().revision,
+          });
           if (!result.ok) throw new RuntimeRuleError(result.errors);
           next = settle(pack, definition, next, session);
-        } else if (input.type === 'claim-reward') {
-          const staged = claimReward(pack, definition, next, claim!, recipient);
-          next = append(staged.saved, staged.events);
-          receipt = staged.receipt;
-          next = append(next, [
-            {
-              event: {
-                type: 'reward:claimed',
-                at: { round: 0, turn: 0 },
-                payload: { receipt: { ...receipt } },
-                why: { rule: `rewards.${claim!.rewardId}`, rolls: [] },
-              },
-              subjects: [],
-            },
-          ]);
-        } else if (input.type !== 'abandon') {
-          const staged = prepareMembers(pack, definition, next, input);
-          next = append(staged.saved, staged.events);
-          next = append(next, [
-            {
-              event: {
-                type: 'members:updated',
-                at: { round: 0, turn: 0 },
-                payload: {
-                  nodeId: next.nodeId,
-                  command: input.type,
-                  beforeMembersHash: packContentHash(saved.members),
-                  afterMembersHash: packContentHash(next.members),
-                },
-                why: { rule: `nodes.${next.nodeId}`, rolls: [] },
-              },
-              subjects: [],
-            },
-          ]);
-        } else {
-          if (saved.activeEncounter) {
-            const session = restoreEncounterSession(pack, saved.activeEncounter);
-            const result = session.dispatch({
-              type: 'abandon',
-              sessionId: session.view().sessionId,
-              expectedRevision: session.view().revision,
-            });
-            if (!result.ok) throw new RuntimeRuleError(result.errors);
-            next = settle(pack, definition, next, session);
-          }
-          next = { ...next, phase: 'abandoned' };
         }
-        next = readAdventureSnapshot(pack, definition, next);
-        const events = next.journal.slice(saved.sequence);
-        saved = next;
-        return {
-          ok: true,
-          revision: saved.revision,
-          events: detached(events),
-          view: view(),
-          ...(receipt ? { receipt: detached(receipt) } : {}),
-        };
-      } catch (error) {
-        if (!(
-          error instanceof RuntimeRuleError ||
-          error instanceof CharacterBuildError ||
-          error instanceof PackLoadError
-        ))
-          throw error;
-        return {
-          ok: false,
-          revision: saved.revision,
-          errors: detached(error.errors),
-          events: [],
-          view: view(),
+        next = { ...next, phase: 'abandoned' };
+      }
+      if (directorRng !== undefined) {
+        const before = mechanicalHash(saved),
+          after = mechanicalHash(next);
+        const stalledSteps =
+          before === after
+            ? (saved.director.lastMechanicalHash === before ? saved.director.stalledSteps : 0) + 1
+            : 0;
+        const decisions = saved.director.decisions + 1;
+        if (!Number.isSafeInteger(decisions) || !Number.isSafeInteger(stalledSteps))
+          refuse('director', 'Director counter exhausted.');
+        next = {
+          ...next,
+          rng: { ...next.rng, director: directorRng },
+          director: { ...saved.director, decisions, stalledSteps, lastMechanicalHash: after },
         };
       }
-    },
+      next = readAdventureSnapshot(pack, definition, next);
+      const events = next.journal.slice(saved.sequence);
+      saved = next;
+      return {
+        ok: true,
+        revision: saved.revision,
+        events: detached(events),
+        view: view(),
+        ...(receipt ? { receipt: detached(receipt) } : {}),
+      };
+    } catch (error) {
+      if (!(
+        error instanceof RuntimeRuleError ||
+        error instanceof CharacterBuildError ||
+        error instanceof PackLoadError
+      ))
+        throw error;
+      return {
+        ok: false,
+        revision: saved.revision,
+        errors: detached(error.errors),
+        events: [],
+        view: view(),
+      };
+    }
   };
+  const adventure: Adventure = {
+    view,
+    serialize: () => detached(saved),
+    dispatch: (input) => dispatch(input),
+  };
+  adventureContexts.set(adventure, { pack, definition, decide: (input, rng) => dispatch(input, rng) });
+  return adventure;
 }
 function ownInputs(pack: Pack, definition: AdventureDefinition) {
   jsonValue(pack, 'pack');

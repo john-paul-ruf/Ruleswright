@@ -765,3 +765,23 @@ export function readAdventureSnapshot(
   if (saved.phase === 'abandoned') requireSaved(current.kind !== 'success' || pending, 'phase');
   return detached(saved);
 }
+
+/** Mechanical progress excludes entropy, transport revisions and presentation cursors. */
+export function mechanicalHash(saved: AdventureSnapshot): string {
+  const encounter = saved.activeEncounter?.encounter;
+  let combat = null;
+  if (encounter) {
+    const raw = { ...encounter.combat };
+    Reflect.deleteProperty(raw, 'rng');
+    combat = { raw, positions: encounter.positions, terrain: encounter.terrain, control: encounter.control };
+  }
+  return packContentHash({
+    nodeId: saved.nodeId,
+    phase: saved.phase,
+    members: saved.members,
+    combat,
+    resolvedNodeIds: saved.resolvedNodeIds,
+    restedNodeIds: saved.restedNodeIds,
+    rewards: saved.rewards.map((r) => ({ claimId: r.claimId, status: r.status })),
+  });
+}

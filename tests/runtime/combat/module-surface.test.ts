@@ -30,6 +30,7 @@ describe('module surfaces (CA-D1)', () => {
       'PackLoadError',
       'Runtime',
       'RuntimeRuleError',
+      'advanceSolo',
       'applyCondition',
       'applyTheme',
       'armorBlockingCast',

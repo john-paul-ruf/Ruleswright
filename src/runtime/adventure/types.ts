@@ -163,3 +163,17 @@ export interface Adventure {
   dispatch(command: AdventureCommand): AdventureCommandResult;
   serialize(): AdventureSnapshot;
 }
+
+export type SoloResult = {
+  readonly reason:
+    | 'awaiting-player'
+    | 'awaiting-choice'
+    | 'completed'
+    | 'defeated'
+    | 'abandoned'
+    | 'budget-exhausted'
+    | 'stalled';
+  readonly stepsUsed: number;
+  readonly events: readonly PlayJournalEntry[];
+  readonly view: AdventureView;
+};
