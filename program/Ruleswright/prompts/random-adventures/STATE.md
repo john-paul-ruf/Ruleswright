@@ -244,3 +244,9 @@ Read `program-agents/AUTHOR.md`. Perform deliberate Author re-entry for `program
 After receipts land, Orchestrator reconciles every affected CA/session assumption, requests the scoped Archivist D1–D7 review against exact plan/source revisions, refreshes the ledger and dispatches S01. CAP/CA producer and proof readiness remain blocked/planned until their actual evidence lands. No FINAL-REPORT or end_run is issued at this paused boundary.
 
 ## Handoff Notes
+
+## Explicit Author Execution Authorization — 2026-10-16
+
+User response, verbatim: “i authorize it”. This follows the explanation that a separate Author session is required. The builder explicitly authorizes initiating that scoped re-entry now, in addition to the already approved AR-01–AR-06 meanings. This supersedes the prior procedural pause and no-spawn restriction for this single deliberate Author session; it is not standing authority to invent product changes. No repeat approval is needed. Orchestrator remains scheduler and writes no implementation.
+
+B-RA-AUTHOR: authorized Author re-entry being dispatched with exact protected paths from AUTHOR-HANDOFF, at base `470a777`. Implementation remains unready until committed receipts, reconciliation and planning-completeness review. No active implementation lease exists. Binding Native; cap 3; S01 → S02 → S03 → S04 unchanged. The alternative of asking the builder to restate authorization is rejected because the explicit authorization is now present.
