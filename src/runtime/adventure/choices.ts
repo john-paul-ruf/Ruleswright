@@ -34,6 +34,12 @@ export function commandShape(value: unknown): value is AdventureCommand {
     return false;
   const text = (key: string) => typeof value[key] === 'string' && (value[key] as string).length > 0;
   switch (value['type']) {
+    case 'ack-narration':
+      return (
+        exact(value, [...common, 'throughSequence']) &&
+        Number.isSafeInteger(value['throughSequence']) &&
+        (value['throughSequence'] as number) >= 0
+      );
     case 'abandon':
       return exact(value, common);
     case 'encounter':

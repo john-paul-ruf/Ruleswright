@@ -14,7 +14,14 @@ describe('CAP-03 guarded noncombat adventure', () => {
       lastMechanicalHash: null,
     });
     expect(Object.keys(a.serialize().rng)).toEqual(['generation', 'play', 'rewards', 'director']);
-    expect(a.view().availableCommands).toEqual(['choose', 'abandon', 'equip', 'unequip', 'use-item']);
+    expect(a.view().availableCommands).toEqual([
+      'choose',
+      'abandon',
+      'equip',
+      'unequip',
+      'use-item',
+      'ack-narration',
+    ]);
     expect(choose(a).ok).toBe(true);
     const b = restoreAdventure(pack, definition, JSON.parse(JSON.stringify(a.serialize())));
     expect(choose(a)).toEqual(choose(b));

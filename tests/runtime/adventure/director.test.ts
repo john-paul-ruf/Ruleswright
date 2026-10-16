@@ -290,3 +290,61 @@ it('refuses the random-validity solo domain before any automated transition, pre
   expect(adventure.serialize()).toEqual(before);
   expect(adventure.dispatch(encounterCommand(adventure)).ok).toBe(true);
 });
+
+it('resets restored defensive below-limit metadata on a real director turn-start and preserves it on reopen', () => {
+  const f = start();
+  const snapshot = JSON.parse(JSON.stringify(f.adventure.serialize()));
+  expect(snapshot.activeEncounter.encounter.control.turnStarted).toBe(false);
+  const beforeHash = mechanicalHash(snapshot);
+  snapshot.director = { ...snapshot.director, decisions: 1, stalledSteps: 1, lastMechanicalHash: beforeHash };
+  const adventure = restoreAdventure(f.pack, f.definition, snapshot);
+  expect(advanceSolo(adventure, { maxSteps: 1 })).toMatchObject({ reason: 'budget-exhausted', stepsUsed: 1 });
+  const saved = adventure.serialize();
+  expect(saved.activeEncounter!.encounter.control.turnStarted).toBe(true);
+  expect(mechanicalHash(saved)).not.toBe(beforeHash);
+  expect(saved.director).toEqual({
+    ...snapshot.director,
+    decisions: 2,
+    stalledSteps: 0,
+    lastMechanicalHash: mechanicalHash(saved),
+  });
+  expect(restoreAdventure(f.pack, f.definition, JSON.parse(JSON.stringify(saved))).serialize()).toEqual(
+    saved,
+  );
+});
+
+it('the complete solo journey replays through manual dispatch with identical authoritative state', async () => {
+  const api = await import('../../../src/runtime');
+  const { soloJourney } = await import('../../proofs/adventure-oracle');
+  const commands: import('../../../src/runtime').AdventureCommand[] = [];
+  const recordingApi = {
+    ...api,
+    createAdventure: (...args: Parameters<typeof api.createAdventure>) => {
+      const adventure = api.createAdventure(...args),
+        context = adventureContexts.get(adventure)!;
+      const send = adventure.dispatch;
+      adventure.dispatch = (command) => {
+        commands.push(command);
+        return send(command);
+      };
+      adventureContexts.set(adventure, {
+        ...context,
+        decide: (command, rng) => {
+          commands.push(command);
+          return context.decide(command, rng);
+        },
+      });
+      return adventure;
+    },
+  };
+  const solo = soloJourney(false, recordingApi);
+  const manual = api.createAdventure(solo.pack, solo.definition, solo.options);
+  for (const command of commands) expect(manual.dispatch(command).ok).toBe(true);
+  const saved = manual.serialize();
+  expect(saved).toEqual({
+    ...solo.final,
+    director: saved.director,
+    rng: { ...solo.final.rng, director: saved.rng.director },
+  });
+  expect(api.readNarration(manual)).toEqual([]);
+}, 10000);

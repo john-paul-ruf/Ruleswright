@@ -9,6 +9,7 @@ import type {
   PlaySessionSnapshot,
   PlaySettlementReceipt,
 } from '../../schema/play-session';
+import type { RuntimeEvent } from '../events';
 import type { EncounterCommand, EncounterSessionView } from '../play/session';
 
 export type RewardRoll = {
@@ -90,6 +91,7 @@ export type AdventureCommand = {
 } & (
   | { readonly type: 'choose'; readonly nodeId: string; readonly choiceId: string }
   | { readonly type: 'abandon' }
+  | { readonly type: 'ack-narration'; readonly throughSequence: number }
   | {
       readonly type: 'claim-reward';
       readonly nodeId: string;
@@ -176,4 +178,12 @@ export type SoloResult = {
   readonly stepsUsed: number;
   readonly events: readonly PlayJournalEntry[];
   readonly view: AdventureView;
+};
+
+export type NarrationMessage = {
+  readonly messageId: string;
+  readonly sequence: number;
+  readonly templateId: string | null;
+  readonly event: RuntimeEvent;
+  readonly text: string;
 };

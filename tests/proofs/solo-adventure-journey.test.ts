@@ -14,6 +14,7 @@ it.each([
     const reopened = soloJourney(true, api);
     expect(reopened.snapshots).toEqual(whole.snapshots);
     expect(reopened.results).toEqual(whole.results);
+    expect(reopened.messages).toEqual(whole.messages);
     expect(reopened.final).toEqual(whole.final);
     expect(whole.final.rewards.every((r) => r.status === 'claimed')).toBe(true);
   },
@@ -24,5 +25,6 @@ it('budget partitioning preserves the final authoritative state and every commit
   const whole = soloJourney(false, esm, 20),
     split = soloJourney(true, esm, 1);
   expect(split.final).toEqual(whole.final);
+  expect(split.messages).toEqual(whole.messages);
   expect(split.final.journal).toEqual(whole.final.journal);
 }, 10000);

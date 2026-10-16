@@ -511,7 +511,7 @@ describe('CA-03 / F-RA-01 authoritative adventure input conformance', () => {
   });
 });
 
-import { generatedJourney, fixtureJourney } from './adventure-oracle';
+import { generatedJourney, fixtureJourney, soloJourney } from './adventure-oracle';
 describe('CA-04 real adventure aggregate writers conform to the approved database contract', () => {
   const ajv = new Ajv2020({ allErrors: true, strict: false });
   for (const name of ['snapshots', 'play-session', 'adventure', 'adventure-snapshot'])
@@ -524,6 +524,7 @@ describe('CA-04 real adventure aggregate writers conform to the approved databas
   it.each([
     ['generated', generatedJourney],
     ['fixture', fixtureJourney],
+    ['solo', soloJourney],
   ] as const)(
     '%s actual pending/claimed/active/completed writers validate through JSON',
     (_name, run) => {
@@ -537,6 +538,28 @@ describe('CA-04 real adventure aggregate writers conform to the approved databas
     },
     10000,
   );
+  it('CA-05 real solo writers carry policy/counters/hash, ack cursor and a pending player offer', () => {
+    const { snapshots, definition } = soloJourney(true);
+    const offered = snapshots.find(
+      (s) =>
+        s.narrationAck > 0 &&
+        s.director.decisions > 0 &&
+        s.activeEncounter?.encounter.combat.offers?.some((o) => o.actorId.startsWith('m:')),
+    )!;
+    expect(offered).toBeDefined();
+    expect(offered.director.policy).toEqual({
+      id: definition.director.id,
+      version: definition.director.version,
+    });
+    expect(offered.director.lastMechanicalHash).toMatch(/^[0-9a-f]{8}$/);
+    expect(validate(json(offered)), ajv.errorsText(validate.errors)).toBe(true);
+    for (const bad of [
+      { ...offered, narrationAck: -1 },
+      { ...offered, director: { ...offered.director, decisions: 1.5 } },
+      { ...offered, director: { ...offered.director, lastMechanicalHash: 'invalid' } },
+    ])
+      expect(validate(json(bad))).toBe(false);
+  }, 10000);
   it('negative controls reject excess RNG words, malformed receipts and unknown root fields', () => {
     const saved = generatedJourney().final;
     for (const bad of [

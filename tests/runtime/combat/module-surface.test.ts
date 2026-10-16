@@ -85,6 +85,7 @@ describe('module surfaces (CA-D1)', () => {
       'profileFromStatblock',
       'reactiveActionsFor',
       'reactiveFeatsFor',
+      'readNarration',
       'removeCondition',
       'removeTheme',
       'replenish',

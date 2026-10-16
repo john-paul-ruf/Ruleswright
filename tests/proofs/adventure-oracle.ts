@@ -8,7 +8,7 @@ import { encounterCommand, rewardFixture, rehash, soloRewardFixture } from '../r
 function demand(ok: unknown, message: string): asserts ok {
   if (!ok) throw new Error(message);
 }
-export const ADVENTURE_DIGESTS = { generated: 'c1dd4968', fixture: 'a2f68c27' };
+export const ADVENTURE_DIGESTS = { generated: 'b9a258c0', fixture: '73ce0727' };
 export function generatedJourney(reopen = false, api = runtimeApi, compiler = compilerApi) {
   const pack = compiler.generateCampaign({ theme: compiler.loadTheme('dark-fantasy'), seed: 42 });
   const definition = compiler.generateAdventure({
@@ -202,13 +202,17 @@ export function oracleRecording(kind: 'generated' | 'fixture', reopen = false) {
 
 export function soloJourney(
   reopen = false,
-  api: Pick<typeof runtimeApi, 'createAdventure' | 'restoreAdventure' | 'advanceSolo'> = runtimeApi,
+  api: Pick<
+    typeof runtimeApi,
+    'createAdventure' | 'restoreAdventure' | 'advanceSolo' | 'readNarration'
+  > = runtimeApi,
   budget = 10,
 ) {
   const f = soloRewardFixture();
   let adventure = api.createAdventure(f.pack, f.definition, f.options);
   const snapshots: AdventureSnapshot[] = [adventure.serialize()],
     results: unknown[] = [];
+  const messages: runtimeApi.NarrationMessage[] = [];
   let sawPlayerOffer = false,
     decisions = 0;
   const perform = (command: AdventureCommand) => {
@@ -229,8 +233,33 @@ export function soloJourney(
     decisions += solo.stepsUsed;
     results.push(solo);
     snapshots.push(adventure.serialize());
-    if (solo.reason === 'completed') break;
     if (solo.reason === 'budget-exhausted') continue;
+    const unread = api.readNarration(adventure),
+      beforeRead = adventure.serialize();
+    demand(
+      JSON.stringify(api.readNarration(adventure)) === JSON.stringify(unread),
+      'Reads must repeat exactly',
+    );
+    messages.push(...unread);
+    if (unread.length) {
+      perform({
+        type: 'ack-narration',
+        adventureId: beforeRead.adventureId,
+        expectedRevision: beforeRead.revision,
+        throughSequence: unread[unread.length - 1]!.sequence,
+      });
+      demand(
+        JSON.stringify(adventure.serialize()) ===
+          JSON.stringify({
+            ...beforeRead,
+            revision: beforeRead.revision + 1,
+            narrationAck: beforeRead.sequence,
+          }),
+        'Ack changes only cursor and revision',
+      );
+      demand(api.readNarration(adventure).length === 0, 'Acknowledged messages must not repeat');
+    }
+    if (solo.reason === 'completed') break;
     demand(
       solo.reason === 'awaiting-player' || solo.reason === 'awaiting-choice',
       'Unexpected solo terminal/stall',
@@ -293,5 +322,15 @@ export function soloJourney(
     final.members[1]!.character.state.inventory.some((i) => i.id === 'rope' && i.qty === 4),
     'Actual host loot grant must survive both fights',
   );
-  return { ...f, snapshots, results, final };
+  demand(
+    messages.length === final.sequence && new Set(messages.map((m) => m.messageId)).size === final.sequence,
+    'Exactly one factual message per committed event',
+  );
+  return { ...f, snapshots, results, messages, final };
+}
+
+export const SOLO_DIGEST = '10742931';
+export function soloRecording(reopen = false, budget = 10) {
+  const { snapshots, results, messages, final } = soloJourney(reopen, runtimeApi, budget);
+  return { snapshots, results, messages, final };
 }

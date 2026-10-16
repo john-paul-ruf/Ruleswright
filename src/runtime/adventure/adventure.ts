@@ -142,6 +142,7 @@ function facade(pack: Pack, definition: AdventureDefinition, initial: AdventureS
       if (node.preparation) availableCommands.push('prepare');
       availableCommands.push('equip', 'unequip', 'use-item');
     }
+    availableCommands.push('ack-narration');
     return detached({
       adventureId: saved.adventureId,
       revision: saved.revision,
@@ -173,6 +174,22 @@ function facade(pack: Pack, definition: AdventureDefinition, initial: AdventureS
       if (!commandShape(input)) refuse('command', 'Malformed command or unexpected field.');
       if (input.adventureId !== saved.adventureId) refuse('adventureId', 'Foreign adventure.');
       if (input.expectedRevision !== saved.revision) refuse('expectedRevision', 'Stale revision.');
+      if (input.type === 'ack-narration') {
+        if (input.throughSequence < saved.narrationAck || input.throughSequence > saved.sequence)
+          refuse(
+            'throughSequence',
+            'Acknowledgement must stay between the saved cursor and journal sequence.',
+          );
+        if (input.throughSequence !== saved.narrationAck) {
+          if (!Number.isSafeInteger(saved.revision + 1)) refuse('revision', 'Revision exhausted.');
+          saved = readAdventureSnapshot(pack, definition, {
+            ...saved,
+            revision: saved.revision + 1,
+            narrationAck: input.throughSequence,
+          });
+        }
+        return { ok: true, revision: saved.revision, events: [], view: view() };
+      }
       if (saved.phase === 'defeated' || saved.phase === 'abandoned')
         refuse('phase', 'Adventure is terminal.');
       let claim;

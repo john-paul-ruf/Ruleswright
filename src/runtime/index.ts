@@ -191,3 +191,6 @@ export type {
 
 export { advanceSolo } from './adventure/director';
 export type { SoloResult } from './adventure/types';
+
+export { readNarration } from './adventure/narration';
+export type { NarrationMessage } from './adventure/types';
