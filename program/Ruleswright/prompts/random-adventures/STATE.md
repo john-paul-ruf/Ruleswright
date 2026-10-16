@@ -3,9 +3,9 @@
 ## Program / Feature / Intent / Sessions
 
 - Program: Ruleswright; existing authoritative root `program/Ruleswright/` and config `PROGRAM-CONFIG.MD` (case retained; no competing kebab-case root/config).
-- Feature: random-adventures. REPLAN-RA-CONTRACTS revision 2; plan base `310397c4d1825d9163a5797addd73bc6d1f912d1`; implementation source `c8e526047b8186d35710965d5f210f858ab232a3`; protected Author contracts through `42bad6023e698bd430a7c50842a1882c5bd9f206` (F-RA-01 assertion-only addendum based on `44fac85625db8eb62ebddb795018f1ee12a97c22`; revision 2 leases/checkpoints unchanged); replan date 2026-10-16. The scoped replan commit is recorded in git and the returned Handoff (no self-referential hash).
+- Feature: random-adventures. Final implementation `6d919f30971363fe8b11732e2347f5497f8cff56`; final bounded plan correction `6f097e2`; protected Author contracts through `42bad60`. Original planning revisions and receipts are preserved below.
 - Intent: all three requested modes — standalone random encounters, complete headless adventures, and a solo director — through one UI-independent library.
-- Four implementation sessions, 19 checkpoints retained. S01–S03 accepted; S04 c1 `e9c2da6`, c2 `9cea9f6`, c3 `178fe54` preserved, c4/c5 pending. Current bounded REPLAN-RA-STALL base `252fab7c2406bdde36d59669261d7322f60e2c2f`, source `178fe54a10782427511d907a1bbed5eb745b522a`: disproved agent-imposed stall prerequisite removed; no full planning review rerun. Earlier review/receive records remain historical; Orchestrator resumes S04 after recording this correction.
+- All four implementation sessions accepted: 19 planned checkpoints plus S03 proof correction `7011064`. S04 c4 `dac01ab` and c5 `6d919f3` complete. CAP-01–06 and CA-01–05 required local proofs verified. Feature Verification `26510c4`: 56 verified, zero other verdicts. Final Archivist `aff7eb9` received; report assembled at `b4089b3` and finalized beside this file. No active worker, reserved lease or pending receive.
 - Input authority: user's “plan all three” after the three scopes; original “regardless of ui”; current config and Author sources. On resume, the user's “start” in direct response to the concrete AR-01–AR-06 approval request is interpreted as approval of those amendments and deliberate Author re-entry; see Authorization Receipt below. Older narrative deferral is superseded in scope by that answer, while offline/no-I/O/rules-as-data remain.
 
 ## Session Status
@@ -32,7 +32,7 @@ All source/test leases are exact paths in session front matter and lease-manifes
 ## Dependency Graph
 
 `AR-01 + AR-02 (committed) → S01 → S02 → S03 → S04`; `S01 → S03` also directly.
-`AR-03 (committed) → S02`; `AR-04 (committed) → S03`; `AR-05 (committed) → S04 c2`; `AR-06 (committed) → documentation checkpoints`. All Author arrows and S01–S03 predecessor inputs are satisfied; S04 c4/c5 own their remaining implementation/proofs.
+`AR-03 (committed) → S02`; `AR-04 (committed) → S03`; `AR-05 (committed) → S04 c2`; `AR-06 (committed) → documentation checkpoints`. All Author and implementation arrows are satisfied, including S04 c4/c5 and their local proofs.
 S01 produces EncounterSetup (c1), resumable session (c3), atomic settlement and second-fight proof (c4/c5).
 S02 produces AdventureDefinition/template validator and real generated graphs (c1/c2).
 S03 produces actual adventure dispatch/reward receipt/journal/snapshot (c2–c4).
@@ -40,9 +40,9 @@ S04 supplies legality preview and autonomous control itself; those are its outpu
 
 ## Architecture Reference
 
-M01 `src/schema/` and M02 `src/core/` remain sibling leaves. M03 `src/runtime/` consumes M01/M02; M04 `src/compiler/` consumes M01/M02; M05 `src/index.ts` remains re-export only. All seven realized cross-module value edges were re-derived with TypeScript AST traversal across 77 committed non-test TS files at plan HEAD (type imports removed; value export-from counted); see EVIDENCE. No new module ID is needed. New `play/` and `adventure/` are precise session-owned paths within M03, not overlapping module leases.
+M01 `src/schema/` and M02 `src/core/` remain sibling leaves. M03 `src/runtime/` consumes M01/M02; M04 `src/compiler/` consumes M01/M02; M05 `src/index.ts` remains re-export only. Final Archivist `aff7eb9` reconciled 93 non-test TypeScript source files and the same seven cross-module value edges; the earlier 77-file planning scan remains in EVIDENCE. No new module ID is needed. New `play/` and `adventure/` are precise session-owned paths within M03, not overlapping module leases.
 
-Declared [D] additions: M03/play → M01/play-session; M04/adventure → M01/adventure and M02 tables/rng; M03/adventure → M01/adventure, M03/play and existing character writers. Existing module-level edges are [R]; these new files/symbols are planned, not realized. Under ten modules, the authoritative registry table suffices. Orchestrator/Archivist updates config/arch at receives, never Coder.
+Declared [D] additions: M03/play → M01/play-session; M04/adventure → M01/adventure and M02 tables/rng; M03/adventure → M01/adventure, M03/play and existing character writers. Existing module-level edges and these additions are realized through `6d919f3`, reconciled in architecture/config by `aff7eb9`. Under ten modules, the authoritative registry table suffices. Orchestrator/Archivist updates config/arch at receives, never Coder.
 
 No database, backend service, network transport, renderer bridge, ports for product runtime, or storage adapter. The actual application boundary is exported synchronous JS/TS calls. JSON host storage and fresh facade reconstruction are the restart boundary. Runtime-only consumption must not bring either generator into the bundle.
 
@@ -58,7 +58,9 @@ No database, backend service, network transport, renderer bridge, ports for prod
 
 Feature acceptance additions (stable plan-local requirement ids): RA-01 playable seeded encounter → CAP-01/S01; RA-02 finite seeded graph/content → CAP-02/S02; RA-03 player choices/exploration/real combat/terminal → CAP-03/S03; RA-04 rewards/XP/preparation/save/reopen → CAP-04/S03; RA-05 enemy automation with player yields → CAP-05/S04; RA-06 factual offline narration → CAP-06/S04. These implement the current inline scope; Approved FR-24..29 now map respectively to RA-01..06/CAP-01..06; AR-01 source receipt is complete. Supporting existing requirements FR-1/5/7/10/13/14/16 feed CAP-01, FR-15/17/18/20/21 feed CAP-02, FR-6/8/9/19/23 feed CAP-04, FR-11/12 feed CAP-05, and FR-22/NFR-DX/Determinism apply across all sessions.
 
-### Inspected inherited records and dispositions
+### Inspected inherited records and dispositions — historical planning baseline
+
+The following inventory records pre-implementation findings and assignments. Current completion is the Session/CAP/CA tables and Final Report closure ledger: S01–S04 discharged their assigned local proofs through `6d919f3`; reset/reopen passed at `dac01ab`. Future-tense statements here describe the original plan, not outstanding dispatch gates.
 
 B-RA-S04-STALL → CAP-05/CA-05: **disproved** by the complete selected-command trace at source `178fe54` in EVIDENCE's REPLAN-RA-STALL addendum. The demand to reach stallLimit from zero by genuinely unchanged production transitions was agent-imposed, not an approved product requirement. Remove that prerequisite; preserve bounded execution, approved hash fields, conditional counter/reset semantics, partition/reopen and defensive restored-stall yield. Existing source-backed reset behavior still needs an explicit nonzero→zero/reopen assertion, assigned to S04 c4 in its existing director test lease. No Author change or human decision, and no natural stalemate-detection claim. Raw attempt3 and historical receives below remain verbatim.
 
@@ -159,6 +161,10 @@ First narrow journey: S01 c3 built package encounter → real combat action → 
 
 The human approved AR-01–AR-06 and explicitly authorized execution. Author contracts landed through fcec34d, with only selection.seedUsed.minLength removed at 42bad60. Existing string-seed meaning is unchanged; this bounded F-RA-01 addendum assigns its explicit assertions in S01/S02 without reopening other contracts. S01 runtime producers and CA-01/02 boundary proofs are verified through27a24d0; S02 generator/JSON producer and CAP02 proofs verified09e9766. CA03 play and CA04 manual runtime proofs verified31c822f. S04 solo/narration producers and remaining CA05 reset/ack/platform proofs are verified through6d919f3. CAP01–06 required local scope complete; remote CI evidence remains carried. Author schema conformance alone does not verify a capability.
 
+### Historical CA implementation specifications — CA-01 through CA-05
+
+The five subsections below preserve planning-time defects, maps and proof allocations. Their “current”, “planned”, “provisional”, “blocked” and “future” descriptions refer to the pre-implementation baseline. All assigned producers and local assertions have since landed at the exact commits in the current CA table above; Feature Verification `26510c4` independently records 56 verified rows. These paragraphs introduce no remaining implementation prerequisite.
+
 ### CA-01 — defect, map and assertions
 
 Required behavior is persistent injury and restrictions. Current behavior reconstructs hp and starts an empty conditions list (probe in EVIDENCE). Correct both writer and start consumer, not only DTO shape. Map state.hp.current→saved.hp.current→state.hp.current exactly (signed integer), state.hp.temp likewise (bookkeeping only); legacy absent hp→existing reconstruction by explicit compatibility rule. Conditions map conditionId/duration to id/remaining and back; combat receives detached initial conditions and returns remaining durations. memberId owns stable campaign identity; current Character.id is an internal runtime binding. No DB/check/FK boundary exists; JSON Schema and runtime validation are the constraints. Sources: character.ts, snapshots/character.ts, profileFromCharacter, startCombat, equipment.ts.
@@ -207,17 +213,17 @@ CA-05 exact mapping: S04 **Committed AR-05 API, policy state and proof allocatio
 
 ## Current Blockers
 
-**Current close boundary6d919f3:** all four sessions and CAP01–06/CA01–05 required local proofs accepted. B-RA-S04-LEASE/B-RA-S04-ACK-LEASE closed9cea9f6/dac01ab; disproved stall premise retired6f097e2, legitimate reset proof closeddac01ab. No active worker/pending receive after final S04 receive. Remote B-BD-1 publication-owned Actions and unused older nested loot references (Planner/M04 content-validation owner) remain carried external/unrelated debt. Feature Verification pass and final report/Archivist still due. Older future-tense summaries below are historical, superseded by this close boundary.
+No required local feature capability or session is blocked. All four sessions are accepted through `6d919f3`; Feature Verification `26510c4` has 56 verified rows and no present-unverified, failed or blocked rows. Final Archivist `aff7eb9` has been fully received; its documentation synthesis leaves implementation and verified proofs unchanged.
 
-**B-RA-S04-STALL closed by REPLAN-RA-STALL as disproved.** Current selected-command/validation/hash comparison is in EVIDENCE; no real unchanged-transition fixture is required before dispatch or completion. Preserve the historical attempt2/lease4/attempt3 prose below as evidence of the rejected premise, not current instructions. S04 is eligible to resume c4/c5 with its exact revision4 39-path lease and dependency on completed S03. S04 c4 still owns the legitimate explicit reset/reopen assertion and CAP06 narration/ack implementation/proofs; c5 owns final local/platform/clean-copy proof. CAP05 remains in-progress and CA05 partial until those actual proofs pass; CAP06 is unimplemented, not verified. B-RA-S04-ACK-LEASE is closed for ownership only; its c4 test adaptation remains required. No unresolved contract meaning, human input, new schema or runtime correction is prescribed.
+| ID | Affected | Owner / remaining condition |
+|---|---|---|
+| B-BD-1 | Remote CI acceptance only | Human publication/push owner supplies relevant Actions Node 18/20/22, packaging, browser and Electron evidence; later Orchestrator records it. No publication authorized or performed here. |
+| C18–C20 | Unused legacy nested loot references | Planner/M04 content-validation owner scopes the CLEANUP-LEDGER brief, preserving approved no-item semantics, valid adventure recipes and identity/rollback assertions. No required CAP depends on this cleanup. |
+| CONFIG-SUMMARY | Restricted config header/Stack/Author Sources | Planner/config owner reconciles old revision/schema/host summaries to six schemas/v1.12 and actual source-browser versus built proof scope at the next config reconciliation. No remote CI or renderer claim. |
 
-| ID          | Affected                          | Next action / owner                                                                                                      | Evidence to clear                                                                                                     |
-| ----------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
-| B-BD-1      | CI acceptance only, carried       | Human publication/push owner; Orchestrator later records actual Actions and assigns mechanical repair if needed          | Relevant Node 18/20/22, package, browser and Electron runs at implemented revision; no agent publish/push to clear it |
+B-RA-AUTHOR, F-RA-01, B-RA-DX and B-RA-XP closed at recorded receipts and implementation proofs. Both S04 mechanical lease gaps closed by revision 4 and `dac01ab`; the agent-imposed stall premise was retired by `6f097e2`, while the legitimate restored-counter reset/reopen assertion passed at `dac01ab`. No natural stalemate-detection claim is made.
 
-B-RA-AUTHOR, F-RA-01 and B-RA-DX source prerequisites remain closed at their recorded receipts; S01–S03 runtime/generated-output and reward-preservation proofs are accepted in the current CAP/CA rows and verbatim receives. B-RA-XP does not block S04: the real S03 adapter and proof landed. S04 retains its own c4/c5 implementation, documentation and proof obligations. No unresolved Contract Agreement/product choice is introduced by this bounded comparison; pending proofs are not runtime verification.
-
-No Coder is active at base `252fab7`; attempt3 is fully received. This bounded correction leaves scratch ledger/blockers untouched because they are outside its exact write set; Orchestrator must refresh their superseded stall-prerequisite summaries from the canonical current sections before redispatch. No live Coder/Author/Archivist worker or pending receive is reported at base. Scratch ledger/blocker/decision text contains older startup claims plus later accepted receipts; the canonical current sections here supersede those stale summaries without editing their history. Orchestrator must regenerate scratch summaries before dispatch. Prior Author discovery and all raw Handoff Notes below are preserved byte-for-byte. Config/arch/specs/mocks/contracts and implementation remain outside this replan write lease.
+No active worker, pending receive or unconsumed architecture delta remains. Historical replan/startup/receive entries below are append-only provenance and do not supersede these current summaries.
 
 ## Planning Handoff — D1–D7 (advisory, not a score)
 
@@ -1121,3 +1127,7 @@ Timing normalization: S01 launch19:35:01UTC→receive20:00:49UTC; S02 launch20:0
 - **needsDesignSource:** —
 - **blockedReason:** Commit-tool rejection prevents worker archival; no required local capability proof remains blocked.
 - **filesTouched:** `program/Ruleswright/prompts/random-adventures/VERIFICATION.md` — created, ignored, uncommitted. No source/test/STATE/architecture edits.
+
+## Final Archivist Complete Receive — 2026-10-16
+
+Native h-X6Ja / AarGr ended normally. Raw result preserved in .program/results/ARCHIVIST-FINAL.result.md and appended verbatim to FINAL-REPORT.md. Commit aff7eb9 changes only arch/v1-core.md, PROGRAM-CONFIG.MD, ARCHIVIST-LOG.md and CLEANUP-LEDGER.md. No source/test/role changes; no new implementation gate required for documentation-only synthesis. CAP01–06 and CA01–05 remain locally verified; no pending receive. Current STATE/MASTER summaries reconciled in this receive; historical Handoff Notes remain unchanged. Restricted config summaries carried to Planner/config owner, C18–C20 to Planner/M04, B-BD-1 to publication owner; framework recommendations remain with framework maintainers as recorded by Archivist.
