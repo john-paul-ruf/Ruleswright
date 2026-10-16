@@ -167,3 +167,70 @@ it('routes real prepare/equip/unequip/use and once-only rest without healing or 
     dispatch(a, { type: 'prepare', nodeId: 'clearing', memberId: 'hero-1', spellId: 'grave-light' }).ok,
   ).toBe(false);
 });
+
+import { rehash } from './fixtures';
+import { packContentHash } from '../../../src/schema';
+it.each(['defeated', 'abandoned'] as const)(
+  'persists actual enemy injury and item spend through %s settlement and reopen',
+  (terminal) => {
+    const f = combatFixture(true);
+    f.pack.actions['strike']!.effect = terminal === 'defeated' ? 'damage(100)' : 'damage(1)';
+    const identity = { ...f.definition.pack, contentHash: packContentHash(f.pack) };
+    const definition = rehash({ ...f.definition, pack: identity });
+    const options = {
+      ...f.options,
+      members: f.options.members.map((m) => ({ ...m, character: { ...m.character, pack: identity } })),
+    };
+    const a = createAdventure(f.pack, definition, options);
+    expect(choose(a).ok).toBe(true);
+    let used = false,
+      attacked = false;
+    for (let step = 0; step < 20 && !attacked; step++) {
+      const outer = encounterCommand(a),
+        base = outer.command;
+      let command = base;
+      if (base.type === 'declare') {
+        command = used
+          ? {
+              sessionId: base.sessionId,
+              expectedRevision: base.expectedRevision,
+              type: 'pass',
+              actor: base.actor,
+            }
+          : {
+              sessionId: base.sessionId,
+              expectedRevision: base.expectedRevision,
+              type: 'use',
+              actor: base.actor,
+              itemId: 'mend-draught',
+            };
+        used = true;
+      } else if (base.type === 'pass') {
+        command = {
+          sessionId: base.sessionId,
+          expectedRevision: base.expectedRevision,
+          type: 'declare',
+          actor: base.actor,
+          actionId: 'strike',
+          options: { targetId: 'm:hero-1' },
+        };
+        attacked = true;
+      }
+      expect(a.dispatch({ ...outer, command }).ok).toBe(true);
+    }
+    expect(used && attacked).toBe(true);
+    if (terminal === 'abandoned') expect(dispatch(a, { type: 'abandon' }).ok).toBe(true);
+    const saved = a.serialize();
+    expect(saved.phase).toBe(terminal);
+    expect(saved.members[0]!.character.state.hp).toEqual({
+      current: terminal === 'defeated' ? -80 : 19,
+      temp: 2,
+    });
+    expect(saved.members[0]!.character.state.inventory).toEqual([{ id: 'mend-draught', qty: 1 }]);
+    expect(saved.rewards).toEqual([]);
+    expect(saved.encounterReceipts[0]!.receipt.result).toBe(terminal === 'defeated' ? 'defeat' : 'abandoned');
+    expect(restoreAdventure(f.pack, definition, JSON.parse(JSON.stringify(saved))).serialize()).toEqual(
+      saved,
+    );
+  },
+);
