@@ -102,7 +102,7 @@ No implementation session or required local capability remains blocked. B-BD-1 i
 | Planning completeness |0|Initial D1/D2/D4/D6/D7 pass; D3/D5 fail|Empty setup seed accepted while selection schema rejected it|42bad60/8826450 correction|
 | Scoped planning recheck |0|All D1–D7 pass (five retained, two rechecked)|Affected plan/source revisions recorded|Dispatch cleared207c9e0|
 | Interim waves |4|Not scheduled|Four-session run below16-session cadence|No concurrent Archivist/Coder|
-| Final |4|See raw note below|Documentation reconciliation only|Final Archivist exact writes/commit recorded on return|
+| Final |4|Received aff7eb9; raw note below|Documentation reconciliation and named follow-ups|Four authorized files; current STATE/MASTER corrections closed2bb05a6|
 
 The fixed D1–D7 table is preserved in both run STATE and program STATE against plan8826450/source42bad60, retaining initial plan6ec316f/sourcefcec34d references. Bounded later amendments rechecked affected ownership/consumer sources; they did not change approved behavior or dependencies.
 
@@ -145,7 +145,7 @@ CA01 exact HP/condition identity, CA02 complete encounter restoration/atomic set
 
 ### Architecture and changed files
 
-M01 adds portable encounter/adventure types and validators, with Author-owned JSON contracts. M03 adds encounter and adventure facades, staged settlement/rewards, shared legality, saved solo control and journal-based narration. M04 adds separate finite generation and pack-bound sidecar templates. Runtime remains free of compiler value imports; no module ID, dependency or external service was added. Root package/lockfile are unchanged. Mid-run arch deltas were committed12171e5/dc9cc08/e713c0c/9169f94/605daa1; final Archivist reconciles them.
+M01 adds portable encounter/adventure types and validators, with Author-owned JSON contracts. M03 adds encounter and adventure facades, staged settlement/rewards, shared legality, saved solo control and journal-based narration. M04 adds separate finite generation and pack-bound sidecar templates. Runtime remains free of compiler value imports; no module ID, dependency or external service was added. Root package/lockfile are unchanged. Mid-run arch deltas were committed12171e5/dc9cc08/e713c0c/9169f94/605daa1; final Archivist reconciled them in `aff7eb9`.
 
 Actual `git diff 470a777..6d919f3`: **95 files,17,601 insertions,919 deletions**, including authorized specs/mocks/contracts, implementation/tests and run metadata. This endpoint intentionally excludes later verification/report/Archivist archival. Exact changed paths:
 
@@ -326,6 +326,106 @@ Every implementation dispatch’s `surprises` and `followUp` field is reproduced
 
 Earlier prerequisite closure: Author XP continuityfcec34d, seed schema42bad60 and assertion replan8826450 closed before consumers; all design/DX receipts implemented by the relevant sessions. Initial planning failures D3/D5 closed by the scoped Archivist recheck207c9e0. No pending arch fragment or unreceived result remains. The final Archivist’s own recommendations below carry their stated owners and are documentation follow-up, not implicit permission for implementation cleanup.
 
+### Final archival receipt
+
+Final Archivist `aff7eb9` changed only `program/Ruleswright/arch/v1-core.md`, `program/Ruleswright/PROGRAM-CONFIG.MD`, `program/Ruleswright/ARCHIVIST-LOG.md` and `program/Ruleswright/CLEANUP-LEDGER.md`. Source/tests and protected role files are unchanged; the log has 273 appended lines and no deletions, and restricted config sections were independently compared unchanged. No implementation tests were repeated for this documentation-only reconciliation.
+
+| Final follow-up | Disposition |
+|---|---|
+| Stale current STATE/MASTER summaries | **closed** by Orchestrator `2bb05a6`; historical handoffs retained verbatim. |
+| Restricted config header/Stack/Author Sources | **carried** to Planner/config owner at the next config reconciliation; align six schemas/v1.12 and actual source-browser versus built proof scope without claiming remote CI or renderer evidence. |
+| C18–C20 nested loot references | **carried** to Planner/M04 content-validation owner, with the committed CLEANUP-LEDGER brief; preserve approved no-item semantics, valid adventure recipes and identity/rollback checks. |
+| B-BD-1 | **carried** to human publication/push owner, then Orchestrator receives actual Actions results; no push/publication performed. |
+| Framework recommendations | **carried** to framework maintainers, with the full 27-row backlog and recurrence/adoption evidence in the verbatim note and ARCHIVIST-LOG. No role edits made. |
+
+Final archival assembled **2026-10-16 21:38 UTC**, approximately **2h49m** after the durable authorization commit. This is elapsed wall clock, not hands-on effort. All receives are complete, no active worker or reserved resource remains, and all six local capabilities retain their verification.
+
 ## Archivist's Note
 
-The final Archivist pass is pending.
+I’ll read the full run record and Archivist instructions, check the documentation against the source evidence, then reconcile and commit only the authorized documentation paths.
+
+The final report and verification record agree that all six local capabilities are verified. They also preserve the two carried obligations: remote Actions evidence and older unused loot references. I’m checking the standing recommendations and S04’s three blocked returns so the log distinguishes the two lease gaps from the disproved stall assertion.
+
+The architecture still marks several completed items as pending: departure-history restoration, item condition-duration events, the compiler feat-slot proof, and documentation corrections. I’ll fold the feature deltas into their owning sections and replace those stale claims with the committed results.
+
+The module scan found 93 non-test TypeScript files and the same seven cross-module value-import edges. The new play and adventure layers stay within the existing dependency boundaries. I also found stale “pending” summaries outside Archivist’s write authority; I’ll name their owners in the note without changing the verified readiness tables.
+
+
+The three S04 stops have distinct causes: two lease gaps and one disproved proof premise. I’ll preserve that distinction and the absence of context exhaustion. The cleanup scout also confirmed three unresolved nested-table references, one per bundled theme; they meet the briefing threshold, while the current adventure recipes use valid reward tables.
+
+
+The architecture now describes the completed encounter, adventure, solo and narration paths in their owning sections, with the stale partial-delivery deltas removed. The adoption check also found that some standing recommendations are already expressed in the role documents. I’ll mark those adopted and carry forward only the remaining gaps; the ignored role files have no git history, so I won’t invent adoption commits.
+
+
+The reconciliation now carries 27 open or program-promoted recommendations; four older recommendations are marked adopted with citations to the current role text. One cleanup brief covers the three broken loot references. The scope checks confirm that the prior log is an unchanged prefix, all four protected role files are unchanged, and config edits stay within the permitted sections.
+
+
+The documentation review is complete. All six local capabilities remain verified. The remaining owner actions are stale current-summary corrections, config sections outside Archivist’s authority, remote Actions evidence, and the Planner cleanup brief. I’m committing the four authorized documentation files with explicit pathspecs.
+
+
+## Archivist Note
+
+- **role:** archivist
+- **commit:** `aff7eb9`
+- **registryUpdated:** true — 93 source files; seven cross-module value edges.
+- **reconciled:**
+  - `program/Ruleswright/arch/v1-core.md`
+  - `program/Ruleswright/PROGRAM-CONFIG.MD`
+  - `program/Ruleswright/ARCHIVIST-LOG.md`
+  - `program/Ruleswright/CLEANUP-LEDGER.md`
+- **conventionsAdded:** Sharpened existing consumer-ownership convention to include closed validators, command guards, snapshot consumers and exact command-list assertions. Evidence: 3 cycles / 5 instances.
+- **proposedForFramework:**
+  - Align Orchestrator’s receive wording with R3/R4’s stop-only authority — 1 cycle / 1 instance.
+  - Replace superseded current summaries while preserving historical handoffs — 1 cycle / 1 instance.
+- **logEntry:** Appended dated final reconciliation for source `6d919f3`, plan `6f097e2`, verification `26510c4` and report `b4089b3`.
+  - All six local capabilities and CA01–05 remain verified; no natural stalemate-detection claim.
+  - Deviations: R1 **5**, R2 **1**, R3 **2 compliant stops**, effective R4 **0**; original Author R4 discovery preserved with its reclassification. Zero lease violations.
+  - S04’s three stops remain two lease gaps and one disproved premise. No context exhaustion or re-slice.
+  - Orchestrator owns stale STATE/MASTER current summaries; Planner/config owner owns stale header/Stack/Author Sources outside this pass’s authority.
+  - B-BD-1 remains publication-owned remote evidence; legacy loot references remain Planner/M04-owned.
+  - Four recommendations marked adopted after substantive role-text inspection. Role files, prior log bytes and prohibited config sections are unchanged. Working tree clean; no implementation tests rerun.
+
+### cleanupBriefs
+
+- **title:** Resolve legacy nested loot references
+- **targetArea:** M04’s three bundled theme JSON files; C18–C20.
+- **confidence:** high — three nested entries reference absent table `nothing`, meeting the briefing threshold.
+- **proposedPlannerTask:** Build a bounded content-validation cleanup program preserving approved no-item semantics and valid adventure recipes.
+- **requiredChecks:**
+  - Enumerate nested references and exercise corrected branches through real table/loot writers.
+  - Preserve reward rollback, generated-pack validation and affected identity/oracle assertions.
+- **risks:** Content changes affect reward distributions and pack hashes; stricter validation can reject previously accepted packs. No cleanup implemented.
+
+### standingRecommendations
+
+Full open backlog below. **Promoted** means the program convention exists while framework wording remains open. Timeout instances are a documented lower bound.
+
+| id | pattern | cycles | in-cycle instances | first seen | status |
+|---|---|---:|---:|---|---|
+| b32fc8d0c8c92d52 | Exhaustive checkpoint-0 reads exhaust context | 2 | 2 | v1-core | open; 12 cycles without recurrence |
+| f57dbe4d010638fe | Fabricated tool inputs during long recovery | 2 | 8 | v1-core | open; 12 cycles without recurrence |
+| c1ed872bea557b96 | Dropped or misrouted tool argv | 2 | 3 | v1-core | open; 12 cycles without recurrence |
+| 3658f327cc9cff2f | Deleted-file staging needs explicit `git rm` | 2 | 2 | v1-core | open |
+| 1cc46f93038f1d9a | Cross-suite pins lack named owners | 10 | 12 | loot-inventory | promoted |
+| 576a281656f83b23 | Mechanical and proof premises reach workers unverified | 13 | 56 | loot-inventory | promoted |
+| 17f4803c1b08da77 | Provider abort recovery from preserved work | 3 | 5 | loot-inventory | open; cycle attribution ambiguous |
+| 6f6b491bdbe37bf0 | Bare npx misresolution; use working pnpm invocation | 3 | 4 | loot-inventory | promoted |
+| 1d910de11732c6c4 | Aborted Archivist passes create double-synthesis debt | 2 | 2 | loot-inventory | open |
+| c172cd30e8dfc756 | Hardcoded checkpoint bases become stale after replan | 1 | 1 | equipment-consumables | open |
+| cecd211504587426 | Idle await timeout requires same-handle reattachment | 10 | ≥18 | equipment-consumables | promoted |
+| f68c42a3f6224eb1 | Derive report counts and edges mechanically | 4 | 4 | v1-core | promoted |
+| a368039028d463d6 | Role wording conflicts with authorized Author re-entry | 10 | 12 | grid-combat | promoted |
+| 3983f8eb6d18a5f2 | STATE row matching confuses CAP and CA rows | 1 | 2 | grid-movement | open |
+| f4621ac12fba3456 | Pin audits miss behavior assertions | 3 | 4 | grid-combat | promoted |
+| 760b67f17edbd346 | Newly reachable content exposes latent hazards | 2 | 2 | spells-in-combat | open |
+| 82b4e0abbda105d6 | Shared working trees contaminate concurrent verification | 1 | 2 | spells-in-combat | open; isolation portion remains |
+| c3c94358b35f8316 | Moving HEAD makes report figures unreproducible | 2 | 2 | action-targeting | open |
+| c187bed6bb5132a7 | Ignored VERIFICATION artifacts need explicit force-add | 7 | 7 | feat-progression | promoted |
+| 8039d6869169267c | Plan artifacts contain conflicting instructions or file inventories | 2 | 3 | feat-progression | open |
+| d2415cb4497e0049 | Author deviations lack R1–R4 classification | 3 | 4 | feat-progression | promoted |
+| 2674d8c2f948ae0a | Line-based import scans miss multiline statements | 1 | 1 | combat-decomposition | open |
+| 0880dd5734025fd4 | Negative controls prescribe writes outside the lease | 2 | 2 | combat-decomposition | open |
+| 47f092a4f076107c | Documentation overstates tested assertions | 2 | 3 | browser-determinism | open |
+| f229f492b7a1e737 | Scratch instructions conflict with tool confinement and lint scope | 1 | 1 | contract-conformance | open |
+| def0175a6983489e | R3/R4 handoff entries cannot independently authorize outside-lease writes | 1 | 1 | random-adventures | open |
+| 61a33b57dba24d50 | Replace stale current summaries after final receives | 1 | 1 | random-adventures | open |
