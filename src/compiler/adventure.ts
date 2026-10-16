@@ -91,13 +91,11 @@ export function generateAdventure({ pack, template, seed }: GenerateAdventureReq
       if (!result.value) continue;
     }
     const detour = branch.nodes.map(rollNode);
-    byId
-      .get(branch.fromNodeId)!
-      .choices.push({
-        id: `branch-${branch.id}`,
-        text: template.fragments[branch.choiceTextRef]!,
-        toNodeId: detour[0]!.id,
-      });
+    byId.get(branch.fromNodeId)!.choices.push({
+      id: `branch-${branch.id}`,
+      text: template.fragments[branch.choiceTextRef]!,
+      toNodeId: detour[0]!.id,
+    });
     for (let i = 0; i < detour.length; i++) link(detour[i]!, detour[i + 1]?.id ?? branch.toNodeId);
     nodes.push(...detour);
   }

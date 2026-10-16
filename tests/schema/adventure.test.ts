@@ -215,14 +215,14 @@ describe('CA-03 portable adventure inputs', () => {
       (t) => {
         t.construction.spine[0]!.id = 'start';
       },
-      'construction.nodes[1]',
+      'construction.spine[0].id',
     ],
     [
       'duplicate branch node',
       (t) => {
         t.construction.branches[0]!.nodes[0]!.id = 'start';
       },
-      'construction.nodes[3]',
+      'construction.branches[0].nodes[0].id',
     ],
     [
       'duplicate branches',
@@ -478,7 +478,7 @@ describe('CA-03 portable adventure inputs', () => {
       (t) => {
         t.narration.fragments.push({ ...t.narration.fragments[0]!, id: 'another' });
       },
-      'narration.fragments.eventType[1]',
+      'narration.fragments[1].eventType',
     ],
     [
       'duplicate slot',
@@ -695,4 +695,21 @@ describe('CA-03 portable adventure inputs', () => {
       expect(validateAdventureTemplate(pack, t).some((e) => e.jsonPath.startsWith('tables.'))).toBe(true);
     },
   );
+});
+
+it('locates duplicate recipes and narration events at real document fields', () => {
+  const { pack, template } = adventureFixture();
+  const t = template as Mutable<AdventureTemplate>;
+  t.construction.branches[0]!.nodes[0]!.id = 'start';
+  t.narration.fragments.push({ ...t.narration.fragments[0]!, id: 'second' });
+  expect(paths(validateAdventureTemplate(pack, t))).toEqual(
+    expect.arrayContaining(['construction.branches[0].nodes[0].id', 'narration.fragments[1].eventType']),
+  );
+});
+
+it('rejects sparse authored arrays instead of accepting holes that JSON turns into null', () => {
+  const { pack, template } = adventureFixture();
+  const t = template as Mutable<AdventureTemplate>;
+  delete t.tables.arrival!.entries[0];
+  expect(paths(validateAdventureTemplate(pack, t))).toContain('tables.arrival.entries[0]');
 });

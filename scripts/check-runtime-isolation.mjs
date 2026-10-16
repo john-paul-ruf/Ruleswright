@@ -1,13 +1,16 @@
 /**
  * Bundle-isolation proof (FR-22, packaging.html's check): the runtime-only
  * bundle is a proof, not a promise. Greps the built runtime entries for the
- * compiler's `generateCampaign` string and fails CI if it appears — a runtime
+ * compiler's generator symbols and fails CI if either appears — a runtime
  * consumer ships none of the generator.
  */
 import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 
-const DIST = 'dist';
+const args = process.argv.slice(2);
+if (args.length && (args.length !== 2 || args[0] !== '--fixture-dir' || !isAbsolute(args[1])))
+  fail('Usage: check-runtime-isolation.mjs [--fixture-dir <absolute-directory>]');
+const DIST = args[1] ?? 'dist';
 const RUNTIME_STEMS = ['runtime.js', 'runtime.cjs'];
 
 function fail(message) {
@@ -15,20 +18,20 @@ function fail(message) {
   process.exit(1);
 }
 
-const missing = RUNTIME_STEMS.filter((name) => !exists(join(DIST, name)));
+const required = [...RUNTIME_STEMS, 'runtime.d.ts', 'runtime.d.cts'];
+const missing = required.filter((name) => !exists(join(DIST, name)));
 if (missing.length > 0) {
-  fail(`dist/ is missing the runtime bundle(s): ${missing.join(', ')} — run \`pnpm build\` first.`);
+  fail(`${DIST} is missing required runtime output(s): ${missing.join(', ')} — run \`pnpm build\` first.`);
 }
 
-const FORBIDDEN = 'generateCampaign';
+const FORBIDDEN = ['generateCampaign', 'generateAdventure'];
 for (const name of RUNTIME_STEMS) {
   const source = readFileSync(join(DIST, name), 'utf8');
-  if (source.includes(FORBIDDEN)) {
-    fail(
-      `the string "${FORBIDDEN}" appears in ${name} — the runtime surface imports generator code (FR-22).`,
-    );
+  for (const symbol of FORBIDDEN) {
+    if (source.includes(symbol))
+      fail(`the string "${symbol}" appears in ${name} — the runtime surface imports generator code (FR-22).`);
+    console.log(`✓ ${name}: "${symbol}" absent`);
   }
-  console.log(`✓ ${name}: "${FORBIDDEN}" absent`);
 }
 
 const distFiles = readdirSync(DIST);

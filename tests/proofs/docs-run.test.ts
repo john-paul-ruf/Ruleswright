@@ -14,8 +14,9 @@ const EXAMPLES = [
   'quickstart/combat',
   'quickstart/loot',
   'encounter/play',
+  'adventure/generate',
 ] as const;
-function extractExamples(markdown: string): { quickstart: string; encounter: string } {
+function extractExamples(markdown: string): { quickstart: string; encounter: string; adventure: string } {
   const blocks = [...markdown.matchAll(/<!-- example: ([a-z/-]+) -->\s*```ts\n([\s\S]*?)```/g)];
   if (blocks.length !== [...markdown.matchAll(/```ts\n/g)].length)
     throw new Error('Unlabelled TypeScript example');
@@ -32,6 +33,7 @@ function extractExamples(markdown: string): { quickstart: string; encounter: str
       .map((name) => examples.get(name)!)
       .join('\n'),
     encounter: examples.get('encounter/play')!,
+    adventure: examples.get('adventure/generate')!,
   };
 }
 const examples = extractExamples(readme);
@@ -247,6 +249,7 @@ describe('README quickstart runs verbatim (NFR-DX)', () => {
     const problems = [
       ...typecheckQuickstart(examples.quickstart),
       ...typecheckQuickstart(examples.encounter),
+      ...typecheckQuickstart(examples.adventure),
     ];
     expect(
       problems,
@@ -289,4 +292,36 @@ describe('documentation runner self-tests and encounter example', () => {
       ),
     ).toBe(true);
   }, 60000);
+});
+
+describe('portable adventure documentation and extractor controls', () => {
+  it('executes actual compiler/schema imports and preserves the exact reopened definition', () => {
+    const { bindings, logs } = runExample(examples.adventure, ['definition', 'reopenedDefinition']);
+    expect(logs).toEqual([['dark-fantasy', 7, '6823dd50']]);
+    expect(bindings['reopenedDefinition']).toEqual(bindings['definition']);
+    const definition = bindings['definition'] as { nodes: { kind: string; encounter?: { seed: string } }[] };
+    expect(
+      definition.nodes.filter((n) => n.kind === 'encounter').every((n) => n.encounter!.seed === ''),
+    ).toBe(true);
+    expect(readme).toContain('dark-fantasy 7 6823dd50');
+    expect(readme).toContain('An adventure play facade is not yet available');
+  });
+  it('rejects a missing adventure block, duplicate label and unknown label', () => {
+    expect(() =>
+      extractExamples(readme.replace(/<!-- example: adventure\/generate -->\s*```ts\n[\s\S]*?```/, '')),
+    ).toThrow(/Missing example/);
+    expect(() =>
+      extractExamples(readme + '\n<!-- example: adventure/generate -->\n```ts\nconst x = 1;\n```'),
+    ).toThrow(/duplicate/);
+    expect(() =>
+      extractExamples(readme.replace('example: adventure/generate', 'example: adventure/unknown')),
+    ).toThrow(/Unknown/);
+  });
+  it('does not accept a broken adventure import or changed generated output', () => {
+    expect(() =>
+      runExample(examples.adventure.replace('ruleswright/compiler', 'ruleswright/missing')),
+    ).toThrow(/Unsupported/);
+    const changed = runExample(examples.adventure.replace('definition.nodes.length,', '0,')).logs;
+    expect(() => expect(changed).toEqual([['dark-fantasy', 7, '6823dd50']])).toThrow();
+  });
 });

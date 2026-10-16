@@ -23,7 +23,7 @@ import { TRIGGER_PATTERN } from '../../src/schema/validate/helpers';
 import { packDslChecker } from '../../src/core/dsl/checker';
 import { packContentHash } from '../../src/schema/version';
 import type { Pack } from '../../src/schema/pack';
-import { generateCampaign, loadTheme } from '../../src/compiler';
+import { generateCampaign, loadTheme, GenerationError } from '../../src/compiler';
 import { Runtime } from '../../src/runtime';
 
 const SEED = 42;
@@ -68,7 +68,7 @@ describe('v1.2 — every bundled class declares combat actions (UI B-1, D-23)', 
   }
 });
 
-describe('FR-21 floor — the shared bullets, enumerated against both packs', () => {
+describe('FR-21 floor — the shared bullets, enumerated against all three packs', () => {
   for (const { name, pack } of PACKS) {
     it(`${name}: 2+ classes with attack tables/bonus, save progressions, HD (FR-21.1)`, () => {
       expect(Object.keys(pack.content.classes ?? {}).length).toBeGreaterThanOrEqual(2);
@@ -506,7 +506,7 @@ describe('coined-name lint (Q7/Q8) \u2014 pack content greps clean of SRD-adjace
     'spell slots',
   ];
 
-  it('both theme data files are clean of the SRD-adjacent list', () => {
+  it('all three theme data files are clean of the SRD-adjacent list', () => {
     const dir = fileURLToPath(new URL('../../src/compiler/themes', import.meta.url));
     const files = readdirSync(dir).filter((file) => file.endsWith('.json'));
     expect(files.sort()).toEqual(['dark-fantasy.json', 'wyldwood.json', 'zombie-urban.json']);
@@ -518,7 +518,7 @@ describe('coined-name lint (Q7/Q8) \u2014 pack content greps clean of SRD-adjace
     }
   });
 
-  it('both generated packs are clean of the SRD-adjacent list', () => {
+  it('all three generated packs are clean of the SRD-adjacent list', () => {
     for (const { name, pack } of PACKS) {
       const source = JSON.stringify(pack).toLowerCase();
       for (const term of SRD_ADJACENT) {
@@ -579,8 +579,8 @@ describe('CA-5 producer — determinism contract (the byte-identity proof)', () 
 });
 
 describe('FR-18 — knob declarations are machine-readable and feed the pack', () => {
-  it('both themes declare complete knobs (id/type/values-or-range/default/desc)', () => {
-    for (const theme of [DARK_FANTASY, ZOMBIE_URBAN]) {
+  it('all three themes declare complete knobs (id/type/values-or-range/default/desc)', () => {
+    for (const theme of [DARK_FANTASY, ZOMBIE_URBAN, WYLDWOOD]) {
       const decls = Object.entries(theme.knobs ?? {});
       expect(decls.length).toBeGreaterThanOrEqual(2);
       for (const [id, decl] of decls) {
@@ -617,4 +617,21 @@ describe('FR-18 — knob declarations are machine-readable and feed the pack', (
     const pack = runPipeline(theme, SEED);
     expect(pack.formulas['hp']!['expr']).toBe('6 + level + vigor * 2');
   });
+});
+
+it('CAP-F1: generateCampaign stage 8 refuses malformed featSlots at the progression field', () => {
+  const theme = structuredClone(DARK_FANTASY);
+  theme.progression!['warden']!.featSlots = [-1];
+  let caught: unknown;
+  try {
+    generateCampaign({ theme, seed: SEED });
+  } catch (error) {
+    caught = error;
+  }
+  expect(caught).toBeInstanceOf(GenerationError);
+  expect((caught as GenerationError).errors).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ rule: 'E-SCHEMA-01', jsonPath: 'progression.warden.featSlots[0]' }),
+    ]),
+  );
 });

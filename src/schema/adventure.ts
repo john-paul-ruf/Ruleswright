@@ -168,7 +168,7 @@ const array =
       return;
     }
     if (v.length < min) e.push(p);
-    v.forEach((item, i) => check(item, `${p}[${i}]`, e));
+    for (let i = 0; i < v.length; i++) check(v[i], `${p}[${i}]`, e);
   };
 function isRecord(v: unknown): v is Record<string, unknown> {
   return (
@@ -350,10 +350,11 @@ function shapeErrors(pack: Pack, value: unknown, check: Check): ErrorCard[] {
 }
 
 type Refuse = (path: string, message: string, rule?: RuleId) => void;
-function unique(values: readonly string[], path: string, refuse: Refuse): void {
+function unique(values: readonly string[], path: string | readonly string[], refuse: Refuse): void {
   const seen = new Set<string>();
   values.forEach((value, i) => {
-    if (seen.has(value)) refuse(`${path}[${i}]`, 'Duplicate identity.', 'E-DUP-01');
+    if (seen.has(value))
+      refuse(typeof path === 'string' ? `${path}[${i}]` : path[i]!, 'Duplicate identity.', 'E-DUP-01');
     seen.add(value);
   });
 }
@@ -509,7 +510,7 @@ function checkCommon(
   );
   unique(
     fragments.map((f) => f.eventType),
-    'narration.fragments.eventType',
+    fragments.map((_, i) => `narration.fragments[${i}].eventType`),
     refuse,
   );
   const factIds = new Set([
@@ -551,7 +552,12 @@ export function validateAdventureTemplate(pack: Pack, value: unknown): ErrorCard
   const all = [...base, ...c.branches.flatMap((b) => b.nodes)];
   unique(
     all.map((n) => n.id),
-    'construction.nodes',
+    [
+      'construction.entry.id',
+      ...c.spine.map((_, i) => `construction.spine[${i}].id`),
+      'construction.terminal.id',
+      ...c.branches.flatMap((b, i) => b.nodes.map((_, j) => `construction.branches[${i}].nodes[${j}].id`)),
+    ],
     refuse,
   );
   unique(
