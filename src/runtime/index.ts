@@ -177,3 +177,14 @@ export {
   type EncounterActor,
   type EncounterCommandResult,
 } from './play/session';
+export { createAdventure, restoreAdventure } from './adventure/adventure';
+export type {
+  Adventure,
+  AdventureCommand,
+  AdventureCommandResult,
+  AdventureView,
+  AdventureSnapshot,
+  RewardRoll,
+  RewardState,
+  RewardReceipt,
+} from './adventure/types';
