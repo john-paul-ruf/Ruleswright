@@ -525,3 +525,35 @@ followUp:
   - Scoped D3/D5 recheck remains before affected dispatch.
 deviations: []
 ```
+
+## F-RA-01 Planner Receive — 2026-10-16
+
+Accepted8826450, exactly four authorized prompt files. Native h-unte/PnBEw ended normally; raw result .program/results/REPLAN-RA-EMPTY-SEED.result.md preserved. No runtime/source/lease/dependency/checkpoint changes, residual, arch delta or lease violation. Historical suffix byte-identical to44fac85. Independent type/lint/format/diff checks exit0; no source tests repeated for plan-only edits. S01 c3/c5 and S02 c1/c2 now explicitly own empty-seed conformance/reopen/definition assertions; all paths already leased. Scoped Archivist recheck D3/D5 is the remaining dispatch gate; earlier five pass dimensions retained.
+
+## Handoff
+
+**status:** done  
+**task:** REPLAN-RA-CONTRACTS — F-RA-01 assertion reconciliation  
+**commit:** `8826450593e1957f029b31aace5041279e15d9a8`
+
+**filesTouched:**
+
+```text
+program/Ruleswright/prompts/random-adventures/SESSION-01.md
+program/Ruleswright/prompts/random-adventures/SESSION-02.md
+program/Ruleswright/prompts/random-adventures/STATE.md
+program/Ruleswright/prompts/random-adventures/EVIDENCE.md
+```
+
+**Assignments:**
+
+- **S01 c3/c5:** empty setup seed → real `selection.seedUsed === ""` → authoritative conformance → JSON aggregate reopen with identical continuation.
+- **S02 c1/c2:** empty setup seed acceptance and preservation through generated definitions, JSON and authoritative conformance.
+
+**Verification/checks:** Exact four-file commit; unchanged leases, Files tables, checkpoints and dependencies; STATE history byte-identical; corrected schema digest verified; `git diff --check` clean. Working tree clean. No runtime tests rerun.
+
+**notes:** Contract counterexample closed at `42bad60`; implementation proofs remain future. CA-02/03, current blocker references and evidence updated. D1/D2/D4/D6/D7 review evidence retained.
+
+**surprises:** None.
+
+**followUp:** Orchestrator routes the scoped D3/D5 recheck before dispatch. B-BD-1 remains carried CI evidence debt; no publication or push.
