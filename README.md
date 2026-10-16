@@ -22,6 +22,8 @@ Every line below is copy-paste runnable and every step shows its expected output
 
 ### 01 — Generate a campaign
 
+<!-- example: quickstart/generate -->
+
 ```ts
 import { generateCampaign, loadTheme } from 'ruleswright/compiler';
 
@@ -41,6 +43,8 @@ Expected output:
 ```
 
 ### 02 — Build a character
+
+<!-- example: quickstart/character -->
 
 ```ts
 import { Runtime } from 'ruleswright/runtime';
@@ -69,6 +73,8 @@ the engine's):
 Combat advances stepwise (`step()` between any two host actions), every mutation
 emits a provenanced event (`why.rule` names the pack artifact, `why.rolls` quote
 the dice), and triggers ride the event substrate.
+
+<!-- example: quickstart/combat -->
 
 ```ts
 import { startCombat, spawnMonster, profileFromCharacter } from 'ruleswright/runtime';
@@ -114,6 +120,8 @@ Characters hold pack-declared items as `{ id, qty }` stacks. `grantLoot` rolls a
 pack table through the one table engine and maps what it lands into the
 character's inventory; every step emits its provenanced event.
 
+<!-- example: quickstart/loot -->
+
 ```ts
 import { grantLoot } from 'ruleswright/runtime';
 
@@ -136,12 +144,12 @@ same seed stacks (qty 2); ids must resolve in the pack's `content.items` at
 grant time — unknown ids are named rejections, never silent. Loot rolls are
 deterministic per seed, like everything else (FR-1).
 
-- `profileFromCharacter(rt, character, id?)` returns `{ profile, balances }`: current
+- `profileFromCharacter(rt, character, id?)` returns `{ profile, balances, conditions? }`: current
   hp, `derived()` ac/attack bonus, the pack's `initiative` formula, the union of the
   character's class `actions` (pack v1.2) followed by the actions its class features
   unlock (v1.10), its pool points + bound spell slots, the spells it knows, its slot
   bindings, any armor that blocks slot casting, and its reactive feats (learned, then
-  granted by class features).
+  granted by class features). Active conditions carry their remaining durations in a detached copy.
   A character with no class `actions` and no unlocked action cannot fight
   (`no-combat-actions`).
 - The fight ends by one engine rule (`combat.sideDefeated`): after any resolution, once every
@@ -150,9 +158,138 @@ deterministic per seed, like everything else (FR-1).
   Downed combatants (hp ≤ 0) skip their turns and are offered no triggers. A combat snapshot
   taken at the end restores as `combat-over`. Damage is not floored: a downed combatant's hp
   can be negative, and the combat snapshot stores it as-is (snapshot contract v1.11).
-- v1 limits: active conditions are not carried into the fight; a multiclass character
-  on the attack-table convention uses the row of its highest-level table class, at
+- A multiclass character on the attack-table convention uses the row of its highest-level table class, at
   that class's level, re-keyed to the character's total level.
+
+## Play and resume a random encounter
+
+`createEncounterSession` owns an isolated party and fight. Hosts supply stable member
+ids, both seeds, a budget, and placement capacity. The assembler chooses real
+statblocks; it does not scale the party, truncate enemies, relocate spawns, grant
+loot, or award XP. An empty setup seed is valid and remains empty in the selection.
+
+This independent example plays a small generated encounter, settles the party,
+and resumes the complete host save:
+
+<!-- example: encounter/play -->
+
+```ts
+import { generateCampaign, loadTheme } from 'ruleswright/compiler';
+import {
+  Runtime,
+  serializeCharacter,
+  createEncounterSession,
+  restoreEncounterSession,
+  type EncounterActor,
+} from 'ruleswright/runtime';
+
+const encounterPack = generateCampaign({ theme: loadTheme('dark-fantasy'), seed: 42 });
+const characters = new Runtime(encounterPack);
+const hero = characters.createCharacter({ name: 'Warden', race: 'ashkin', classes: ['warden'] });
+hero.state.hp.current -= 3;
+hero.applyCondition('shaken');
+let session = createEncounterSession(encounterPack, {
+  sessionId: 'built-journey',
+  seed: 42,
+  members: [{ memberId: 'warden', character: serializeCharacter(characters, hero.state) }],
+  setup: {
+    budget: 1,
+    seed: '',
+    maxPartySize: 1,
+    maxEnemies: 1,
+    layout: {
+      kind: 'spatial',
+      model: 'grid',
+      allies: [{ x: 0, y: 0 }],
+      enemies: [{ x: 0, y: 1 }],
+      terrain: [],
+    },
+  },
+});
+const actorFor = (id: string): EncounterActor =>
+  id.startsWith('m:') ? { kind: 'member', memberId: id.slice(2) } : { kind: 'enemy', enemyId: id };
+
+// A sample host policy: decline reactions and use the first attack against a standing foe.
+for (let steps = 0; steps < 500 && session.view().phase === 'active'; steps++) {
+  const view = session.view();
+  const base = { sessionId: view.sessionId, expectedRevision: view.revision };
+  const offer = view.combat.pendingOffers[0];
+  let result;
+  if (offer) {
+    result = session.dispatch({
+      ...base,
+      type: 'respond',
+      actor: actorFor(offer.actorId),
+      triggerId: offer.triggerId,
+      choice: 'decline',
+    });
+  } else if (view.availableCommands.includes('advance')) {
+    result = session.dispatch({ ...base, type: 'advance' });
+  } else {
+    const active = view.combat.state.combatants[view.combat.state.active]!;
+    const target = Object.values(view.combat.state.combatants).find(
+      (candidate) => candidate.side !== active.side && candidate.hp.current > 0,
+    )!;
+    result = session.dispatch({
+      ...base,
+      type: 'declare',
+      actor: actorFor(active.id),
+      actionId: active.actions[0]!,
+      options: { targetId: target.id },
+    });
+  }
+  if (!result.ok) throw new Error(JSON.stringify(result.errors));
+}
+if (session.view().phase !== 'terminal') throw new Error('Encounter exceeded the host step limit');
+const final = session.dispatch({
+  type: 'finalize',
+  sessionId: session.view().sessionId,
+  expectedRevision: session.view().revision,
+});
+if (!final.ok) throw new Error(JSON.stringify(final.errors));
+
+// Persist this whole JSON value atomically in your host's storage.
+const saved = JSON.stringify(session.serialize());
+session = restoreEncounterSession(encounterPack, JSON.parse(saved));
+console.log(session.view().phase, session.view().result, session.view().members.length);
+```
+
+Expected output:
+
+```text
+settled victory 1
+```
+
+Every command includes `sessionId` and `expectedRevision`. A refusal returns
+`{ ok: false, errors, events: [], revision, view }` without changing the save or RNG.
+`events` on success is the new journal suffix, with stable event-time subjects and
+contiguous sequence numbers. Returned views and saves are detached copies.
+
+- `advance` prepares a turn once or advances a resolved turn. `pass` explicitly
+  ends the active actor's turn; both refuse while offers remain. `declare` accepts
+  `options.targetId`, `options.at`, and `options.to`; `use` accepts `itemId` and
+  optional `targetId`; `respond` requires the offered actor, trigger id, and choice.
+- `finalize` atomically carries HP, remaining conditions, item spend, pool spend,
+  and indexed spell bindings into every member. Its receipt binds the encounter,
+  original members, and resulting members. Repeating it at the current revision
+  returns that receipt with no new events or spend; stale revisions still refuse.
+- `abandon` settles an active encounter, including one with pending offers, and
+  prevents further play. `next` requires a settled victory and a fresh explicit
+  `setup`; defeat and abandonment cannot start another encounter.
+- `serialize()` retains original start balances, current positions, pending
+  offers/movement, raw combat spend, RNG words, turn control, journal, and receipts.
+  Save the whole aggregate together. Restoring an older complete save creates a
+  replay branch; receipts are not a cross-device exactly-once service.
+
+New character snapshots always write signed current HP and nonnegative temporary
+HP. Legacy independent character/party snapshots without HP still reconstruct it
+from the pack; they cannot recover a previously omitted injury. Encounter members
+require HP, pools, and slots. Temporary HP remains bookkeeping, with no new damage
+absorption rule. Conditions do not automatically tick or heal between encounters.
+
+The aggregate settlement guarantee applies to this facade. The low-level
+`settleItemUses` / `settleSpellCasts` APIs retain their terminal-only, live-object
+idempotence limits described below.
 
 ## Grid combat
 
@@ -538,7 +675,7 @@ second use / third use   hp '27→27' / declare:rejected { kind: 'no-charges' }
 settleItemUses           item:dropped + item:settled { qty: 2 } → med-kit gone (3 − 1 − 2)
 ```
 
-v1 limits:
+Low-level settlement limits:
 
 - **Settle each fight once.** Settlement is idempotent per live fight object
   only: a combat snapshot taken before settlement still carries the spend, so
@@ -556,6 +693,7 @@ above are the ones it asserts (NFR-DX).
 
 ```sh
 pnpm install
+pnpm build            # build before typecheck and built-package journeys
 pnpm typecheck        # tsc --noEmit over src/ + tests/
 pnpm lint             # ESLint, including the engine hygiene rules (no Math.random/eval/Date.now under src/)
 pnpm format           # Prettier --write over the whole repo (.prettierrc)

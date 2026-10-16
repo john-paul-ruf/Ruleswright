@@ -1,70 +1,82 @@
-/**
- * NFR-DX made mechanical, two independent passes:
- *
- * 1. EXECUTION — the README's quickstart code runs VERBATIM and its expected
- *    output is asserted. If the README's examples cannot run, this test fails —
- *    the docs are broken (quickstart.html is the bar).
- *
- * 2. TYPECHECK — the same fenced ```ts blocks compile under the consumer's
- *    strict tsc (strict + noUncheckedIndexedAccess, mirroring tsconfig.json).
- *    Executing stripped JS proves the code runs; only a typecheck proves it
- *    compiles — "copy-paste runnable" means both. A README line that fails
- *    strict tsc (e.g. TS18048 on a possibly-undefined `.find()` result) fails
- *    here even though the executed form runs.
- *
- * The README's fenced ```ts blocks are extracted and joined the way a
- * copy-paste reader would (one module). The execution pass strips the import
- * lines (binding the names as function parameters) and the TS-only non-null
- * assertions; the typecheck pass keeps both and maps the package specifiers to
- * the real source entries — a consumer's `ruleswright/*` resolves through the
- * package exports to the same compiled source.
- *
- * The anatomy test additionally pins named README CI claims against ci.yml
- * (browser-determinism CA-B3, contract-conformance CA-K3): the README names
- * `pnpm test:browser`, `pnpm test:electron` and the conformance test file;
- * ci.yml has the browser matrix, the Electron job, `pnpm test` and
- * `tests/proofs/` as `- run:` steps; the conformance file exists; and the old
- * browser "v1.1 follow-up" wording is gone. It checks those strings only, not
- * the rest of the README's CI prose.
- *
- * Expected outputs are asserted from the README's own output blocks:
- *   01 → a validated pack (manifest.id = dark-fantasy, 3 classes, 33 spells)
- *   02 → derived() = { hp: 27, ac: 12, saves: all-zero at level 1 }
- *   03 → the character fights as herself (profileFromCharacter): an attack event
- *        whose why.rolls[0] matches the README's d20[9]=9 < ac12 — ac 12 is
- *        Brynn's own derived ac from step 02
- *   04 → grantLoot('barrow-loot', seed 42) lands a real item through the
- *        generated pack's own tables (CA-02 through dark-fantasy): Brynn's
- *        inventory is the stack the README quotes — observed on this run
- */
-import { describe, expect, it, vi } from 'vitest';
+/** README examples execute with real built imports and typecheck against shipped declarations. */
+import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
-import { generateCampaign, loadTheme } from '../../src/compiler';
-import { Runtime, startCombat, spawnMonster, profileFromCharacter, grantLoot } from '../../src/runtime';
+import { createRequire } from 'node:module';
 
 const readmePath = fileURLToPath(new URL('../../README.md', import.meta.url));
 const readme = readFileSync(readmePath, 'utf8');
 
-/** The quickstart's ```ts blocks, in order. */
-const blocks = [...readme.matchAll(/```ts\n([\s\S]*?)```/g)].map((match) => match[1]!);
-expect(blocks.length, 'README quickstart must carry four ```ts blocks').toBe(4);
-
-/** The README's TS-only tokens (a real consumer's tsc strips these; the execution pass does the same). */
-const stripped = blocks.join('\n').split(']!').join(']');
+const EXAMPLES = [
+  'quickstart/generate',
+  'quickstart/character',
+  'quickstart/combat',
+  'quickstart/loot',
+  'encounter/play',
+] as const;
+function extractExamples(markdown: string): { quickstart: string; encounter: string } {
+  const blocks = [...markdown.matchAll(/<!-- example: ([a-z/-]+) -->\s*```ts\n([\s\S]*?)```/g)];
+  if (blocks.length !== [...markdown.matchAll(/```ts\n/g)].length)
+    throw new Error('Unlabelled TypeScript example');
+  const examples = new Map<string, string>();
+  for (const match of blocks) {
+    const name = match[1]!;
+    if (!EXAMPLES.some((expected) => expected === name) || examples.has(name))
+      throw new Error(`Unknown or duplicate example: ${name}`);
+    examples.set(name, match[2]!);
+  }
+  for (const name of EXAMPLES) if (!examples.has(name)) throw new Error(`Missing example: ${name}`);
+  return {
+    quickstart: EXAMPLES.filter((name) => name.startsWith('quickstart/'))
+      .map((name) => examples.get(name)!)
+      .join('\n'),
+    encounter: examples.get('encounter/play')!,
+  };
+}
+const examples = extractExamples(readme);
+const require = createRequire(import.meta.url);
+function runExample(source: string, exports: readonly string[] = []) {
+  const logs: unknown[][] = [];
+  const output = ts.transpileModule(`${source}\nexport {${exports.join(',')}};`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS },
+  }).outputText;
+  const bindings: Record<string, unknown> = {};
+  const modules: Record<string, string> = {
+    ruleswright: 'index',
+    'ruleswright/runtime': 'runtime',
+    'ruleswright/compiler': 'compiler',
+    'ruleswright/schema': 'schema',
+  };
+  const load = (name: string): unknown => {
+    const entry = modules[name];
+    if (entry === undefined) throw new Error(`Unsupported example import: ${name}`);
+    return require(fileURLToPath(new URL(`../../dist/${entry}.cjs`, import.meta.url)));
+  };
+  new Function('require', 'exports', 'console', output)(load, bindings, {
+    log: (...parts: unknown[]) => logs.push(parts),
+  });
+  return { bindings, logs };
+}
+function checkQuickstartOutput(logs: unknown[][]): void {
+  expect(logs).toEqual([
+    [{ hp: 27, ac: 12, saves: { vigor: 0, grace: 0, tenacity: 0, reason: 0, presence: 0 } }],
+    ['d20[9]=9 < ac12', 'actions.cut-down.attackBonus'],
+    [[{ id: 'grave-ward', qty: 1 }]],
+  ]);
+}
 
 // ------------------------------------------------------------- typecheck pass
 
 /** Repository root (this file is tests/proofs/docs-run.test.ts). */
 const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 
-/** The README's package specifiers → the same modules a consumer's install resolves (source form). */
+/** The README's package imports resolve against the freshly built declarations. */
 const SURFACE_MODULES: Readonly<Record<string, string>> = {
-  ruleswright: `${REPO_ROOT}src/index.ts`,
-  'ruleswright/schema': `${REPO_ROOT}src/schema/index.ts`,
-  'ruleswright/runtime': `${REPO_ROOT}src/runtime/index.ts`,
-  'ruleswright/compiler': `${REPO_ROOT}src/compiler/index.ts`,
+  ruleswright: `${REPO_ROOT}dist/index.d.ts`,
+  'ruleswright/schema': `${REPO_ROOT}dist/schema.d.ts`,
+  'ruleswright/runtime': `${REPO_ROOT}dist/runtime.d.ts`,
+  'ruleswright/compiler': `${REPO_ROOT}dist/compiler.d.ts`,
 };
 
 /** The virtual in-memory module the joined blocks are typechecked as. */
@@ -90,7 +102,7 @@ const DOC_OPTIONS: ts.CompilerOptions = {
 /**
  * Typecheck the joined blocks without writing to disk: an in-memory SourceFile
  * behind a delegating compiler host whose resolveModuleNames maps the README's
- * package specifiers to the real source entries. Returns "line:col message
+ * package specifiers to the built declarations. Returns "line:col message
  * (tsNNNN)" strings — empty means the docs compile under strict tsc.
  */
 function typecheckQuickstart(source: string): readonly string[] {
@@ -116,7 +128,7 @@ function typecheckQuickstart(source: string): readonly string[] {
       return moduleNames.map((name) => {
         const surface = SURFACE_MODULES[name];
         if (surface !== undefined)
-          return { resolvedFileName: surface, extension: '.ts' as const, isExternalLibraryImport: false };
+          return { resolvedFileName: surface, extension: ts.Extension.Dts, isExternalLibraryImport: false };
         return ts.resolveModuleName(name, containingFile, DOC_OPTIONS, host).resolvedModule;
       });
     },
@@ -133,92 +145,63 @@ function typecheckQuickstart(source: string): readonly string[] {
 
 describe('README quickstart runs verbatim (NFR-DX)', () => {
   it('generates → character → combat round → loot, with the README’s expected outputs', () => {
-    // The README's identifiers resolve against the real surface modules (the
-    // package install's exports) — the same names a consumer gets.
-    const logs: unknown[][] = [];
-    const log = vi.spyOn(console, 'log').mockImplementation((...parts) => logs.push(parts));
-    try {
-      // The README's code is trusted developer input (same trust class as pack data); executed verbatim via new Function.
-      const run = new Function(
-        'generateCampaign',
-        'loadTheme',
-        'Runtime',
-        'startCombat',
-        'spawnMonster',
-        'profileFromCharacter',
-        'grantLoot',
-        `"use strict";\n${stripped
-          .replace(/import[^;\n]+;/g, '')
-          .split('await ')
-          .join('')}\nreturn { pack, rt, brynn, fight, attack };`,
-      );
-      const { pack, brynn, fight, attack } = run(
-        generateCampaign,
-        loadTheme,
-        Runtime,
-        startCombat,
-        spawnMonster,
-        profileFromCharacter,
-        grantLoot,
-      ) as {
-        pack: {
-          manifest: { id: string; schemaVersion: number };
-          content: { classes: Record<string, unknown>; spells: Record<string, unknown> };
-        };
-        rt: unknown;
-        brynn: {
-          state: { id: string; race: string; inventory: { id: string; qty: number }[] };
-          derived: () => { hp: number; ac: number; saves: Record<string, number> };
-        };
-        fight: {
-          state: { combatants: Record<string, { ac: number; hp: { current: number }; actions: string[] }> };
-        };
-        attack: { actor: string; target: string; why: { rolls: string[]; rule: string } } | undefined;
+    const { bindings, logs } = runExample(examples.quickstart, ['pack', 'rt', 'brynn', 'fight', 'attack']);
+    checkQuickstartOutput(logs);
+    const { pack, brynn, fight, attack } = bindings as {
+      pack: {
+        manifest: { id: string; schemaVersion: number };
+        content: { classes: Record<string, unknown>; spells: Record<string, unknown> };
       };
+      rt: unknown;
+      brynn: {
+        state: { id: string; race: string; inventory: { id: string; qty: number }[] };
+        derived: () => { hp: number; ac: number; saves: Record<string, number> };
+      };
+      fight: {
+        state: { combatants: Record<string, { ac: number; hp: { current: number }; actions: string[] }> };
+      };
+      attack: { actor: string; target: string; why: { rolls: string[]; rule: string } } | undefined;
+    };
 
-      // 01 — generate: validated, byte-identity-eligible pack.
-      expect(pack.manifest.id).toBe('dark-fantasy');
-      expect(pack.manifest.schemaVersion).toBe(1);
-      expect(Object.keys(pack.content.classes).length).toBe(3);
-      expect(Object.keys(pack.content.spells ?? {}).length).toBe(33);
+    // 01 — generate: validated, byte-identity-eligible pack.
+    expect(pack.manifest.id).toBe('dark-fantasy');
+    expect(pack.manifest.schemaVersion).toBe(1);
+    expect(Object.keys(pack.content.classes).length).toBe(3);
+    expect(Object.keys(pack.content.spells ?? {}).length).toBe(33);
 
-      // 02 — character: derived through the pack's own formulas; the console
-      // line matches the README's output block.
-      expect(brynn.state.id).toBe('char-1');
-      expect(brynn.state.race).toBe('hillfolk');
-      expect(brynn.derived()).toEqual({
-        hp: 27,
-        ac: 12,
-        saves: { vigor: 0, grace: 0, tenacity: 0, reason: 0, presence: 0 },
-      });
+    // 02 — character: derived through the pack's own formulas; the console
+    // line matches the README's output block.
+    expect(brynn.state.id).toBe('char-1');
+    expect(brynn.state.race).toBe('hillfolk');
+    expect(brynn.derived()).toEqual({
+      hp: 27,
+      ac: 12,
+      saves: { vigor: 0, grace: 0, tenacity: 0, reason: 0, presence: 0 },
+    });
 
-      // 03 — combat: Brynn fights as herself (her class actions, her derived ac),
-      // and the provenanced attack event is the README's verbatim roll line.
-      const ally = fight.state.combatants['brynn']!;
-      expect(ally.actions).toEqual([
-        'strike',
-        'cut-down',
-        'withdraw',
-        'brace',
-        'parry',
-        'stride',
-        'opportunist',
-      ]);
-      expect(ally.ac).toBe(brynn.derived().ac);
-      expect(attack).toBeDefined();
-      expect(attack!.actor).toBe('wight');
-      expect(attack!.target).toBe('brynn');
-      expect(attack!.why.rolls[0]).toBe('d20[9]=9 < ac12');
-      expect(attack!.why.rule).toBe('actions.cut-down.attackBonus');
+    // 03 — combat: Brynn fights as herself (her class actions, her derived ac),
+    // and the provenanced attack event is the README's verbatim roll line.
+    const ally = fight.state.combatants['brynn']!;
+    expect(ally.actions).toEqual([
+      'strike',
+      'cut-down',
+      'withdraw',
+      'brace',
+      'parry',
+      'stride',
+      'opportunist',
+    ]);
+    expect(ally.ac).toBe(brynn.derived().ac);
+    expect(attack).toBeDefined();
+    expect(attack!.actor).toBe('wight');
+    expect(attack!.target).toBe('brynn');
+    expect(attack!.why.rolls[0]).toBe('d20[9]=9 < ac12');
+    expect(attack!.why.rule).toBe('actions.cut-down.attackBonus');
 
-      // 04 — loot: the grantLoot call ran through the generated pack's own
-      // tables and left Brynn holding the stack the README quotes (the
-      // recorded seed-42 barrow-loot roll; CA-02 through dark-fantasy data).
-      expect(brynn.state.inventory).toEqual([{ id: 'grave-ward', qty: 1 }]);
-      expect(logs.length).toBeGreaterThanOrEqual(3); // brynn.derived() + the attack line + the inventory line
-    } finally {
-      log.mockRestore();
-    }
+    // 04 — loot: the grantLoot call ran through the generated pack's own
+    // tables and left Brynn holding the stack the README quotes (the
+    // recorded seed-42 barrow-loot roll; CA-02 through dark-fantasy data).
+    expect(brynn.state.inventory).toEqual([{ id: 'grave-ward', qty: 1 }]);
   });
 
   it('the README’s expected-output blocks match the shipped event anatomy', () => {
@@ -261,10 +244,49 @@ describe('README quickstart runs verbatim (NFR-DX)', () => {
   });
 
   it('the README’s fenced ```ts blocks compile under the consumer’s strict tsc (NFR-DX)', () => {
-    const problems = typecheckQuickstart(blocks.join('\n'));
+    const problems = [
+      ...typecheckQuickstart(examples.quickstart),
+      ...typecheckQuickstart(examples.encounter),
+    ];
     expect(
       problems,
       'README quickstart must compile under strict tsc — code that runs but does not compile is half copy-paste-runnable',
     ).toEqual([]);
   }, 60_000);
+});
+
+describe('documentation runner self-tests and encounter example', () => {
+  it('executes the independent encounter loop, settles and reopens the host save', () => {
+    const { bindings, logs } = runExample(examples.encounter, ['session', 'saved']);
+    expect(logs).toEqual([['settled', 'victory', 1]]);
+    const snapshot = JSON.parse(bindings['saved'] as string);
+    expect(snapshot.encounter.selection.seedUsed).toBe('');
+    expect(snapshot.settlements).toHaveLength(1);
+    expect((bindings['session'] as { serialize(): unknown }).serialize()).toEqual(snapshot);
+    expect(readme).toContain('settled victory 1');
+  });
+  it('rejects a missing example or an unlabelled block', () => {
+    expect(() =>
+      extractExamples(readme.replace(/<!-- example: encounter\/play -->\s*```ts\n[\s\S]*?```/, '')),
+    ).toThrow(/Missing example/);
+    expect(() => extractExamples(readme.replace('<!-- example: quickstart/generate -->', ''))).toThrow(
+      /Unlabelled/,
+    );
+  });
+  it('preserves import resolution failures instead of stripping unknown imports', () => {
+    expect(() =>
+      runExample(examples.quickstart.replace('ruleswright/compiler', 'ruleswright/missing')),
+    ).toThrow(/Unsupported example import/);
+  });
+  it('detects changed executable output', () => {
+    const bad = examples.quickstart.replace('console.log(brynn.derived())', "console.log('wrong output')");
+    expect(() => checkQuickstartOutput(runExample(bad).logs)).toThrow();
+  });
+  it('detects a nonexistent exported symbol in consumer typechecking', () => {
+    expect(
+      typecheckQuickstart("import { missingSymbol } from 'ruleswright/runtime'; missingSymbol();").some(
+        (error) => error.includes('missingSymbol'),
+      ),
+    ).toBe(true);
+  }, 60000);
 });
