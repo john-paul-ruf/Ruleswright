@@ -510,3 +510,40 @@ describe('CA-03 / F-RA-01 authoritative adventure input conformance', () => {
     expect(failedOn(validate, '', 'additionalProperties')).toBe(true);
   });
 });
+
+import { generatedJourney, fixtureJourney } from './adventure-oracle';
+describe('CA-04 real adventure aggregate writers conform to the approved database contract', () => {
+  const ajv = new Ajv2020({ allErrors: true, strict: false });
+  for (const name of ['snapshots', 'play-session', 'adventure', 'adventure-snapshot'])
+    ajv.addSchema(
+      JSON.parse(
+        readFileSync(new URL(`../../src/schema/contracts/${name}.schema.json`, import.meta.url), 'utf8'),
+      ),
+    );
+  const validate = ajv.getSchema('https://ruleswright.dev/schemas/1/adventure-snapshot.schema.json')!;
+  it.each([
+    ['generated', generatedJourney],
+    ['fixture', fixtureJourney],
+  ] as const)(
+    '%s actual pending/claimed/active/completed writers validate through JSON',
+    (_name, run) => {
+      const { snapshots } = run(true);
+      expect(snapshots.length).toBeGreaterThan(10);
+      expect(snapshots.some((s) => s.activeEncounter)).toBe(true);
+      expect(snapshots.some((s) => s.rewards.some((r) => r.status === 'pending'))).toBe(true);
+      expect(snapshots.some((s) => s.rewards.some((r) => r.status === 'claimed'))).toBe(true);
+      for (const snapshot of snapshots)
+        expect(validate(json(snapshot)), ajv.errorsText(validate.errors)).toBe(true);
+    },
+    10000,
+  );
+  it('negative controls reject excess RNG words, malformed receipts and unknown root fields', () => {
+    const saved = generatedJourney().final;
+    for (const bad of [
+      { ...saved, extra: true },
+      { ...saved, rng: { ...saved.rng, play: { ...saved.rng.play, a: 4294967296 } } },
+      { ...saved, rewards: [{ ...saved.rewards[0], receipt: {} }] },
+    ])
+      expect(validate(json(bad))).toBe(false);
+  });
+});

@@ -55,3 +55,25 @@ it.each([false, true])(
   },
   10000,
 );
+
+import * as distRuntime from '../../dist/runtime.js';
+import type * as SourceRuntime from '../../src/runtime';
+// The two declarations carry distinct private class brands; functions still come from dist.
+const builtRuntime = distRuntime as unknown as typeof SourceRuntime;
+import * as builtCompiler from '../../dist/compiler.js';
+import { createRequire } from 'node:module';
+import { generatedJourney, fixtureJourney } from './adventure-oracle';
+it('CAP-03/04 real built generated branch → two fights → level change → complete, continuous and reopened', () => {
+  expect(generatedJourney(true, builtRuntime, builtCompiler)).toEqual(
+    generatedJourney(false, builtRuntime, builtCompiler),
+  );
+}, 10000);
+it('CA-04 real built reaction, pending/claimed/no-item restart, retry and preserved resources in second fight', () => {
+  expect(fixtureJourney(true, builtRuntime)).toEqual(fixtureJourney(false, builtRuntime));
+}, 10000);
+it('the same complete manual journey runs through the built CJS exports', () => {
+  const require = createRequire(import.meta.url);
+  const cjs = require('../../dist/runtime.cjs') as typeof builtRuntime,
+    compiler = require('../../dist/compiler.cjs') as typeof builtCompiler;
+  expect(generatedJourney(true, cjs, compiler)).toEqual(generatedJourney(false, builtRuntime, builtCompiler));
+}, 10000);

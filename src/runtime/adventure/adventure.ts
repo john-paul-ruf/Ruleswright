@@ -4,9 +4,10 @@ import {
   type AdventureDefinition,
   type AdventureStartOptions,
 } from '../../schema/adventure';
+import { packContentHash } from '../../schema/version';
 import { Rng } from '../../core/rng';
 import { RuntimeRuleError } from '../errors';
-import { PackLoadError } from '../runtime';
+import { Runtime, PackLoadError } from '../runtime';
 import { CharacterBuildError } from '../progression';
 import { packIdentity } from '../snapshots/envelope';
 import { streamKey } from '../play/encounter';
@@ -63,6 +64,17 @@ function settle(
     encounterEventCursor: 0,
     encounterReceipts: [...next.encounterReceipts, { nodeId: saved.nodeId, receipt }],
   };
+  next = append(next, [
+    {
+      event: {
+        type: 'encounter:settled',
+        at: { round: nested.encounter.combat.round, turn: nested.encounter.combat.turn },
+        payload: { nodeId: saved.nodeId, receipt: { ...receipt } },
+        why: { rule: `nodes.${saved.nodeId}.encounter`, rolls: [] },
+      },
+      subjects: [],
+    },
+  ]);
   if (receipt.result !== 'victory')
     return { ...next, phase: receipt.result === 'defeat' ? 'defeated' : 'abandoned' };
   return stageRewards(pack, definition, { ...next, resolvedNodeIds: [...next.resolvedNodeIds, next.nodeId] });
@@ -216,9 +228,36 @@ function facade(pack: Pack, definition: AdventureDefinition, initial: AdventureS
           const staged = claimReward(pack, definition, next, claim!, recipient);
           next = append(staged.saved, staged.events);
           receipt = staged.receipt;
+          next = append(next, [
+            {
+              event: {
+                type: 'reward:claimed',
+                at: { round: 0, turn: 0 },
+                payload: { receipt: { ...receipt } },
+                why: { rule: `rewards.${claim!.rewardId}`, rolls: [] },
+              },
+              subjects: [],
+            },
+          ]);
         } else if (input.type !== 'abandon') {
           const staged = prepareMembers(pack, definition, next, input);
           next = append(staged.saved, staged.events);
+          next = append(next, [
+            {
+              event: {
+                type: 'members:updated',
+                at: { round: 0, turn: 0 },
+                payload: {
+                  nodeId: next.nodeId,
+                  command: input.type,
+                  beforeMembersHash: packContentHash(saved.members),
+                  afterMembersHash: packContentHash(next.members),
+                },
+                why: { rule: `nodes.${next.nodeId}`, rolls: [] },
+              },
+              subjects: [],
+            },
+          ]);
         } else {
           if (saved.activeEncounter) {
             const session = restoreEncounterSession(pack, saved.activeEncounter);
@@ -263,6 +302,12 @@ function facade(pack: Pack, definition: AdventureDefinition, initial: AdventureS
 function ownInputs(pack: Pack, definition: AdventureDefinition) {
   jsonValue(pack, 'pack');
   jsonValue(definition, 'definition');
+  try {
+    new Runtime(pack);
+  } catch (error) {
+    if (error instanceof PackLoadError) throw new RuntimeRuleError(error.errors);
+    throw error;
+  }
   const errors = validateAdventureDefinition(pack, definition);
   if (errors.length) throw new RuntimeRuleError(errors);
   return { pack: detached(pack), definition: detached(definition) };
