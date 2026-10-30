@@ -309,13 +309,13 @@ describe('documentation runner self-tests and encounter example', () => {
 describe('portable adventure documentation and extractor controls', () => {
   it('executes actual compiler/schema imports and preserves the exact reopened definition', () => {
     const { bindings, logs } = runExample(examples.adventure, ['definition', 'reopenedDefinition']);
-    expect(logs).toEqual([['dark-fantasy', 8, 'bc266e2f']]);
+    expect(logs).toEqual([['dark-fantasy', 8, 'aa64d200']]);
     expect(bindings['reopenedDefinition']).toEqual(bindings['definition']);
     const definition = bindings['definition'] as { nodes: { kind: string; encounter?: { seed: string } }[] };
     expect(
       definition.nodes.filter((n) => n.kind === 'encounter').every((n) => n.encounter!.seed === ''),
     ).toBe(true);
-    expect(readme).toContain('dark-fantasy 8 bc266e2f');
+    expect(readme).toContain('dark-fantasy 8 aa64d200');
     expect(readme).toContain('createAdventure(pack, definition, options)');
   });
   it('rejects a missing adventure block, duplicate label and unknown label', () => {
@@ -334,7 +334,7 @@ describe('portable adventure documentation and extractor controls', () => {
       runExample(examples.adventure.replace('ruleswright/compiler', 'ruleswright/missing')),
     ).toThrow(/Unsupported/);
     const changed = runExample(examples.adventure.replace('definition.nodes.length,', '0,')).logs;
-    expect(() => expect(changed).toEqual([['dark-fantasy', 8, 'bc266e2f']])).toThrow();
+    expect(() => expect(changed).toEqual([['dark-fantasy', 8, 'aa64d200']])).toThrow();
   });
 });
 

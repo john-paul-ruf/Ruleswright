@@ -415,6 +415,22 @@
     "priorities": [
       {
         "kind": "action",
+        "actionId": "thorn-lash"
+      },
+      {
+        "kind": "action",
+        "actionId": "wyrd-gaze"
+      },
+      {
+        "kind": "action",
+        "actionId": "gloam-light"
+      },
+      {
+        "kind": "action",
+        "actionId": "charm-word"
+      },
+      {
+        "kind": "action",
         "actionId": "strike"
       },
       {

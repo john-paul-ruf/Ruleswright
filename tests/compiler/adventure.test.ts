@@ -77,7 +77,7 @@ describe('CA-03 finite seeded adventure generation', () => {
     try {
       const d = generateAdventure(input);
       expect(actual).toEqual(bounds.map((b, i) => [b, expectedDraws[i]]));
-      expect(d.contentHash).toBe('fbd41476');
+      expect(d.contentHash).toBe('9c236a19');
       expect(d.nodes.map((n) => n.id)).toEqual([
         'arrival',
         'gate',

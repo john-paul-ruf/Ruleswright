@@ -419,6 +419,18 @@
     "priorities": [
       {
         "kind": "action",
+        "actionId": "slab-swipe"
+      },
+      {
+        "kind": "action",
+        "actionId": "infection-word"
+      },
+      {
+        "kind": "action",
+        "actionId": "rot-speech"
+      },
+      {
+        "kind": "action",
         "actionId": "shambler-claw"
       },
       {

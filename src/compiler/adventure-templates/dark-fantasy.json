@@ -419,7 +419,19 @@
     "priorities": [
       {
         "kind": "action",
+        "actionId": "barrow-drain"
+      },
+      {
+        "kind": "action",
+        "actionId": "grave-gaze"
+      },
+      {
+        "kind": "action",
         "actionId": "cut-down"
+      },
+      {
+        "kind": "action",
+        "actionId": "cold-grip"
       },
       {
         "kind": "move",

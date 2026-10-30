@@ -330,7 +330,7 @@ console.log(definition.id, definition.nodes.length, definition.contentHash);
 Expected output:
 
 ```text
-dark-fantasy 8 bc266e2f
+dark-fantasy 8 aa64d200
 ```
 
 The loader explicitly binds a copied recipe to the effective pack's

@@ -10,7 +10,7 @@ function demand(ok: unknown, message: string): asserts ok {
 }
 // Generated combat now respects missed attacks and emits verdicts before damage.
 // Re-keyed (generated only) for v1.8 bundled content: budgets, XP rewards, class ability arrays.
-export const ADVENTURE_DIGESTS = { generated: '8249a32e', fixture: '73ce0727' };
+export const ADVENTURE_DIGESTS = { generated: '206fc28a', fixture: '73ce0727' };
 export function generatedJourney(reopen = false, api = runtimeApi, compiler = compilerApi) {
   const pack = compiler.generateCampaign({ theme: compiler.loadTheme('dark-fantasy'), seed: 42 });
   const definition = compiler.generateAdventure({

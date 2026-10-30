@@ -23,7 +23,7 @@ it('solo decisions, player offers, messages and acknowledgement match across JSO
 
 it.each([
   // Re-keyed for v1.8 content (budgets, XP rewards, ability arrays), with ack-narration stripped.
-  ['generated', '05752702'],
+  ['generated', '520b108e'],
   ['fixture', 'a2f68c27'],
 ] as const)(
   '%s oracle delta is only the approved ack-narration available command',
