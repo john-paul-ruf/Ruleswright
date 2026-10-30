@@ -35,6 +35,7 @@ import {
   type EffectResolution,
   type EffectApply,
   type EffectTargetRef,
+  type AttackOutcome,
 } from '../../core/dsl/effect';
 import type { RollResult } from '../../core/dice';
 import type { RandomSource } from '../../core/rng';
@@ -320,10 +321,12 @@ export function executeAgainst(
   resolveShapeTargets?: (shape: string) => readonly string[],
   move?: (budget: number) => void,
   profileFor?: (id: string) => CombatantProfile | undefined,
+  onAttack?: (outcome: AttackOutcome) => void,
 ): readonly EffectResolution[] {
   const rolls: RollResult[] = [];
   const vars = effectVars(actor.profile, target.profile);
   const apply: EffectApply = {
+    attack: (outcome) => onAttack?.(outcome),
     resolveTargets: (shape: string) => {
       // CA-G4: the one shape resolver lives in the combat layer; the injected
       // callback resolves each shape against the primary target's position.

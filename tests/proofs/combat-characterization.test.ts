@@ -48,8 +48,12 @@ describe('CAP-D1 — combat characterization (behaviour pin)', () => {
     const leg = parryLeg();
     expect(ofType(leg.events, 'trigger:fired').length).toBeGreaterThanOrEqual(2);
     expect(ofType(leg.events, 'trigger:declined')).toHaveLength(1);
+    expect(
+      ofType(leg.events, 'attack:rolled').find((event) => event.why.rule === 'actions.parry.attackBonus')!
+        .payload['verdict'],
+    ).toMatchObject({ result: 'miss' });
     expect(ofType(leg.events, 'damage:applied').some((event) => event.why.rule === 'actions.parry')).toBe(
-      true,
+      false,
     );
     expect(digests(leg)).toEqual(CHARACTERIZATION_DIGESTS['leg-1']);
   });

@@ -36,6 +36,7 @@ import {
   previewReactionCost,
   previewUse,
 } from '../combat/preview';
+import { frozenJsonCopy } from '../../schema/json-memo';
 
 export type EncounterActor =
   | { readonly kind: 'member'; readonly memberId: string }
@@ -314,7 +315,7 @@ function facade(pack: Pack, initial: PlaySessionSnapshot): EncounterSession {
             setup: command.setup,
           });
           if (errors.length) throw new RuntimeRuleError(errors);
-          const runtime = new Runtime(detached(pack)),
+          const runtime = new Runtime(frozenJsonCopy(pack)),
             events: RuntimeEvent[] = [];
           runtime.events.on((event) => events.push(event));
           const created = beginEncounter(
@@ -431,7 +432,7 @@ function facade(pack: Pack, initial: PlaySessionSnapshot): EncounterSession {
 export function createEncounterSession(pack: Pack, options: EncounterSessionOptions): EncounterSession {
   const errors = validateEncounterSessionOptions(pack, options);
   if (errors.length) throw new RuntimeRuleError(errors);
-  const owned = detached(pack),
+  const owned = frozenJsonCopy(pack),
     input = detached(options),
     runtime = new Runtime(owned),
     events: RuntimeEvent[] = [];
@@ -459,7 +460,7 @@ export function createEncounterSession(pack: Pack, options: EncounterSessionOpti
   return facade(owned, readSnapshot(owned, appendJournal(owned, saved, events)));
 }
 export function restoreEncounterSession(pack: Pack, snapshot: unknown): EncounterSession {
-  const owned = detached(pack);
+  const owned = frozenJsonCopy(pack);
   return facade(owned, readSnapshot(owned, snapshot));
 }
 

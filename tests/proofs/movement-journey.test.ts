@@ -272,9 +272,10 @@ describe('CAP-M6 — generated themes move (wyldwood hex, seed 42)', () => {
     expect(snap.offeredCount).toBeGreaterThan(0);
     const types = tailA.map((event) => event.type);
     expect(types).toContain('attack:rolled');
-    expect(types).toContain('damage:applied');
+    expect(types).not.toContain('damage:applied');
     expect(types.slice(-2)).toEqual(['move:advanced', 'move:ended']);
     const attack = tailA.find((event) => event.type === 'attack:rolled')!;
+    expect(attack.payload['verdict']).toMatchObject({ result: 'miss' });
     expect([attack.actor, attack.target]).toEqual(['foe', 'hero']);
     // F-P1: no offer is re-raised — the only offers after the answer are the hero's own reaction, once.
     expect(tailA.filter((event) => event.type === 'trigger:fired').map((event) => event.actor)).toEqual([

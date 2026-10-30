@@ -30,6 +30,7 @@ import {
   type ClassEntry,
 } from './character';
 import { levelSet, awardXp } from './progression';
+import { deepFreeze, isFrozenJsonCopy } from '../schema/json-memo';
 
 /** The load-time artifact index: everything a character-side lookup needs, keyed by id. */
 export interface PackIndex {
@@ -71,6 +72,34 @@ export interface CharacterCreateRequest {
   readonly classes: readonly (string | ClassEntry)[];
   /** Default level for id-only class entries; explicit entries carry their own. */
   readonly level?: number;
+  /** v1.8 — explicit starting ability scores; unlisted abilities take the class array, else 10. */
+  readonly abilities?: Readonly<Record<string, number>>;
+}
+
+/**
+ * An immutable pack copy (frozenJsonCopy — what the play and adventure facades load on
+ * every command) compiles once; the parse-once ASTs are deep-frozen and shared.
+ */
+const compiledByPack = new WeakMap<object, PackIndex>();
+
+function compiledIndex(loaded: Pack): PackIndex {
+  const shared = isFrozenJsonCopy(loaded);
+  const hit = shared ? compiledByPack.get(loaded) : undefined;
+  if (hit !== undefined) return hit;
+  const index: PackIndex = {
+    classes: loaded.content.classes ?? {},
+    conditions: loaded.content.conditions ?? {},
+    spells: loaded.content.spells ?? {},
+    actionEffects: compileEffects(loaded.actions, (action) => action.effect),
+    spellEffects: compileEffects(loaded.content.spells ?? {}, (spell) => spell.effect),
+    itemEffects: compileEffects(itemUseDefs(loaded), (def) => def.effect),
+    featEffects: compileEffects(featEffectDefs(loaded), (def) => def.effect),
+    formulaAsts: compileFormulas(loaded.formulas),
+    attackBonusAsts: compileFormulas(classAttackBonusDefs(loaded)),
+    validAsts: compileValidAsts(loaded.actions),
+  };
+  if (shared) compiledByPack.set(loaded, deepFreeze(index));
+  return index;
 }
 
 /**
@@ -115,23 +144,12 @@ export class Runtime {
     this.pack = loaded;
     this.events = new EventStream();
     this.spatial = spatialFromPack(loaded);
-    this.index = {
-      classes: loaded.content.classes ?? {},
-      conditions: loaded.content.conditions ?? {},
-      spells: loaded.content.spells ?? {},
-      actionEffects: compileEffects(loaded.actions, (action) => action.effect),
-      spellEffects: compileEffects(loaded.content.spells ?? {}, (spell) => spell.effect),
-      itemEffects: compileEffects(itemUseDefs(loaded), (def) => def.effect),
-      featEffects: compileEffects(featEffectDefs(loaded), (def) => def.effect),
-      formulaAsts: compileFormulas(loaded.formulas),
-      attackBonusAsts: compileFormulas(classAttackBonusDefs(loaded)),
-      validAsts: compileValidAsts(loaded.actions),
-    };
+    this.index = compiledIndex(loaded);
   }
 
   /**
    * FR-5 — create a character from the pack: abilities default from
-   * `stats.abilities`, illegal builds rejected with named rules (FR-6).
+   * `stats.abilities` (10, or the first class's `abilities` array, or `request.abilities`), illegal builds rejected with named rules (FR-6).
    * Emits `character:created` (CA-3 named non-combat event, shared-file window).
    */
   createCharacter(request: CharacterCreateRequest): Character {

@@ -78,11 +78,44 @@ function checkClasses(ctx: Ctx, value: unknown): void {
       continue;
     }
     reqFields(ctx, def, ['name'], id, basePath);
-    forbidUnknown(ctx, def, ['name', 'spellLists', 'armorCasting', 'actions'], id, basePath);
+    forbidUnknown(ctx, def, ['name', 'spellLists', 'armorCasting', 'actions', 'abilities'], id, basePath);
+    checkClassAbilities(ctx, def['abilities'], id, `${basePath}.abilities`);
     checkStringField(ctx, def, 'name', id, basePath, 1);
     checkStringArray(ctx, def['spellLists'], id, `${basePath}.spellLists`);
     checkStringArray(ctx, def['armorCasting'], id, `${basePath}.armorCasting`);
     checkClassActions(ctx, def['actions'], id, `${basePath}.actions`);
+  }
+}
+
+/** v1.8 — optional starting ability scores: integers keyed by declared ability names. */
+function checkClassAbilities(ctx: Ctx, value: unknown, classId: string, basePath: string): void {
+  if (value === undefined) return;
+  if (!isPlainObject(value)) {
+    add(
+      ctx,
+      makeErrorCard('E-SCHEMA-01', classId, basePath, `${basePath} must map ability names to integers.`),
+    );
+    return;
+  }
+  for (const [name, score] of Object.entries(value)) {
+    if (typeof score !== 'number' || !Number.isSafeInteger(score)) {
+      add(
+        ctx,
+        makeErrorCard('E-SCHEMA-01', classId, `${basePath}.${name}`, `ability score must be an integer.`),
+      );
+    }
+    if (ctx.abilityIds !== null && ctx.abilityIds.size > 0 && !ctx.abilityIds.has(name)) {
+      add(
+        ctx,
+        makeErrorCard(
+          'E-REF-01',
+          classId,
+          `${basePath}.${name}`,
+          `"${name}" is not declared in stats.abilities.`,
+          `known abilities: ${[...ctx.abilityIds].join(', ')}`,
+        ),
+      );
+    }
   }
 }
 

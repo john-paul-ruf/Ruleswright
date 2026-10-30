@@ -14,6 +14,7 @@ export {
   type EventSink,
 } from './events';
 export { Runtime, PackLoadError, type PackIndex, type CharacterCreateRequest } from './runtime';
+export { Rng, type RngState, type RandomSource } from '../core/rng';
 export {
   Character,
   createCharacter,
@@ -86,7 +87,7 @@ export {
 export {
   startCombat,
   displayRoll,
-  type Combat,
+  Combat,
   type CombatState,
   type CombatantState,
   type CombatPhase,

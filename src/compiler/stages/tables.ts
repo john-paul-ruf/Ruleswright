@@ -87,6 +87,16 @@ export const tablesStage: Stage = {
         jsonPath: `tables.${id}`,
         resolve: resolverOf(tables),
       });
+      // A nested roll that lands a bare non-table value ("nothing", prose) is the
+      // flavor branch the loot comment above describes, not a broken table: the
+      // runtime maps it to a typed no-change rejection at play time (CA-02). Failing
+      // generation on it rejected ~1 in 6 seeds of every bundled theme.
+      if (
+        !outcome.ok &&
+        isFlavorLanding(def as TableDef, outcome.failure.reason, outcome.failure.jsonPath, tables)
+      ) {
+        continue;
+      }
       if (!outcome.ok) {
         throw new GenerationError([
           themeCard(
@@ -126,6 +136,29 @@ export const tablesStage: Stage = {
  * Nested-table resolver over the theme's own table map. Bare ids only (the
  * theme-space convention — grantLoot's pack-space resolver normalizes both).
  */
+/** Whether a failed smoke roll merely landed a flavor value in a nested table. */
+function isFlavorLanding(
+  root: TableDef,
+  reason: string,
+  jsonPath: string,
+  tables: Record<string, TableDef>,
+): boolean {
+  if (reason !== 'unresolvable-ref') return false;
+  // jsonPath: tables.<id>[->entries[i]]*.entries[j] — walk the hops to the failing entry.
+  const hops = [...jsonPath.matchAll(/entries\[(\d+)\]/g)].map((m) => Number(m[1]));
+  let table: TableDef | undefined = root;
+  for (const [i, index] of hops.entries()) {
+    const entry: { value?: unknown } | undefined = table?.entries[index];
+    if (entry === undefined) return false;
+    if (i === hops.length - 1) {
+      const value = entry.value;
+      return typeof value === 'string' && !value.startsWith('tables.') && tables[value] === undefined;
+    }
+    table = typeof entry.value === 'string' ? tables[entry.value.replace(/^tables\./, '')] : undefined;
+  }
+  return false;
+}
+
 function resolverOf(tables: Record<string, TableDef>): TableResolver {
   return (ref: unknown): TableDef | undefined => (typeof ref === 'string' ? tables[ref] : undefined);
 }

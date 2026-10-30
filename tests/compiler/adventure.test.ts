@@ -50,7 +50,9 @@ describe('CA-03 finite seeded adventure generation', () => {
     expect(JSON.stringify(input)).toBe(before);
   });
   it('pins exact stream, draw order, output order and branch edges using the real RNG', () => {
-    const input = fixture(),
+    // Seed 12: the bundled recipe's v1.8 budgets changed its content hash (and so the
+    // stream); 12 is the seed that again draws the full eight-node route with the dial branch.
+    const input = { ...fixture(), seed: 12 },
       { template } = input;
     const expected = new Rng(
       JSON.stringify([
@@ -60,7 +62,7 @@ describe('CA-03 finite seeded adventure generation', () => {
         template.id,
         template.version,
         packContentHash(template),
-        '2',
+        '12',
       ]),
     );
     const bounds = [2, 1, 1, 1, 1, 1, 2, 1];
@@ -75,7 +77,7 @@ describe('CA-03 finite seeded adventure generation', () => {
     try {
       const d = generateAdventure(input);
       expect(actual).toEqual(bounds.map((b, i) => [b, expectedDraws[i]]));
-      expect(d.contentHash).toBe('737bb604');
+      expect(d.contentHash).toBe('fbd41476');
       expect(d.nodes.map((n) => n.id)).toEqual([
         'arrival',
         'gate',

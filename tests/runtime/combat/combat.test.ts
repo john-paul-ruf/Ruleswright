@@ -32,6 +32,7 @@ function journeyFight(): { fight: Combat; events: RuntimeEvent[] } {
   // Brynn: a warden-frame combatant with the strike action; wight: the bestiary's claw.
   const brynn: CombatantProfile = {
     ...profileFromStatblock(runtime.pack, runtime.pack.bestiary['barrow-wight']!, 'brynn'),
+    ac: 0, // This provenance fixture needs a guaranteed hit; misses have their own gating suite.
     actions: ['strike'],
   };
   const wight: CombatantProfile = {

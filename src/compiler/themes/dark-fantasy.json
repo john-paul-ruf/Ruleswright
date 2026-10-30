@@ -51,17 +51,19 @@
     "cut-down": {
       "cost": { "slots": { "main": 1 } },
       "valid": "hasTarget(adjacent)",
-      "effect": "sequence(attack(ac, 0), damage(1d6, bludgeon))",
+      "effect": "sequence(attack(ac, might), damage(1d6 + might, bludgeon))",
       "tags": ["main"]
     },
     "hurl": {
       "cost": { "slots": { "main": 1 } },
-      "effect": "sequence(attack(ac, might), damage(1d6, pierce))",
+      "effect": "sequence(attack(ac, might), damage(1d6 + might, pierce))",
+      "range": 4,
       "tags": ["main"]
     },
     "long-shot": {
       "cost": { "slots": { "main": 1 } },
-      "effect": "sequence(attack(ac, 0), damage(1d8, pierce))",
+      "effect": "sequence(attack(ac, grace), damage(1d8 + grace, pierce))",
+      "range": 6,
       "tags": ["main"]
     },
     "withdraw": {
@@ -122,7 +124,7 @@
   },
   "formulas": {
     "hp": { "expr": "6 + level + vigor * 2 + gear-hp" },
-    "ac": { "expr": "12 - floor(level / 3) - gear-ac" },
+    "ac": { "expr": "12 + floor(level / 3) + gear-ac" },
     "initiative": { "expr": "d20 + grace + gear-initiative" },
     "ember": { "expr": "8 + insight" },
     "speed": { "expr": "4 + floor(grace / 4)" }
@@ -131,18 +133,21 @@
     "classes": {
       "warden": {
         "name": "Warden",
+        "abilities": { "might": 3, "grace": 2, "vigor": 2, "reason": 0, "insight": 0, "presence": 1 },
         "spellLists": ["warden"],
         "armorCasting": ["mail"],
         "actions": ["strike", "cut-down", "withdraw", "brace", "parry", "stride", "opportunist"]
       },
       "hexer": {
         "name": "Hexer",
+        "abilities": { "might": 0, "grace": 2, "vigor": 1, "reason": 2, "insight": 3, "presence": 1 },
         "spellLists": ["hexer"],
         "armorCasting": ["leather"],
         "actions": ["hurl", "long-shot", "withdraw", "ward-glint", "ember-surge", "stride", "opportunist"]
       },
       "crypt-warden": {
         "name": "Crypt Warden",
+        "abilities": { "might": 2, "grace": 1, "vigor": 2, "reason": 1, "insight": 2, "presence": 0 },
         "spellLists": ["warden", "hexer"],
         "actions": ["strike", "long-shot", "withdraw", "brace", "ward-glint", "stride", "opportunist"]
       }

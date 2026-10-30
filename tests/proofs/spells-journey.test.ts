@@ -123,7 +123,7 @@ function vancianLeg(): { events: RuntimeEvent[]; wightHpAfterFirstBlast: number 
 
   // 2. The character bridge.
   const pair = profileFromCharacter(rt, hexer, 'hexer');
-  expect(pair.profile.hp).toBe(29);
+  expect(pair.profile.hp).toBe(11); // v1.8 hexer array: vigor 1 → 6 + level 3 + 1·2
   expect(pair.profile.spells).toContain('ember-bloom');
 
   // 3. The wight stands 4 away; the shambles (a second enemy, hp 11) stands
@@ -261,7 +261,7 @@ function poolLeg(): { events: RuntimeEvent[] } {
     cost: { points: { pool: 'motes', amount: 2 }, slots: { main: 1, move: 1 } },
     targeting: { shape: 'single', range: 6 },
   });
-  expect(hexer.state.pools['motes']).toBe(16);
+  expect(hexer.state.pools['motes']).toBe(9); // mote-base 6 + insight 3 (v1.8 hexer array)
 
   const pair = profileFromCharacter(rt, hexer, 'hexer');
   const request: CombatRestoreRequest = {
@@ -287,14 +287,14 @@ function poolLeg(): { events: RuntimeEvent[] } {
     amount: 2,
   });
   expect(fight.state.combatants['hexer']!.poolsSpent).toEqual({ motes: 2 });
-  expect(fight.state.combatants['hexer']!.pools['motes']).toBe(14);
+  expect(fight.state.combatants['hexer']!.pools['motes']).toBe(7);
 
   // Snapshot → JSON → restore with the fight-start request keeps the spend.
   const snap = frozen(fight);
   expect(snap.combatants.find((combatant) => combatant.id === 'hexer')!.poolsSpent).toEqual({ motes: 2 });
   const restored = deserializeCombat(rt, snap, request);
   expect(restored.state.combatants['hexer']!.poolsSpent).toEqual({ motes: 2 });
-  expect(restored.state.combatants['hexer']!.pools['motes']).toBe(16 - 2);
+  expect(restored.state.combatants['hexer']!.pools['motes']).toBe(9 - 2);
 
   // The same end harness (see the header), then settle and round-trip.
   const ended = endedThroughRestore(rt, restored, request);
@@ -302,9 +302,9 @@ function poolLeg(): { events: RuntimeEvent[] } {
   expect(settled.map((event) => [event.type, event.payload])).toEqual([
     ['pool:settled', { combatantId: 'hexer', pool: 'motes', amount: 2 }],
   ]);
-  expect(hexer.state.pools['motes']).toBe(14);
+  expect(hexer.state.pools['motes']).toBe(7);
   const back = restoreCharacter(rt, JSON.parse(JSON.stringify(serializeCharacter(rt, hexer.state))));
-  expect(back.state.pools['motes']).toBe(14);
+  expect(back.state.pools['motes']).toBe(7);
   return { events };
 }
 
@@ -317,7 +317,7 @@ describe('CAP-S4 — the vancian leg (dark-fantasy, seed 42, grid)', () => {
 });
 
 describe('CAP-S4 — the pool leg (wyldwood, seed 42, hex)', () => {
-  it('hexer / hex-bolt: motes spent → snapshot/restore keeps poolsSpent → harnessed end → settle 16 → 14 → round-trip', () => {
+  it('hexer / hex-bolt: motes spent → snapshot/restore keeps poolsSpent → harnessed end → settle 9 → 7 → round-trip', () => {
     poolLeg();
   });
 });

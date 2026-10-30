@@ -7,6 +7,7 @@
  *   validator itself enforces the contract's `const 1` structurally.
  */
 import { makeErrorCard, type ErrorCard } from './error-card';
+import { JsonMemo, jsonMemoKey } from './json-memo';
 
 /** Engine load range for schemaVersion 1 (FR-23; one discipline across packs/snapshots/overrides). */
 export interface SchemaVersionRange {
@@ -42,8 +43,17 @@ export function checkSchemaVersion(pack: unknown, engineRange: SchemaVersionRang
 }
 
 /** Canonical-JSON content digest: 8 hex chars (satisfies the snapshot contract's contentHash minLength 8). */
+const hashMemo = new JsonMemo<string>();
+
 export function packContentHash(json: unknown): string {
-  return fnv1a32Hex(JSON.stringify(canonicalize(json)));
+  const key = jsonMemoKey(json);
+  if (key !== undefined) {
+    const hit = hashMemo.get(key);
+    if (hit !== undefined) return hit;
+  }
+  const hash = fnv1a32Hex(JSON.stringify(canonicalize(json)));
+  if (key !== undefined) hashMemo.set(key, hash);
+  return hash;
 }
 
 function canonicalize(value: unknown): unknown {

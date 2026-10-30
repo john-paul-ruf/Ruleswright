@@ -123,22 +123,23 @@ describe('CAP-E7 — the zombie-urban journey (seed 42): equip → heal → figh
     cap = survivor.derived().hp;
     baseAc = survivor.derived().ac;
     baseMight = profileFromCharacter(rt, survivor).profile.abilities['might']!;
-    expect({ hp: cap, ac: baseAc, might: baseMight }).toEqual({ hp: 27, ac: 11, might: 10 });
+    // v1.8: the scavenger's class array (might 3, vigor 2) → hp 6 + 1 + 2·2 = 11; ascending ac 11.
+    expect({ hp: cap, ac: baseAc, might: baseMight }).toEqual({ hp: 11, ac: 11, might: 3 });
     expect(survivor.state.equipped).toBeUndefined();
 
     survivor.equip('riot-plate', 'body');
-    expect(survivor.derived().ac).toBe(baseAc - 1); // descending: `11 - floor(level / 3) - gear-ac`
+    expect(survivor.derived().ac).toBe(baseAc + 1); // ascending: `11 + floor(level / 3) + gear-ac`
     survivor.equip('fire-axe', 'main-hand');
     const { profile } = profileFromCharacter(rt, survivor);
     expect(profile.abilities['might']).toBe(baseMight + 1);
-    expect(profile.ac).toBe(10);
-    expect(profile.maxHp).toBe(27);
+    expect(profile.ac).toBe(12);
+    expect(profile.maxHp).toBe(11);
     expect(survivor.state.abilities['might']).toBe(baseMight); // the grant composes; state is untouched
 
     survivor.unequip('body');
     expect(survivor.derived().ac).toBe(baseAc);
     survivor.equip('riot-plate', 'body');
-    expect(survivor.derived().ac).toBe(baseAc - 1);
+    expect(survivor.derived().ac).toBe(baseAc + 1);
     expect(survivor.derived().hp).toBe(cap); // equipping never heals, gear-hp is 0
   });
 
@@ -148,20 +149,20 @@ describe('CAP-E7 — the zombie-urban journey (seed 42): equip → heal → figh
     const { profile } = profileFromCharacter(rt, survivor);
     expect({ save: profile.saves['vigor'], ability: profile.abilities['vigor'] }).toEqual({
       save: 0,
-      ability: 10,
+      ability: 2,
     });
     const events = survivor.useItem('med-kit');
     expect(events.map((event) => event.type)).toEqual(['item:used', 'damage:applied']);
     expect(events[0]!.payload).toEqual({ itemId: 'med-kit', remaining: 2 });
     expect(events[0]!.why.rule).toBe('content.items.med-kit');
-    expect(events[1]!.payload).toEqual({ amount: -12, type: undefined, hp: '23→27' });
-    expect(events[1]!.why).toEqual({ rule: 'content.items.med-kit', rolls: ['d0[]-12=-12'] });
-    expect(survivor.state.hp.current).toBe(Math.min(cap, cap - 4 + 12));
+    expect(events[1]!.payload).toEqual({ amount: -4, type: undefined, hp: '7→11' });
+    expect(events[1]!.why).toEqual({ rule: 'content.items.med-kit', rolls: ['d0[]-4=-4'] });
+    expect(survivor.state.hp.current).toBe(Math.min(cap, cap - 4 + 4));
     expect(survivor.count('med-kit')).toBe(2);
   });
 
   it('5 — fight.use heals the wounded ally through the combat transport: a charge spent, clamped, the foe untouched (CA-EG4/EG5)', () => {
-    survivor.state.hp.current = cap - 1; // one below the cap — the +12 heal must clamp at 27
+    survivor.state.hp.current = cap - 1; // one below the cap — the +4 heal must clamp at 11
     allyId = survivor.state.id;
     const ally = profileFromCharacter(rt, survivor);
     expect(ally.balances.items).toEqual({ 'med-kit': 2 });
@@ -173,7 +174,7 @@ describe('CAP-E7 — the zombie-urban journey (seed 42): equip → heal → figh
     };
     fight = startCombat(rt, restoreRequest);
     expect(fight.state.active).toBe(allyId);
-    expect(fight.state.combatants[allyId]!.maxHp).toBe(27);
+    expect(fight.state.combatants[allyId]!.maxHp).toBe(11);
     const foeHp = fight.state.combatants['foe']!.hp.current;
 
     const events = fight.use('med-kit', { target: allyId });
@@ -183,11 +184,11 @@ describe('CAP-E7 — the zombie-urban journey (seed 42): equip → heal → figh
     expect(events[0]!.target).toBe(allyId);
     const heal = events[1]!;
     expect(heal.target).toBe(allyId);
-    expect(heal.payload['amount']).toBe(-12);
-    expect(heal.payload['hp']).toBe('26→27');
+    expect(heal.payload['amount']).toBe(-4);
+    expect(heal.payload['hp']).toBe('10→11');
     expect(heal.why.rule).toBe('content.items.med-kit');
-    expect(heal.why.rolls).toContain('d0[]-12=-12');
-    expect(fight.state.combatants[allyId]!.hp.current).toBe(27);
+    expect(heal.why.rolls).toContain('d0[]-4=-4');
+    expect(fight.state.combatants[allyId]!.hp.current).toBe(11);
     expect(fight.state.combatants[allyId]!.itemsUsed).toEqual({ 'med-kit': 1 });
     expect(fight.state.combatants['foe']!.hp.current).toBe(foeHp);
   });
@@ -201,14 +202,14 @@ describe('CAP-E7 — the zombie-urban journey (seed 42): equip → heal → figh
     ) as ReturnType<typeof serializeCombat>;
     const frozen = snapshot.combatants.find((combatant) => combatant.id === allyId)!;
     expect(frozen.itemsUsed).toEqual({ 'med-kit': 1 });
-    expect(frozen.maxHp).toBe(27);
+    expect(frozen.maxHp).toBe(11);
 
     resumedRt = new Runtime(packFor('zombie-urban'));
     resumedSurvivor = restoreCharacter(resumedRt, party);
     expect(resumedSurvivor.state.id).toBe(allyId);
     resumed = deserializeCombat(resumedRt, snapshot, restoreRequest);
     expect(resumed.state.combatants[allyId]!.itemsUsed).toEqual({ 'med-kit': 1 });
-    expect(resumed.state.combatants[allyId]!.maxHp).toBe(27);
+    expect(resumed.state.combatants[allyId]!.maxHp).toBe(11);
     expect(resumed.state.active).toBe(allyId);
 
     const leg = capture(resumedRt);
@@ -216,7 +217,7 @@ describe('CAP-E7 — the zombie-urban journey (seed 42): equip → heal → figh
       resumed.use('med-kit');
       expect(leg.events.map((event) => event.type)).toEqual(['item:used', 'damage:applied']);
       expect(leg.events[0]!.payload).toEqual({ itemId: 'med-kit', remaining: 0 });
-      expect(leg.events[1]!.payload['hp']).toBe('27→27'); // at the cap: never above it
+      expect(leg.events[1]!.payload['hp']).toBe('11→11'); // at the cap: never above it
 
       const before = JSON.stringify(resumed.state);
       const third = resumed.use('med-kit');
@@ -264,7 +265,7 @@ describe('CAP-E7 — the zombie-urban journey (seed 42): equip → heal → figh
     ]);
     const restored = restoreCharacter(new Runtime(pack), snapshot);
     expect(restored.state.equipped).toEqual(resumedSurvivor.state.equipped);
-    expect(restored.derived().ac).toBe(baseAc - 1);
+    expect(restored.derived().ac).toBe(baseAc + 1);
 
     const tampered = JSON.parse(JSON.stringify(snapshot)) as typeof snapshot;
     (tampered.state.equipped as { slot: string; itemId: string }[])[0]!.itemId = 'ghost-kit';

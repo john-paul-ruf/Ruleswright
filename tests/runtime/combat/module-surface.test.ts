@@ -26,8 +26,10 @@ describe('module surfaces (CA-D1)', () => {
     expect(Object.keys(runtimeSurface).sort()).toEqual([
       'Character',
       'CharacterBuildError',
+      'Combat',
       'EventStream',
       'PackLoadError',
+      'Rng',
       'Runtime',
       'RuntimeRuleError',
       'advanceSolo',

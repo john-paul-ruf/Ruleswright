@@ -59,22 +59,6 @@ export function resolveShape(
   return [];
 }
 
-/** Flatten nested effect resolutions (sequence/target wrappers) for the attack-event loop. */
-export function flattenResolutions(
-  outcomes: readonly import('../../core/dsl/effect').EffectResolution[],
-): readonly import('../../core/dsl/effect').EffectResolution[] {
-  const flat: import('../../core/dsl/effect').EffectResolution[] = [];
-  for (const outcome of outcomes) {
-    flat.push(outcome);
-    if (outcome.kind === 'sequence') flat.push(...flattenResolutions(outcome.steps));
-    else if (outcome.kind === 'target') flat.push(...flattenResolutions(outcome.outcomes));
-    else if (outcome.kind === 'save') {
-      for (const perTarget of outcome.perTarget) flat.push(...flattenResolutions(perTarget.outcomes));
-    }
-  }
-  return flat;
-}
-
 /**
  * Run a bound effect for one target through the executor: mutations land on
  * state as `damage:applied` / `condition:applied`, attack verdicts as
@@ -97,10 +81,10 @@ export function executeBound(
   core.runtime.events.on(sink);
   try {
     core.setClock();
-    // The attack gate: the executor's damage callbacks only land when the
-    // pending attack for this target hit. One action = one attack verdict.
-    let attackLanded: boolean | undefined;
-    const outcomes = executeAgainst(
+    // Verdicts arrive during execution, before the following damage callback.
+    // Each target keeps its own most recent verdict; healing remains unconditional.
+    const attacks = new Map<string, boolean>();
+    executeAgainst(
       boundAction,
       { id: actor.id, side: actor.side, profile: profileOf(actor) },
       { id: target.id, side: target.side, profile: profileOf(target) },
@@ -108,10 +92,10 @@ export function executeBound(
       (request) => {
         // CA-G4: burst scopes reach ids outside the primary target — apply
         // each mutation to the combatant the executor named, not the bound
-        // target. The attack gate stays: one action = one attack verdict.
+        // target. A missed attack must not suppress another target's damage.
         const subject = core.state.combatants[request.targetId] ?? target;
         const isDamage = request.kind === 'damage';
-        if (isDamage && attackLanded === false) return; // onHit anatomy: gated damage never applies
+        if (isDamage && (request.amount ?? 0) >= 0 && attacks.get(request.targetId) === false) return;
         const hpBefore = subject.hp.current; // captured before the (possibly clamped) mutation
         applyMutation(core.runtime, subject, request);
         core.runtime.events.emit({
@@ -135,12 +119,8 @@ export function executeBound(
         const combatant = core.state.combatants[id];
         return combatant === undefined ? undefined : profileOf(combatant);
       },
-    );
-    // Attack outcomes are events too (attack:rolled) — one per target, with the verdict.
-    // The executor nests statements in sequence/target/save wrappers; flatten first.
-    for (const outcome of flattenResolutions(outcomes)) {
-      if (outcome.kind === 'attack') {
-        attackLanded = outcome.hit;
+      (outcome) => {
+        attacks.set(outcome.targetId, outcome.hit);
         core.runtime.events.emit({
           type: 'attack:rolled',
           actor: actor.id,
@@ -148,8 +128,8 @@ export function executeBound(
           payload: { actionId: boundAction.id, verdict: outcome.roll.verdict, total: outcome.roll.total },
           why: { rule: `${rule}.attackBonus`, rolls: [displayRoll(outcome.roll)] },
         });
-      }
-    }
+      },
+    );
   } finally {
     core.runtime.events.off(sink);
   }

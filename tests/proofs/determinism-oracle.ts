@@ -371,43 +371,47 @@ export function contentHashOfRaw(raw: string): string {
 }
 
 export const CHARACTERIZATION_DIGESTS: Readonly<Record<LegId, Digest>> = {
+  // Attack-gating correction: verdicts now precede damage, and misses do not mutate HP.
+  // Only the attack-bearing legs (1, 2, 7) change; all unrelated digests stay pinned.
+  // v1.8 content re-key: class ability arrays, ascending AC, ability-scaled monster attacks
+  // and ranged weapons change every leg built on a bundled theme (2, 3a, 3b, 4, 6, 7, 8);
+  // legs 1 and 5 do not touch the changed content and stay pinned.
   'leg-1': {
-    sha256: '3e2e94f0efd5c014c9c5710c3c54844b9fe27098f559b8cac7f42a399d14f6a2',
-    contentHash: '1cc2c131',
+    sha256: '83d9fc50f72973cc9401997427ddabb23a572237df52db411662712c8be7fcc4',
+    contentHash: 'e7bb6f86',
   },
   'leg-2': {
-    // CA-05: only the paused snapshot gains its offered departure tuple.
-    sha256: 'a7d101288d69ef266d8be89d95c1e2dacbbe2e34ff03f9a7477e9adeb17f3b7e',
-    contentHash: '2f10783d',
+    sha256: '331ab9fac5d9d6cf5ea9425f9bdd71a122b92ccdceed8015fa305d649d7fa8e1',
+    contentHash: '8a6fee94',
   },
   'leg-3a': {
-    sha256: '6356cff8a590fda756e96f4db7360ec235c73487fa951da33661ecf153ca0b2c',
-    contentHash: '002ae008',
+    sha256: '6e3e53f382d9b7b2768564ef94dcd1b5b944c3d6e0326db6d5b5b3f8d3bd6d7f',
+    contentHash: '39202931',
   },
   'leg-3b': {
-    sha256: '82597d99afa70698d78b1ced872b1fa165beaafc2edcd3604d0e172715c5916f',
-    contentHash: 'ccd332b0',
+    sha256: 'ed7cc0e09c5d224637fec33391a27c52823da1c6b8f525f692f5df9ffa9947db',
+    contentHash: '5b92dbca',
   },
   'leg-4': {
-    sha256: 'b47296c747ca1a230ad23fb7d19453a4f06dcdd38a02ff49b984f0758ede2552',
-    contentHash: '73fe4790',
+    sha256: 'aeecb7211f291ceeb14898b64647b00ae611206a87aa47cc4cf0c6a7e9f951c8',
+    contentHash: '3341b5a6',
   },
   'leg-5': {
     sha256: '977b2fbeb4cbbd91877deb8eee0e30021a0f7061d341b830b25b0716b6aaeafb',
     contentHash: 'fff7889a',
   },
   'leg-6': {
-    sha256: '11f27e47119db53712f5e8bf61bc6360c0a02cc550baf992d8554c8f4acb6b86',
-    contentHash: '23ab3692',
+    sha256: 'cb10c0dd450ac090970003ae5d04f79e7165ca5f20074c594e6c2cab74db13e6',
+    contentHash: 'd8426d25',
   },
   'leg-7': {
-    sha256: '650be77640b5c1aa6461eabe08c18ebdbc9766295ccc35a5446676a4aa845607',
-    contentHash: 'f8690e3f',
+    sha256: '4371ee7da84367062cfb806e72a245433bfbf376c4689c32d3af63d4f89dca75',
+    contentHash: '7d1cd7b4',
   },
   'leg-8': {
     // AR-02: four character-state envelopes now include exact hp; conformance proves the byte delta.
-    sha256: '4ee4f8fbb9468935027c7a7170e664a9a10dec2b87c15d39d65dc7b2d59c8968',
-    contentHash: 'c6b83c30',
+    sha256: 'a712c70bc0b48462e00342f3228f9e742227680a039a44fde02b2fba4480a11f',
+    contentHash: '0623b7d4',
   },
 };
 
@@ -420,17 +424,19 @@ export function packRaw(theme: PackTheme): string {
   return JSON.stringify(generated(theme));
 }
 
+// Re-keyed for v1.8 bundled-theme content (class ability arrays, ascending AC, ranged
+// weapon ranges, ability-scaled monster attacks).
 export const PACK_DIGESTS: Readonly<Record<PackTheme, Digest>> = {
   'dark-fantasy': {
-    sha256: '6f87f212e259460c1f0a464c277583102e7bead07ae8f01d3b95cf7cb57e1f3e',
-    contentHash: '21f4de6d',
+    sha256: 'd7c0befb5c196e9452e0fe73b81726092c0c91796e9cf391df3a2f18f3b8bca1',
+    contentHash: 'f4b0d6f9',
   },
   'zombie-urban': {
-    sha256: 'fc80c83d7160ac147b00bf00341a6b1b5c8ea9c2bdf95f4094a036516b0cafe4',
-    contentHash: 'c2bbbd7b',
+    sha256: '248c687c515ba262c0a0c8915c66e63df5e29914e3d7fc829c814deeb61dcd16',
+    contentHash: '18553e43',
   },
   wyldwood: {
-    sha256: 'fc31b3a2c78f676c8307c208fc7543aac816bfacdb165084afc5f29e094bb190',
-    contentHash: '273468f5',
+    sha256: 'a25d9deaa3dd1f75904d9786026503fe04cf00608dfe41025de014c05a04571d',
+    contentHash: 'e5be3ff9',
   },
 };

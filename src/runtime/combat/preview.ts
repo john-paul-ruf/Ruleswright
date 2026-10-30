@@ -184,7 +184,7 @@ export function previewDeclaration(
       return { rejection: range as DeclareRejection };
     }
   } else {
-    const spatial = spatialGate(core.runtime, actor, target.combatant);
+    const spatial = spatialGate(core.runtime, actor, target.combatant, (def as ActionDef).range);
     if (spatial !== undefined) {
       return { rejection: spatial as DeclareRejection };
     }
@@ -299,7 +299,7 @@ export function previewReaction(core: FightCore, offer: PendingTrigger, targetId
   const target = self ? { combatant: reactor } : resolveTarget(core.state, reactor, targetId);
   if ('rejection' in target) return { rejection: target.rejection };
   if (!self) {
-    const rejection = spatialGate(core.runtime, reactor, target.combatant);
+    const rejection = spatialGate(core.runtime, reactor, target.combatant, def.range);
     if (rejection) return { rejection };
   }
   const rejection = previewReactionCost(core, reactor, def);

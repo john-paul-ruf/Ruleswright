@@ -156,17 +156,18 @@ function castHeal(row: HealRow, wound: number): { heal: RuntimeEvent; maxHp: num
   expect(heal.target).toBe('ally');
   expect(heal.why.rule).toBe(`content.spells.${row.spellId}`);
 
-  // CA-R4: amount = −(1d8 + the caster's vigor ability); the face is in why.rolls[0], e.g. "d8[-2]-10=-12".
+  // CA-R4: amount = −(1d8 + the caster's vigor ability); the face is in why.rolls[0], e.g. "d8[-2]-2=-4".
   const amount = heal.payload['amount'] as number;
   const face = /^d8\[(-?\d+)\]/.exec(String(heal.why.rolls[0]));
   expect(face, String(heal.why.rolls[0])).not.toBeNull();
   const dice = Math.abs(Number(face![1]));
   expect(dice).toBeGreaterThanOrEqual(1);
   expect(dice).toBeLessThanOrEqual(8);
-  expect(casterVigor).toBe(10);
+  // v1.8: the caster's vigor comes from its class's starting ability array.
+  expect(casterVigor).toBe(generated(row.theme).content.classes?.[row.casterClass]?.abilities?.['vigor']);
   expect(amount).toBe(-(dice + casterVigor));
-  expect(amount).toBeGreaterThanOrEqual(-18);
-  expect(amount).toBeLessThanOrEqual(-11);
+  expect(amount).toBeGreaterThanOrEqual(-(8 + casterVigor));
+  expect(amount).toBeLessThanOrEqual(-(1 + casterVigor));
 
   expect(fight.state.combatants['foe']!.hp.current).toBe(foeHp);
   if (row.pool === undefined) {
@@ -189,7 +190,7 @@ describe('CAP-R1 — legs 1–3: the mending spells heal a wounded ally (DD-R1, 
     const amount = heal.payload['amount'] as number;
     const [before, after] = hpOf(heal);
     expect(before).toBe(maxHp - 20);
-    // the uncapped branch: a wound of 20 exceeds the largest heal (18)
+    // the uncapped branch: a wound of 20 exceeds the largest heal (8 + vigor)
     expect(after).toBe(before - amount);
     expect(after).toBeLessThan(maxHp);
     expect(fight.state.combatants['ally']!.hp.current).toBe(after);

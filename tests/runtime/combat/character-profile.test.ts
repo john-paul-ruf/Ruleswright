@@ -267,21 +267,21 @@ describe('CA-08 — actions and balances', () => {
  * character's equipment — grants through `equipmentView`, the pack's `gear-*`
  * formula terms through `derived()`, and the heal cap `maxHp` = `derived().hp`.
  * Real generated zombie-urban pack (seed 42): riot-plate {ac:1, armor:1},
- * fire-axe {might:1}, ac formula `11 - floor(level / 3) - gear-ac`.
+ * fire-axe {might:1}, ac formula `11 + floor(level / 3) + gear-ac` (ascending, v1.8 content).
  */
 describe('CA-EG2 — profiles carry equipment grants and maxHp', () => {
   const rt = new Runtime(packFor('zombie-urban'));
   const classId = Object.keys(rt.pack.content.classes ?? {})[0]!;
   const survivor = () => hero(rt, 'mile-born', [{ id: classId, level: 1 }]);
 
-  it('an equipped armor shifts ac by exactly the pack formula response (descending: − gear-ac)', () => {
+  it('an equipped armor shifts ac by exactly the pack formula response (ascending: + gear-ac)', () => {
     const character = survivor();
     const before = profileFromCharacter(rt, character).profile;
     character.grant('riot-plate');
     character.equip('riot-plate', 'body');
     const after = profileFromCharacter(rt, character).profile;
-    expect(before.ac).toBe(11 - Math.floor(1 / 3));
-    expect(after.ac).toBe(before.ac - 1);
+    expect(before.ac).toBe(11 + Math.floor(1 / 3));
+    expect(after.ac).toBe(before.ac + 1);
     expect(after.ac).toBe(character.derived().ac);
   });
 

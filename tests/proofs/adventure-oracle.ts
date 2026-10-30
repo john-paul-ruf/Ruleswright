@@ -8,7 +8,9 @@ import { encounterCommand, rewardFixture, rehash, soloRewardFixture } from '../r
 function demand(ok: unknown, message: string): asserts ok {
   if (!ok) throw new Error(message);
 }
-export const ADVENTURE_DIGESTS = { generated: 'b9a258c0', fixture: '73ce0727' };
+// Generated combat now respects missed attacks and emits verdicts before damage.
+// Re-keyed (generated only) for v1.8 bundled content: budgets, XP rewards, class ability arrays.
+export const ADVENTURE_DIGESTS = { generated: '8249a32e', fixture: '73ce0727' };
 export function generatedJourney(reopen = false, api = runtimeApi, compiler = compilerApi) {
   const pack = compiler.generateCampaign({ theme: compiler.loadTheme('dark-fantasy'), seed: 42 });
   const definition = compiler.generateAdventure({
@@ -70,11 +72,12 @@ export function generatedJourney(reopen = false, api = runtimeApi, compiler = co
   demand(
     final.members.every(
       (m, i) =>
-        m.character.state.classes[0]!.level === 2 &&
-        m.character.state.classes[0]!.xp === 1050 &&
+        // v1.8 content: watch-cache 1000 XP + delivery-cache 1500 XP on top of the seeded 975.
+        m.character.state.classes[0]!.level === 3 &&
+        m.character.state.classes[0]!.xp === 3475 &&
         m.character.state.hp.current === 19 - i &&
         m.character.state.hp.temp === 3 + i &&
-        JSON.stringify(m.character.state.slots['1']) === JSON.stringify([null, 'ward-sigil', null]),
+        JSON.stringify(m.character.state.slots['1']) === JSON.stringify([null, 'ward-sigil', null, null]),
     ),
     'Real progression must retain injury and indexed preparation into the next fight',
   );

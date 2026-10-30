@@ -72,8 +72,8 @@ function runExample(source: string, exports: readonly string[] = []) {
 }
 function checkQuickstartOutput(logs: unknown[][]): void {
   expect(logs).toEqual([
-    [{ hp: 27, ac: 12, saves: { vigor: 0, grace: 0, tenacity: 0, reason: 0, presence: 0 } }],
-    ['d20[9]=9 < ac12', 'actions.cut-down.attackBonus'],
+    [{ hp: 11, ac: 12, saves: { vigor: 0, grace: 0, tenacity: 0, reason: 0, presence: 0 } }],
+    ['d20[9]+4=13 ≥ ac12', 'actions.cut-down.attackBonus'],
     [[{ id: 'grave-ward', qty: 1 }]],
   ]);
 }
@@ -186,7 +186,7 @@ describe('README quickstart runs verbatim (NFR-DX)', () => {
     expect(brynn.state.id).toBe('char-1');
     expect(brynn.state.race).toBe('hillfolk');
     expect(brynn.derived()).toEqual({
-      hp: 27,
+      hp: 11,
       ac: 12,
       saves: { vigor: 0, grace: 0, tenacity: 0, reason: 0, presence: 0 },
     });
@@ -207,7 +207,7 @@ describe('README quickstart runs verbatim (NFR-DX)', () => {
     expect(attack).toBeDefined();
     expect(attack!.actor).toBe('wight');
     expect(attack!.target).toBe('brynn');
-    expect(attack!.why.rolls[0]).toBe('d20[9]=9 < ac12');
+    expect(attack!.why.rolls[0]).toBe('d20[9]+4=13 ≥ ac12');
     expect(attack!.why.rule).toBe('actions.cut-down.attackBonus');
 
     // 04 — loot: the grantLoot call ran through the generated pack's own
@@ -219,7 +219,7 @@ describe('README quickstart runs verbatim (NFR-DX)', () => {
   it('the README’s expected-output blocks match the shipped event anatomy', () => {
     // The README's output blocks quote the real anatomy (why.rule / why.rolls);
     // this guard fails if a doc edit drifts the field names.
-    expect(readme).toContain('d20[9]=9 < ac12');
+    expect(readme).toContain('d20[9]+4=13 ≥ ac12');
     expect(readme).toContain('profileFromCharacter(rt, brynn)');
     expect(readme).toContain('actions.cut-down.attackBonus');
     expect(readme).toContain('no I/O');
@@ -309,13 +309,13 @@ describe('documentation runner self-tests and encounter example', () => {
 describe('portable adventure documentation and extractor controls', () => {
   it('executes actual compiler/schema imports and preserves the exact reopened definition', () => {
     const { bindings, logs } = runExample(examples.adventure, ['definition', 'reopenedDefinition']);
-    expect(logs).toEqual([['dark-fantasy', 7, '6823dd50']]);
+    expect(logs).toEqual([['dark-fantasy', 8, 'bc266e2f']]);
     expect(bindings['reopenedDefinition']).toEqual(bindings['definition']);
     const definition = bindings['definition'] as { nodes: { kind: string; encounter?: { seed: string } }[] };
     expect(
       definition.nodes.filter((n) => n.kind === 'encounter').every((n) => n.encounter!.seed === ''),
     ).toBe(true);
-    expect(readme).toContain('dark-fantasy 7 6823dd50');
+    expect(readme).toContain('dark-fantasy 8 bc266e2f');
     expect(readme).toContain('createAdventure(pack, definition, options)');
   });
   it('rejects a missing adventure block, duplicate label and unknown label', () => {
@@ -334,7 +334,7 @@ describe('portable adventure documentation and extractor controls', () => {
       runExample(examples.adventure.replace('ruleswright/compiler', 'ruleswright/missing')),
     ).toThrow(/Unsupported/);
     const changed = runExample(examples.adventure.replace('definition.nodes.length,', '0,')).logs;
-    expect(() => expect(changed).toEqual([['dark-fantasy', 7, '6823dd50']])).toThrow();
+    expect(() => expect(changed).toEqual([['dark-fantasy', 8, 'bc266e2f']])).toThrow();
   });
 });
 
@@ -347,15 +347,16 @@ describe('manual adventure example and runner negative controls', () => {
     expect(adventure.serialize()).toEqual(saved);
     expect(saved.visitedNodeIds).toContain('passage');
     expect(saved.rewards.every((r) => r.status === 'claimed')).toBe(true);
-    expect(saved.members.map((m) => m.character.state.classes[0]!.level)).toEqual([2, 2]);
-    expect(saved.members.map((m) => m.character.state.classes[0]!.xp)).toEqual([1050, 1050]);
+    expect(saved.members.map((m) => m.character.state.classes[0]!.level)).toEqual([3, 3]);
+    // 975 seeded + 1000 (watch-cache) + 1500 (delivery-cache) under the v1.8 rewards.
+    expect(saved.members.map((m) => m.character.state.classes[0]!.xp)).toEqual([3475, 3475]);
     expect(saved.members.map((m) => m.character.state.hp)).toEqual([
       { current: 19, temp: 3 },
       { current: 18, temp: 4 },
     ]);
     expect(saved.members.map((m) => m.character.state.slots['1'])).toEqual([
-      [null, 'ward-sigil', null],
-      [null, 'ward-sigil', null],
+      [null, 'ward-sigil', null, null],
+      [null, 'ward-sigil', null, null],
     ]);
     expect(readme).toContain('completed 2 2');
     expect(readme).toContain('refills pools and clears');

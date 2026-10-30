@@ -852,7 +852,7 @@ describe('CAP-S3 — settleSpellCasts writes the spend into the character (CA-S3
         'content.spells',
       ],
     ]);
-    expect(hexer.state.pools['ember']).toBe(16);
+    expect(hexer.state.pools['ember']).toBe(9); // 8 + insight 3 (hexer array), minus the 2 spent
     expect(hexer.state.slots['1']).toEqual([null, null, null, null]);
     expect(fight.state.combatants['hexer']!.slotsCast).toEqual({});
     expect(fight.state.combatants['hexer']!.poolsSpent).toEqual({});
@@ -867,7 +867,7 @@ describe('CAP-S3 — settleSpellCasts writes the spend into the character (CA-S3
         typeof serializeCharacter
       >,
     );
-    expect(restored.state.pools['ember']).toBe(16);
+    expect(restored.state.pools['ember']).toBe(9);
     expect(restored.state.slots['1']).toEqual([null, null, null, null]);
   });
 

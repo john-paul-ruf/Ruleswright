@@ -72,6 +72,8 @@ export interface EffectApply {
   resolveTargets(shape: string): readonly EffectTargetRef[];
   damage(target: EffectTargetRef, roll: RollResult, type?: string): void;
   condition(target: EffectTargetRef, conditionId: string, duration: number): void;
+  /** Report each verdict before subsequent effects request mutations; hosts may gate damage per target. */
+  attack?(outcome: AttackOutcome): void;
   /** v1.5 — host movement (FR-11): spend up to `budget` movement points toward the declared destination. Absent = the host has no movement support. */
   move?(budget: number): void;
   /** v1.6 — per-target vars for statements inside a shape scope (FR-9 per-target saves). Absent = ctx.vars for every target. */
@@ -279,7 +281,9 @@ function execAttack(
       ...roll,
       verdict: { defense: defenseName, value: defense, result: hit ? 'hit' : 'miss' },
     };
-    outcomes.push({ kind: 'attack', targetId: target.id, roll: judged, hit });
+    const outcome: AttackOutcome = { kind: 'attack', targetId: target.id, roll: judged, hit };
+    ctx.apply.attack?.(outcome);
+    outcomes.push(outcome);
   }
   return outcomes;
 }

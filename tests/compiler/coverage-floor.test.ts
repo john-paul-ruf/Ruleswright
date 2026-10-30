@@ -116,7 +116,10 @@ describe('FR-21 floor — the shared bullets, enumerated against all three packs
     it(`${name}: melee (adjacency), ranged, and 1 burst-area spell`, () => {
       const actions = pack.actions;
       const melee = Object.values(actions).filter((action) => action.valid?.includes('adjacent'));
-      const ranged = Object.values(actions).filter((action) => action.effect.includes('attack(ac, 0)'));
+      // v1.8: ranged weapons declare `range` (they reach beyond adjacency).
+      const ranged = Object.values(actions).filter(
+        (action) => action.range !== undefined && action.range > 1,
+      );
       expect(melee.length).toBeGreaterThanOrEqual(1);
       expect(ranged.length).toBeGreaterThanOrEqual(1);
       const bursts = Object.values(pack.content.spells ?? {}).filter(
@@ -218,7 +221,8 @@ describe('FR-21 floor — the shared bullets, enumerated against all three packs
         ).toBe(true);
       }
       if (name === 'zombie-urban') expect(items.some((item) => item.use !== undefined)).toBe(true);
-      expect(pack.formulas['ac']?.expr).toMatch(/ - gear-ac\b/);
+      // Ascending AC: attacks hit on d20 + bonus >= ac, so armor and level raise it.
+      expect(pack.formulas['ac']?.expr).toMatch(/ \+ gear-ac\b/);
     });
 
     it(`${name}: every id kebab-unique pack-wide (E-DUP-01 held, E-REF-01 clean)`, () => {

@@ -44,7 +44,7 @@ import {
 } from './equipment';
 import { learnFeat as learnFeatFn } from './feats';
 import type { RuntimeEvent } from './events';
-import { validateBuild, buildCharacter, CharacterBuildError } from './progression';
+import { validateBuild, validateAbilityRequest, buildCharacter, CharacterBuildError } from './progression';
 
 /** FR-7 — one active condition on a character: plain data, duration in rounds. */
 export interface ActiveCondition {
@@ -220,8 +220,9 @@ export class Character {
 }
 
 /**
- * FR-5 — build a character from the pack: abilities default to 10 per
- * `stats.abilities`, progression fills saves/slots, hp initializes from the
+ * FR-5 — build a character from the pack: abilities start at 10 per
+ * `stats.abilities`, overridden by the first class's `abilities` array (v1.8) and
+ * then by `request.abilities`, progression fills saves/slots, hp initializes from the
  * reserved formula (CA-6), and creation emits `character:created` (CA-3 named
  * non-combat event). Illegal builds are rejected with named rules (FR-6) by
  * the shared build validator — both creation paths run it.
@@ -230,10 +231,18 @@ export function createCharacter(runtime: Runtime, request: CharacterCreateReques
   const entries = request.classes.map((entry) =>
     typeof entry === 'string' ? { id: entry, level: request.level ?? 1 } : { ...entry },
   );
-  const errors = validateBuild(runtime, request.race, entries);
+  const errors = [
+    ...validateBuild(runtime, request.race, entries),
+    ...validateAbilityRequest(runtime, request.abilities),
+  ];
   if (errors.length > 0) throw new CharacterBuildError(errors);
 
-  const state = buildCharacter(runtime, { name: request.name, race: request.race, classes: entries });
+  const state = buildCharacter(runtime, {
+    name: request.name,
+    race: request.race,
+    classes: entries,
+    ...(request.abilities !== undefined ? { abilities: request.abilities } : {}),
+  });
   runtime.nextCharacterId += 1;
   runtime.events.emit({
     type: 'character:created',

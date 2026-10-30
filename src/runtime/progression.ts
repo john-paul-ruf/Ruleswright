@@ -160,13 +160,54 @@ export function validateBuild(
   return cards;
 }
 
+/** v1.8 — explicit starting scores must name declared abilities and be integers. */
+export function validateAbilityRequest(
+  runtime: Runtime,
+  abilities: Readonly<Record<string, unknown>> | undefined,
+): ErrorCard[] {
+  const cards: ErrorCard[] = [];
+  if (abilities === undefined) return cards;
+  const known = new Set(runtime.pack.stats.abilities);
+  for (const [name, score] of Object.entries(abilities)) {
+    if (!known.has(name)) {
+      cards.push({
+        severity: 'error',
+        artifactId: name,
+        jsonPath: `abilities.${name}`,
+        rule: 'unknown-ability',
+        message: `unknown ability "${name}" — not declared in stats.abilities.`,
+        hint: `known abilities: ${[...known].join(', ')}`,
+      });
+    } else if (typeof score !== 'number' || !Number.isSafeInteger(score)) {
+      cards.push({
+        severity: 'error',
+        artifactId: name,
+        jsonPath: `abilities.${name}`,
+        rule: 'invalid-build',
+        message: `ability "${name}" must be an integer score.`,
+      });
+    }
+  }
+  return cards;
+}
+
 /** Build a fresh plain-JSON character state — the single constructor both paths share. */
 export function buildCharacter(
   runtime: Runtime,
-  request: { readonly name: string; readonly race: string; readonly classes: readonly ClassEntry[] },
+  request: {
+    readonly name: string;
+    readonly race: string;
+    readonly classes: readonly ClassEntry[];
+    readonly abilities?: Readonly<Record<string, number>>;
+  },
 ): CharacterState {
+  // Starting scores: the engine default 10, then the first class's declared array
+  // (v1.8, content.classes.<id>.abilities), then the request's explicit scores.
   const abilities: Record<string, number> = {};
-  for (const ability of runtime.pack.stats.abilities) abilities[ability] = 10;
+  const classArray = runtime.pack.content.classes?.[request.classes[0]?.id ?? '']?.abilities ?? {};
+  for (const ability of runtime.pack.stats.abilities) {
+    abilities[ability] = request.abilities?.[ability] ?? classArray[ability] ?? 10;
+  }
   const derived = deriveProgression(runtime, request.classes);
   const level = derived.level;
   const hp = reserveValue(runtime, 'hp', abilities, level, new Rng(0));

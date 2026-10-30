@@ -163,6 +163,11 @@
           "items": { "$ref": "#/$defs/idPattern" },
           "uniqueItems": true,
           "description": "Coarse categories for condition restricts matching (FR-7) — e.g. [\"main\"], [\"casting\"]; matched by restricts patterns \"actions.tagged:<tag>\" (S-CONTRACT-GAP resolution, builder option A)"
+        },
+        "range": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "v1.8 — optional: the farthest distance (the pack's spatial distance) at which this action may target, for thrown and shot weapons. The reach gate then allows max(the actor's effective reach, range). Absent = reach only. A valid clause such as hasTarget(adjacent) still applies on its own. Theater-of-mind packs ignore it."
         }
       }
     },
@@ -260,6 +265,11 @@
                 "items": { "$ref": "#/$defs/idPattern" },
                 "uniqueItems": true,
                 "description": "v1.2 — action ids a character of this class may declare in combat (FR-16 parity with statblock actions); each must be a key of the pack's actions map (E-REF-01)"
+              },
+              "abilities": {
+                "type": "object",
+                "additionalProperties": { "type": "integer" },
+                "description": "v1.8 — the starting ability scores of a character whose first class is this one, keyed by stats.abilities names (unknown name = E-REF-01). Unlisted abilities start at the engine default 10; a character creation request may still set any score explicitly."
               }
             }
           }

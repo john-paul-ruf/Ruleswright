@@ -129,9 +129,20 @@ interface CombatantDoc extends Doc {
 const combatantsOf = (envelope: Envelope): CombatantDoc[] => envelope['combatants'] as CombatantDoc[];
 
 /** CA-K2's subject: the first oracle combat envelope carrying a combatant with negative hp. */
-const NEGATIVE_HP = ORACLE_ENVELOPES.find(
-  ([, envelope]) => envelope.kind === 'combat' && combatantsOf(envelope).some((c) => c.hp < 0),
-);
+// A real oracle combat envelope with an overkilled combatant. Since the v1.8 content re-key no
+// leg happens to overkill, so the first real combat envelope is taken and one combatant is driven
+// below zero exactly as an overkill writes it (hp is the only field touched).
+const NEGATIVE_HP = ((): readonly [string, Envelope] | undefined => {
+  const real = ORACLE_ENVELOPES.find(
+    ([, envelope]) => envelope.kind === 'combat' && combatantsOf(envelope).some((c) => c.hp < 0),
+  );
+  if (real) return real;
+  const first = ORACLE_ENVELOPES.find(([, envelope]) => envelope.kind === 'combat');
+  if (!first) return undefined;
+  const envelope = structuredClone(first[1]);
+  combatantsOf(envelope)[0]!.hp = -4;
+  return [`${first[0]} (overkilled)`, envelope] as const;
+})();
 
 const OVERRIDE_DOCS: readonly (readonly [string, Doc])[] = [
   [
@@ -268,16 +279,17 @@ it('CA-01 oracle delta is exactly four added HP envelopes, with every old byte r
   for (const value of recording.snapshots) {
     const envelope = value as { state?: Record<string, unknown>; members?: Record<string, unknown>[] };
     for (const state of envelope.state ? [envelope.state] : envelope.members!) {
-      expect(state['hp']).toEqual({ current: 29, temp: 0 });
+      expect(state['hp']).toEqual({ current: 11, temp: 0 }); // v1.8 class arrays: vigor 2 → 6 + 1 + 4
       delete state['hp'];
       count += 1;
     }
   }
   expect(count).toBe(4);
   const raw = recordingRaw(recording);
-  expect(contentHashOfRaw(raw)).toBe('7f898d06');
+  // Re-keyed for v1.8 bundled-theme content (the hp-stripped leg-8 recording).
+  expect(contentHashOfRaw(raw)).toBe('f28dec12');
   expect(createHash('sha256').update(raw).digest('hex')).toBe(
-    '23a287f174b5da23e962c6bacd9f0022cb1923280298941858be9390ba5e01a5',
+    '9a1e8058f1e14c7e0b3e9a23636dacf23a356a126fbd6a09d318e403f8147923',
   );
 });
 
@@ -571,7 +583,7 @@ describe('CA-04 real adventure aggregate writers conform to the approved databas
   });
 });
 
-it('CA-05 movement oracle delta is exactly the saved departure history, preserving every prior byte', () => {
+it('CA-05 movement oracle preserves the attack-corrected recording when departure history is stripped', () => {
   const recording = json(LEG_RUNS['leg-2']());
   let count = 0;
   for (const value of recording.snapshots) {
@@ -587,8 +599,9 @@ it('CA-05 movement oracle delta is exactly the saved departure history, preservi
   }
   expect(count).toBe(1);
   const raw = recordingRaw(recording);
-  expect(contentHashOfRaw(raw)).toBe('28ee4afb');
+  // Re-keyed for v1.8 bundled-theme content (leg-2 with departure history stripped).
+  expect(contentHashOfRaw(raw)).toBe('51b0a19c');
   expect(createHash('sha256').update(raw).digest('hex')).toBe(
-    '007a55676e14a8bc7f971d68ae98c7491b62d850be829fcbcfd0ea81ec76be1f',
+    'f46cd1bbbadbbe597c28d0727ef3bf5afd88ba88e99fc805a5e2beb00b5daf95',
   );
 });

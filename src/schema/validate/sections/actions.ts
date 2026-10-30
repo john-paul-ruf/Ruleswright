@@ -42,7 +42,7 @@ export function checkActions(ctx: Ctx, value: unknown): void {
       continue;
     }
     reqFields(ctx, def, ['cost', 'effect'], id, basePath);
-    forbidUnknown(ctx, def, ['cost', 'valid', 'trigger', 'effect', 'tags'], id, basePath);
+    forbidUnknown(ctx, def, ['cost', 'valid', 'trigger', 'effect', 'tags', 'range'], id, basePath);
     if (def['id'] !== undefined && def['id'] !== id) {
       add(
         ctx,
@@ -59,5 +59,17 @@ export function checkActions(ctx: Ctx, value: unknown): void {
     checkTagsField(ctx, def['tags'], id, `${basePath}.tags`);
     checkCost(ctx, def['cost'], id, `${basePath}.cost`);
     checkTrigger(ctx, def['trigger'], id, `${basePath}.trigger`, 1);
+    const range = def['range'];
+    if (range !== undefined && (typeof range !== 'number' || !Number.isSafeInteger(range) || range < 1)) {
+      add(
+        ctx,
+        makeErrorCard(
+          'E-SCHEMA-01',
+          id,
+          `${basePath}.range`,
+          'action range must be a positive integer (v1.8).',
+        ),
+      );
+    }
   }
 }

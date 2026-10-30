@@ -96,7 +96,8 @@
           "main": 1
         }
       },
-      "effect": "sequence(attack(ac, 0), damage(1d8, pierce))",
+      "effect": "sequence(attack(ac, grace), damage(1d8 + grace, pierce))",
+      "range": 6,
       "tags": ["main"]
     },
     "glade-spear": {
@@ -105,7 +106,8 @@
           "main": 1
         }
       },
-      "effect": "sequence(attack(ac, 0), damage(2d6, pierce))",
+      "effect": "sequence(attack(ac, might), damage(2d6, pierce))",
+      "range": 3,
       "tags": ["main"]
     },
     "fall-back": {
@@ -226,7 +228,7 @@
       "expr": "6 + level + vigor * 2 + gear-hp"
     },
     "ac": {
-      "expr": "12 - floor(level / 3) - gear-ac"
+      "expr": "12 + floor(level / 3) + gear-ac"
     },
     "initiative": {
       "expr": "d20 + grace + gear-initiative"
@@ -242,12 +244,14 @@
     "classes": {
       "warden": {
         "name": "Warden",
+        "abilities": { "might": 3, "grace": 2, "vigor": 2, "reason": 0, "insight": 0, "presence": 1 },
         "spellLists": ["warden"],
         "armorCasting": ["leather"],
         "actions": ["strike", "thorn-lash", "fall-back", "circle-path", "ward-step", "glide", "bramble-snap"]
       },
       "hexer": {
         "name": "Hexer",
+        "abilities": { "might": 0, "grace": 2, "vigor": 1, "reason": 2, "insight": 3, "presence": 1 },
         "spellLists": ["hexer"],
         "actions": [
           "bow-volley",
@@ -261,6 +265,7 @@
       },
       "hedge-mage": {
         "name": "Hedge Mage",
+        "abilities": { "might": 0, "grace": 1, "vigor": 1, "reason": 2, "insight": 3, "presence": 2 },
         "spellLists": ["hedge-mage"],
         "actions": [
           "thorn-lash",

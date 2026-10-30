@@ -17,6 +17,7 @@ import { collectContext } from './collect';
 import { deferredDslChecker, type DslChecker } from './dsl';
 import type { Ctx } from './context';
 import { add, isPlainObject } from './helpers';
+import { JsonMemo, jsonMemoKey } from '../json-memo';
 import { checkActions } from './sections/actions';
 import { checkBestiary } from './sections/bestiary';
 import { checkContent } from './sections/content';
@@ -46,7 +47,24 @@ export { MAX_TABLE_DEPTH, nearestIds } from './helpers';
  * partially-validated pack. `dslChecker` is the DSL seam — omit it and
  * E-FORM-* checks are marked deferred.
  */
+const validationMemo = new WeakMap<DslChecker, JsonMemo<ErrorCard[]>>();
+
 export function validatePack(json: unknown, dslChecker: DslChecker = deferredDslChecker): ErrorCard[] {
+  const key = jsonMemoKey(json);
+  if (key === undefined) return validatePackUncached(json, dslChecker);
+  let memo = validationMemo.get(dslChecker);
+  if (memo === undefined) validationMemo.set(dslChecker, (memo = new JsonMemo<ErrorCard[]>(8)));
+  const hit = memo.get(key);
+  if (hit !== undefined) return hit.map((card) => ({ ...card }));
+  const errors = validatePackUncached(json, dslChecker);
+  memo.set(
+    key,
+    errors.map((card) => ({ ...card })),
+  );
+  return errors;
+}
+
+function validatePackUncached(json: unknown, dslChecker: DslChecker): ErrorCard[] {
   const ctx: Ctx = {
     errors: [],
     emitted: new Set(),

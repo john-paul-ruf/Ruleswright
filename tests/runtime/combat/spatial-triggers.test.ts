@@ -152,7 +152,7 @@ describe('triggered actions (FR-4/FR-13, FR-12 proof 2 shape)', () => {
     stepToDeclare(fight, 'wight');
     fight.step(); // wight's turn begins
     fight.declare('wight-claw', { targetId: 'brynn' });
-    // The damage event matched brynn's `parry` (pattern: attack:rolled[target=self]) → offered.
+    // The attack event matched brynn's `parry` (pattern: attack:rolled[target=self]) → offered.
     const offer = fight.pendingTriggers.find((pending) => pending.actionId === 'parry');
     expect(offer).toBeDefined();
     expect(offer!.actorId).toBe('brynn');
@@ -163,11 +163,12 @@ describe('triggered actions (FR-4/FR-13, FR-12 proof 2 shape)', () => {
     expect(fired!.why.rule).toBe('actions.parry.trigger');
     // The host takes it — the reactive action rides the same resolution pipeline.
     fight.respond(offer!.triggerId, 'take');
-    const reactionDamage = events.filter((event) => event.type === 'damage:applied');
-    expect(reactionDamage.length).toBeGreaterThanOrEqual(2);
-    const parryDamage = reactionDamage[reactionDamage.length - 1]!;
-    expect(parryDamage.actor).toBe('brynn');
-    expect(parryDamage.why.rule).toBe('actions.parry');
+    const parryAttack = events.find((event) => event.type === 'attack:rolled' && event.actor === 'brynn')!;
+    expect(parryAttack.why.rule).toBe('actions.parry.attackBonus');
+    expect(parryAttack.payload['verdict']).toMatchObject({ result: 'miss' });
+    expect(
+      events.some((event) => event.type === 'damage:applied' && event.why.rule === 'actions.parry'),
+    ).toBe(false);
     // The reaction consumed a declared slot (FR-12 proof 2: reaction economy).
     expect(fight.state.combatants['brynn']!.slots.remaining['reaction']).toBe(0);
   });

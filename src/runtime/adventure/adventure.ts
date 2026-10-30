@@ -25,6 +25,7 @@ import type {
   AdventureCommandResult,
   RewardReceipt,
 } from './types';
+import { frozenJsonCopy } from '../../schema/json-memo';
 
 export const adventureContexts = new WeakMap<
   Adventure,
@@ -362,7 +363,7 @@ function ownInputs(pack: Pack, definition: AdventureDefinition) {
   }
   const errors = validateAdventureDefinition(pack, definition);
   if (errors.length) throw new RuntimeRuleError(errors);
-  return { pack: detached(pack), definition: detached(definition) };
+  return { pack: frozenJsonCopy(pack), definition: detached(definition) };
 }
 export function createAdventure(
   pack: Pack,

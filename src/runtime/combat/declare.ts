@@ -105,12 +105,16 @@ export function spatialGate(
   runtime: Runtime,
   actor: CombatantState,
   target: CombatantState,
+  range?: number,
 ): DeclareRejection | undefined {
+  const defaultReach = runtime.pack.spatial?.reach.default ?? 1;
+  const reach = reachOf(runtime, actor.id) ?? defaultReach;
+  // v1.8 — a ranged action (thrown/shot weapon) reaches out to its declared range.
   return checkReach(
     runtime.spatial,
-    { position: actor.position, reach: reachOf(runtime, actor.id) },
+    { position: actor.position, reach: range !== undefined ? Math.max(reach, range) : reach },
     { id: target.id, position: target.position },
-    runtime.pack.spatial?.reach.default ?? 1,
+    defaultReach,
   );
 }
 

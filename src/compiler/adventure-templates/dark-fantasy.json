@@ -106,7 +106,7 @@
     "gate": {
       "kind": "encounter",
       "title": "Silt Gate",
-      "description": "A lone watcher blocks the direct approach.",
+      "description": "Watchers block the direct approach.",
       "rewardIds": ["watch-cache"],
       "rest": "none",
       "preparation": false,
@@ -114,10 +114,10 @@
         "place": "Silt Gate"
       },
       "encounter": {
-        "budget": 1,
+        "budget": 2,
         "seed": "",
         "maxPartySize": 4,
-        "maxEnemies": 1,
+        "maxEnemies": 2,
         "layout": {
           "kind": "spatial",
           "model": "grid",
@@ -143,6 +143,10 @@
             {
               "x": 1,
               "y": 0
+            },
+            {
+              "x": 1,
+              "y": 1
             }
           ],
           "terrain": [
@@ -171,7 +175,7 @@
     "vault": {
       "kind": "encounter",
       "title": "The Bell Vault",
-      "description": "The last watcher stands between the party and its delivery.",
+      "description": "The last watchers stand between the party and its delivery.",
       "rewardIds": ["delivery-cache"],
       "rest": "none",
       "preparation": false,
@@ -179,10 +183,10 @@
         "place": "The Bell Vault"
       },
       "encounter": {
-        "budget": 1,
+        "budget": 4,
         "seed": "",
         "maxPartySize": 4,
-        "maxEnemies": 1,
+        "maxEnemies": 4,
         "layout": {
           "kind": "spatial",
           "model": "grid",
@@ -208,6 +212,18 @@
             {
               "x": 1,
               "y": 0
+            },
+            {
+              "x": 1,
+              "y": 1
+            },
+            {
+              "x": 1,
+              "y": 2
+            },
+            {
+              "x": 1,
+              "y": 3
             }
           ],
           "terrain": [
@@ -236,7 +252,7 @@
     "sentry": {
       "kind": "encounter",
       "title": "Tallow Watch",
-      "description": "A watcher keeps the side route. A small cache lies beyond.",
+      "description": "Watchers keep the side route. A small cache lies beyond.",
       "rewardIds": ["watch-cache"],
       "rest": "none",
       "preparation": false,
@@ -244,10 +260,10 @@
         "place": "Tallow Watch"
       },
       "encounter": {
-        "budget": 1,
+        "budget": 2,
         "seed": "",
         "maxPartySize": 4,
-        "maxEnemies": 1,
+        "maxEnemies": 2,
         "layout": {
           "kind": "spatial",
           "model": "grid",
@@ -273,6 +289,10 @@
             {
               "x": 1,
               "y": 0
+            },
+            {
+              "x": 1,
+              "y": 1
             }
           ],
           "terrain": [
@@ -367,7 +387,7 @@
   "rewards": [
     {
       "id": "watch-cache",
-      "xpPerMember": 25,
+      "xpPerMember": 1000,
       "eligible": "party",
       "loot": {
         "tableId": "common-relics",
@@ -376,13 +396,13 @@
     },
     {
       "id": "delivery-cache",
-      "xpPerMember": 50,
+      "xpPerMember": 1500,
       "eligible": "party",
       "loot": null
     },
     {
       "id": "dial-cache",
-      "xpPerMember": 0,
+      "xpPerMember": 250,
       "eligible": "party",
       "loot": {
         "tableId": "common-relics",

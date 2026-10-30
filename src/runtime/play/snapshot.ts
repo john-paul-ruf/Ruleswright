@@ -19,9 +19,10 @@ import { poolVocabulary } from '../pools';
 import { profileFromCharacter } from '../character-profile';
 import { spawnEncounter } from '../encounter';
 import { resolveSlotGrants } from '../combat/action-economy';
+import { frozenJsonCopy, markJsonClean } from '../../schema/json-memo';
 
 export function detached<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value)) as T;
+  return markJsonClean(JSON.parse(JSON.stringify(value)) as T);
 }
 export function same(a: unknown, b: unknown): boolean {
   if (a === b) return true;
@@ -56,7 +57,7 @@ export function freezeFight(
 }
 
 export function hydrateFight(pack: Pack, saved: PlaySessionSnapshot) {
-  const runtime = new Runtime(detached(pack));
+  const runtime = new Runtime(frozenJsonCopy(pack));
   const encounter = saved.encounter;
   const fight = deserializeCombat(runtime, encounter.combat, {
     ...encounter.start,
@@ -177,7 +178,7 @@ function validateEncounterFacts(pack: Pack, saved: PlaySessionSnapshot): void {
     'encounter.memberBindings',
     'Original character ids must be unique and combatant ids stable.',
   );
-  const runtime = new Runtime(detached(pack));
+  const runtime = new Runtime(frozenJsonCopy(pack));
   const pools = poolVocabulary(runtime);
   for (const [i, member] of e.entryMembers.entries())
     requireSnapshot(

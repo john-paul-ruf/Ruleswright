@@ -17,6 +17,15 @@ specifics, the engine interprets them.
 
 ## Quickstart
 
+Hosts can import `Rng` and the `Combat` constructor from `ruleswright/runtime`.
+Pass `new Rng(seed)` to `startCombat` for reproducible initiative and rolls.
+For a direct combat host with no pending reactions, save `fight.serialize()` and
+resume with `new Combat(runtime, savedState)`; the constructor resumes the saved
+random stream. Hosts using reaction offers should use `serializeCombat` and
+`deserializeCombat`, or the encounter/adventure session APIs, which also preserve
+pending offers and their counters. `Rng.getState()` and `new Rng(savedState)` provide
+the same portable random-stream persistence for host-owned procedural content.
+
 Every line below is copy-paste runnable and every step shows its expected output
 (NFR-DX; executed AND typechecked by `tests/proofs/docs-run.test.ts`).
 
@@ -44,6 +53,10 @@ Expected output:
 
 ### 02 — Build a character
 
+Starting ability scores are pack data (v1.8): each class may declare an `abilities`
+array (`content.classes.warden.abilities`), and a creation request may set any score
+explicitly (`abilities: { vigor: 4 }`). Abilities neither names start at 10.
+
 <!-- example: quickstart/character -->
 
 ```ts
@@ -61,11 +74,12 @@ console.log(brynn.derived());
 ```
 
 Expected output (stats resolve through the pack's own formulas — the engine
-never hardcodes hp/ac math; the descending-AC convention is the pack's, not
-the engine's):
+never hardcodes hp/ac math; the AC convention is the pack's, not the engine's.
+Brynn starts from the warden's declared ability array — might 3, grace 2, vigor 2,
+… — so hp is `6 + level + vigor * 2` = 11):
 
 ```
-{ hp: 27, ac: 12, saves: { vigor: 0, grace: 0, tenacity: 0, reason: 0, presence: 0 } }
+{ hp: 11, ac: 12, saves: { vigor: 0, grace: 0, tenacity: 0, reason: 0, presence: 0 } }
 ```
 
 ### 03 — Run a round of combat
@@ -107,11 +121,11 @@ if (attack === undefined)
 console.log(attack.why.rolls[0], attack.why.rule);
 ```
 
-Expected output (seed 42 — the wight wins initiative and its first attack misses
-Brynn's own pack-derived ac 12; the damage event still carries its provenance):
+Expected output (seed 42 — the wight wins initiative and its first attack, a 9
+plus its might 4, meets Brynn's own pack-derived ac 12):
 
 ```
-d20[9]=9 < ac12 actions.cut-down.attackBonus
+d20[9]+4=13 ≥ ac12 actions.cut-down.attackBonus
 ```
 
 ### 04 — Roll loot into the inventory
@@ -316,7 +330,7 @@ console.log(definition.id, definition.nodes.length, definition.contentHash);
 Expected output:
 
 ```text
-dark-fantasy 7 6823dd50
+dark-fantasy 8 bc266e2f
 ```
 
 The loader explicitly binds a copied recipe to the effective pack's
@@ -592,16 +606,21 @@ for (let steps = 0; steps < 1000; steps++) {
     } else if (active.side === 'enemies') {
       throw new Error('Director must yield only player decisions');
     } else {
+      // Strike an adjacent foe; with none in reach, pass — the director's foes close in.
+      const steps = (c: typeof active) =>
+        Math.max(Math.abs(c.position!.x - active.position!.x), Math.abs(c.position!.y - active.position!.y));
       const target = Object.values(combat.state.combatants).find(
-        (c) => c.side !== active.side && c.hp.current > 0,
-      )!;
-      action = {
-        ...nestedBase,
-        type: 'declare',
-        actor: actorFor(active.id),
-        actionId: active.actions[0]!,
-        options: { targetId: target.id },
-      };
+        (c) => c.side !== active.side && c.hp.current > 0 && steps(c) <= 1,
+      );
+      action = target
+        ? {
+            ...nestedBase,
+            type: 'declare',
+            actor: actorFor(active.id),
+            actionId: active.actions[0]!,
+            options: { targetId: target.id },
+          }
+        : { ...nestedBase, type: 'pass', actor: actorFor(active.id) };
     }
     command = { ...base, type: 'encounter', encounterId: nested.encounter.encounterId, command: action };
   } else {
@@ -685,7 +704,10 @@ Chebyshev, melee reach is measured in grid steps, and a per-id reach override
 uses the default. An out-of-reach declare is refused declaratively — one
 `declare:rejected` event, rule `E-SPAT-01`, no state change — and an action
 whose `valid` clause says `hasTarget(adjacent)` fails the same way when no
-combatant resolves for the shape. Burst spells (`target(burst-N, …)`) are declared like
+combatant resolves for the shape. A thrown or shot weapon declares `range` on its
+action (v1.8 — dark-fantasy's `hurl` has `"range": 4`, `long-shot` 6): the reach gate
+then allows `max(reach, range)`, so the hexer can hurl at a wight 4 steps away but
+not 5. Burst spells (`target(burst-N, …)`) are declared like
 actions — `fight.declare('ember-bloom', { targetId })` — and resolve
 every combatant within Chebyshev radius N of the _declared target_, on both
 sides, each taking its own save; a pool-based theme casts with no binding,
@@ -980,7 +1002,7 @@ zombie-urban pack (seed 42):
 ```json
 {
   "equipSlots": ["body", "main-hand"],
-  "formulas": { "ac": "11 - floor(level / 3) - gear-ac" },
+  "formulas": { "ac": "11 + floor(level / 3) + gear-ac" },
   "content": {
     "items": {
       "riot-plate": { "kind": "armor", "slots": ["body"], "grants": { "ac": 1, "armor": 1 } },
@@ -1001,7 +1023,7 @@ zombie-urban pack (seed 42):
   they are summed over equipped items and exposed to the pack's `formulas` as
   `gear-hp` / `gear-ac` / `gear-initiative` / `gear-armor` (0 when nothing is
   equipped). The formula decides the direction — all three bundled themes use
-  descending AC, so riot-plate moves ac 11 → 10. Equipping never heals and
+  ascending AC (attacks hit on `d20 + bonus ≥ ac`), so riot-plate moves ac 11 → 12. Equipping never heals and
   unequipping never clamps.
 - **armorCasting.** An item is armor when it grants `armor`. A slot (vancian)
   cast while wearing armor needs a class whose `armorCasting` lists the armor's
@@ -1031,17 +1053,17 @@ zombie-urban pack (seed 42):
 
 Expected output of the journey (zombie-urban, seed 42, a level-1 mile-born
 scavenger holding riot-plate, fire-axe and 3 med-kits). At level 1 `med-kit`
-heals 12: `ability(vigor)` reads the vigor ability, 10, not the same-named save
-(0 at level 1).
+heals 4: `ability(vigor)` reads the vigor ability, 2 (the scavenger's array), not
+the same-named save (0 at level 1).
 
 ```
-base                     hp 27 · ac 11 · might 10
-riot-plate + fire-axe    ac 10 · might 11 · maxHp 27
-useItem('med-kit')       item:used { remaining: 2 } → damage:applied { amount: -12, hp: '23→27' }
-                         why.rolls ['d0[]-12=-12'] · why.rule 'content.items.med-kit'
-fight.use('med-kit')     damage:applied { amount: -12, hp: '26→27' }   (clamped at maxHp 27)
-snapshot → restore       itemsUsed { 'med-kit': 1 } · maxHp 27
-second use / third use   hp '27→27' / declare:rejected { kind: 'no-charges' }
+base                     hp 11 · ac 11 · might 3
+riot-plate + fire-axe    ac 12 · might 4 · maxHp 11
+useItem('med-kit')       item:used { remaining: 2 } → damage:applied { amount: -4, hp: '7→11' }
+                         why.rolls ['d0[]-4=-4'] · why.rule 'content.items.med-kit'
+fight.use('med-kit')     damage:applied { amount: -4, hp: '10→11' }   (clamped at maxHp 11)
+snapshot → restore       itemsUsed { 'med-kit': 1 } · maxHp 11
+second use / third use   hp '11→11' / declare:rejected { kind: 'no-charges' }
 settleItemUses           item:dropped + item:settled { qty: 2 } → med-kit gone (3 − 1 − 2)
 ```
 

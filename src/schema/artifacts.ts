@@ -35,6 +35,8 @@ export interface ActionDef {
   effect: DslString;
   /** v1.1 — coarse categories for condition restricts matching (FR-7). */
   tags?: KebabId[];
+  /** v1.8 — max targeting distance for thrown/shot weapons; the reach gate allows max(reach, range). */
+  range?: number;
 }
 
 /** $defs/content/properties/spells/additionalProperties/properties/magic */
@@ -84,6 +86,8 @@ export interface ClassDef {
    * available from class level 1.
    */
   actions?: KebabId[];
+  /** v1.8 — starting ability scores for a character whose first class is this one (default 10 each). */
+  abilities?: Record<string, number>;
 }
 
 /** $defs/content/properties/races/additionalProperties */

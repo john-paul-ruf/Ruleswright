@@ -50,22 +50,24 @@
     },
     "shambler-claw": {
       "cost": { "slots": { "main": 1 } },
-      "effect": "sequence(attack(ac, 0), damage(1d6, grave-touch))",
+      "effect": "sequence(attack(ac, might), damage(1d6 + might, grave-touch))",
       "tags": ["main"]
     },
     "slab-swipe": {
       "cost": { "slots": { "main": 1 } },
-      "effect": "sequence(attack(ac, 0), damage(1d8, bludgeon))",
+      "effect": "sequence(attack(ac, might), damage(1d8 + might, bludgeon))",
       "tags": ["main"]
     },
     "pistol-shot": {
       "cost": { "slots": { "main": 1 }, "points": { "pool": "adrenaline", "amount": 1 } },
-      "effect": "sequence(attack(ac, 0), damage(2d6, pierce))",
+      "effect": "sequence(attack(ac, grace), damage(2d6, pierce))",
+      "range": 8,
       "tags": ["main"]
     },
     "crossbow-bolt": {
       "cost": { "slots": { "main": 1 } },
-      "effect": "sequence(attack(ac, 0), damage(1d8, pierce))",
+      "effect": "sequence(attack(ac, grace), damage(1d8 + grace, pierce))",
+      "range": 6,
       "tags": ["main"]
     },
     "fall-back": {
@@ -121,7 +123,7 @@
   },
   "formulas": {
     "hp": { "expr": "6 + level + vigor * 2 + gear-hp" },
-    "ac": { "expr": "11 - floor(level / 3) - gear-ac" },
+    "ac": { "expr": "11 + floor(level / 3) + gear-ac" },
     "initiative": { "expr": "d20 + grace + gear-initiative" },
     "adrenaline": { "expr": "8 + vigor" },
     "stamina": { "expr": "8 + vigor" },
@@ -131,11 +133,13 @@
     "classes": {
       "scavenger": {
         "name": "Scavenger",
+        "abilities": { "might": 3, "grace": 2, "vigor": 2, "reason": 0, "insight": 0, "presence": 1 },
         "spellLists": [],
         "actions": ["baton-blow", "crossbow-bolt", "fall-back", "dodge-roll", "hustle", "cheap-shot"]
       },
       "fixer": {
         "name": "Fixer",
+        "abilities": { "might": 1, "grace": 3, "vigor": 2, "reason": 2, "insight": 1, "presence": 0 },
         "spellLists": ["fixer"],
         "actions": [
           "baton-blow",
@@ -149,6 +153,7 @@
       },
       "medic": {
         "name": "Medic",
+        "abilities": { "might": 0, "grace": 1, "vigor": 2, "reason": 2, "insight": 3, "presence": 1 },
         "spellLists": ["medic"],
         "actions": ["baton-blow", "fall-back", "dodge-roll", "hustle", "cheap-shot"]
       }
